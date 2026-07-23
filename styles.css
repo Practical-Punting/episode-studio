@@ -4,6 +4,9 @@
   --font:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;
 }
 *{box-sizing:border-box}
+/* The [hidden] attribute must beat class rules that set display (e.g. .login{display:grid},
+   .who{display:flex}); without this, hiding via el.hidden=true has no effect. */
+[hidden]{display:none !important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5}
 h1{font-size:1.5rem;margin:0}
 .muted{color:var(--muted);font-size:.9rem}

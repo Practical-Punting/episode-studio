@@ -28,7 +28,16 @@ const $ = (id) => document.getElementById(id);
 // --- routing between login and board --------------------------------------
 async function render() {
   const { data: { session } } = await db.auth.getSession();
-  if (session) showBoard(session); else showLogin();
+  if (session) {
+    // Magic-link tokens arrive in the URL hash; supabase-js consumes them on load,
+    // so once we have a session we tidy the leftover "#..." out of the address bar.
+    if (window.location.hash) {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    showBoard(session);
+  } else {
+    showLogin();
+  }
 }
 
 function showLogin() {
