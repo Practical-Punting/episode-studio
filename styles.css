@@ -35,6 +35,14 @@ button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line
 .pulse{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(62,165,107,.6);animation:pulse 2s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,165,107,.6)}70%{box-shadow:0 0 0 8px rgba(62,165,107,0)}100%{box-shadow:0 0 0 0 rgba(62,165,107,0)}}
 
+.start-form{margin-bottom:18px}
+.start-form h2{font-size:1rem;margin:0 0 10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.start-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.start-row input{flex:1 1 200px;min-width:160px;padding:.6rem .7rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+.start-row #start-title{flex:0 1 220px}
+.start-row .primary{white-space:nowrap}
+#start-msg{margin:10px 0 0}
+
 .cards{display:grid;gap:16px}
 .ep{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
 .ep-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}

@@ -72,6 +72,45 @@ $("login-form").addEventListener("submit", async (e) => {
 
 $("logout").addEventListener("click", async () => { await db.auth.signOut(); });
 
+// --- start a new episode: create a queued ticket -------------------------
+// Stage 1b: "Start" only creates the queued row. The orchestrator/auto-pickup
+// that actually builds it comes later.
+$("start-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("start-url").value.trim();
+  const title = $("start-title").value.trim();
+  const msg = $("start-msg");
+  if (!url) { msg.textContent = "Please enter an article URL."; return; }
+  msg.textContent = "Creating…";
+
+  // who's logged in (created_by)
+  const { data: { session } } = await db.auth.getSession();
+  const email = session?.user?.email || null;
+
+  // ep_number = max(ep_number) + 1
+  const { data: maxRows, error: maxErr } = await db
+    .from("episodes")
+    .select("ep_number")
+    .order("ep_number", { ascending: false, nullsFirst: false })
+    .limit(1);
+  if (maxErr) { msg.textContent = "Error: " + maxErr.message; return; }
+  const nextNum = ((maxRows && maxRows[0] && maxRows[0].ep_number) || 0) + 1;
+
+  const { error } = await db.from("episodes").insert({
+    source_url: url,
+    title: title,            // may be empty; the card shows "Untitled" until set
+    status: "queued",
+    ep_number: nextNum,
+    created_by: email,
+  });
+  if (error) { msg.textContent = "Error: " + error.message; return; }
+
+  msg.textContent = `Queued PP-EP${nextNum} — it'll appear on the board.`;
+  $("start-url").value = "";
+  $("start-title").value = "";
+  loadCards();               // immediate; realtime will also refresh for everyone
+});
+
 // --- the board -------------------------------------------------------------
 async function loadCards() {
   const cards = $("cards");

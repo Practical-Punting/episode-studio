@@ -33,6 +33,17 @@
     <h1>Episodes</h1>
     <span class="live"><span class="pulse"></span> live</span>
   </div>
+
+  <form id="start-form" class="card start-form">
+    <h2>Start a new episode</h2>
+    <div class="start-row">
+      <input id="start-url" type="url" placeholder="Article URL (https://…)" required autocomplete="off">
+      <input id="start-title" type="text" placeholder="Title (optional)" autocomplete="off">
+      <button type="submit" class="primary">Start episode</button>
+    </div>
+    <p id="start-msg" class="muted" role="status" aria-live="polite"></p>
+  </form>
+
   <div id="cards" class="cards"><p class="muted">Loading…</p></div>
 </main>
 
