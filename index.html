@@ -3,200 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Practical Punting — Episode Studio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --orange:#DA532C; --orange-d:#c0421d; --charcoal:#1F1F1F; --ink:#2b2b2b;
-    --muted:#8a857e; --line:#ececec; --bg:#f5f3f0; --card:#ffffff;
-    --work:#2f6fb0; --done:#1c7a44;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Barlow',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;padding:34px 22px 70px;}
-  .wrap{max-width:1160px;margin:0 auto;}
-  .head{display:flex;align-items:center;gap:16px;margin-bottom:6px;}
-  .badge{width:54px;height:54px;border-radius:12px;object-fit:cover;flex:0 0 auto;box-shadow:0 6px 18px rgba(218,83,44,.25);display:block;}
-  .badge svg{width:32px;height:32px;fill:#fff}
-  .eyebrow{font-size:13px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
-  h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.05;margin:2px 0 0;color:var(--charcoal);letter-spacing:.5px;}
-  .statusbar{display:flex;align-items:center;gap:16px;margin:6px 0 24px 70px;font-size:13px;color:var(--muted);font-weight:600;flex-wrap:wrap;}
-  .live{display:flex;align-items:center;gap:7px}
-  .livedot{width:9px;height:9px;border-radius:50%;background:var(--done);animation:blink 2s infinite}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-  .refresh{font-family:inherit;font-weight:700;font-size:12.5px;background:#fff;color:var(--ink);border:2px solid #e2ddd7;border-radius:9px;padding:7px 13px;cursor:pointer;}
-  .refresh:hover{background:#f6f4f1;}
-  .panel{background:var(--card);border-radius:18px;padding:22px 24px;box-shadow:0 2px 12px rgba(0,0,0,.05);margin-bottom:26px;}
-  .panel h2{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
-  .urlrow{display:flex;gap:12px;}
-  .urlrow input{flex:1 1 auto;font-family:inherit;font-size:16px;padding:15px 18px;border:2px solid #e6e2dd;border-radius:12px;color:var(--ink);background:#faf9f7;outline:none;}
-  .urlrow input:focus{border-color:var(--orange);background:#fff;}
-  .btn{font-family:inherit;font-size:16px;font-weight:800;border:none;cursor:pointer;padding:15px 22px;border-radius:12px;background:var(--orange);color:#fff;white-space:nowrap;box-shadow:0 6px 16px rgba(218,83,44,.28);transition:background .15s;}
-  .btn:hover{background:var(--orange-d);}
-  .btn:disabled{opacity:.55;cursor:default;box-shadow:none;}
-  .hint{margin:13px 2px 0;font-size:13.5px;color:var(--muted);line-height:1.5;}
-  .hint b{color:var(--ink);font-weight:700}
-  .toast{margin-top:12px;font-size:14px;font-weight:700;padding:11px 14px;border-radius:10px;display:none;}
-  .toast.ok{display:block;background:#dcf1e4;color:#1c7a44;}
-  .toast.err{display:block;background:#fbe3db;color:#b5482c;}
-  .count{font-family:'Anton',sans-serif;font-size:20px;color:var(--charcoal);margin-bottom:16px;}
-  .count span{color:var(--orange)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:22px;}
-  .card{background:var(--card);border-radius:18px;padding:22px 24px;box-shadow:0 2px 12px rgba(0,0,0,.05);}
-  .card .toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:4px;}
-  .card h3{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;line-height:1.08;letter-spacing:.4px;color:var(--charcoal);text-transform:uppercase;}
-  .pill{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 11px;border-radius:20px;white-space:nowrap;flex:0 0 auto;}
-  .pill.need{color:#fff;background:var(--orange);}
-  .pill.work{color:#fff;background:var(--work);}
-  .pill.wait{color:var(--muted);background:#efece7;}
-  .pill.ok{color:#fff;background:var(--done);}
-  .heygen{font-size:12.5px;color:var(--muted);font-style:italic;margin:0 0 14px;}
-  .bar{height:11px;border-radius:20px;background:#eee;overflow:hidden;margin:4px 0 8px;}
-  .bar>i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#e9663c,var(--orange));transition:width .6s ease;}
-  .stage{font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:16px;}
-  .meta{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:15px;}
-  .lbl{font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#b3aca3;display:block;margin-bottom:2px;}
-  .val{font-size:13px;color:var(--ink);}
-  .val a{color:var(--work);text-decoration:none;word-break:break-all;}
-  .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;}
-  .links a{font-size:12px;font-weight:700;text-decoration:none;color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:6px 11px;}
-  .links a:hover{background:var(--orange);color:#fff;}
-  .empty,.error{background:#fff;border:2px dashed #dcd6cf;border-radius:16px;padding:44px;text-align:center;color:#b7b0a8;font-weight:600;}
-  .error{border-color:#e6b8aa;color:#b5482c;}
-  footer{margin:34px 0 0;font-size:12.5px;color:#b3aca3;}
-  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;}
-  .legend span{display:flex;align-items:center;gap:6px;font-weight:600;}
-  .chip{width:11px;height:11px;border-radius:3px;display:inline-block;}
-</style>
+<title>PP Episode Studio</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="wrap">
-  <div class="head">
-    <img class="badge" src="data:image/png;base64,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" alt="Practical Punting">
-    <div><div class="eyebrow">Practical Punting</div><h1>Episode Studio</h1></div>
+
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> Practical Punting · Episode Studio</div>
+  <div class="who" id="whobar" hidden>
+    <span id="who"></span>
+    <button id="logout" class="ghost">Log out</button>
   </div>
-  <div class="statusbar">
-    <span class="live"><span class="livedot"></span> Live &middot; connected to your database</span>
-    <span id="updated">&mdash;</span>
-    <button class="refresh" onclick="load()">Refresh</button>
+</header>
+
+<!-- LOGIN -->
+<main id="login" class="login" hidden>
+  <form id="login-form" class="card login-card">
+    <h1>Sign in</h1>
+    <p class="muted">Enter your email and we'll send you a one-tap login link.</p>
+    <input id="email" type="email" placeholder="you@example.com" required autocomplete="email">
+    <button type="submit" class="primary">Send login link</button>
+    <p id="login-msg" class="muted" role="status" aria-live="polite"></p>
+  </form>
+</main>
+
+<!-- BOARD -->
+<main id="board" class="board" hidden>
+  <div class="board-head">
+    <h1>Episodes</h1>
+    <span class="live"><span class="pulse"></span> live</span>
   </div>
+  <div id="cards" class="cards"><p class="muted">Loading…</p></div>
+</main>
 
-  <div class="panel">
-    <h2>Start a new episode</h2>
-    <div class="urlrow">
-      <input id="urlin" type="text" placeholder="Paste a Practical Punting article link..." aria-label="Article URL">
-      <button class="btn" id="startbtn" onclick="startEpisode()">Build episode &rarr;</button>
-    </div>
-    <p class="hint">Drops a new ticket on your rail. <b>Claude</b> writes the script &amp; content; the build engine picks it up. <i>(Engine wiring is coming next &mdash; new tickets sit at &ldquo;Queued&rdquo; for now.)</i></p>
-    <div id="toast" class="toast"></div>
-  </div>
-
-  <div class="count" id="count">Loading&hellip;</div>
-  <div class="grid" id="grid"></div>
-
-  <footer>
-    Live board &middot; reads &amp; writes your Supabase rail &middot; approval buttons come next.
-    <div class="legend">
-      <span><span class="chip" style="background:#efece7"></span> Waiting</span>
-      <span><span class="chip" style="background:#2f6fb0"></span> Engine working</span>
-      <span><span class="chip" style="background:#DA532C"></span> Your turn</span>
-      <span><span class="chip" style="background:#1c7a44"></span> Done</span>
-    </div>
-  </footer>
-</div>
-
-<script>
-  var SUPABASE_URL='https://ydqzdzpyemrqttiyhpwp.supabase.co';
-  var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkcXpkenB5ZW1ycXR0aXlocHdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDI3NjQsImV4cCI6MjEwMDMxODc2NH0.S1fyuA3lSgx_vCZgb5g8JcCvnqXiytUoy1C3WrXPjoY';
-
-  var STATUS={
-    queued:{label:'Queued',cls:'wait',pct:5},
-    building:{label:'Building...',cls:'work',pct:30},
-    awaiting_render:{label:'Your turn - HeyGen render',cls:'need',pct:45},
-    rendering:{label:'Rendering...',cls:'work',pct:55},
-    awaiting_cover:{label:'Your turn - pick cover',cls:'need',pct:62},
-    assembling:{label:'Assembling video...',cls:'work',pct:78},
-    revising:{label:'Revising...',cls:'work',pct:85},
-    awaiting_approval:{label:'Your turn - approve',cls:'need',pct:92},
-    ready:{label:'Ready',cls:'ok',pct:100},
-    published:{label:'Published',cls:'ok',pct:100}
-  };
-
-  function esc(s){ if(s==null) return ''; return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function fmtDate(s){ if(!s) return ''; var d=new Date(s); return d.toLocaleString('en-AU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
-
-  function slugToTitle(url){
-    try{
-      var p=url.split('?')[0].split('#')[0].replace(/\/+$/,'').split('/');
-      var seg=p[p.length-1]||'';
-      seg=seg.replace(/-\d{4,}$/,'').replace(/\.[a-z]+$/i,'');
-      if(!seg) return 'New episode';
-      var words=seg.split('-').filter(Boolean).map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); });
-      return words.join(' ')||'New episode';
-    }catch(e){ return 'New episode'; }
-  }
-
-  function showToast(msg,ok){
-    var t=document.getElementById('toast');
-    t.textContent=msg; t.className='toast '+(ok?'ok':'err');
-    if(ok) setTimeout(function(){ t.className='toast'; },4000);
-  }
-
-  function render(rows){
-    var grid=document.getElementById('grid'), count=document.getElementById('count');
-    if(!rows.length){ count.textContent=''; grid.innerHTML='<div class="empty">No episodes on the rail yet. Paste an article link above to start one.</div>'; return; }
-    count.innerHTML='<span>'+rows.length+'</span> '+(rows.length===1?'episode on the rail':'episodes on the rail');
-    var out='';
-    for(var i=0;i<rows.length;i++){
-      var ep=rows[i];
-      var st=STATUS[ep.status]||{label:ep.status||'-',cls:'wait',pct:10};
-      var links='';
-      if(ep.video_url) links+='<a href="'+esc(ep.video_url)+'" target="_blank">Video</a>';
-      if(ep.ebook_url) links+='<a href="'+esc(ep.ebook_url)+'" target="_blank">E-book</a>';
-      if(ep.thumbnail_url) links+='<a href="'+esc(ep.thumbnail_url)+'" target="_blank">Thumbnail</a>';
-      out+='<div class="card">';
-      out+='<div class="toprow"><h3>'+(esc(ep.title)||'Untitled')+'</h3><span class="pill '+st.cls+'">'+esc(st.label)+'</span></div>';
-      out+= ep.heygen_name ? '<p class="heygen">'+esc(ep.heygen_name)+'</p>' : '<div style="height:6px"></div>';
-      out+='<div class="bar"><i style="width:'+st.pct+'%"></i></div>';
-      out+='<div class="stage">'+esc(st.label)+'</div>';
-      out+='<div class="meta"><div><span class="lbl">Created</span><span class="val">'+esc(fmtDate(ep.created_at))+'</span></div>';
-      if(ep.source_url) out+='<div><span class="lbl">Source article</span><span class="val"><a href="'+esc(ep.source_url)+'" target="_blank">'+esc(ep.source_url)+'</a></span></div>';
-      if(links) out+='<div><span class="lbl">Deliverables</span><div class="links">'+links+'</div></div>';
-      out+='</div></div>';
-    }
-    grid.innerHTML=out;
-  }
-
-  function load(){
-    var count=document.getElementById('count');
-    fetch(SUPABASE_URL+'/rest/v1/episodes?select=*&order=created_at.desc',{ headers:{ apikey:ANON, Authorization:'Bearer '+ANON } })
-    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(data){ render(data); document.getElementById('updated').textContent='Updated '+new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); })
-    .catch(function(e){ count.textContent=''; document.getElementById('grid').innerHTML='<div class="error">Could not reach the database.<br><small>'+esc(e.message)+'</small></div>'; });
-  }
-
-  function startEpisode(){
-    var inp=document.getElementById('urlin'), btn=document.getElementById('startbtn');
-    var url=(inp.value||'').trim();
-    if(!url){ showToast('Paste an article link first.',false); return; }
-    if(url.indexOf('http')!==0) url='https://'+url;
-    var title=slugToTitle(url);
-    btn.disabled=true; btn.textContent='Adding...';
-    fetch(SUPABASE_URL+'/rest/v1/episodes',{
-      method:'POST',
-      headers:{ apikey:ANON, Authorization:'Bearer '+ANON, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body:JSON.stringify({ title:title, source_url:url, status:'queued', created_by:'studio' })
-    })
-    .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+' '+t); });
-      inp.value=''; showToast('Added "'+title+'" to the rail.',true); load(); })
-    .catch(function(e){ showToast('Could not add it: '+e.message,false); })
-    .then(function(){ btn.disabled=false; btn.innerHTML='Build episode &rarr;'; });
-  }
-
-  document.getElementById('urlin').addEventListener('keydown',function(e){ if(e.key==='Enter') startEpisode(); });
-  load();
-  setInterval(load,8000);
-</script>
+<!-- supabase-js v2 (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
 </body>
 </html>
