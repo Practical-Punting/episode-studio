@@ -1,21 +1,32 @@
 """providers.py — the engine's external hands: real services vs mock.
 
-The orchestrator (engine.py) never talks to Higgsfield/HeyGen/ffmpeg directly;
-it calls a Provider. MockProvider simulates everything (no credits, no network)
-so the claim/lease/resume/never-freeze spine can be exercised safely — the
-Phase 2a acceptance runs entirely on it. RealProvider wires the steps to the
-actual toolchain where that's scriptable today, and is HONEST about the parts
-that aren't wired yet (it flags them for a human rather than pretending).
+The orchestrator (engine.py) never talks to tools directly; it calls a Provider.
+
+MockProvider simulates everything (no credits, no network) — the 2a spine
+acceptance ran on it. RealProvider drives the ACTUAL local toolchain (the
+pp-episode-production skill's scripts: Chromium card renders, ffmpeg passes,
+WeasyPrint e-book, QC) and is HONEST about the two things that can't run
+autonomously yet: Higgsfield generation/balance (MCP, Claude-session-only) and
+the HeyGen render itself (a sacred human step — the engine only downloads).
+
+Spend policy (verify-before-spend): a staged asset is NEVER regenerated. The
+credit estimate counts only what's actually missing.
 
 Fault injection (mock only), via environment variables:
     MOCK_FAIL_STEP=<step>   that step fails EVERY attempt (shows needs_look)
     MOCK_FAIL_ONCE=<step>   that step fails its FIRST attempt (shows retry)
     MOCK_BALANCE=<n>        pretend Higgsfield balance (default 100)
     MOCK_STEP_SECS=<n>      how long each mock action takes (default 1.5)
+    MOCK_BROLL_CLIPS=<n>    clips in the mock plan (default 3)
 """
 from __future__ import annotations
+import json
 import os
+import shutil
+import subprocess
+import sys
 import time
+import urllib.request
 import uuid
 from pathlib import Path
 
@@ -25,7 +36,13 @@ class EngineFlag(Exception):
     message (plain English!) and does not retry — it isn't transient."""
 
 
-# --------------------------------------------------------------------------
+def ep_folder(ep) -> str:
+    """Working folder name for an episode (bare stem until the Stage-8 rename)."""
+    nn = ep.get("ep_number")
+    return f"PP-EP{int(nn):02d}" if nn is not None else f"PP-EP-{ep['id'][:8]}"
+
+
+# ==========================================================================
 class MockProvider:
     """Pretend externals. Artifacts are small text files under .mock/ so every
     step has a real, checkable output path — same shape as a real run."""
@@ -39,7 +56,6 @@ class MockProvider:
         self._fail_once = os.environ.get("MOCK_FAIL_ONCE", "")
         self._failed_once: set[str] = set()
 
-    # -- fault injection ----------------------------------------------------
     def maybe_fail(self, step: str):
         if self._fail_always == step:
             raise RuntimeError(f"injected failure in {step} (MOCK_FAIL_STEP)")
@@ -47,7 +63,6 @@ class MockProvider:
             self._failed_once.add(step)
             raise RuntimeError(f"injected one-off failure in {step} (MOCK_FAIL_ONCE)")
 
-    # -- helpers -------------------------------------------------------------
     def _artifact(self, folder: str, rel: str, note: str) -> str:
         p = self.root / folder / rel
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -57,11 +72,18 @@ class MockProvider:
     def _work(self):
         time.sleep(self.step_secs)
 
-    # -- credits -------------------------------------------------------------
+    # -- plan / credits ------------------------------------------------------
+    def broll_plan(self, ep) -> list[str]:
+        n = int(os.environ.get("MOCK_BROLL_CLIPS", "3"))
+        return [f"broll-{i:02d}" for i in range(1, n + 1)]
+
+    def broll_staged(self, ep, clip: str) -> bool:
+        return False                       # mock always "generates"
+
     def balance(self) -> float:
         return float(os.environ.get("MOCK_BALANCE", "100"))
 
-    # -- inputs --------------------------------------------------------------
+    # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
         self.maybe_fail("audit_inputs")
         self._work()
@@ -73,22 +95,18 @@ class MockProvider:
         self._artifact(folder, "docs/spoken-words.txt", "script")
         return {"folder": folder}
 
-    # -- b-roll (the SPEND steps) --------------------------------------------
     def submit_broll(self, ep, clip: str) -> str:
         self.maybe_fail("broll_submit")
         self._work()
         return f"mock-hf-{clip}-{uuid.uuid4().hex[:8]}"
 
-    def poll_broll(self, ep, clip: str, job_id: str, polls_so_far: int) -> str | None:
-        """Returns the downloaded file path when done, None while still cooking.
-        Mock: done on the second poll."""
+    def poll_broll(self, ep, clip, job_id, polls_so_far):
         self.maybe_fail("broll_collect")
         self._work()
         if polls_so_far < 1:
             return None
         return self._artifact(ep_folder(ep), f"broll/{clip}.mp4", f"job {job_id}")
 
-    # -- local renders -------------------------------------------------------
     def render_ebook_cover(self, ep) -> str:
         self.maybe_fail("ebook_cover")
         self._work()
@@ -103,10 +121,7 @@ class MockProvider:
         return [self._artifact(f, f"overlay/clips/card-{i:02d}.mp4", "card clip")
                 for i in range(1, 4)]
 
-    # -- HeyGen --------------------------------------------------------------
-    def poll_heygen(self, ep, polls_so_far: int) -> str | None:
-        """Poll by PROJECT NAME; path to the downloaded 189k master when done.
-        Mock: done on the second poll."""
+    def poll_heygen(self, ep, polls_so_far):
         self.maybe_fail("heygen_download")
         self._work()
         if polls_so_far < 1:
@@ -119,14 +134,13 @@ class MockProvider:
         self._work()
         return self._artifact(ep_folder(ep), "renders/shot-map.json", "shot map + SRT")
 
-    def make_covers_ab(self, ep) -> tuple[str, str]:
+    def make_covers_ab(self, ep):
         self.maybe_fail("covers_ab")
         self._work()
         f = ep_folder(ep)
         return (self._artifact(f, "thumbnail/cover-A.png", "cover option A"),
                 self._artifact(f, "thumbnail/cover-B.png", "cover option B"))
 
-    # -- assembly ------------------------------------------------------------
     def assemble_passA(self, ep) -> str:
         self.maybe_fail("assemble_passA")
         self._work()
@@ -137,7 +151,7 @@ class MockProvider:
         self._work()
         return self._artifact(ep_folder(ep), "output/FINAL.mp4", "pass B final")
 
-    def self_qc(self, ep, final_path: str) -> str:
+    def self_qc(self, ep, final_path) -> str:
         self.maybe_fail("self_qc")
         self._work()
         return self._artifact(ep_folder(ep), "output/QC-REPORT.md", "self-QC passed")
@@ -158,74 +172,306 @@ class MockProvider:
         return self._artifact(ep_folder(ep), "output/youtube.txt", "YT title + description")
 
 
-# --------------------------------------------------------------------------
+# ==========================================================================
 class RealProvider:
-    """The real toolchain. Wired where today's scripts allow; HONEST flags where
-    Phase 2a hasn't wired a step yet (principle: flag what you can't do well).
-
-    NOTE (for the design doc): b-roll generation currently runs through the
-    Higgsfield MCP inside a Claude session — there is no standalone API/key in
-    .env — so autonomous generation from this engine isn't wired yet. The step
-    checks for STAGED clips and flags if they're missing.
-    """
+    """The real toolchain, driven exactly as the pp-episode-production skill
+    documents it. Steps find-or-build: an artifact already on disk is used, not
+    rebuilt (resumability + no re-spend). What can't run autonomously FLAGS."""
 
     name = "real"
+    PASS_TIMEOUT = 2400          # ffmpeg passes / card batches can take a while
 
     def __init__(self, pp_videos: Path):
         self.pp = pp_videos
+        self.scripts = pp_videos / ".claude/skills/pp-episode-production/scripts"
+        self.assets = pp_videos / ".claude/skills/pp-episode-production/assets"
+        self.logo = self.assets / "video-logo-chip.png"
+        self.music = pp_videos / "PP-EP01-The-Trifecta-Mistake/music" / \
+            "ES_Sleeves Full of Aces - Alexandra Woodward.mp3"
+        # let the skill's pp_paths put ffmpeg/ffprobe on PATH for our subprocesses
+        sys.path.insert(0, str(self.scripts))
+        try:
+            import pp_paths
+            pp_paths.ensure_path()
+        except Exception:
+            pass                                     # PATH may already be fine
+
+    # -- plumbing ------------------------------------------------------------
+    def dir(self, ep) -> Path:
+        return self.pp / ep_folder(ep)
+
+    def epjson(self, ep) -> dict:
+        return json.loads((self.dir(ep) / "docs/episode.json").read_text(encoding="utf-8"))
+
+    def run(self, args, cwd, timeout=None, tail=800):
+        """Run a tool; on failure raise with the stderr tail (goes into the
+        plain-English flag if retries exhaust)."""
+        r = subprocess.run([str(a) for a in args], cwd=str(cwd), capture_output=True,
+                           text=True, timeout=timeout or self.PASS_TIMEOUT)
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "").strip()[-tail:]
+            raise RuntimeError(f"{Path(str(args[0])).name if not str(args[0]).endswith('py') else Path(str(args[1])).name} "
+                               f"exited {r.returncode}: …{err}")
+        return r
+
+    def py(self, script, *args, cwd, timeout=None):
+        return self.run([sys.executable, self.scripts / script, *args],
+                        cwd=cwd, timeout=timeout)
+
+    def _clip(self, ep, cid: str) -> Path:
+        """Map an episode.json card id (C1, TITLE, END, WARRANTY) to its
+        rendered clip in overlay/clips/ (files carry descriptive names)."""
+        clips = self.dir(ep) / "overlay/clips"
+        exact = clips / f"{cid}.mp4"
+        if exact.is_file():
+            return exact
+        pats = {"TITLE": "*title*.mp4", "END": "end-card*.mp4", "WARRANTY": "warranty*.mp4"}
+        pat = pats.get(cid) or f"*c{int(cid[1:]):02d}*.mp4"   # C7 -> *c07*.mp4
+        hits = [p for p in sorted(clips.glob(pat)) if "lowerthird" not in p.name]
+        if len(hits) != 1:
+            raise RuntimeError(f"card {cid}: expected exactly one clip matching "
+                               f"{pat} in overlay/clips, found {len(hits)}")
+        return hits[0]
+
+    def _audio_kbps(self, path: Path) -> float:
+        r = self.run(["ffprobe", "-v", "error", "-select_streams", "a:0",
+                      "-show_entries", "stream=bit_rate", "-of", "csv=p=0", path],
+                     cwd=path.parent, timeout=60)
+        try:
+            return float(r.stdout.strip()) / 1000.0
+        except ValueError:
+            return 0.0
+
+    # -- plan / credits ------------------------------------------------------
+    def broll_plan(self, ep) -> list[str]:
+        return [b["target"] for b in self.epjson(ep).get("broll", [])]
+
+    def broll_staged(self, ep, clip: str) -> bool:
+        return (self.dir(ep) / "broll" / f"{clip}.mp4").is_file()
 
     def balance(self) -> float:
-        # Higgsfield balance isn't reachable outside an MCP session (yet).
-        # The credit guard therefore relies on the configured ceiling; a real
-        # balance probe is an open item for 2a-real.
         raise EngineFlag(
             "I can't check the Higgsfield balance from the engine yet (it's only "
             "reachable in a Claude session). Confirm there are enough credits, then "
             "clear this flag to continue.")
 
+    # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
-        folder = self.pp / ep_folder(ep)
-        missing = [str(rel) for rel in ("docs/episode.json", "docs/spoken-words.txt")
-                   if not (folder / rel).is_file()]
+        d = self.dir(ep)
+        missing = [rel for rel in ("docs/episode.json", "docs/spoken-words.txt")
+                   if not (d / rel).is_file()]
         if missing:
             raise EngineFlag(
-                f"Create-inputs are missing for {folder.name}: {', '.join(missing)}. "
-                "Cowork writes these (Phase 4 moves them here). Stage them, then clear this flag.")
-        return {"folder": str(folder)}
+                f"Create-inputs are missing for {d.name}: {', '.join(missing)}. "
+                "Cowork writes these (the create brain is Phase 4). Stage them, "
+                "then clear this flag.")
+        for sub in ("renders", "overlay/export", "overlay/clips", "broll",
+                    "ebook", "thumbnail", "output"):
+            (d / sub).mkdir(parents=True, exist_ok=True)
+        return {"folder": str(d)}
 
-    def submit_broll(self, ep, clip):
+    def submit_broll(self, ep, clip: str) -> str:
+        if self.broll_staged(ep, clip):
+            return f"staged-{clip}"        # already on disk — nothing to spend
         raise EngineFlag(
-            "Autonomous b-roll generation isn't wired yet (Higgsfield runs via MCP "
-            "in a Claude session). Generate/stage the clips into broll/, then clear this flag.")
+            f"B-roll clip '{clip}' isn't on disk and I can't generate it "
+            "autonomously yet (Higgsfield runs via MCP in a Claude session — no "
+            "standalone key). Generate/stage it into broll/, then clear this flag.")
 
     def poll_broll(self, ep, clip, job_id, polls_so_far):
-        p = self.pp / ep_folder(ep) / "broll" / f"{clip}.mp4"
-        return str(p) if p.is_file() else None
+        p = self.dir(ep) / "broll" / f"{clip}.mp4"
+        if p.is_file():
+            return str(p)
+        if polls_so_far > 3:               # staged file vanished — don't spin
+            raise RuntimeError(f"b-roll clip {clip} is missing from broll/")
+        return None
 
-    # The remaining real steps shell out to the standing toolkit
-    # (render_cards_batch.py, build_shot_map.py, assemble_episode.py,
-    # qc_episode.py, build_ebook.py, render_still.py) exactly as documented in
-    # the pp-episode-production skill. Wiring + a real-episode shakedown is the
-    # 2a-real follow-up; in 2a they flag honestly instead of guessing.
-    def _not_wired(self, what):
-        raise EngineFlag(f"{what} isn't wired into the engine yet (2a built the spine "
-                         "on mock; real wiring is the next step). Run it via the skill, "
-                         "then clear this flag.")
+    def render_ebook_cover(self, ep) -> str:
+        """Re-render from cover-src (never trust a handed PNG), then propagate
+        to BOTH ebook/cover.png and overlay/export/ebook-cover.png — the cover
+        must land before the card batch or the end card renders blank."""
+        d = self.dir(ep)
+        src = d / "ebook/cover-src/cover.html"
+        cover = d / "ebook/cover.png"
+        if src.is_file():
+            w, h = 1600, 2263                       # A4-ish cover canvas
+            ref = d / "ebook/cover-src/cover.png"
+            if ref.is_file():                       # mirror the approved dims
+                r = self.run(["ffprobe", "-v", "error", "-show_entries",
+                              "stream=width,height", "-of", "csv=p=0", ref],
+                             cwd=d, timeout=60)
+                w, h = (int(x) for x in r.stdout.strip().split(",")[:2])
+            self.py("render_still.py", src, cover, w, h, cwd=d)
+        elif not cover.is_file():
+            raise EngineFlag(
+                f"No e-book cover for {d.name}: neither ebook/cover-src/cover.html "
+                "nor ebook/cover.png exists. Stage one, then clear this flag.")
+        shutil.copyfile(cover, d / "overlay/export/ebook-cover.png")
+        return str(cover)
 
-    def render_ebook_cover(self, ep): self._not_wired("The e-book cover render")
-    def render_cards(self, ep): self._not_wired("The card batch-render")
-    def poll_heygen(self, ep, polls_so_far): self._not_wired("HeyGen poll/download")
-    def build_shot_map(self, ep): self._not_wired("The shot map build")
-    def make_covers_ab(self, ep): self._not_wired("Cover A/B generation")
-    def assemble_passA(self, ep): self._not_wired("Pass A assembly")
-    def assemble_passB(self, ep): self._not_wired("Pass B assembly")
-    def self_qc(self, ep, final_path): self._not_wired("Self-QC")
-    def build_ebook(self, ep): self._not_wired("The e-book PDF build")
-    def build_thumbnail(self, ep): self._not_wired("The thumbnail build")
-    def save_youtube_copy(self, ep): self._not_wired("The YouTube copy save")
+    def render_cards(self, ep) -> list[str]:
+        d = self.dir(ep)
+        self.py("render_cards_batch.py", d / "overlay/export", d / "overlay/clips", cwd=d)
+        epj = self.epjson(ep)
+        ids = [c["id"] for c in epj["cards"]]
+        return [str(self._clip(ep, cid)) for cid in ids]     # verifies every card landed
 
+    def poll_heygen(self, ep, polls_so_far):
+        """The render is a HUMAN step; we only pick up the finished master via
+        the API video_url (the ~189 kbps master — never the web download)."""
+        d = self.dir(ep)
+        master = d / "renders/presenter-master.mp4"
+        if not master.is_file():
+            self._heygen_fetch(ep, master)         # returns only when downloaded
+        kbps = self._audio_kbps(master)
+        if kbps and kbps < 180:
+            raise EngineFlag(
+                f"The presenter master's audio is {kbps:.0f} kbps — below the locked "
+                "~189 kbps API standard (sounds compressed). It was probably saved via "
+                "the web-app Download button. Re-pull it via the API video_url, then "
+                "clear this flag.")
+        return str(master)
 
-def ep_folder(ep) -> str:
-    """Working folder name for an episode (bare stem until the Stage-8 rename)."""
-    nn = ep.get("ep_number")
-    return f"PP-EP{int(nn):02d}" if nn is not None else f"PP-EP-{ep['id'][:8]}"
+    def _heygen_fetch(self, ep, master: Path):
+        key = self._env("HEYGEN_API_KEY")
+        name = ep.get("heygen_name") or ""
+        req = urllib.request.Request(
+            "https://api.heygen.com/v1/video.list?limit=100", headers={"x-api-key": key})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            vids = json.load(r).get("data", {}).get("videos", [])
+        hit = next((v for v in vids if name and name in (v.get("video_title") or "")
+                    and v.get("status") == "completed"), None)
+        if not hit:
+            raise RuntimeError(f"no completed HeyGen render named {name!r} yet")
+        req = urllib.request.Request(
+            f"https://api.heygen.com/v1/video_status.get?video_id={hit['video_id']}",
+            headers={"x-api-key": key})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            url = json.load(r).get("data", {}).get("video_url")
+        if not url:
+            raise RuntimeError("HeyGen render found but no video_url yet")
+        tmp = master.with_suffix(".part")
+        with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
+            shutil.copyfileobj(r, f)
+        tmp.rename(master)
+
+    def _env(self, name):
+        env = self.pp / ".env"
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if line.startswith(name + "="):
+                return line.split("=", 1)[1].strip()
+        raise EngineFlag(f"{name} is missing from PP Videos/.env — add it, then clear this flag.")
+
+    def build_shot_map(self, ep) -> str:
+        d = self.dir(ep)
+        self.py("build_shot_map.py", d / "renders/presenter-master.mp4",
+                d / "docs/spoken-words.txt", d / "renders", cwd=d)
+        sm = d / "renders/shot-map.json"
+        if not sm.is_file():
+            raise RuntimeError("build_shot_map ran but renders/shot-map.json is missing")
+        return str(sm)
+
+    def make_covers_ab(self, ep):
+        """Two hero options for Hugh's pick. Uses staged heroes; generating NEW
+        heroes needs Higgsfield, which isn't autonomous yet."""
+        d = self.dir(ep)
+        a, b = d / "thumbnail/cover-A.png", d / "thumbnail/cover-B.png"
+        if not (a.is_file() and b.is_file()):
+            src_a, src_b = d / "ebook/cover-src/hero.png", d / "ebook/cover-src/hero-b.png"
+            if src_a.is_file() and src_b.is_file():
+                shutil.copyfile(src_a, a)
+                shutil.copyfile(src_b, b)
+            else:
+                raise EngineFlag(
+                    "Cover options A/B need two hero images and I can't generate them "
+                    "autonomously yet (Higgsfield is session-only). Stage thumbnail/"
+                    "cover-A.png + cover-B.png (or cover-src/hero.png + hero-b.png), "
+                    "then clear this flag.")
+        return str(a), str(b)
+
+    # ---- assembly: emit the graph, then run the documented ffmpeg command ---
+    def _emit_graph(self, ep, which: str) -> Path:
+        d = self.dir(ep)
+        out = d / f"renders/pass{which}_graph.txt"
+        r = self.py("assemble_episode.py", d / "docs/episode.json",
+                    d / "renders/shot-map.json", which, cwd=d, timeout=120)
+        out.write_text(r.stdout, encoding="utf-8")
+        return out
+
+    def assemble_passA(self, ep) -> str:
+        d = self.dir(ep)
+        graph = self._emit_graph(ep, "A")
+        # input order: [0]=presenter, [1..N]=broll (broll[] order), [N+1]=logo chip
+        cmd = ["ffmpeg", "-y", "-i", d / "renders/presenter-master.mp4"]
+        for b in self.epjson(ep)["broll"]:
+            cmd += ["-i", d / "broll" / f"{b['target']}.mp4"]
+        cmd += ["-i", self.logo, "-filter_complex_script", graph, "-map", "[vout]",
+                "-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-an",
+                d / "overlay/_passA.mp4"]
+        self.run(cmd, cwd=d)
+        return str(d / "overlay/_passA.mp4")
+
+    def assemble_passB(self, ep) -> str:
+        d = self.dir(ep)
+        graph = self._emit_graph(ep, "B")
+        epj = self.epjson(ep)
+        standing = epj["build"].get("standing", {})
+        content = [c["id"] for c in epj["cards"] if c["id"] not in standing.values()]
+        # input order: [0]=_passA, [1..M]=content cards, then title/endcard/
+        # warranty, presenter (audio), music — the layout the graphs are built for
+        cmd = ["ffmpeg", "-y", "-i", d / "overlay/_passA.mp4"]
+        for cid in content:
+            cmd += ["-i", self._clip(ep, cid)]
+        for role in ("title", "endcard", "warranty"):
+            cmd += ["-i", self._clip(ep, standing[role])]
+        cmd += ["-i", d / "renders/presenter-master.mp4", "-i", self.music]
+        final = d / "output" / f"{ep_folder(ep)}-FINAL.mp4"
+        cmd += ["-filter_complex_script", graph, "-map", "[vout]", "-map", "[aout]",
+                "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+                "-movflags", "+faststart", "-map_metadata", "-1", "-dn", final]
+        self.run(cmd, cwd=d)
+        # ship the SRT beside the output, per the runbook
+        srt = d / "renders/generated.srt"
+        if srt.is_file():
+            shutil.copyfile(srt, final.with_suffix(".srt"))
+        return str(final)
+
+    def self_qc(self, ep, final_path) -> str:
+        d = self.dir(ep)
+        head = str(self.epjson(ep).get("build", {}).get("title_head", 7.0))
+        self.py("qc_episode.py", final_path, d / "renders/shot-map.json",
+                d / "output/qc", "--head", head, cwd=d, timeout=900)
+        return str(d / "output/qc/QC-REPORT.md")
+
+    def build_ebook(self, ep) -> str:
+        d = self.dir(ep)
+        srcs = [p for p in (d / "ebook").glob("*.html")]
+        if len(srcs) != 1:
+            raise EngineFlag(
+                f"Expected exactly one e-book source HTML in {d.name}/ebook/, found "
+                f"{len(srcs)}. Stage the source (Cowork writes it), then clear this flag.")
+        out = d / "output" / f"{ep_folder(ep)}-ebook.pdf"
+        self.py("build_ebook.py", srcs[0], out, cwd=d, timeout=600)
+        return str(out)
+
+    def build_thumbnail(self, ep) -> str:
+        d = self.dir(ep)
+        pages = list((d / "thumbnail").glob("*thumbnail*.html"))
+        if len(pages) != 1:
+            raise EngineFlag(
+                f"Expected exactly one *thumbnail*.html in {d.name}/thumbnail/, found "
+                f"{len(pages)}. Stage it, then clear this flag.")
+        out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
+        self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)
+        return str(out)
+
+    def save_youtube_copy(self, ep) -> str:
+        d = self.dir(ep)
+        hits = list((d / "output").glob("*youtube*.txt"))
+        if not hits:
+            raise EngineFlag(
+                "The YouTube title/description file is missing (Cowork writes the copy "
+                f"per the metadata kit). Save it as {d.name}/output/{ep_folder(ep)}-"
+                "youtube.txt, then clear this flag.")
+        return str(hits[0])

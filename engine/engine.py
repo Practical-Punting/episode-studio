@@ -52,7 +52,6 @@ WORKER = os.environ.get("ENGINE_WORKER", f"pp-engine@{socket.gethostname()}")
 LEASE_SECS = 180
 HEARTBEAT_SECS = 20
 MAX_ATTEMPTS = 3
-MOCK_BROLL_CLIPS = int(os.environ.get("MOCK_BROLL_CLIPS", "3"))
 CREDITS_PER_BROLL = 4                      # conservative planning figure
 CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "60"))  # per episode
 
@@ -146,7 +145,17 @@ def step_audit_inputs(ctx):
 
 
 def step_credit_check(ctx):
-    estimate = MOCK_BROLL_CLIPS * CREDITS_PER_BROLL
+    """Verify-before-spend: the estimate counts only what's actually MISSING.
+    A fully staged episode (shakedown, resume) costs nothing and just passes."""
+    jobs = ctx.state.get("jobs", {}).get("broll", {})
+    clips = ctx.provider.broll_plan(ctx.ep)
+    pending = [c for c in clips
+               if not jobs.get(c, {}).get("job_id")
+               and not ctx.provider.broll_staged(ctx.ep, c)]
+    estimate = len(pending) * CREDITS_PER_BROLL
+    if not pending:
+        log(f"   nothing to spend ({len(clips)} clips already staged/submitted)")
+        return {"estimate": 0, "pending": []}
     if estimate > CREDIT_CEILING:
         raise EngineFlag(
             f"This build is estimated at ~{estimate} Higgsfield credits, over the "
@@ -157,14 +166,15 @@ def step_credit_check(ctx):
         raise EngineFlag(
             f"Not starting the b-roll generation: it needs about {estimate} credits "
             f"and only {balance:.0f} are available. Top up, then clear this flag.")
-    return {"estimate": estimate, "balance": balance}
+    return {"estimate": estimate, "pending": pending, "balance": balance}
 
 
 def step_broll_submit(ctx):
     """Fire the gens FIRST. Each job_id is checkpointed the moment it exists —
-    a submitted job is never re-submitted (that's the double-spend guard)."""
+    a submitted job is never re-submitted (that's the double-spend guard).
+    A clip already staged on disk is recorded as such, never regenerated."""
     jobs = ctx.state.setdefault("jobs", {}).setdefault("broll", {})
-    clips = [f"broll-{i:02d}" for i in range(1, MOCK_BROLL_CLIPS + 1)]
+    clips = ctx.provider.broll_plan(ctx.ep)
     for clip in clips:
         ctx.check_alive()
         if jobs.get(clip, {}).get("job_id"):
@@ -173,7 +183,7 @@ def step_broll_submit(ctx):
         job_id = ctx.provider.submit_broll(ctx.ep, clip)
         jobs[clip] = {"job_id": job_id, "polls": 0}
         ctx.save()                       # checkpoint IMMEDIATELY after the spend
-        log(f"   {clip}: submitted -> {job_id}")
+        log(f"   {clip}: {'staged on disk' if job_id.startswith('staged-') else 'submitted'} -> {job_id}")
     return {"clips": clips}
 
 
@@ -196,7 +206,9 @@ def step_broll_collect(ctx):
                 ctx.save()
                 log(f"   {clip}: done -> {path}")
                 break
-    spent = len(jobs) * CREDITS_PER_BROLL
+    # staged clips cost nothing — only clips we actually submitted count
+    spent = sum(1 for j in jobs.values()
+                if not j["job_id"].startswith("staged-")) * CREDITS_PER_BROLL
     ctx.ep_set({"cost": {"higgsfield_credits": spent, "aud": 0}})
     return {"spent_credits": spent}
 
