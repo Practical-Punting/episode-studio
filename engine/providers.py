@@ -533,6 +533,14 @@ class RealProvider:
             raise EngineFlag(
                 f"Expected exactly one *thumbnail*.html in {d.name}/thumbnail/, found "
                 f"{len(pages)}. Stage it, then clear this flag.")
+        # Standard-template conformance guard (EP08 lesson): the standing thumbnail
+        # recipe always carries the PP logo chip. A page without it was hand-rolled
+        # off-template — flag rather than render a non-standard thumbnail.
+        if "pp-logo-on-dark" not in pages[0].read_text(encoding="utf-8", errors="ignore"):
+            raise EngineFlag(
+                f"{pages[0].name} doesn't reference pp-logo-on-dark.png — it isn't built "
+                "on the standing thumbnail template (assets/youtube-thumbnail-template.html). "
+                "Rebuild it from the template, then clear this flag.")
         out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)
         return str(out)
