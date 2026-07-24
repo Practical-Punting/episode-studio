@@ -1,5 +1,8 @@
 # Episode Studio — repo guide
 
+**Before working, read `G:\My Drive\Jodie-Cowork\context\claude.md` and the three
+files it points to** (how-i-talk / how-you-work / who-i-am) — Jodie's context set.
+
 Turns Practical Punting articles into YouTube episodes + e-books. Hugh operates
 from a browser; the engine does the work. Supabase is the single source of
 truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
