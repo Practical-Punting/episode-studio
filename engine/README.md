@@ -53,17 +53,26 @@ and the mock switches in `providers.py` (`MOCK_FAIL_STEP`, `MOCK_FAIL_ONCE`,
 | assembling | passA → passB → self_qc → ebook_pdf → thumbnail → youtube_copy → park `awaiting_approval` (writes links, `build_seconds`, releases claim) |
 | revising | Phase 3 — flags honestly instead of guessing |
 
-## Open items for 2a-real (deliberately not faked)
+## Real mode (2a-real, shaken down 2026-07-24)
 
-`RealProvider` wires what today's scripts allow and FLAGS the rest honestly:
+`RealProvider` drives the standing toolkit for every scriptable step: cover
+re-render (render_still), card batch (render_cards_batch), HeyGen master
+pickup by project name via the API `video_url` (+ the ≥180 kbps audio gate),
+shot map (build_shot_map), pass A/B (emit the graph with assemble_episode.py,
+then run the documented ffmpeg command with the exact input layout), QC
+(qc_episode), e-book (build_ebook/WeasyPrint), thumbnail (render_still).
+Find-or-build everywhere: a staged artifact is used, never rebuilt or
+re-spent. Proven end-to-end on a staged EP07-asset test episode (PP-EP98):
+QC PASS, 0 credits, 0 retries.
 
-- **B-roll generation** runs through the Higgsfield MCP inside a Claude
-  session — no standalone API key in `.env` — so the engine can't fire gens
-  autonomously yet. Real mode checks for staged clips and flags if missing.
-- **Higgsfield balance** likewise isn't probeable outside a session; the credit
-  guard leans on the ceiling until it is.
-- The local render/assembly steps (cards, shot map, passes, e-book, thumbnail)
-  shell out to the standing toolkit — wiring + a real-episode shakedown is the
-  2a-real follow-up, gated on staged create-inputs for a test episode.
+Still flagged honestly, NOT wired (Jodie's decision pending — see
+`PP Videos/docs/HIGGSFIELD-OPTIONS.md`):
+- **B-roll generation + balance check** — Higgsfield runs via MCP in a Claude
+  session only; the engine parks with a plain-English flag naming the missing
+  clips (the "b-roll gate").
+- **The HeyGen render itself** — a sacred human step, unchanged; the engine
+  only downloads the finished master.
+- **Cover A/B heroes and the YouTube copy** — staged by the create side
+  (Cowork) until the create brain (Phase 4).
 
 Phase 2b (three in flight + the local render lock) builds on this spine.
