@@ -511,8 +511,10 @@ class RealProvider:
     def self_qc(self, ep, final_path) -> str:
         d = self.dir(ep)
         head = str(self.epjson(ep).get("build", {}).get("title_head", 7.0))
+        # --episode arms the end-sequence + midroll checks (the EP08 lessons)
         self.py("qc_episode.py", final_path, d / "renders/shot-map.json",
-                d / "output/qc", "--head", head, cwd=d, timeout=900)
+                d / "output/qc", "--head", head,
+                "--episode", d / "docs/episode.json", cwd=d, timeout=900)
         return str(d / "output/qc/QC-REPORT.md")
 
     def build_ebook(self, ep) -> str:
