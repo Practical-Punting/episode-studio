@@ -160,10 +160,22 @@ $("login-form").addEventListener("submit", async (e) => {
   toast("login-toast", "Sending your link…", true);
   const { error } = await db.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname },
+    options: {
+      emailRedirectTo: window.location.origin + window.location.pathname,
+      // Allow-list only: never provision a new account. An address that isn't one of
+      // the three pre-created users gets no link (and RLS would block it anyway).
+      shouldCreateUser: false,
+    },
   });
-  if (error) toast("login-toast", "Couldn't send it: " + error.message, false);
-  else toast("login-toast", "Check " + email + " for a login link, then come back here.", true);
+  if (error) {
+    // shouldCreateUser:false makes Supabase reject unknown emails ("Signups not allowed").
+    const denied = /signup|not allowed|otp_disabled/i.test(error.message);
+    toast("login-toast", denied
+      ? "That email isn’t set up for the studio. Ask Jodie to add you."
+      : "Couldn’t send it: " + error.message, false);
+  } else {
+    toast("login-toast", "Check " + email + " for a login link, then come back here.", true);
+  }
 });
 
 $("logout").addEventListener("click", async () => {
