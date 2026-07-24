@@ -49,6 +49,18 @@ const APPROVALS = [
 /* A frozen engine can't flag itself, so the BOARD decides staleness client-side. */
 const STALE_MS = 5 * 60 * 1000;
 
+/* WORDS GATE (PP-STANDARDS 2026-07-25): a queued episode isn't claimable by the
+ * engine until the words (title + byline) are approved — lock words BEFORE any
+ * visual is built. The gate is title_approved; the byline travels as a
+ * "Byline: …" line in notes. */
+function wordsGatePending(ep) {
+  return ep.status === "queued" && !ep.title_approved;
+}
+function bylineOf(ep) {
+  const m = /byline:\s*(.+)/i.exec(ep.notes || "");
+  return m ? m[1].trim() : null;
+}
+
 // ── state ────────────────────────────────────────────────────────────────
 let EPISODES = [];
 let MSGS = new Map();          // episode_id -> [messages]
@@ -272,7 +284,14 @@ function renderBoard() {
 
   let out = "";
   for (const lane of LANES) {
-    const eps = EPISODES.filter((e) => lane.statuses.includes(e.status));
+    // Words-gate episodes are a HUMAN step, so they surface in "Your turn"
+    // rather than sitting invisibly in Waiting.
+    const eps = EPISODES.filter((e) =>
+      lane.title === "Your turn"
+        ? (lane.statuses.includes(e.status) || wordsGatePending(e))
+        : lane.title === "Waiting"
+          ? (e.status === "queued" && !wordsGatePending(e))
+          : lane.statuses.includes(e.status));
     if (!eps.length) continue;
     out += '<section class="lane"><div class="lane-head">' +
       "<h2>" + esc(lane.title) + '</h2><span class="n">' + eps.length + "</span></div>" +
@@ -292,7 +311,9 @@ function renderBoard() {
 }
 
 function cardFor(ep) {
-  const st = STATUS[ep.status] || { label: ep.status || "—", cls: "wait", pct: 10 };
+  const st = wordsGatePending(ep)
+    ? { label: "Your turn — words", cls: "need", pct: 3 }
+    : STATUS[ep.status] || { label: ep.status || "—", cls: "wait", pct: 10 };
   const nl = needsLook(ep);
   const num = ep.ep_number != null ? "PP-EP" + ep.ep_number : "PP-EP?";
   const pct = (WORKING.has(ep.status) && ep.progress_pct > 0) ? ep.progress_pct : st.pct;
@@ -358,6 +379,7 @@ setInterval(tickTimers, 1000);
 
 // ── the gates ────────────────────────────────────────────────────────────
 function gateFor(ep) {
+  if (wordsGatePending(ep)) return gateWords(ep);
   switch (ep.status) {
     case "awaiting_render":   return gateRender(ep);
     case "awaiting_cover":    return gateCover(ep);
@@ -365,6 +387,21 @@ function gateFor(ep) {
     case "ready":             return gatePublish(ep);
     default:                  return "";
   }
+}
+
+function gateWords(ep) {
+  const byline = bylineOf(ep);
+  return '<div class="gate"><h4>Your turn — approve the words</h4>' +
+    '<p class="g-hint">Lock the title + byline BEFORE anything is built — the thumbnail, ' +
+    "cover, title card and video all use these words. The engine won’t start until you approve.</p>" +
+    '<div class="approvals">' +
+    '<div class="appr"><span class="a-n"><b>Title:</b> ' + esc(ep.title || "—") + "</span></div>" +
+    '<div class="appr"><span class="a-n"><b>Byline:</b> ' +
+      (byline ? esc(byline)
+              : '<i class="muted">none yet — add a "Byline: …" line to the episode notes</i>') +
+    "</span></div></div>" +
+    '<p style="margin-top:12px"><button class="btn" data-act="approve-words" data-ep="' + ep.id +
+    '">Approve the words &rarr;</button></p></div>';
 }
 
 function gateRender(ep) {
@@ -535,6 +572,12 @@ $("lanes").addEventListener("click", async (e) => {
     harvestDrafts();
     if (UI.open.has(id)) UI.open.delete(id); else UI.open.add(id);
     renderBoard();
+    return;
+  }
+
+  if (act === "approve-words") {
+    if (await writeEpisode(id, { title_approved: true }, id + ":words", btn))
+      toast("toast", "Words locked — the engine can start the build.", true);
     return;
   }
 

@@ -503,6 +503,8 @@ def cmd_mock_episode():
         "ep_number": 99, "title": "Mock Episode — Spine Test", "status": "queued",
         "source_url": "https://example.com/mock-article",
         "created_by": "engine-mock",
+        "title_approved": True,   # mock pre-passes the Words Gate (claim filter)
+        "notes": "Byline: a mock byline for the spine test",
     })
     log(f"mock ticket created: PP-EP99 id={ep['id']}")
 
