@@ -312,6 +312,15 @@ class RealProvider:
                 f"Create-inputs are missing for {d.name}: {', '.join(missing)}. "
                 "Cowork writes these (the create brain is Phase 4). Stage them, "
                 "then clear this flag.")
+        # RENDER-READY SCAN (PP-STANDARDS 25 Jul 2026): catch a glitch-prone
+        # script BEFORE Jodie spends a HeyGen render on it.
+        try:
+            self.py("render_ready.py", d / "docs/spoken-words.txt",
+                    "--episode", d / "docs/episode.json", cwd=d, timeout=120)
+        except RuntimeError as e:
+            raise EngineFlag(
+                f"The spoken-words track is NOT render-ready — fix it before "
+                f"Jodie renders. {str(e)[-500:]}")
         for sub in ("renders", "overlay/export", "overlay/clips", "broll",
                     "ebook", "thumbnail", "output"):
             (d / sub).mkdir(parents=True, exist_ok=True)
