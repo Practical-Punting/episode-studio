@@ -152,10 +152,12 @@ def step_credit_check(ctx):
     pending = [c for c in clips
                if not jobs.get(c, {}).get("job_id")
                and not ctx.provider.broll_staged(ctx.ep, c)]
-    estimate = len(pending) * CREDITS_PER_BROLL
     if not pending:
         log(f"   nothing to spend ({len(clips)} clips already staged/submitted)")
         return {"estimate": 0, "pending": []}
+    per_clip = ctx.provider.clip_cost(ctx.ep)     # exact preview (no spend)
+    ctx.state["clip_cost"] = per_clip
+    estimate = len(pending) * per_clip
     if estimate > CREDIT_CEILING:
         raise EngineFlag(
             f"This build is estimated at ~{estimate} Higgsfield credits, over the "
@@ -207,10 +209,10 @@ def step_broll_collect(ctx):
                 log(f"   {clip}: done -> {path}")
                 break
     # staged clips cost nothing — only clips we actually submitted count
-    spent = sum(1 for j in jobs.values()
-                if not j["job_id"].startswith("staged-")) * CREDITS_PER_BROLL
+    generated = sum(1 for j in jobs.values() if not j["job_id"].startswith("staged-"))
+    spent = generated * ctx.state.get("clip_cost", CREDITS_PER_BROLL)
     ctx.ep_set({"cost": {"higgsfield_credits": spent, "aud": 0}})
-    return {"spent_credits": spent}
+    return {"spent_credits": spent, "generated": generated}
 
 
 def step_ebook_cover(ctx):

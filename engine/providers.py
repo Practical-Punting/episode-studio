@@ -83,6 +83,9 @@ class MockProvider:
     def balance(self) -> float:
         return float(os.environ.get("MOCK_BALANCE", "100"))
 
+    def clip_cost(self, ep) -> float:
+        return 4.0                         # pretend per-clip credits
+
     # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
         self.maybe_fail("audit_inputs")
@@ -188,6 +191,13 @@ class RealProvider:
         self.logo = self.assets / "video-logo-chip.png"
         self.music = pp_videos / "PP-EP01-The-Trifecta-Mistake/music" / \
             "ES_Sleeves Full of Aces - Alexandra Woodward.mp3"
+        # Higgsfield CLI (B+ wiring, 2026-07-24): hands-off gens on PLAN credits.
+        # One-time `hf auth login` per machine; token lives in ~/.config/higgsfield.
+        # If the CLI is missing/unauthenticated, every gen path falls back to the
+        # honest b-roll gate (Option B) — nothing breaks, a human stages clips.
+        self.hf = Path(os.environ.get("HF_CLI", r"C:\Users\jlral\tools\hf\hf.exe"))
+        self.broll_model = os.environ.get("ENGINE_BROLL_MODEL", "kling3_0_turbo")
+        self._registry_checked = False
         # let the skill's pp_paths put ffmpeg/ffprobe on PATH for our subprocesses
         sys.path.insert(0, str(self.scripts))
         try:
@@ -195,6 +205,19 @@ class RealProvider:
             pp_paths.ensure_path()
         except Exception:
             pass                                     # PATH may already be fine
+
+    # -- Higgsfield CLI ------------------------------------------------------
+    def _hf(self, *args, timeout=120):
+        """Run the Higgsfield CLI with --json and parse the response."""
+        r = subprocess.run([str(self.hf), *args, "--json"], capture_output=True,
+                           text=True, timeout=timeout)
+        if r.returncode != 0:
+            raise RuntimeError(f"hf {' '.join(args[:2])} exited {r.returncode}: "
+                               f"{(r.stderr or r.stdout).strip()[-300:]}")
+        return json.loads(r.stdout)
+
+    def hf_ready(self) -> bool:
+        return self.hf.is_file()
 
     # -- plumbing ------------------------------------------------------------
     def dir(self, ep) -> Path:
@@ -249,11 +272,35 @@ class RealProvider:
     def broll_staged(self, ep, clip: str) -> bool:
         return (self.dir(ep) / "broll" / f"{clip}.mp4").is_file()
 
+    def _broll_prompt(self, ep, clip: str) -> str:
+        for b in self.epjson(ep).get("broll", []):
+            if b["target"] == clip:
+                if not b.get("prompt"):
+                    raise EngineFlag(
+                        f"B-roll clip '{clip}' has no prompt in episode.json — "
+                        "Cowork writes prompts (hats/ethnic-mix/turf wording baked "
+                        "in). Add it, then clear this flag.")
+                return b["prompt"]
+        raise RuntimeError(f"clip {clip} not found in episode.json broll[]")
+
     def balance(self) -> float:
+        if self.hf_ready():
+            return float(self._hf("account", "status")["credits"])
         raise EngineFlag(
-            "I can't check the Higgsfield balance from the engine yet (it's only "
-            "reachable in a Claude session). Confirm there are enough credits, then "
-            "clear this flag to continue.")
+            "I can't check the Higgsfield balance: the CLI isn't installed on this "
+            "machine (see engine/README — install + `hf auth login` once). Either "
+            "install it, or confirm credits manually and clear this flag.")
+
+    def clip_cost(self, ep) -> float:
+        """Exact per-clip estimate via the CLI's cost preview (no spend)."""
+        if not self.hf_ready():
+            return 8.0                     # conservative planning figure
+        clips = self.broll_plan(ep)
+        probe = next((c for c in clips if not self.broll_staged(ep, c)), None)
+        if probe is None:
+            return 0.0
+        return float(self._hf("generate", "cost", self.broll_model,
+                              "--prompt", self._broll_prompt(ep, probe))["credits"])
 
     # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
@@ -273,18 +320,42 @@ class RealProvider:
     def submit_broll(self, ep, clip: str) -> str:
         if self.broll_staged(ep, clip):
             return f"staged-{clip}"        # already on disk — nothing to spend
-        raise EngineFlag(
-            f"B-roll clip '{clip}' isn't on disk and I can't generate it "
-            "autonomously yet (Higgsfield runs via MCP in a Claude session — no "
-            "standalone key). Generate/stage it into broll/, then clear this flag.")
+        if not self.hf_ready():
+            raise EngineFlag(
+                f"B-roll clip '{clip}' isn't on disk and the Higgsfield CLI isn't "
+                "installed (see engine/README). Either install it for hands-off "
+                "gens, or generate/stage the clip into broll/, then clear this flag.")
+        if not self._registry_checked:     # NO-REPEAT law: check BEFORE any spend
+            self.py("broll_registry_check.py", self.pp / "docs/broll-registry.md",
+                    self.dir(ep) / "docs/episode.json", cwd=self.dir(ep), timeout=120)
+            self._registry_checked = True
+        job = self._hf("generate", "create", self.broll_model,
+                       "--prompt", self._broll_prompt(ep, clip))
+        return job[0] if isinstance(job, list) else job["id"]
 
     def poll_broll(self, ep, clip, job_id, polls_so_far):
         p = self.dir(ep) / "broll" / f"{clip}.mp4"
         if p.is_file():
             return str(p)
-        if polls_so_far > 3:               # staged file vanished — don't spin
-            raise RuntimeError(f"b-roll clip {clip} is missing from broll/")
-        return None
+        if job_id.startswith("staged-"):
+            if polls_so_far > 3:           # staged file vanished — don't spin
+                raise RuntimeError(f"b-roll clip {clip} is missing from broll/")
+            return None
+        job = self._hf("generate", "get", job_id)
+        status = job.get("status")
+        if status in ("failed", "nsfw"):
+            raise RuntimeError(f"Higgsfield job for {clip} came back {status}")
+        if status != "completed":
+            time.sleep(10)                 # pace the polling; heartbeat stays live
+            return None
+        url = job.get("result_url")
+        if not url:
+            raise RuntimeError(f"job for {clip} completed but has no result_url")
+        tmp = p.with_suffix(".part")
+        with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
+            shutil.copyfileobj(r, f)
+        tmp.rename(p)
+        return str(p)
 
     def render_ebook_cover(self, ep) -> str:
         """Re-render from cover-src (never trust a handed PNG), then propagate

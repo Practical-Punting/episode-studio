@@ -65,14 +65,29 @@ Find-or-build everywhere: a staged artifact is used, never rebuilt or
 re-spent. Proven end-to-end on a staged EP07-asset test episode (PP-EP98):
 QC PASS, 0 credits, 0 retries.
 
-Still flagged honestly, NOT wired (Jodie's decision pending — see
-`PP Videos/docs/HIGGSFIELD-OPTIONS.md`):
-- **B-roll generation + balance check** — Higgsfield runs via MCP in a Claude
-  session only; the engine parks with a plain-English flag naming the missing
-  clips (the "b-roll gate").
+### Higgsfield: hands-off gens via the CLI (B+, wired 2026-07-24)
+
+The engine fires b-roll gens itself through the **Higgsfield CLI** on the
+existing plan's credits: balance via `hf account status`, an EXACT per-clip
+cost preview in the credit guard (no spend), the registry no-repeat check
+before any spend, then per-clip `generate create` → poll → download with
+job-id checkpoints (a submitted job is never re-submitted). Model:
+`ENGINE_BROLL_MODEL` (default `kling3_0_turbo`, 5s 720p 16:9 — the b-roll
+standard; ~7.5 credits/clip). If the CLI is absent or unauthenticated, every
+gen path falls back to the honest b-roll gate (a flag naming the clips).
+
+One-time install per machine (`npm i @higgsfield/cli` breaks under Git-Bash
+tar on Windows, so install the release binary directly):
+1. Download `hf_<ver>_windows_amd64.tar.gz` from github.com/higgsfield-ai/cli
+   releases; extract `hf.exe` to `C:\Users\jlral\tools\hf\` (or set `HF_CLI`).
+2. `hf auth login` (one browser approval; token → `~/.config/higgsfield/`).
+3. `hf workspace set <id>` (see `hf workspace list`).
+
+Still human / staged, on purpose:
 - **The HeyGen render itself** — a sacred human step, unchanged; the engine
   only downloads the finished master.
 - **Cover A/B heroes and the YouTube copy** — staged by the create side
-  (Cowork) until the create brain (Phase 4).
+  (Cowork) until the create brain (Phase 4). Registry `--append` after a
+  generated episode also stays a create-side step for now.
 
 Phase 2b (three in flight + the local render lock) builds on this spine.
