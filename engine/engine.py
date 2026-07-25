@@ -517,11 +517,34 @@ def _code_changed():
     return None
 
 
+def _stage8_watch():
+    """Stage-8 rename watchdog (EP10 lesson, 25 Jul 2026): a PUBLISHED episode
+    whose local folder still carries the bare PP-EP<NN> name missed its
+    close-out rename. Flag it in plain English — once per pass, never rename
+    automatically (Drive sync + open files make that a human-timed step)."""
+    try:
+        for ep in rail.list_all():
+            nn = ep.get("ep_number")
+            if ep.get("status") != "published" or not nn or ep.get("needs_look"):
+                continue
+            bare = PP_VIDEOS / f"PP-EP{int(nn):02d}"
+            if bare.is_dir():
+                rail.flag_needs_look(
+                    ep["id"],
+                    f"PP-EP{int(nn):02d} is published but its folder was never "
+                    "renamed (Stage-8 close-out). Run: python rename_episode.py "
+                    f"EP{int(nn):02d} \"<approved title>\" --apply, then clear this flag.")
+                log(f"stage-8 watchdog: flagged PP-EP{int(nn):02d} (published, folder not renamed)")
+    except Exception as e:
+        log(f"stage-8 watchdog skipped ({e})")
+
+
 def cmd_run(mock, watch):
     _acquire_lock()
     provider = MockProvider(MOCK_ROOT) if mock else RealProvider(PP_VIDEOS)
     log(f"engine up — worker={WORKER} pid={os.getpid()} provider={provider.name} watch={watch}")
     idle_poll = 3 if mock else 30
+    _s8_last = 0.0
     while True:
         changed = _code_changed()
         if changed:
@@ -533,6 +556,9 @@ def cmd_run(mock, watch):
             if not watch:
                 log("nothing to do (no claimable episode) — exiting")
                 return
+            if not mock and time.time() - _s8_last > 600:
+                _stage8_watch()
+                _s8_last = time.time()
             time.sleep(idle_poll)
             continue
 
