@@ -19,6 +19,11 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - The 10-status contract lives in the DB; friendly lane labels live in the UI.
 - `needs_look` is ORTHOGONAL to status (the red card; status unchanged).
 - Human gates are sacred: never auto-render, never auto-publish.
+- **THE LOCKED ORDER** (approved 26 Jul 2026, in `PP-STANDARDS.md` + `engine/README.md`):
+  words gate → render gate AND the gens batch fire in parallel → cover pick
+  during the render window → hands-off finish → four approvals → publish.
+  Human turns 1-2-3 at the front, turn 4 at the end. Never render-last.
+  Re-sequencing needs Jodie's explicit re-approval.
 - Secrets only in `PP Videos/.env` (service_role, HeyGen). Only the anon key
   ships client-side (RLS on). Never commit keys.
 - All Supabase access goes through `PP Videos/scripts/rail.py` — one client.

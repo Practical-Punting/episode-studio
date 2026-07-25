@@ -5,12 +5,14 @@ The orchestrator (engine.py) never talks to tools directly; it calls a Provider.
 MockProvider simulates everything (no credits, no network) — the 2a spine
 acceptance ran on it. RealProvider drives the ACTUAL local toolchain (the
 pp-episode-production skill's scripts: Chromium card renders, ffmpeg passes,
-WeasyPrint e-book, QC) and is HONEST about the two things that can't run
-autonomously yet: Higgsfield generation/balance (MCP, Claude-session-only) and
-the HeyGen render itself (a sacred human step — the engine only downloads).
+WeasyPrint e-book, QC). Higgsfield gens (b-roll AND the two cover heroes) go
+through the Higgsfield CLI; if it's missing, every gen path falls back to an
+honest flag. The HeyGen render itself stays a sacred human step — the engine
+only names the project and downloads the finished master.
 
 Spend policy (verify-before-spend): a staged asset is NEVER regenerated. The
-credit estimate counts only what's actually missing.
+credit estimate counts only what's actually missing, and every spend is
+previewed and capped first.
 
 Fault injection (mock only), via environment variables:
     MOCK_FAIL_STEP=<step>   that step fails EVERY attempt (shows needs_look)
@@ -86,6 +88,9 @@ class MockProvider:
     def clip_cost(self, ep) -> float:
         return 4.0                         # pretend per-clip credits
 
+    def cover_cost(self, ep) -> float:
+        return 4.0                         # two pretend heroes @ 2 credits
+
     # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
         self.maybe_fail("audit_inputs")
@@ -110,12 +115,13 @@ class MockProvider:
             return None
         return self._artifact(ep_folder(ep), f"broll/{clip}.mp4", f"job {job_id}")
 
-    def render_ebook_cover(self, ep) -> str:
+    def render_ebook_cover(self, ep, choice="A") -> str:
         self.maybe_fail("ebook_cover")
         self._work()
         f = ep_folder(ep)
+        self._artifact(f, "ebook/cover-src/hero.png", f"active hero = {choice}")
         self._artifact(f, "overlay/export/ebook-cover.png", "cover propagated")
-        return self._artifact(f, "ebook/cover.png", "e-book cover")
+        return self._artifact(f, "ebook/cover.png", f"e-book cover from hero {choice}")
 
     def render_cards(self, ep) -> list[str]:
         self.maybe_fail("cards_render")
@@ -141,6 +147,8 @@ class MockProvider:
         self.maybe_fail("covers_ab")
         self._work()
         f = ep_folder(ep)
+        self._artifact(f, "ebook/cover-src/hero-a.png", "generated hero A")
+        self._artifact(f, "ebook/cover-src/hero-b.png", "generated hero B")
         return (self._artifact(f, "thumbnail/cover-A.png", "cover option A"),
                 self._artifact(f, "thumbnail/cover-B.png", "cover option B"))
 
@@ -197,6 +205,12 @@ class RealProvider:
         # honest b-roll gate (Option B) — nothing breaks, a human stages clips.
         self.hf = Path(os.environ.get("HF_CLI", r"C:\Users\jlral\tools\hf\hf.exe"))
         self.broll_model = os.environ.get("ENGINE_BROLL_MODEL", "kling3_0_turbo")
+        # Cover heroes: two stills, generated UPFRONT in the gens-first batch
+        # (~2 credits each). Portrait 2:3 matches the A4-ish cover canvas.
+        self.cover_model = os.environ.get("ENGINE_COVER_MODEL", "nano_banana_pro")
+        self.cover_aspect = os.environ.get("ENGINE_COVER_ASPECT", "2:3")
+        self.cover_res = os.environ.get("ENGINE_COVER_RES", "2k")
+        self.cover_ceiling = float(os.environ.get("ENGINE_COVER_CEILING", "12"))
         self._registry_checked = False
         # let the skill's pp_paths put ffmpeg/ffprobe on PATH for our subprocesses
         sys.path.insert(0, str(self.scripts))
@@ -302,6 +316,111 @@ class RealProvider:
         return float(self._hf("generate", "cost", self.broll_model,
                               "--prompt", self._broll_prompt(ep, probe))["credits"])
 
+    # -- cover heroes (gens-first batch, alongside the b-roll) ---------------
+    def _hero_paths(self, ep):
+        """hero-a.png / hero-b.png are the two OPTIONS; hero.png is whichever one
+        is currently ACTIVE (what cover.html draws). Older episodes only have
+        hero.png + hero-b.png — hero.png IS option A there, so adopt it."""
+        src = self.dir(ep) / "ebook/cover-src"
+        a, b, active = src / "hero-a.png", src / "hero-b.png", src / "hero.png"
+        if active.is_file() and not a.is_file():
+            src.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(active, a)
+        return a, b, active
+
+    def _cover_prompts(self, ep):
+        c = self.epjson(ep).get("cover") or {}
+        a, b = c.get("hero_a_prompt"), c.get("hero_b_prompt")
+        if not (a and b):
+            raise EngineFlag(
+                "The two cover-hero prompts are missing from episode.json. Add a "
+                '"cover": {"hero_a_prompt": "…", "hero_b_prompt": "…"} block — two '
+                "DIFFERENT compositions (Cowork writes them, with the hats / "
+                "ethnic-mix / turf wording baked in). The heroes are generated "
+                "UPFRONT with the b-roll so the cover pick reaches you while "
+                "Gordon is still rendering. Add them, then clear this flag.")
+        return a, b
+
+    def cover_cost(self, ep) -> float:
+        """Exact preview of the cover-hero spend (no spend). 0 once both heroes
+        are on disk — a staged asset is never regenerated."""
+        a, b, _ = self._hero_paths(ep)
+        missing = [p for p in (a, b) if not p.is_file()]
+        if not missing:
+            return 0.0
+        if not self.hf_ready():
+            return 2.0 * len(missing)      # conservative planning figure
+        pa, _pb = self._cover_prompts(ep)  # flags EARLY if the prompts aren't written
+        per = float(self._hf("generate", "cost", self.cover_model, "--prompt", pa,
+                             "--aspect_ratio", self.cover_aspect,
+                             "--resolution", self.cover_res)["credits"])
+        return per * len(missing)
+
+    def _generate_heroes(self, ep, want):
+        """Fire the missing heroes, checkpointing each job id into
+        docs/hero-jobs.json the instant it exists (same double-spend guard as
+        the b-roll). Previewed and capped before anything is spent."""
+        if not self.hf_ready():
+            raise EngineFlag(
+                "The two cover heroes aren't on disk and the Higgsfield CLI isn't "
+                "installed (see engine/README). Either install it for hands-off "
+                "gens, or stage ebook/cover-src/hero-a.png + hero-b.png, then "
+                "clear this flag.")
+        pa, pb = self._cover_prompts(ep)
+        prompts = {"hero_A": pa, "hero_B": pb}
+        ledger = self.dir(ep) / "docs/hero-jobs.json"
+        book = json.loads(ledger.read_text(encoding="utf-8")) if ledger.is_file() else {}
+
+        per = 0.0
+        todo = [(k, p) for k, p in want if not book.get(k, {}).get("job_id")]
+        if todo:
+            per = float(self._hf("generate", "cost", self.cover_model,
+                                 "--prompt", prompts[todo[0][0]],
+                                 "--aspect_ratio", self.cover_aspect,
+                                 "--resolution", self.cover_res)["credits"])
+            est = per * len(todo)
+            if est > self.cover_ceiling:
+                raise EngineFlag(
+                    f"The cover heroes are estimated at ~{est:.0f} Higgsfield credits, "
+                    f"over the cover ceiling of {self.cover_ceiling:.0f}. Raise "
+                    "ENGINE_COVER_CEILING or change ENGINE_COVER_MODEL, then clear "
+                    "this flag.")
+        for key, path in want:
+            rec = book.setdefault(key, {})
+            if not rec.get("job_id"):
+                job = self._hf("generate", "create", self.cover_model,
+                               "--prompt", prompts[key],
+                               "--aspect_ratio", self.cover_aspect,
+                               "--resolution", self.cover_res)
+                rec["job_id"] = job[0] if isinstance(job, list) else job["id"]
+                rec["model"] = self.cover_model
+                rec["credits"] = per
+                rec["note"] = f"engine gens-first batch -> {path.name}"
+                ledger.parent.mkdir(parents=True, exist_ok=True)
+                ledger.write_text(json.dumps(book, indent=1), encoding="utf-8")
+            self._hf_download(rec["job_id"], path, key)
+
+    def _hf_download(self, job_id, dest: Path, label: str):
+        """Poll one Higgsfield job to completion and save the result. Stills are
+        quick (well under a minute); the heartbeat keeps beating through this."""
+        for _ in range(120):               # ~20 min ceiling, then flag honestly
+            job = self._hf("generate", "get", job_id)
+            status = job.get("status")
+            if status in ("failed", "nsfw"):
+                raise RuntimeError(f"Higgsfield job for {label} came back {status}")
+            if status == "completed":
+                url = job.get("result_url")
+                if not url:
+                    raise RuntimeError(f"job for {label} completed but has no result_url")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                tmp = dest.with_suffix(".part")
+                with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
+                    shutil.copyfileobj(r, f)
+                tmp.replace(dest)
+                return str(dest)
+            time.sleep(10)
+        raise RuntimeError(f"Higgsfield job for {label} never completed ({job_id})")
+
     # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:
         d = self.dir(ep)
@@ -388,11 +507,17 @@ class RealProvider:
         self.run(cmd, cwd=d, timeout=300)
         return str(out)
 
-    def render_ebook_cover(self, ep) -> str:
-        """Re-render from cover-src (never trust a handed PNG), then propagate
-        to BOTH ebook/cover.png and overlay/export/ebook-cover.png — the cover
-        must land before the card batch or the end card renders blank."""
+    def render_ebook_cover(self, ep, choice="A") -> str:
+        """Build the cover FROM THE PICK: activate the chosen hero (cover.html
+        always draws hero.png), re-render from cover-src (never trust a handed
+        PNG), then propagate to BOTH ebook/cover.png and
+        overlay/export/ebook-cover.png — the cover must land before the card
+        batch or the end card renders blank."""
         d = self.dir(ep)
+        hero_a, hero_b, active = self._hero_paths(ep)
+        pick = hero_b if str(choice).strip().upper() == "B" else hero_a
+        if pick.is_file():
+            shutil.copyfile(pick, active)          # hero.png = the picked hero
         src = d / "ebook/cover-src/cover.html"
         cover = d / "ebook/cover.png"
         if src.is_file():
@@ -480,22 +605,25 @@ class RealProvider:
         return str(sm)
 
     def make_covers_ab(self, ep):
-        """Two hero options for the human pick. Staged locally, then PUBLISHED to
-        Supabase storage so the board can actually SHOW them (the board renders
-        https URLs only — local paths display as 'No cover yet'; EP09 lesson)."""
+        """The two cover heroes, made UPFRONT in the gens-first batch so the pick
+        reaches the operator DURING the render window (R7, 26 Jul 2026) — the
+        build never parks mid-run on 'no e-book cover, needs a look'.
+
+        Missing heroes are generated (previewed, ~2 credits each); staged ones are
+        used as-is. Both are then PUBLISHED to Supabase storage, because the board
+        renders https URLs only — local paths show as 'No cover yet' (EP09)."""
         d = self.dir(ep)
+        hero_a, hero_b, active = self._hero_paths(ep)
+        want = [(k, p) for k, p in (("hero_A", hero_a), ("hero_B", hero_b))
+                if not p.is_file()]
+        if want:
+            self._generate_heroes(ep, want)
+        if not active.is_file():
+            shutil.copyfile(hero_a, active)        # A is active until a pick lands
         a, b = d / "thumbnail/cover-A.png", d / "thumbnail/cover-B.png"
-        if not (a.is_file() and b.is_file()):
-            src_a, src_b = d / "ebook/cover-src/hero.png", d / "ebook/cover-src/hero-b.png"
-            if src_a.is_file() and src_b.is_file():
-                shutil.copyfile(src_a, a)
-                shutil.copyfile(src_b, b)
-            else:
-                raise EngineFlag(
-                    "Cover options A/B need two hero images and I can't generate them "
-                    "autonomously yet (Higgsfield is session-only). Stage thumbnail/"
-                    "cover-A.png + cover-B.png (or cover-src/hero.png + hero-b.png), "
-                    "then clear this flag.")
+        a.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(hero_a, a)
+        shutil.copyfile(hero_b, b)
         folder = ep_folder(ep)
         return (self._publish_asset(a, f"{folder}/cover-A.png"),
                 self._publish_asset(b, f"{folder}/cover-B.png"))

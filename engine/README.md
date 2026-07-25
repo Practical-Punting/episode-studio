@@ -17,6 +17,7 @@ python engine/engine.py cleanup-mock          # remove mock tickets + .mock/ art
 Config comes from `PP Videos/.env` via `scripts/rail.py` (the ONE Supabase
 client — service_role key, never client-side). Overrides:
 `PP_VIDEOS_DIR`, `ENGINE_WORKER`, `ENGINE_CREDIT_CEILING`, `ENGINE_RETRY_DELAYS`,
+`ENGINE_BROLL_MODEL`, `ENGINE_COVER_MODEL` / `_ASPECT` / `_RES` / `_CEILING`,
 and the mock switches in `providers.py` (`MOCK_FAIL_STEP`, `MOCK_FAIL_ONCE`,
 `MOCK_BALANCE`, `MOCK_STEP_SECS`, `MOCK_BROLL_CLIPS`).
 
@@ -35,23 +36,47 @@ and the mock switches in `providers.py` (`MOCK_FAIL_STEP`, `MOCK_FAIL_ONCE`,
   exhaustion or an `EngineFlag` writes a plain-English `needs_look` message and
   waits ALIVE for the flag to clear (the board's stale-heartbeat check catches
   the case where the engine truly dies).
-- **Human gates sacred** — parks at `awaiting_render` / `awaiting_cover` /
-  `awaiting_approval`; only the board (a human) advances those.
-- **Credit guard** — estimates the spend before firing gens; refuses to start
-  (flags instead) if the balance can't cover it or it exceeds
-  `ENGINE_CREDIT_CEILING`. Real Higgsfield balance probing is an open item —
-  see below.
-- **Locked build order** — b-roll gens are fired FIRST; local renders happen
-  while they cook; the HeyGen render runs in parallel behind its human gate.
+- **Human gates sacred** — the words, the render, the cover pick, the four
+  approvals. The engine offers and waits; only a human answers.
+- **Credit guard** — estimates the spend before firing gens (b-roll *and* the
+  two cover heroes); refuses to start (flags instead) if the balance can't
+  cover it or it exceeds `ENGINE_CREDIT_CEILING` / `ENGINE_COVER_CEILING`.
+
+## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026)
+
+Do not re-sequence without her explicit re-approval.
+
+1. Article → script + words. 2. **Words Gate** (title / hook / byline).
+3. On approval, **in parallel**: (a) the render gate opens — Gordon starts
+   cooking, the LONG POLE (5-45 min), which depends only on the spoken track
+   and so must never wait on pictures; (b) the gens batch fires — b-roll **and**
+   both cover heroes. 4. **Cover pick**, surfaced the moment both heroes exist,
+   *during* the render. 5. Engine finishes cover page + cards, hands-off.
+6. Master → shot map → assembly → QC. 7. The four approvals. 8. Publish →
+   Stage-8 close-out.
+
+The shape: human turns 1-2-3 back-to-back at the FRONT, one long hands-off
+window, turn 4 at the END. Never render-last, never human-machine ping-pong.
+
+**The guard.** `check_locked_order()` runs at engine start and warns (naming the
+locked order) if the step lists have been re-sequenced. At run time the engine
+stamps `build_state.order` — `render_offered_at`, `gens_started_at`,
+`covers_ready_at`, `cover_picked_at`, `master_at` — and warns if the gens batch
+started before the render gate opened, if the cover heroes appeared after the
+master landed, or if the whole batch finished with the render still unstarted.
+Warnings are logged AND kept in `build_state.order.warnings`.
 
 ## Status → steps map
 
 | status | engine steps |
 |---|---|
-| building | audit_inputs → credit_check → broll_submit → ebook_cover → cards_render → broll_collect → park `awaiting_render` (sets `heygen_name`) |
-| rendering | heygen_download (poll by project name) → shot_map → covers_ab (sets `cover_a_url`/`b_url`) → park `awaiting_cover` |
+| building | audit_inputs → **render_gate** (sets `heygen_name`, opens human turn 2) → credit_check → broll_submit → **covers_ab** (sets `cover_a_url`/`b_url`, opens human turn 3) → broll_collect → **cover_pick** (waits in place; status stays `building`) → ebook_cover (built from the pick) → cards_render → `rendering` if `render_started_at`, else park `awaiting_render` |
+| rendering | heygen_download (poll by project name) → shot_map → `assembling` (the cover was picked back in the build) |
 | assembling | passA → passB → self_qc → ebook_pdf → thumbnail → youtube_copy → park `awaiting_approval` (writes links, `build_seconds`, releases claim) |
 | revising | Phase 3 — flags honestly instead of guessing |
+
+`awaiting_render` and `awaiting_cover` are now **fallback parks**: reaching
+either means a human turn wasn't taken during the build, and the engine says so.
 
 ## Real mode (2a-real, shaken down 2026-07-24)
 
@@ -83,11 +108,28 @@ tar on Windows, so install the release binary directly):
 2. `hf auth login` (one browser approval; token → `~/.config/higgsfield/`).
 3. `hf workspace set <id>` (see `hf workspace list`).
 
+### Cover heroes: generated UPFRONT (R7, 26 Jul 2026)
+
+Both cover heroes are part of that same gens-first batch — `nano_banana_pro`,
+portrait 2:3, 2k, ~2 credits each (~4 total), previewed and capped by
+`ENGINE_COVER_CEILING` before anything is spent. Prompts come from
+`episode.json → cover.hero_a_prompt / hero_b_prompt` (Cowork writes them, two
+DIFFERENT compositions); job ids are checkpointed into `docs/hero-jobs.json`
+the instant they exist, so a restart never re-spends. Files:
+`ebook/cover-src/hero-a.png` + `hero-b.png` are the two OPTIONS; `hero.png` is
+whichever is ACTIVE (what `cover.html` draws) — `ebook_cover` copies the picked
+one over it. Older episodes that only have `hero.png` + `hero-b.png` are adopted
+as-is (`hero.png` IS option A).
+
+Because they're made before the long b-roll collect, the pick reaches the
+operator minutes into the build — never mid-run as "no e-book cover, needs a
+look", and never after the master lands.
+
 Still human / staged, on purpose:
 - **The HeyGen render itself** — a sacred human step, unchanged; the engine
-  only downloads the finished master.
-- **Cover A/B heroes and the YouTube copy** — staged by the create side
-  (Cowork) until the create brain (Phase 4). Registry `--append` after a
-  generated episode also stays a create-side step for now.
+  names the project, opens the gate early, and downloads the finished master.
+- **The cover PICK and the YouTube copy** — the pick is Jodie's/Hugh's; the
+  copy is staged by the create side (Cowork) until the create brain (Phase 4).
+  Registry `--append` after a generated episode also stays a create-side step.
 
 Phase 2b (three in flight + the local render lock) builds on this spine.

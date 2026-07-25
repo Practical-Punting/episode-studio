@@ -50,14 +50,22 @@ const APPROVALS = [
 const STALE_MS = 5 * 60 * 1000;
 
 /* WORDS GATE (PP-STANDARDS 2026-07-25): a queued episode isn't claimable by the
- * engine until the words (title + byline) are approved — lock words BEFORE any
- * visual is built. The gate is title_approved; the byline travels as a
- * "Byline: …" line in notes. */
+ * engine until the words (title + HOOK + byline) are approved — lock words BEFORE
+ * any visual is built. The gate is title_approved; byline and hook travel as
+ * "Byline: …" / "Hook: …" lines in notes.
+ *
+ * The hook was added 26 Jul 2026: it becomes the main thumbnail text, and on EP10
+ * it was never consciously signed off. Approving the words now means approving the
+ * exact words the thumbnail will carry. */
 function wordsGatePending(ep) {
   return ep.status === "queued" && !ep.title_approved;
 }
 function bylineOf(ep) {
   const m = /byline:\s*(.+)/i.exec(ep.notes || "");
+  return m ? m[1].trim() : null;
+}
+function hookOf(ep) {
+  const m = /hook:\s*(.+)/i.exec(ep.notes || "");
   return m ? m[1].trim() : null;
 }
 
@@ -359,7 +367,10 @@ function elapsedLine(ep) {
   if (WORKING.has(ep.status)) {
     const base = ep.started_at ? "Working for " + ago(ep.started_at) : "Working";
     const beat = ep.heartbeat_at ? " · last check-in " + ago(ep.heartbeat_at) + " ago" : "";
-    return base + beat;
+    // The long pole runs in parallel — show it, so "Building…" never looks idle.
+    const render = ep.render_started_at
+      ? " · render cooking " + ago(ep.render_started_at) : "";
+    return base + render + beat;
   }
   if (STATUS[ep.status] && STATUS[ep.status].cls === "need") {
     return ep.updated_at ? "Waiting on you for " + ago(ep.updated_at) : "Waiting on you";
@@ -378,6 +389,13 @@ function tickTimers() {
 setInterval(tickTimers, 1000);
 
 // ── the gates ────────────────────────────────────────────────────────────
+/* The cover pick is offered the moment BOTH heroes exist — which, under the
+ * locked order, is early in the build, while Gordon is still rendering. */
+function coverPickOpen(ep) {
+  return !!(ep.cover_a_url && ep.cover_b_url &&
+            ep.cover_choice !== "A" && ep.cover_choice !== "B");
+}
+
 function gateFor(ep) {
   if (wordsGatePending(ep)) return gateWords(ep);
   switch (ep.status) {
@@ -385,36 +403,50 @@ function gateFor(ep) {
     case "awaiting_cover":    return gateCover(ep);
     case "awaiting_approval": return gateApprove(ep);
     case "ready":             return gatePublish(ep);
+    case "building":
+      // THE LOCKED ORDER (26 Jul 2026): human turns 2 and 3 both live here, on
+      // top of each other, while the engine works — the render starts early and
+      // the cover pick lands during the render window, not after it.
+      return (ep.heygen_name && !ep.render_started_at ? gateRender(ep) : "") +
+             (coverPickOpen(ep) ? gateCover(ep) : "");
     case "rendering":
-      // Covers can be ready before the HeyGen master — let the pick happen
-      // early (choice only; the engine advances itself when the master lands).
-      return ep.cover_a_url && ep.cover_b_url &&
-             ep.cover_choice !== "A" && ep.cover_choice !== "B"
-        ? gateCover(ep) : "";
+      // Fallback path: covers can still be answered here (an episode that came
+      // through before the pick was moved into the build).
+      return coverPickOpen(ep) ? gateCover(ep) : "";
     default:                  return "";
   }
 }
 
 function gateWords(ep) {
-  const byline = bylineOf(ep);
+  const byline = bylineOf(ep), hook = hookOf(ep);
+  const missing = '<i class="muted">none yet — add it to the episode notes</i>';
   return '<div class="gate"><h4>Your turn — approve the words</h4>' +
-    '<p class="g-hint">Lock the title + byline BEFORE anything is built — the thumbnail, ' +
-    "cover, title card and video all use these words. The engine won’t start until you approve.</p>" +
+    '<p class="g-hint">Lock the title, hook + byline BEFORE anything is built — the thumbnail, ' +
+    "cover, title card and video all use these words. The <b>hook</b> is the big text on the " +
+    "thumbnail, so read it as the words people will actually see. The moment you approve, " +
+    "the render gate opens and the pictures start at the same time.</p>" +
     '<div class="approvals">' +
+    '<div class="appr"><span class="a-n"><b>Hook (thumbnail text):</b> ' +
+      (hook ? esc(hook) : missing) + "</span></div>" +
     '<div class="appr"><span class="a-n"><b>Title:</b> ' + esc(ep.title || "—") + "</span></div>" +
-    '<div class="appr"><span class="a-n"><b>Byline:</b> ' +
-      (byline ? esc(byline)
-              : '<i class="muted">none yet — add a "Byline: …" line to the episode notes</i>') +
+    '<div class="appr"><span class="a-n"><b>Byline:</b> ' + (byline ? esc(byline) : missing) +
     "</span></div></div>" +
     '<p style="margin-top:12px"><button class="btn" data-act="approve-words" data-ep="' + ep.id +
     '">Approve the words &rarr;</button></p></div>';
 }
 
+/* R8 (26 Jul 2026): the render is the LONG POLE and depends only on the spoken
+ * track, which is final at the Words Gate — so this gate is offered as soon as the
+ * engine has named the HeyGen project (a few seconds into the build), and the
+ * pictures are generated beside it. It is never the last thing to happen. */
 function gateRender(ep) {
   const name = ep.heygen_name || (ep.ep_number != null ? "PP-EP" + ep.ep_number : "this episode");
+  const parallel = ep.status === "building"
+    ? " I’m generating the pictures right now — don’t wait for me, the render is the slow part."
+    : "";
   return '<div class="gate"><h4>Your turn — start the render</h4>' +
     '<p class="g-hint">Open HeyGen, find <b>' + esc(name) +
-    "</b> and hit render. Then tell the board it’s going.</p>" +
+    "</b> and hit render. Then tell the board it’s going." + parallel + "</p>" +
     '<button class="btn" data-act="render-started" data-ep=' + '"' + ep.id + '"' +
     ">I’ve started the render &rarr;</button></div>";
 }
@@ -431,8 +463,12 @@ function gateCover(ep) {
       '<div class="cv-l">' + (choice === letter ? "✓ Cover " + letter : "Cover " + letter) +
       "</div></button>";
   };
+  const cooking = (ep.status === "building" || ep.status === "rendering")
+    ? " Gordon’s render is still cooking — answering now keeps the build hands-off."
+    : "";
   return '<div class="gate"><h4>Your turn — pick the cover</h4>' +
-    '<p class="g-hint">Tap the one you want. The engine assembles with it.</p>' +
+    '<p class="g-hint">Tap the one you want. The e-book cover and the end card are ' +
+    "built from your pick." + cooking + "</p>" +
     '<div class="covers">' + one("A", ep.cover_a_url) + one("B", ep.cover_b_url) + "</div></div>";
 }
 
@@ -588,8 +624,32 @@ $("lanes").addEventListener("click", async (e) => {
   }
 
   if (act === "render-started") {
-    if (await writeEpisode(id, { status: "rendering" }, id + ":render", btn))
-      toast("toast", "Render marked as started.", true);
+    // Under the locked order this is usually clicked WHILE the engine is still
+    // building, so it records render_started_at and leaves the status alone —
+    // the engine reads the stamp and walks itself into `rendering`. Clicked at
+    // the awaiting_render park (the fallback path) it also advances the status.
+    const patch = { render_started_at: new Date().toISOString() };
+    if (ep.status === "awaiting_render") patch.status = "rendering";
+    const k = id + ":render";
+    if (inflight.has(k)) return;
+    inflight.add(k);
+    btn.disabled = true;
+    let { error } = await db.from("episodes").update(patch).eq("id", id);
+    if (error && /render_started_at/.test(error.message || "")) {
+      // Migration 003 isn't applied yet — degrade honestly rather than block.
+      delete patch.render_started_at;
+      error = Object.keys(patch).length
+        ? (await db.from("episodes").update(patch).eq("id", id)).error : null;
+      inflight.delete(k);
+      await loadAll();
+      toast("toast", "Render noted, but the board can’t remember it yet — " +
+                     "migration 003 (render_started_at) hasn’t been applied.", false);
+      return;
+    }
+    inflight.delete(k);
+    if (error) { toast("toast", "Could not save: " + error.message, false); btn.disabled = false; return; }
+    await loadAll();
+    toast("toast", "Render marked as started — I’ll keep building alongside it.", true);
     return;
   }
 

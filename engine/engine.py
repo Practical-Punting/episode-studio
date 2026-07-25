@@ -4,17 +4,19 @@
 ONE episode at a time, crash-safe, never silently frozen. The conductor:
   * claims a queued episode via the LEASE (claimed_by + lease_until) — single
     writer; a stale lease (crashed worker) is reclaimable;
-  * drives it through the status contract in the locked build order
-    (Higgsfield gens fired FIRST; the HeyGen render runs in parallel with the
-    human gate);
+  * drives it through the status contract in THE LOCKED ORDER (below) — the
+    render gate opens FIRST and the gens batch runs beside it, so the long
+    pole starts early and the human turns cluster at the front;
   * checkpoints EVERY step into build_state (steps done + job IDs), so a
     memoryless restart resumes exactly where it left off — a finished gen or
     render is never re-run, credits are never double-spent;
   * heartbeats constantly while working; retries transient failures with
     backoff; if a step still fails, writes a plain-English "Needs a look"
     (the episode KEEPS its status) and waits for the flag to clear;
-  * pauses at the sacred human gates (awaiting_render / awaiting_cover /
-    awaiting_approval) — it never auto-renders, never auto-publishes;
+  * pauses at the sacred human gates — the words, the render, the cover pick,
+    the four approvals — and never auto-renders, never auto-publishes. Turns
+    2 and 3 (render + cover) are OFFERED early and waited on in place, so the
+    operator answers them back-to-back at the front instead of ping-ponging;
   * checks credits BEFORE a spend — if it can't finish, it flags rather
     than starts.
 
@@ -62,6 +64,20 @@ from providers import EngineFlag, MockProvider, RealProvider, ep_folder
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
+# --- THE LOCKED ORDER (approved by Jodie, 26 Jul 2026) ----------------------
+# Do NOT re-sequence without Jodie's explicit re-approval. The shape that
+# matters: human turns 1-2-3 cluster back-to-back at the FRONT, then a long
+# hands-off render window, then turn 4 at the END. The HeyGen render is the
+# LONG POLE (5-45 min) and depends only on the spoken track — which is final at
+# the Words Gate — so it starts EARLY, never last, and never behind the visuals.
+LOCKED_ORDER = (
+    "1 script + words · 2 WORDS GATE (title/hook/byline) · "
+    "3 render gate AND the gens batch (b-roll + cover heroes A/B + cards) fire "
+    "IN PARALLEL · 4 cover pick WHILE Gordon renders · 5 engine finishes "
+    "hands-off · 6 master -> shot map -> assembly -> QC · 7 the four approvals · "
+    "8 publish + Stage-8 close-out"
+)
+
 
 def log(msg):
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -108,26 +124,32 @@ class OwnershipLost(Exception):
     pass
 
 
-# --- the step lists (locked build order) -----------------------------------
-# building: gens FIRST (submit b-roll before local renders), collect after.
+# --- the step lists (THE LOCKED ORDER) --------------------------------------
+# building: the render gate opens FIRST (step 3a — Gordon starts cooking), then
+# the whole gens batch fires beside it (step 3b) — b-roll AND both cover heroes,
+# so the cover pick (step 4) reaches the operator while the render is still
+# running. Everything after the pick is hands-off (step 5).
 PHASES = {
-    "building":   ["audit_inputs", "credit_check", "broll_submit",
-                   "ebook_cover", "cards_render", "broll_collect"],
-    "rendering":  ["heygen_download", "shot_map", "covers_ab"],
+    "building":   ["audit_inputs", "render_gate", "credit_check",
+                   "broll_submit", "covers_ab", "broll_collect",
+                   "cover_pick", "ebook_cover", "cards_render"],
+    "rendering":  ["heygen_download", "shot_map"],
     "assembling": ["assemble_passA", "assemble_passB", "self_qc",
                    "ebook_pdf", "thumbnail", "youtube_copy"],
 }
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
     "audit_inputs":   "Checking the inputs",
+    "render_gate":    "Opening the render gate — Gordon can start now",
     "credit_check":   "Checking credits before spending",
     "broll_submit":   "Firing the b-roll generations",
-    "ebook_cover":    "Rendering the e-book cover",
-    "cards_render":   "Rendering the motion cards",
+    "covers_ab":      "Generating the two cover heroes (A and B)",
     "broll_collect":  "Collecting the b-roll clips",
+    "cover_pick":     "Waiting on you — pick a cover",
+    "ebook_cover":    "Rendering the e-book cover from your pick",
+    "cards_render":   "Rendering the motion cards",
     "heygen_download": "Fetching the HeyGen master",
     "shot_map":       "Building the shot map",
-    "covers_ab":      "Preparing cover options A and B",
     "assemble_passA": "Assembling — base motion (pass A)",
     "assemble_passB": "Assembling — cards + audio (pass B)",
     "self_qc":        "Checking my own work (QC)",
@@ -137,34 +159,99 @@ STEP_LABEL = {
 }
 
 
+# --- the order guard (R5: the order can't silently regress) -----------------
+def order_warn(ctx, what):
+    """Name the breach AND the locked order, loudly, in the log and durably in
+    build_state — so a re-sequencing shows up on the very next run instead of
+    being discovered on a finished episode (the EP10 lesson)."""
+    line = f"{what}. LOCKED ORDER (approved 26 Jul 2026): {LOCKED_ORDER}"
+    warns = ctx.state.setdefault("order", {}).setdefault("warnings", [])
+    if line not in warns:
+        warns.append(line)
+        ctx.save()
+    log("!! LOCKED ORDER WARNING: " + line)
+
+
+def check_locked_order():
+    """Static self-check of the step lists, run at engine start. If someone
+    re-sequences PHASES the engine says so before it touches an episode."""
+    b, r = PHASES["building"], PHASES["rendering"]
+    def before(x, y):
+        return x in b and y in b and b.index(x) < b.index(y)
+    problems = []
+    if not before("render_gate", "broll_submit"):
+        problems.append("the render gate must open BEFORE the gens batch fires "
+                        "(the render is the long pole — it never waits on pictures)")
+    if "covers_ab" not in b or "covers_ab" in r:
+        problems.append("the two cover heroes must be generated in the BUILDING "
+                        "gens batch, not after the HeyGen master lands")
+    if not before("covers_ab", "broll_collect"):
+        problems.append("the cover heroes must be made before the long b-roll "
+                        "collect, so the pick reaches the operator during the render")
+    if not before("cover_pick", "ebook_cover"):
+        problems.append("the e-book cover page is built FROM the picked hero")
+    if not before("ebook_cover", "cards_render"):
+        problems.append("the end card composites the real e-book cover")
+    for p in problems:
+        log(f"!! LOCKED ORDER WARNING (step list): {p}. "
+            f"LOCKED ORDER (approved 26 Jul 2026): {LOCKED_ORDER}")
+    return problems
+
+
 # --- step implementations ---------------------------------------------------
 def step_audit_inputs(ctx):
     # WORDS GATE, defense-in-depth: even if a stale/foreign claim path got us
     # here, never build before the words are approved (the EP09 zombie lesson).
     if not ctx.ep.get("title_approved"):
         raise EngineFlag(
-            "Words Gate: the title + byline aren't approved yet — approve the "
-            "words on the board, then clear this flag. Nothing is built before "
-            "the words are locked.")
+            "Words Gate: the title, hook + byline aren't approved yet — approve "
+            "the words on the board, then clear this flag. Nothing is built "
+            "before the words are locked.")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
 
 
+def step_render_gate(ctx):
+    """HUMAN TURN 2 opens HERE — the moment the words are locked and the spoken
+    track has passed the render-ready scan, NOT at the end of the build.
+
+    The HeyGen render is the LONG POLE (5-45 min) and depends only on the spoken
+    track, which is final at the Words Gate. So it starts now and cooks while the
+    engine makes the pictures. Nothing about this step blocks: the engine names
+    the project, opens the gate, and carries straight on to the gens batch."""
+    nn = ctx.ep.get("ep_number")
+    name = (f"PP-EP{int(nn):02d} — {ctx.ep.get('title') or 'Untitled'}"
+            if nn is not None else (ctx.ep.get("title") or "Untitled"))
+    ctx.ep_set({"heygen_name": name})
+    ctx.stamp("render_offered_at")
+    rail.progress(ctx.id, "Your turn — start the HeyGen render (I keep building)", 16)
+    log(f">> RENDER GATE OPEN — start Gordon's render for {name!r} NOW; "
+        "I'm firing the pictures at the same time (they run in parallel)")
+    return {"heygen_name": name}
+
+
 def step_credit_check(ctx):
-    """Verify-before-spend: the estimate counts only what's actually MISSING.
-    A fully staged episode (shakedown, resume) costs nothing and just passes."""
+    """Verify-before-spend: the estimate counts only what's actually MISSING —
+    the b-roll clips AND the two cover heroes, which are part of the same
+    gens-first batch. A fully staged episode (shakedown, resume) costs nothing
+    and just passes."""
     jobs = ctx.state.get("jobs", {}).get("broll", {})
     clips = ctx.provider.broll_plan(ctx.ep)
     pending = [c for c in clips
                if not jobs.get(c, {}).get("job_id")
                and not ctx.provider.broll_staged(ctx.ep, c)]
-    if not pending:
-        log(f"   nothing to spend ({len(clips)} clips already staged/submitted)")
-        return {"estimate": 0, "pending": []}
-    per_clip = ctx.provider.clip_cost(ctx.ep)     # exact preview (no spend)
-    ctx.state["clip_cost"] = per_clip
-    estimate = len(pending) * per_clip
+    covers = ctx.provider.cover_cost(ctx.ep)      # 0 once both heroes are staged
+    per_clip = ctx.provider.clip_cost(ctx.ep) if pending else 0.0
+    if pending:
+        ctx.state["clip_cost"] = per_clip
+    estimate = len(pending) * per_clip + covers
+    if estimate <= 0:
+        log(f"   nothing to spend ({len(clips)} clips + both cover heroes "
+            "already staged/submitted)")
+        return {"estimate": 0, "pending": [], "covers": 0}
+    log(f"   estimate ~{estimate:.0f} credits ({len(pending)} b-roll clips "
+        f"+ {covers:.0f} for the cover heroes)")
     if estimate > CREDIT_CEILING:
         raise EngineFlag(
             f"This build is estimated at ~{estimate} Higgsfield credits, over the "
@@ -175,13 +262,18 @@ def step_credit_check(ctx):
         raise EngineFlag(
             f"Not starting the b-roll generation: it needs about {estimate} credits "
             f"and only {balance:.0f} are available. Top up, then clear this flag.")
-    return {"estimate": estimate, "pending": pending, "balance": balance}
+    return {"estimate": estimate, "pending": pending, "covers": covers,
+            "balance": balance}
 
 
 def step_broll_submit(ctx):
-    """Fire the gens FIRST. Each job_id is checkpointed the moment it exists —
+    """Fire the gens batch. Each job_id is checkpointed the moment it exists —
     a submitted job is never re-submitted (that's the double-spend guard).
     A clip already staged on disk is recorded as such, never regenerated."""
+    ctx.stamp("gens_started_at")
+    if not ctx.state.get("order", {}).get("render_offered_at"):
+        order_warn(ctx, "the gens batch started before the render gate was opened "
+                        "— the long pole is being made to wait on the pictures")
     jobs = ctx.state.setdefault("jobs", {}).setdefault("broll", {})
     clips = ctx.provider.broll_plan(ctx.ep)
     for clip in clips:
@@ -229,18 +321,78 @@ def step_broll_collect(ctx):
     return {"spent_credits": spent, "generated": generated}
 
 
+def step_covers_ab(ctx):
+    """The two cover heroes, generated UPFRONT in the gens-first batch (~4
+    credits, previewed before the spend) — so the build never parks mid-run on
+    "no e-book cover, needs a look", and so HUMAN TURN 3 can be surfaced while
+    Gordon is still rendering."""
+    a, b = ctx.provider.make_covers_ab(ctx.ep)
+    ctx.ep_set({"cover_a_url": a, "cover_b_url": b})
+    ctx.stamp("covers_ready_at")
+    if ctx.state.get("order", {}).get("master_at"):
+        order_warn(ctx, "the cover pick was surfaced AFTER the HeyGen master "
+                        "landed — it belongs in the render window, not after it")
+    log(">> COVER PICK is open (both heroes exist) — pick A or B on the board; "
+        "the render keeps cooking while you do")
+    return {"a": a, "b": b}
+
+
+def step_cover_pick(ctx):
+    """HUMAN TURN 3. Both heroes have existed since the gens batch, so the board
+    has been showing this pick for the whole b-roll collect — normally the answer
+    is already in and this step just reads it. If it isn't, we wait here (status
+    stays 'building', heartbeat live) rather than ping-ponging the status."""
+    waited = 0
+    while True:
+        ctx.check_alive()
+        choice = (ctx.refresh().get("cover_choice") or "").strip().upper()
+        if choice in ("A", "B"):
+            ctx.stamp("cover_picked_at")
+            log(f"   cover {choice} picked — building the cover page from it")
+            return {"choice": choice}
+        if ctx.mock and waited >= 2:
+            # mock has no human; auto-answer so `run --mock --watch` exercises the
+            # whole spine. NEVER reachable in real mode — the gate stays sacred.
+            rail.set_fields(ctx.id, {"cover_choice": "A"})
+            log("   (mock) no human here — auto-picking cover A to exercise the spine")
+            continue
+        if not ctx.watch:
+            log("   the cover pick is yours and I'm not in --watch mode: exiting. "
+                "Pick A or B on the board, then restart the engine.")
+            raise SystemExit(3)
+        if waited == 0:
+            rail.progress(ctx.id, "Waiting on you — pick a cover (A or B)", 33)
+            log(">> waiting on the cover pick (the render is still cooking)")
+        waited += 1
+        time.sleep(3 if ctx.mock else 15)
+
+
 def step_ebook_cover(ctx):
-    return {"cover": ctx.provider.render_ebook_cover(ctx.ep)}
+    """Built FROM the pick: the chosen hero becomes the active hero, then the
+    cover page re-renders over it. The end card composites this cover next."""
+    choice = (ctx.ep.get("cover_choice") or "A").strip().upper()
+    return {"cover": ctx.provider.render_ebook_cover(ctx.ep, choice),
+            "from_hero": choice}
 
 
 def step_cards_render(ctx):
     return {"cards": ctx.provider.render_cards(ctx.ep)}
 
 
+def _master_landed(ctx):
+    """Stamp when the long pole finished, and check the order held: by now the
+    cover heroes must have existed for a long while."""
+    ctx.stamp("master_at")
+    if not ctx.state.get("order", {}).get("covers_ready_at"):
+        order_warn(ctx, "the HeyGen master landed before the cover heroes even "
+                        "existed — the cover pick has been pushed to the end")
+
+
 def step_heygen_download(ctx):
     hj = ctx.state.setdefault("jobs", {}).setdefault("heygen", {"polls": 0})
     if hj.get("file"):
         log("   master already downloaded — skipping")
+        _master_landed(ctx)
         return {"file": hj["file"]}
     while True:
         ctx.check_alive()
@@ -261,6 +413,7 @@ def step_heygen_download(ctx):
         if path:
             hj["file"] = path
             ctx.save()
+            _master_landed(ctx)
             return {"file": path}
         log(f"   HeyGen not ready yet (poll {hj['polls']}) — waiting")
         time.sleep(60)
@@ -268,12 +421,6 @@ def step_heygen_download(ctx):
 
 def step_shot_map(ctx):
     return {"shot_map": ctx.provider.build_shot_map(ctx.ep)}
-
-
-def step_covers_ab(ctx):
-    a, b = ctx.provider.make_covers_ab(ctx.ep)
-    ctx.ep_set({"cover_a_url": a, "cover_b_url": b})
-    return {"a": a, "b": b}
 
 
 def step_assemble_passA(ctx):
@@ -310,11 +457,13 @@ def step_youtube_copy(ctx):
 
 
 STEP_FNS = {name: fn for name, fn in [
-    ("audit_inputs", step_audit_inputs), ("credit_check", step_credit_check),
-    ("broll_submit", step_broll_submit), ("ebook_cover", step_ebook_cover),
-    ("cards_render", step_cards_render), ("broll_collect", step_broll_collect),
+    ("audit_inputs", step_audit_inputs), ("render_gate", step_render_gate),
+    ("credit_check", step_credit_check),
+    ("broll_submit", step_broll_submit), ("covers_ab", step_covers_ab),
+    ("broll_collect", step_broll_collect), ("cover_pick", step_cover_pick),
+    ("ebook_cover", step_ebook_cover), ("cards_render", step_cards_render),
     ("heygen_download", step_heygen_download), ("shot_map", step_shot_map),
-    ("covers_ab", step_covers_ab), ("assemble_passA", step_assemble_passA),
+    ("assemble_passA", step_assemble_passA),
     ("assemble_passB", step_assemble_passB), ("self_qc", step_self_qc),
     ("ebook_pdf", step_ebook_pdf), ("thumbnail", step_thumbnail),
     ("youtube_copy", step_youtube_copy),
@@ -340,6 +489,16 @@ class Ctx:
 
     def save(self):
         rail.checkpoint(self.id, self.state)
+
+    def stamp(self, key):
+        """Record WHEN a locked-order milestone happened (first time only, so a
+        resume never rewrites history). These timestamps are what the order
+        guard compares."""
+        o = self.state.setdefault("order", {})
+        if not o.get(key):
+            o[key] = datetime.now(timezone.utc).isoformat()
+            self.save()
+        return o[key]
 
     def ep_set(self, fields):
         self.ep = rail.set_fields(self.id, fields) or self.ep
@@ -425,21 +584,32 @@ def run_phase(ctx):
 
     # phase complete -> transition
     if status == "building":
-        nn = ctx.ep.get("ep_number")
-        name = f"PP-EP{int(nn):02d} — {ctx.ep.get('title') or 'Untitled'}" if nn else ctx.ep.get("title")
-        ctx.ep_set({"heygen_name": name})
-        rail.progress(ctx.id, "Waiting on you — start the HeyGen render", 45)
-        ctx.ep_set({"status": "awaiting_render"})
-        log(">> parked at awaiting_render (human gate — the render is yours)")
+        # The render gate opened at the START of this phase (step render_gate),
+        # so by now Gordon is normally already rendering — we go straight to the
+        # hands-off render window. Parking at awaiting_render means the operator
+        # never took turn 2, which is an order breach worth naming.
+        if ctx.ep.get("render_started_at"):
+            rail.progress(ctx.id, "Gordon's render is cooking — I'll fetch the "
+                                  "master the moment it lands", 48)
+            ctx.ep_set({"status": "rendering"})
+            log(">> render already running (started during the build, as the "
+                "locked order intends) -> rendering")
+        else:
+            order_warn(ctx, "the whole gens batch finished and Gordon's render "
+                            "still hasn't been started — the long pole is running last")
+            rail.progress(ctx.id, "Waiting on you — start the HeyGen render", 45)
+            ctx.ep_set({"status": "awaiting_render"})
+            log(">> parked at awaiting_render (human gate — the render is yours)")
     elif status == "rendering":
-        # The board allows the cover pick DURING rendering. An early "A" answers
-        # the gate (the e-book cover is built from hero.png = A by convention);
-        # an early "B" still parks, because the cover must be rebuilt from
-        # hero-b first — a human/Claude step.
-        if ctx.ep.get("cover_choice") == "A":
-            log(">> cover A already picked — gate answered, straight to assembling")
+        # The cover was picked back in the build (step cover_pick), so this is
+        # normally a straight walk into assembly. The awaiting_cover park stays
+        # as the honest fallback for an episode that skipped that step.
+        if (ctx.ep.get("cover_choice") or "").strip().upper() in ("A", "B"):
+            log(">> cover already picked during the render window — straight to assembling")
             ctx.ep_set({"status": "assembling"})
         else:
+            order_warn(ctx, "the cover still isn't picked and the master has "
+                            "landed — the pick should have been answered during the render")
             rail.progress(ctx.id, "Waiting on you — pick a cover", 62)
             ctx.ep_set({"status": "awaiting_cover"})
             log(">> parked at awaiting_cover (human gate — pick A or B)")
@@ -543,6 +713,7 @@ def cmd_run(mock, watch):
     _acquire_lock()
     provider = MockProvider(MOCK_ROOT) if mock else RealProvider(PP_VIDEOS)
     log(f"engine up — worker={WORKER} pid={os.getpid()} provider={provider.name} watch={watch}")
+    check_locked_order()
     idle_poll = 3 if mock else 30
     _s8_last = 0.0
     while True:
@@ -614,7 +785,7 @@ def cmd_mock_episode():
         "source_url": "https://example.com/mock-article",
         "created_by": "engine-mock",
         "title_approved": True,   # mock pre-passes the Words Gate (claim filter)
-        "notes": "Byline: a mock byline for the spine test",
+        "notes": "Hook: A Mock Hook\nByline: a mock byline for the spine test",
     })
     log(f"mock ticket created: PP-EP99 id={ep['id']}")
 

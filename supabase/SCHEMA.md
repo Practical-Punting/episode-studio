@@ -2,12 +2,32 @@
 
 Supabase holds **all state**; Google Drive holds **all artifacts** (renders, cards, e-books);
 the repo stays local. This keeps the "brain" portable to a future rented media box.
-Applied by migrations `migration.sql` (001) + `migration-002-engine.sql` (002).
+Applied by migrations `migration.sql` (001) + `migration-002-engine.sql` (002)
++ `migration-003-locked-order.sql` (003).
+
+## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026 — do not re-sequence)
+1. Paste article → script + words (title / hook / byline).
+2. **Human turn 1 — Words Gate** (`title_approved`). Nothing builds before this.
+3. On approval, **two things fire at once**: (a) **human turn 2** — start Gordon's
+   HeyGen render (`render_started_at`), the LONG POLE, which depends only on the
+   spoken track and so never waits on pictures; (b) the engine's gens batch —
+   b-roll **plus both cover heroes** plus the motion cards.
+4. **Human turn 3 — cover pick** (`cover_choice`), surfaced the moment
+   `cover_a_url` + `cover_b_url` exist, i.e. *while* the render is still running.
+5. Engine finishes b-roll / cover page / cards, hands-off.
+6. Master lands → shot map → assembly → QC.
+7. **Human turn 4** — the four approvals. 8. Publish → Stage-8 close-out.
+
+The shape: turns 1-2-3 cluster at the FRONT, then a long hands-off render window,
+then turn 4 at the END. `status` alone can't express "render running while
+building" — that's what `render_started_at` is for.
 
 ## Status contract (unchanged) — DB `status`, 10 values
 `queued → building → awaiting_render → rendering → awaiting_cover → assembling →
 awaiting_approval → (change) revising → back to assembling → ready → published`
-Enforced by a CHECK constraint. **Friendly lane labels live in the UI, not the DB:**
+Enforced by a CHECK constraint. Under the locked order `awaiting_render` and
+`awaiting_cover` are now **fallback parks**, not the normal route — both turns are
+normally answered during `building`. **Friendly lane labels live in the UI, not the DB:**
 - **Waiting** = `queued`
 - **Engine working** = `building`, `rendering`, `assembling`, `revising` (a card here shows the
   red **"Needs a look"** treatment when `needs_look = true` — status is unchanged)
@@ -34,7 +54,8 @@ Enforced by a CHECK constraint. **Friendly lane labels live in the UI, not the D
 | **build_state** | jsonb | engine | steps done + Higgsfield/HeyGen job IDs + checkpoint (resume) |
 | **started_at / finished_at / build_seconds** | ts / ts / int | engine | timing (timers + "built in 41 min") |
 | **cost** | jsonb | engine | `{higgsfield_credits, heygen_credits, aud}` |
-| heygen_name | text | engine | `PP-EPnn — <Title>` (render pickup by name) |
+| heygen_name | text | engine | `PP-EPnn — <Title>`, set EARLY (opens human turn 2) |
+| **render_started_at** | timestamptz | human (board) | when the operator started the render — lets it run in parallel with `building` (003) |
 | heygen_video_id | text | engine | HeyGen id once picked up |
 | **cover_a_url / cover_b_url** | text | engine | the two cover-hero options (Drive links) |
 | cover_choice | text | human | 'A' or 'B' |
@@ -47,7 +68,10 @@ Enforced by a CHECK constraint. **Friendly lane labels live in the UI, not the D
 | notes | text | any | free notes |
 | created_by | text | operator | who started it |
 
-(**bold** = added in migration 002.)
+(**bold** = added in migration 002, except `render_started_at` = 003.)
+
+The **hook** (the big thumbnail text) travels with the byline as a `Hook: …` line in
+`notes`, and is shown on the Words Gate card so it is consciously approved (EP10 lesson).
 
 ## Table: `public.messages` (Hugh ↔ engine thread) — NEW
 | Column | Type | Purpose |
