@@ -382,6 +382,9 @@ class RealProvider:
                              cwd=d, timeout=60)
                 w, h = (int(x) for x in r.stdout.strip().split(",")[:2])
             self.py("render_still.py", src, cover, w, h, cwd=d)
+            # Overlap/clip QC (the EP09 cover lesson): fail rather than ship a
+            # cover whose text collides or clips.
+            self.py("cover_check.py", src, str(w), str(h), cwd=d, timeout=180)
         elif not cover.is_file():
             raise EngineFlag(
                 f"No e-book cover for {d.name}: neither ebook/cover-src/cover.html "
@@ -455,8 +458,9 @@ class RealProvider:
         return str(sm)
 
     def make_covers_ab(self, ep):
-        """Two hero options for Hugh's pick. Uses staged heroes; generating NEW
-        heroes needs Higgsfield, which isn't autonomous yet."""
+        """Two hero options for the human pick. Staged locally, then PUBLISHED to
+        Supabase storage so the board can actually SHOW them (the board renders
+        https URLs only — local paths display as 'No cover yet'; EP09 lesson)."""
         d = self.dir(ep)
         a, b = d / "thumbnail/cover-A.png", d / "thumbnail/cover-B.png"
         if not (a.is_file() and b.is_file()):
@@ -470,7 +474,30 @@ class RealProvider:
                     "autonomously yet (Higgsfield is session-only). Stage thumbnail/"
                     "cover-A.png + cover-B.png (or cover-src/hero.png + hero-b.png), "
                     "then clear this flag.")
-        return str(a), str(b)
+        folder = ep_folder(ep)
+        return (self._publish_asset(a, f"{folder}/cover-A.png"),
+                self._publish_asset(b, f"{folder}/cover-B.png"))
+
+    def _publish_asset(self, local: Path, obj: str) -> str:
+        """Upload to the public episode-assets bucket and return the https URL —
+        VERIFIED reachable, so a cover that wouldn't show on the board flags
+        instead of silently displaying 'No cover yet'."""
+        base = self._env("SUPABASE_URL").rstrip("/")
+        key = self._env("SUPABASE_SERVICE_ROLE_KEY")
+        req = urllib.request.Request(
+            f"{base}/storage/v1/object/episode-assets/{obj}",
+            data=local.read_bytes(), method="POST",
+            headers={"Authorization": f"Bearer {key}", "apikey": key,
+                     "Content-Type": "image/png", "x-upsert": "true"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            r.read()
+        pub = f"{base}/storage/v1/object/public/episode-assets/{obj}"
+        with urllib.request.urlopen(pub, timeout=30) as r:      # visibility check
+            if r.status != 200 or not r.read(64):
+                raise EngineFlag(
+                    f"Published {obj} but the public URL doesn't resolve — the board "
+                    "can't show it. Check the episode-assets bucket, then clear this flag.")
+        return pub
 
     # ---- assembly: emit the graph, then run the documented ffmpeg command ---
     def _emit_graph(self, ep, which: str) -> Path:
