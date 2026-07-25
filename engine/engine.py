@@ -219,6 +219,13 @@ def step_broll_collect(ctx):
     generated = sum(1 for j in jobs.values() if not j["job_id"].startswith("staged-"))
     spent = generated * ctx.state.get("clip_cost", CREDITS_PER_BROLL)
     ctx.ep_set({"cost": {"higgsfield_credits": spent, "aud": 0}})
+    # contact sheet for the human glance at the render gate (b-roll HARD-FAIL list)
+    if hasattr(ctx.provider, "broll_contact"):
+        try:
+            sheet = ctx.provider.broll_contact(ctx.ep, [j["file"] for _, j in sorted(jobs.items())])
+            log(f"   b-roll contact sheet -> {sheet}")
+        except Exception as e:
+            log(f"   contact sheet skipped ({e})")
     return {"spent_credits": spent, "generated": generated}
 
 

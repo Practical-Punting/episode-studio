@@ -366,6 +366,28 @@ class RealProvider:
         tmp.rename(p)
         return str(p)
 
+    def broll_contact(self, ep, files) -> str:
+        """6-up contact sheet of b-roll stills — the human glance at the render
+        gate BEFORE assembly (PP-STANDARDS b-roll HARD-FAIL list, 25 Jul 2026)."""
+        d = self.dir(ep)
+        out = d / "output/qc/broll-contact.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        n = len(files)
+        cols = 3
+        def pos(i):
+            x = "+".join(["w0"] * (i % cols)) or "0"
+            y = "+".join(["h0"] * (i // cols)) or "0"
+            return f"{x}_{y}"
+        layout = "|".join(pos(i) for i in range(n))
+        fc = "".join(f"[{i}:v]scale=640:-1[t{i}];" for i in range(n)) + \
+             "".join(f"[t{i}]" for i in range(n)) + f"xstack=inputs={n}:layout={layout}[out]"
+        cmd = ["ffmpeg", "-y"]
+        for f in files:
+            cmd += ["-ss", "2.5", "-i", f]
+        cmd += ["-filter_complex", fc, "-map", "[out]", "-frames:v", "1", out]
+        self.run(cmd, cwd=d, timeout=300)
+        return str(out)
+
     def render_ebook_cover(self, ep) -> str:
         """Re-render from cover-src (never trust a handed PNG), then propagate
         to BOTH ebook/cover.png and overlay/export/ebook-cover.png — the cover
