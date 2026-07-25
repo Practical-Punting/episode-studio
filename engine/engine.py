@@ -311,7 +311,9 @@ def step_broll_collect(ctx):
     generated = sum(1 for j in jobs.values() if not j["job_id"].startswith("staged-"))
     spent = generated * ctx.state.get("clip_cost", CREDITS_PER_BROLL)
     ctx.ep_set({"cost": {"higgsfield_credits": spent, "aud": 0}})
-    # contact sheet for the human glance at the render gate (b-roll HARD-FAIL list)
+    # contact sheet for the human glance BEFORE assembly (b-roll HARD-FAIL list).
+    # Under the locked order the render gate is long past by now — this lands
+    # while the operator is picking the cover, which is the right moment to look.
     if hasattr(ctx.provider, "broll_contact"):
         try:
             sheet = ctx.provider.broll_contact(ctx.ep, [j["file"] for _, j in sorted(jobs.items())])
