@@ -414,17 +414,20 @@ class RealProvider:
 
     def _heygen_fetch(self, ep, master: Path):
         key = self._env("HEYGEN_API_KEY")
-        name = ep.get("heygen_name") or ""
+        vid = ep.get("heygen_video_id")
+        if not vid:                        # fall back to poll-by-project-name
+            name = ep.get("heygen_name") or ""
+            req = urllib.request.Request(
+                "https://api.heygen.com/v1/video.list?limit=100", headers={"x-api-key": key})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                vids = json.load(r).get("data", {}).get("videos", [])
+            hit = next((v for v in vids if name and name in (v.get("video_title") or "")
+                        and v.get("status") == "completed"), None)
+            if not hit:
+                raise RuntimeError(f"no completed HeyGen render named {name!r} yet")
+            vid = hit["video_id"]
         req = urllib.request.Request(
-            "https://api.heygen.com/v1/video.list?limit=100", headers={"x-api-key": key})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            vids = json.load(r).get("data", {}).get("videos", [])
-        hit = next((v for v in vids if name and name in (v.get("video_title") or "")
-                    and v.get("status") == "completed"), None)
-        if not hit:
-            raise RuntimeError(f"no completed HeyGen render named {name!r} yet")
-        req = urllib.request.Request(
-            f"https://api.heygen.com/v1/video_status.get?video_id={hit['video_id']}",
+            f"https://api.heygen.com/v1/video_status.get?video_id={vid}",
             headers={"x-api-key": key})
         with urllib.request.urlopen(req, timeout=30) as r:
             url = json.load(r).get("data", {}).get("video_url")
