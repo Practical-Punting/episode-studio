@@ -244,7 +244,18 @@ def step_heygen_download(ctx):
         return {"file": hj["file"]}
     while True:
         ctx.check_alive()
-        path = ctx.provider.poll_heygen(ctx.ep, hj["polls"])
+        try:
+            path = ctx.provider.poll_heygen(ctx.ep, hj["polls"])
+        except RuntimeError as e:
+            # "no completed render yet" — a WAIT, not a failure. The render is a
+            # human step that can take as long as it takes; poll forever (the
+            # heartbeat keeps the lease alive). EngineFlag still propagates.
+            hj["polls"] += 1
+            ctx.save()
+            if hj["polls"] % 10 == 1:
+                log(f"   HeyGen not ready yet (poll {hj['polls']}) — waiting ({e})")
+            time.sleep(60)
+            continue
         hj["polls"] += 1
         ctx.save()
         if path:
@@ -252,6 +263,7 @@ def step_heygen_download(ctx):
             ctx.save()
             return {"file": path}
         log(f"   HeyGen not ready yet (poll {hj['polls']}) — waiting")
+        time.sleep(60)
 
 
 def step_shot_map(ctx):
@@ -420,9 +432,17 @@ def run_phase(ctx):
         ctx.ep_set({"status": "awaiting_render"})
         log(">> parked at awaiting_render (human gate — the render is yours)")
     elif status == "rendering":
-        rail.progress(ctx.id, "Waiting on you — pick a cover", 62)
-        ctx.ep_set({"status": "awaiting_cover"})
-        log(">> parked at awaiting_cover (human gate — pick A or B)")
+        # The board allows the cover pick DURING rendering. An early "A" answers
+        # the gate (the e-book cover is built from hero.png = A by convention);
+        # an early "B" still parks, because the cover must be rebuilt from
+        # hero-b first — a human/Claude step.
+        if ctx.ep.get("cover_choice") == "A":
+            log(">> cover A already picked — gate answered, straight to assembling")
+            ctx.ep_set({"status": "assembling"})
+        else:
+            rail.progress(ctx.id, "Waiting on you — pick a cover", 62)
+            ctx.ep_set({"status": "awaiting_cover"})
+            log(">> parked at awaiting_cover (human gate — pick A or B)")
     elif status == "assembling":
         started = ctx.ep.get("started_at")
         secs = None

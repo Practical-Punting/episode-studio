@@ -385,6 +385,12 @@ function gateFor(ep) {
     case "awaiting_cover":    return gateCover(ep);
     case "awaiting_approval": return gateApprove(ep);
     case "ready":             return gatePublish(ep);
+    case "rendering":
+      // Covers can be ready before the HeyGen master — let the pick happen
+      // early (choice only; the engine advances itself when the master lands).
+      return ep.cover_a_url && ep.cover_b_url &&
+             ep.cover_choice !== "A" && ep.cover_choice !== "B"
+        ? gateCover(ep) : "";
     default:                  return "";
   }
 }
@@ -589,8 +595,15 @@ $("lanes").addEventListener("click", async (e) => {
 
   if (act === "cover") {
     const pick = btn.getAttribute("data-pick");
-    if (await writeEpisode(id, { cover_choice: pick, status: "assembling" }, id + ":cover", btn))
-      toast("toast", "Cover " + pick + " chosen — assembling.", true);
+    // At the awaiting_cover gate the pick also advances the episode; picked
+    // early (while rendering) it records the choice only — the lane stays
+    // truthful and the engine advances itself when the master lands.
+    const patch = ep.status === "awaiting_cover"
+      ? { cover_choice: pick, status: "assembling" }
+      : { cover_choice: pick };
+    if (await writeEpisode(id, patch, id + ":cover", btn))
+      toast("toast", "Cover " + pick + " chosen" +
+        (patch.status ? " — assembling." : " — noted for assembly."), true);
     return;
   }
 
