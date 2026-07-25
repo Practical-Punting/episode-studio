@@ -557,6 +557,9 @@ class RealProvider:
         for role in ("title", "endcard", "warranty"):
             cmd += ["-i", self._clip(ep, standing[role])]
         cmd += ["-i", d / "renders/presenter-master.mp4", "-i", self.music]
+        mid = epj["build"].get("midroll") or {}
+        if mid.get("composite") and mid.get("clip"):
+            cmd += ["-i", d / "overlay/clips" / mid["clip"]]   # input MUSIC_IN+1
         final = d / "output" / f"{ep_folder(ep)}-FINAL.mp4"
         cmd += ["-filter_complex_script", graph, "-map", "[vout]", "-map", "[aout]",
                 "-c:v", "libx264", "-crf", "18", "-preset", "medium",
