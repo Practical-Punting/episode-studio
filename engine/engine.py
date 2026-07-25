@@ -139,6 +139,13 @@ STEP_LABEL = {
 
 # --- step implementations ---------------------------------------------------
 def step_audit_inputs(ctx):
+    # WORDS GATE, defense-in-depth: even if a stale/foreign claim path got us
+    # here, never build before the words are approved (the EP09 zombie lesson).
+    if not ctx.ep.get("title_approved"):
+        raise EngineFlag(
+            "Words Gate: the title + byline aren't approved yet — approve the "
+            "words on the board, then clear this flag. Nothing is built before "
+            "the words are locked.")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
@@ -439,11 +446,55 @@ def acquire():
     return None
 
 
+_CODE_FILES = [Path(__file__).resolve(),
+               Path(__file__).resolve().parent / "providers.py",
+               PP_VIDEOS / "scripts" / "rail.py"]
+_CODE_MTIMES = {p: p.stat().st_mtime for p in _CODE_FILES if p.exists()}
+LOCK = ENGINE_DIR / "engine.lock"
+
+
+def _acquire_lock():
+    """Single-instance guard (the EP09 zombie lesson): a stray old engine must
+    never share the worker identity with a new one."""
+    if LOCK.exists():
+        try:
+            other = int(LOCK.read_text().strip())
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)
+            if h:
+                ctypes.windll.kernel32.CloseHandle(h)
+                raise SystemExit(
+                    f"another engine (pid {other}) is already running — refusing to "
+                    "start a second one. Stop it first (engine.lock).")
+        except (ValueError, OSError):
+            pass                          # stale/unreadable lock — take over
+    LOCK.write_text(str(os.getpid()))
+
+
+def _code_changed():
+    """Stale-code guard: a long-lived watch engine must not keep months-old
+    logic in memory. If any core file changed since start, exit so the next
+    start loads fresh code."""
+    for p, m in _CODE_MTIMES.items():
+        try:
+            if p.stat().st_mtime != m:
+                return p.name
+        except OSError:
+            pass
+    return None
+
+
 def cmd_run(mock, watch):
+    _acquire_lock()
     provider = MockProvider(MOCK_ROOT) if mock else RealProvider(PP_VIDEOS)
-    log(f"engine up — worker={WORKER} provider={provider.name} watch={watch}")
+    log(f"engine up — worker={WORKER} pid={os.getpid()} provider={provider.name} watch={watch}")
     idle_poll = 3 if mock else 30
     while True:
+        changed = _code_changed()
+        if changed:
+            log(f"{changed} changed on disk since start — exiting so fresh code loads "
+                "(restart the engine)")
+            return
         ep = acquire()
         if not ep:
             if not watch:
