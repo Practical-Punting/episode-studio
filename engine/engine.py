@@ -467,12 +467,18 @@ def _acquire_lock():
         try:
             other = int(LOCK.read_text().strip())
             import ctypes
-            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)
+            k = ctypes.windll.kernel32
+            h = k.OpenProcess(0x1000, False, other)
             if h:
-                ctypes.windll.kernel32.CloseHandle(h)
-                raise SystemExit(
-                    f"another engine (pid {other}) is already running — refusing to "
-                    "start a second one. Stop it first (engine.lock).")
+                # OpenProcess also succeeds on exited processes whose handles
+                # linger — only exit code 259 (STILL_ACTIVE) means running.
+                code = ctypes.c_ulong()
+                alive = k.GetExitCodeProcess(h, ctypes.byref(code)) and code.value == 259
+                k.CloseHandle(h)
+                if alive:
+                    raise SystemExit(
+                        f"another engine (pid {other}) is already running — refusing to "
+                        "start a second one. Stop it first (engine.lock).")
         except (ValueError, OSError):
             pass                          # stale/unreadable lock — take over
     LOCK.write_text(str(os.getpid()))
