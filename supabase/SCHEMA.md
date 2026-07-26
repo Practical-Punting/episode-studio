@@ -3,7 +3,8 @@
 Supabase holds **all state**; Google Drive holds **all artifacts** (renders, cards, e-books);
 the repo stays local. This keeps the "brain" portable to a future rented media box.
 Applied by migrations `migration.sql` (001) + `migration-002-engine.sql` (002)
-+ `migration-003-locked-order.sql` (003).
++ `migration-003-locked-order.sql` (003 — **applied 26 Jul 2026** by Cowork via
+Supabase MCP; read/write verified through `rail.py`).
 
 ## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026 — do not re-sequence)
 1. Paste article → script + words (title / hook / byline).
