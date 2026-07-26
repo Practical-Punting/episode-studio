@@ -60,6 +60,37 @@ build stops; it never falls back to the stale local draft. If the Doc changes
 after approval, `script_changed_since_approval` is set (the card shows it) and the
 build carries on using the approved snapshot.
 
+### Rail integrity gate — `rail.py` can't drift unnoticed
+
+`rail.py` lives on Google Drive, outside version control, and it holds the Script
+Gate's enforcement: the `claim_next` filter that refuses to hand out an episode
+nobody has read the script for. A revert there would disable that guarantee
+**silently** — the engine would keep running and the board would still look
+healthy. It is the one failure in the system that had no alarm on it.
+
+So `engine/rail.reference.py` is a **byte-for-byte** committed copy, and the engine
+sha256s the live file against it **before importing it**. On mismatch, missing file
+or unreadable file it prints both hashes to stderr and **exits 4**. Every `except`
+branch ends in a fatal; `SystemExit` inherits `BaseException`, so the engine's own
+`except Exception` handlers cannot swallow it. There is no bypass flag, no
+environment variable, and `--mock` does not skip it (mock writes to the real rail).
+
+**To change rail.py deliberately:** edit the live file, then refresh the reference
+and commit both together, so the diff is reviewable —
+`python -c "import pathlib;pathlib.Path('engine/rail.reference.py').write_bytes(pathlib.Path(r'G:\My Drive\PP Videos\scripts\rail.py').read_bytes())"`
+
+`.gitattributes` marks the reference `-text`. `core.autocrlf` is true on this
+machine, so without that line git would check the file out as CRLF while Drive
+holds LF and the gate would refuse to start over 316 line endings.
+
+Named `rail.reference.py`, not `rail.py`, so it can never be picked up by
+`import rail` if `PP_VIDEOS` is ever wrong — a silent fallback to the wrong file is
+exactly what this exists to prevent.
+
+This is step 1 of two. Step 2 moves the logic into the repo and leaves a thin shim
+on Drive, at which point there is one copy and divergence becomes impossible rather
+than merely detected.
+
 ### Known future upgrade — reading script Docs
 
 The engine is a standalone Python process with no Google login. It cannot use the

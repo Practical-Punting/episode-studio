@@ -31,6 +31,7 @@ credits — see providers.py for the fault-injection switches.
 """
 from __future__ import annotations
 import argparse
+import hashlib
 import os
 import shutil
 import socket
@@ -56,6 +57,62 @@ HEARTBEAT_SECS = 20
 MAX_ATTEMPTS = 3
 CREDITS_PER_BROLL = 4                      # conservative planning figure
 CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "60"))  # per episode
+
+# --- rail integrity gate (26 Jul 2026) --------------------------------------
+# rail.py holds the Script Gate's enforcement — the claim filter that refuses to
+# hand out an episode nobody has read the script for. It lives on Google Drive,
+# outside version control, where a revert would disable that guarantee SILENTLY:
+# the engine would keep running and the board would still look healthy.
+#
+# So the repo carries a byte-for-byte reference copy and the engine compares the
+# live file against it BEFORE importing it. Any doubt at all — mismatch, missing
+# file, unreadable file — stops the engine. There is no bypass flag, no
+# environment variable, and --mock does NOT skip it (mock still writes to the
+# real rail).
+RAIL_LIVE = PP_VIDEOS / "scripts" / "rail.py"
+RAIL_REFERENCE = ENGINE_DIR / "rail.reference.py"
+
+
+def _rail_gate_die(reason, detail=""):
+    """The ONE exit path from the gate. Always fatal; never returns."""
+    print("=" * 72, file=sys.stderr)
+    print("RAIL INTEGRITY GATE FAILED — refusing to start.", file=sys.stderr)
+    print(reason, file=sys.stderr)
+    if detail:
+        print(detail, file=sys.stderr)
+    print("\nrail.py carries the Script Gate's claim filter. Rather than run on a\n"
+          "version nobody has reviewed, the engine stops here.\n"
+          "Fix: make the live file match the committed reference, or make the\n"
+          "change deliberately and update the reference in the same commit.",
+          file=sys.stderr)
+    print("=" * 72, file=sys.stderr)
+    raise SystemExit(4)
+
+
+def _rail_integrity_gate():
+    """Compare the FULL BYTES of the live rail.py against the committed
+    reference. Returns the sha256 on success; otherwise it never returns."""
+    try:
+        reference = RAIL_REFERENCE.read_bytes()
+    except OSError as e:
+        _rail_gate_die(f"Can't read the committed reference copy:\n  {RAIL_REFERENCE}",
+                       f"  {e}")
+    try:
+        live = RAIL_LIVE.read_bytes()
+    except OSError as e:
+        _rail_gate_die(f"Can't read the live rail.py:\n  {RAIL_LIVE}", f"  {e}")
+    ref_sha = hashlib.sha256(reference).hexdigest()
+    live_sha = hashlib.sha256(live).hexdigest()
+    if ref_sha != live_sha:
+        _rail_gate_die(
+            "The live rail.py does NOT match the committed reference.",
+            f"  reference : {ref_sha}  ({len(reference)} bytes)\n"
+            f"  live      : {live_sha}  ({len(live)} bytes)\n"
+            f"  live path : {RAIL_LIVE}")
+    return live_sha
+
+
+RAIL_SHA = _rail_integrity_gate()      # runs BEFORE the import below. No bypass.
 
 sys.path.insert(0, str(PP_VIDEOS / "scripts"))
 import rail  # the one shared Supabase client (RAIL-INTEGRATION.md)
