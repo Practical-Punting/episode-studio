@@ -39,6 +39,40 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+# --- qc_episode.py integrity gate (26 Jul 2026) ------------------------------
+# qc_episode.py is the checker that judges every finished episode. It lives on
+# Google Drive, outside version control, and it existed in TWO copies that had
+# already drifted — the spare was three hours older and missing three hard-fail
+# rules (card word-cue anchoring, b-roll/card overlap, midroll visibility). If
+# the wrong one ever ran, an episode would PASS while being judged by weaker
+# rules, and nothing would say so.
+#
+# So the repo carries a byte-for-byte reference copy and the engine compares the
+# live file against it IMMEDIATELY BEFORE shelling out to it. Mismatch, missing
+# file or unreadable file all stop the run. There is no bypass flag and no
+# environment variable. (Mock mode never executes this script at all — it has its
+# own self_qc — so there is nothing there to bypass.)
+QC_SCRIPT = "qc_episode.py"
+QC_REFERENCE = Path(__file__).resolve().parent / "qc_episode.reference.py"
+
+
+def _qc_gate_die(reason, detail=""):
+    """The ONE exit path from the QC gate. Always fatal; never returns."""
+    print("=" * 72, file=sys.stderr)
+    print("QC INTEGRITY GATE FAILED — refusing to run QC.", file=sys.stderr)
+    print(reason, file=sys.stderr)
+    if detail:
+        print(detail, file=sys.stderr)
+    print("\nqc_episode.py decides whether an episode is good enough to ship.\n"
+          "Rather than judge this episode by rules nobody has reviewed, the\n"
+          "engine stops here. The build so far is checkpointed and resumes.\n"
+          "Fix: make the live file match the committed reference, or make the\n"
+          "change deliberately and update the reference in the same commit.",
+          file=sys.stderr)
+    print("=" * 72, file=sys.stderr)
+    raise SystemExit(5)
+
+
 class EngineFlag(Exception):
     """Raise to say: a HUMAN is needed. The engine flags needs_look with this
     message (plain English!) and does not retry — it isn't transient."""
@@ -779,7 +813,31 @@ class RealProvider:
             shutil.copyfile(srt, final.with_suffix(".srt"))
         return str(final)
 
+    def _qc_integrity_gate(self):
+        """Compare the FULL BYTES of the live qc_episode.py against the committed
+        reference. Returns the sha256 on success; otherwise it never returns."""
+        live_path = self.scripts / QC_SCRIPT
+        try:
+            reference = QC_REFERENCE.read_bytes()
+        except OSError as e:
+            _qc_gate_die(f"Can't read the committed reference copy:\n  {QC_REFERENCE}",
+                         f"  {e}")
+        try:
+            live = live_path.read_bytes()
+        except OSError as e:
+            _qc_gate_die(f"Can't read the live qc_episode.py:\n  {live_path}", f"  {e}")
+        ref_sha = hashlib.sha256(reference).hexdigest()
+        live_sha = hashlib.sha256(live).hexdigest()
+        if ref_sha != live_sha:
+            _qc_gate_die(
+                "The live qc_episode.py does NOT match the committed reference.",
+                f"  reference : {ref_sha}  ({len(reference)} bytes)\n"
+                f"  live      : {live_sha}  ({len(live)} bytes)\n"
+                f"  live path : {live_path}")
+        return live_sha
+
     def self_qc(self, ep, final_path) -> str:
+        self._qc_integrity_gate()      # runs before we shell out. No bypass.
         d = self.dir(ep)
         head = str(self.epjson(ep).get("build", {}).get("title_head", 7.0))
         # --episode arms the end-sequence + midroll checks (the EP08 lessons)

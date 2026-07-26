@@ -91,6 +91,39 @@ This is step 1 of two. Step 2 moves the logic into the repo and leaves a thin sh
 on Drive, at which point there is one copy and divergence becomes impossible rather
 than merely detected.
 
+### QC integrity gate — `qc_episode.py` can't drift unnoticed
+
+Same pattern as the rail gate, for the checker that judges every finished episode.
+`qc_episode.py` lives on Drive, unversioned, and it already existed in **two copies
+that had drifted**: the spare in `pp-production-plugin/` was three hours older and
+missing three hard-fail rules (card word-cue anchoring, b-roll/card overlap, midroll
+full-visibility). If the weaker one ever ran, an episode would **pass while being
+judged by the wrong rules** — a silent quality failure.
+
+`engine/qc_episode.reference.py` is a byte-for-byte copy of the canonical live file
+(`.claude/skills/pp-episode-production/scripts/qc_episode.py` — the one the engine
+actually executes). `RealProvider._qc_integrity_gate()` sha256s the live file
+**immediately before shelling out to it**, inside `self_qc`. Mismatch, missing file
+or unreadable file print both hashes to stderr and **exit 5** (the rail gate uses 4).
+No bypass flag, no environment variable. Mock mode never runs this script — it has
+its own `self_qc` — so there is nothing there to skip.
+
+Checking at the point of use rather than at startup means a drift introduced
+mid-build is still caught. The cost is that it fires late, after the credits are
+spent — but the build is checkpointed, so fixing the file and restarting resumes at
+`self_qc` rather than rebuilding.
+
+**To change qc_episode.py deliberately:** edit the live file, then refresh the
+reference and commit both together, so the diff is reviewable —
+`python -c "import pathlib;pathlib.Path('engine/qc_episode.reference.py').write_bytes(pathlib.Path(r'G:\My Drive\PP Videos\.claude\skills\pp-episode-production\scripts\qc_episode.py').read_bytes())"`
+
+`.gitattributes` marks the reference `-text`, for the same CRLF reason as the rail
+reference.
+
+Still to do (deliberately deferred until after the next end-to-end run): delete the
+duplicate scripts under `pp-production-plugin/`, and extend this gate to the other
+nine engine-invoked scripts.
+
 ### Known future upgrade — reading script Docs
 
 The engine is a standalone Python process with no Google login. It cannot use the
