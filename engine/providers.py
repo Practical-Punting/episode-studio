@@ -22,8 +22,10 @@ Fault injection (mock only), via environment variables:
     MOCK_BROLL_CLIPS=<n>    clips in the mock plan (default 3)
 """
 from __future__ import annotations
+import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +33,10 @@ import time
 import urllib.request
 import uuid
 from pathlib import Path
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 class EngineFlag(Exception):
@@ -92,6 +98,18 @@ class MockProvider:
         return 4.0                         # two pretend heroes @ 2 credits
 
     # -- steps ---------------------------------------------------------------
+    def fetch_script(self, ep, write=True):
+        """Pretend Doc read. Deterministic text so the drift check is stable."""
+        self.maybe_fail("script_sync")
+        self._work()
+        text = (f"Mock script for {ep_folder(ep)}.\n"
+                "Gordon says a few plain, wry Australian words about the form.\n")
+        if write:
+            self._artifact(ep_folder(ep), "docs/spoken-words.txt", "from mock Doc")
+            p = self.root / ep_folder(ep) / "docs/spoken-words.txt"
+            p.write_text(text, encoding="utf-8")
+        return text, sha256_text(text), "the mock Doc"
+
     def audit_inputs(self, ep) -> dict:
         self.maybe_fail("audit_inputs")
         self._work()
@@ -420,6 +438,67 @@ class RealProvider:
                 return str(dest)
             time.sleep(10)
         raise RuntimeError(f"Higgsfield job for {label} never completed ({job_id})")
+
+    # -- the script's ONE home: the Google Doc --------------------------------
+    DOC_ID = re.compile(r"/document/d/([A-Za-z0-9_-]{20,})")
+
+    def _doc_id(self, ep) -> str:
+        url = (ep.get("script_doc_url") or "").strip()
+        if not url:
+            raise EngineFlag(
+                "No script Doc is linked to this episode. The script lives as a "
+                "Google Doc in the episode's Drive folder — that Doc is the single "
+                "source of truth. Paste its link into the words card on the board, "
+                "then clear this flag. I will not build from a local draft.")
+        m = self.DOC_ID.search(url)
+        if not m:
+            raise EngineFlag(
+                f"The script Doc link doesn't look like a Google Doc URL ({url[:80]}). "
+                "It should look like https://docs.google.com/document/d/<id>/edit — "
+                "fix the link on the board, then clear this flag.")
+        return m.group(1)
+
+    def fetch_script(self, ep, write=True):
+        """Read the script from its Google Doc and (by default) overwrite the local
+        docs/spoken-words.txt from it. Returns (text, sha256, source).
+
+        ONE SCRIPT, ONE HOME: the Doc is authoritative from the moment it is made.
+        spoken-words.txt is a derived cache, rebuilt here every single build, so an
+        operator edit can never be silently ignored.
+
+        Reads via the Doc's plain-text export URL, which needs the Doc shared as
+        "anyone with the link can view". Anything that isn't real text — a Google
+        sign-in page, an empty body — FLAGS. We never fall back to the stale draft."""
+        doc_id = self._doc_id(ep)
+        url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "pp-engine"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw = r.read()
+                ctype = (r.headers.get("Content-Type") or "").lower()
+        except Exception as e:
+            raise EngineFlag(
+                f"I can't read the script Doc ({e}). The script is the single source "
+                "of truth and I will NOT build from a stale local copy. Check the "
+                "Doc still exists and is shared so anyone with the link can view it, "
+                "then clear this flag.")
+        if "text/plain" not in ctype:
+            raise EngineFlag(
+                "The script Doc didn't come back as plain text — Google returned "
+                f"'{ctype or 'nothing'}', which usually means a sign-in page. Share "
+                "the Doc so anyone with the link can VIEW it, then clear this flag. "
+                "I will not guess at the script or use an old copy.")
+        text = raw.decode("utf-8-sig", errors="replace").replace("\r\n", "\n").strip()
+        if len(text.split()) < 50:
+            raise EngineFlag(
+                f"The script Doc reads as only {len(text.split())} words — that's not "
+                "a full episode script. Check the right Doc is linked and that it has "
+                "content, then clear this flag.")
+        if write:
+            out = self.dir(ep) / "docs/spoken-words.txt"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text + "\n", encoding="utf-8")
+        return text, sha256_text(text), f"the script Doc ({doc_id[:10]}…)"
 
     # -- steps ---------------------------------------------------------------
     def audit_inputs(self, ep) -> dict:

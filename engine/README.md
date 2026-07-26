@@ -42,6 +42,24 @@ and the mock switches in `providers.py` (`MOCK_FAIL_STEP`, `MOCK_FAIL_ONCE`,
   two cover heroes); refuses to start (flags instead) if the balance can't
   cover it or it exceeds `ENGINE_CREDIT_CEILING` / `ENGINE_COVER_CEILING`.
 
+## THE SCRIPT GATE (Jodie, 26 Jul 2026) — no override
+
+The script lives as a **Google Doc in the episode's Drive folder**. That Doc is
+the single source of truth; `docs/spoken-words.txt` is a derived cache the engine
+overwrites from it in the first build step (`script_sync`). The gate passes only
+when a human has done BOTH — approved the words AND ticked "I've read the script"
+(`title_approved` + `script_read`, enforced in `rail.claim_next`'s filter).
+
+`assert_script_gate(ep)` is the guard, called at `script_sync`, `audit_inputs`
+and `render_gate`. **Any future auto-render path must call it before submitting
+anything to HeyGen.** There is no flag, no env var and no fast path past it —
+approving the script is a decision, and decisions stay human.
+
+If the Doc can't be read, the episode flags `needs_look` in plain English and the
+build stops; it never falls back to the stale local draft. If the Doc changes
+after approval, `script_changed_since_approval` is set (the card shows it) and the
+build carries on using the approved snapshot.
+
 ## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026)
 
 Do not re-sequence without her explicit re-approval.
@@ -70,7 +88,7 @@ Warnings are logged AND kept in `build_state.order.warnings`.
 
 | status | engine steps |
 |---|---|
-| building | audit_inputs → **render_gate** (sets `heygen_name`, opens human turn 2) → credit_check → broll_submit → **covers_ab** (sets `cover_a_url`/`b_url`, opens human turn 3) → broll_collect → **cover_pick** (waits in place; status stays `building`) → ebook_cover (built from the pick) → cards_render → `rendering` if `render_started_at`, else park `awaiting_render` |
+| building | **script_sync** (re-reads the Doc, snapshots it) → audit_inputs → **render_gate** (sets `heygen_name`, opens human turn 2) → credit_check → broll_submit → **covers_ab** (sets `cover_a_url`/`b_url`, opens human turn 3) → broll_collect → **cover_pick** (waits in place; status stays `building`) → ebook_cover (built from the pick) → cards_render → `rendering` if `render_started_at`, else park `awaiting_render` |
 | rendering | heygen_download (poll by project name) → shot_map → `assembling` (the cover was picked back in the build) |
 | assembling | passA → passB → self_qc → ebook_pdf → thumbnail → youtube_copy → park `awaiting_approval` (writes links, `build_seconds`, releases claim) |
 | revising | Phase 3 — flags honestly instead of guessing |

@@ -71,12 +71,38 @@ HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 # LONG POLE (5-45 min) and depends only on the spoken track — which is final at
 # the Words Gate — so it starts EARLY, never last, and never behind the visuals.
 LOCKED_ORDER = (
-    "1 script + words · 2 WORDS GATE (title/hook/byline) · "
-    "3 render gate AND the gens batch (b-roll + cover heroes A/B + cards) fire "
-    "IN PARALLEL · 4 cover pick WHILE Gordon renders · 5 engine finishes "
-    "hands-off · 6 master -> shot map -> assembly -> QC · 7 the four approvals · "
-    "8 publish + Stage-8 close-out"
+    "1 script + words · 2 SCRIPT GATE + WORDS GATE (read the script, approve "
+    "title/hook/byline) · 3 render gate AND the gens batch (b-roll + cover heroes "
+    "A/B + cards) fire IN PARALLEL · 4 cover pick WHILE Gordon renders · 5 engine "
+    "finishes hands-off · 6 master -> shot map -> assembly -> QC · 7 the four "
+    "approvals · 8 publish + Stage-8 close-out"
 )
+
+
+# --- THE SCRIPT GATE (designed by Jodie, 26 Jul 2026) — NO OVERRIDE ------------
+# Approving the script is a DECISION. Decisions stay human, forever — including
+# after HeyGen auto-render lands. Starting a render is a CHORE and may one day be
+# automated; what Gordon SAYS may not. Automation eats chores, never decisions.
+#
+# This is a guard, not a convention. There is no flag, no fast path, no exception,
+# no environment variable and no --force that gets past it. Any future auto-render
+# path MUST call assert_script_gate() before it submits anything to HeyGen. If you
+# are reading this while adding auto-render: call it, don't route around it.
+def assert_script_gate(ep):
+    """Raise unless BOTH halves of the gate are set by a human. Callers that
+    submit a render, or build anything from the script, must call this first."""
+    if not ep.get("title_approved"):
+        raise EngineFlag(
+            "SCRIPT GATE: the words (title / hook / byline) aren't approved yet. "
+            "Approve them on the board, then clear this flag. Nothing builds and "
+            "nothing renders before the words are locked.")
+    if not ep.get("script_read"):
+        raise EngineFlag(
+            "SCRIPT GATE: nobody has ticked \"I've read the script\" yet. Open the "
+            "script Doc from the board, read it, tick the box, then clear this "
+            "flag. Approving the script is a decision — it never happens "
+            "automatically, and there is no way around this gate.")
+    return True
 
 
 def log(msg):
@@ -130,7 +156,7 @@ class OwnershipLost(Exception):
 # so the cover pick (step 4) reaches the operator while the render is still
 # running. Everything after the pick is hands-off (step 5).
 PHASES = {
-    "building":   ["audit_inputs", "render_gate", "credit_check",
+    "building":   ["script_sync", "audit_inputs", "render_gate", "credit_check",
                    "broll_submit", "covers_ab", "broll_collect",
                    "cover_pick", "ebook_cover", "cards_render"],
     "rendering":  ["heygen_download", "shot_map"],
@@ -139,6 +165,7 @@ PHASES = {
 }
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
+    "script_sync":    "Re-reading the approved script from Drive",
     "audit_inputs":   "Checking the inputs",
     "render_gate":    "Opening the render gate — Gordon can start now",
     "credit_check":   "Checking credits before spending",
@@ -179,6 +206,14 @@ def check_locked_order():
     def before(x, y):
         return x in b and y in b and b.index(x) < b.index(y)
     problems = []
+    if not before("script_sync", "audit_inputs"):
+        problems.append("the script must be re-read from its Doc BEFORE the "
+                        "render-ready scan — the scan has to check the words the "
+                        "operator actually approved, not a stale local draft")
+    if not before("script_sync", "render_gate"):
+        problems.append("the script must be re-read from its Doc BEFORE the "
+                        "render gate opens — a render must never be offered on "
+                        "text nobody approved")
     if not before("render_gate", "broll_submit"):
         problems.append("the render gate must open BEFORE the gens batch fires "
                         "(the render is the long pole — it never waits on pictures)")
@@ -199,14 +234,58 @@ def check_locked_order():
 
 
 # --- step implementations ---------------------------------------------------
+def _script_drift_check(ctx):
+    """Has the Doc moved since the text we snapshotted? FLAG it on the card —
+    never block, and never silently re-sync. The snapshot stays the record of
+    what was actually approved and rendered; the flag tells the operator their
+    later edit did NOT make it into this build."""
+    baseline = ctx.ep.get("script_sha256")
+    if not baseline:
+        return
+    try:
+        _text, sha, _src = ctx.provider.fetch_script(ctx.ep, write=False)
+    except Exception as e:
+        log(f"   (couldn't re-check the script Doc for drift: {e}) — carrying on")
+        return
+    changed = sha != baseline
+    if changed != bool(ctx.ep.get("script_changed_since_approval")):
+        ctx.ep_set({"script_changed_since_approval": changed})
+    if changed:
+        log("!! the script Doc has CHANGED since it was approved. This build is "
+            f"using the approved snapshot (sha {baseline[:12]}), NOT the current "
+            "Doc. Flagged on the board — not blocking.")
+
+
+def step_script_sync(ctx):
+    """THE SCRIPT GATE, enforced — and the re-read that makes it mean something.
+
+    The Google Doc is the ONE HOME of the script. The operator has just read it
+    on the board and almost certainly edited it, so the engine throws away its
+    own local draft and rebuilds docs/spoken-words.txt from the Doc. A studio
+    that ignores its reviewer's edits is worse than no gate at all.
+
+    If the Doc can't be read we FLAG — loudly, in plain English — and stop. We
+    never quietly fall back to the stale local draft."""
+    assert_script_gate(ctx.ep)                      # no override, ever
+    text, sha, source = ctx.provider.fetch_script(ctx.ep)
+    words = len(text.split())
+    ctx.ep_set({
+        "script_snapshot": text,                    # exactly what gets rendered
+        "script_sha256": sha,
+        "script_approved_at": datetime.now(timezone.utc).isoformat(),
+        "script_locked_at": datetime.now(timezone.utc).isoformat(),
+        "script_changed_since_approval": False,     # fresh read = fresh baseline
+    })
+    ctx.stamp("script_synced_at")
+    log(f"   script re-read from {source} — {words} words, sha {sha[:12]} "
+        "(this exact text is what gets built and rendered)")
+    return {"words": words, "sha256": sha, "source": source}
+
+
 def step_audit_inputs(ctx):
-    # WORDS GATE, defense-in-depth: even if a stale/foreign claim path got us
-    # here, never build before the words are approved (the EP09 zombie lesson).
-    if not ctx.ep.get("title_approved"):
-        raise EngineFlag(
-            "Words Gate: the title, hook + byline aren't approved yet — approve "
-            "the words on the board, then clear this flag. Nothing is built "
-            "before the words are locked.")
+    # Defence-in-depth: even if a stale or foreign claim path got us here, never
+    # build before the gate has passed (the EP09 zombie lesson).
+    assert_script_gate(ctx.ep)
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
@@ -219,7 +298,13 @@ def step_render_gate(ctx):
     The HeyGen render is the LONG POLE (5-45 min) and depends only on the spoken
     track, which is final at the Words Gate. So it starts now and cooks while the
     engine makes the pictures. Nothing about this step blocks: the engine names
-    the project, opens the gate, and carries straight on to the gens batch."""
+    the project, opens the gate, and carries straight on to the gens batch.
+
+    THE HARD RULE: a render — this one by hand, and any future auto-render — may
+    NEVER fire on a script that hasn't passed the Script Gate. Checked here, at
+    the last moment before a human (or a machine) is invited to press go."""
+    assert_script_gate(ctx.ep)                      # no override, ever
+    _script_drift_check(ctx)
     nn = ctx.ep.get("ep_number")
     name = (f"PP-EP{int(nn):02d} — {ctx.ep.get('title') or 'Untitled'}"
             if nn is not None else (ctx.ep.get("title") or "Untitled"))
@@ -459,6 +544,7 @@ def step_youtube_copy(ctx):
 
 
 STEP_FNS = {name: fn for name, fn in [
+    ("script_sync", step_script_sync),
     ("audit_inputs", step_audit_inputs), ("render_gate", step_render_gate),
     ("credit_check", step_credit_check),
     ("broll_submit", step_broll_submit), ("covers_ab", step_covers_ab),
@@ -629,6 +715,26 @@ def run_phase(ctx):
 
 
 # --- main loop ---------------------------------------------------------------
+def _why_idle():
+    """Nothing claimable — say WHY, once. An engine sitting silently while a
+    queued episode waits on a human gate is the most confusing failure there is,
+    and the Script Gate makes it more likely (two halves to forget, not one)."""
+    try:
+        waiting = []
+        for ep in rail.list_queued():
+            missing = []
+            if not ep.get("title_approved"):
+                missing.append("words not approved")
+            if not ep.get("script_read"):
+                missing.append("\"I've read the script\" not ticked")
+            if missing:
+                waiting.append(f"PP-EP{ep.get('ep_number')}: {' + '.join(missing)}")
+        if waiting:
+            log("waiting on the Script Gate — " + "; ".join(waiting))
+    except Exception as e:
+        log(f"(couldn't explain the idle state: {e})")
+
+
 def acquire():
     ep = rail.resume_own(WORKER)
     if ep:
@@ -718,6 +824,7 @@ def cmd_run(mock, watch):
     check_locked_order()
     idle_poll = 3 if mock else 30
     _s8_last = 0.0
+    _gate_last = 0.0
     while True:
         changed = _code_changed()
         if changed:
@@ -727,8 +834,12 @@ def cmd_run(mock, watch):
         ep = acquire()
         if not ep:
             if not watch:
+                _why_idle()
                 log("nothing to do (no claimable episode) — exiting")
                 return
+            if time.time() - _gate_last > 300:
+                _why_idle()
+                _gate_last = time.time()
             if not mock and time.time() - _s8_last > 600:
                 _stage8_watch()
                 _s8_last = time.time()
@@ -786,8 +897,15 @@ def cmd_mock_episode():
         "ep_number": 99, "title": "Mock Episode — Spine Test", "status": "queued",
         "source_url": "https://example.com/mock-article",
         "created_by": "engine-mock",
-        "title_approved": True,   # mock pre-passes the Words Gate (claim filter)
-        "notes": "Hook: A Mock Hook\nByline: a mock byline for the spine test",
+        # The mock pre-passes BOTH halves of the Script Gate so the spine can be
+        # exercised. This is the only place either flag is ever set by code, and
+        # it only ever runs against a throwaway PP-EP99 ticket.
+        "title_approved": True,
+        "script_read": True,
+        "script_doc_url": "https://docs.google.com/document/d/MOCKmockMOCKmockMOCKmock/edit",
+        "hook": "A Mock Hook",
+        "byline": "a mock byline for the spine test",
+        "notes": "Mock ticket for the engine spine test.",
     })
     log(f"mock ticket created: PP-EP99 id={ep['id']}")
 

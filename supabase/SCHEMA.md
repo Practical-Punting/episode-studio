@@ -6,9 +6,21 @@ Applied by migrations `migration.sql` (001) + `migration-002-engine.sql` (002)
 + `migration-003-locked-order.sql` (003 — **applied 26 Jul 2026** by Cowork via
 Supabase MCP; read/write verified through `rail.py`).
 
+## THE SCRIPT GATE (Jodie, 26 Jul 2026)
+The script lives as a **Google Doc in the episode's Drive folder** (`script_doc_url`) — its ONE
+HOME, the single source of truth. `docs/spoken-words.txt` is a derived cache the engine rebuilds
+from the Doc at the start of every build. The gate passes only when **both** `title_approved`
+**and** `script_read` are true; `rail.claim_next` filters on both, so nothing is claimable
+otherwise. On approval the engine re-reads the Doc and stores `script_snapshot` + `script_sha256`
+— the record of what was actually approved and rendered. A later edit to the Doc sets
+`script_changed_since_approval` (flag on the card, never blocks).
+**No override:** `engine.assert_script_gate()` guards `script_sync`, `audit_inputs` and
+`render_gate`. Any future auto-render path must call it. There is no flag or fast path past it.
+
 ## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026 — do not re-sequence)
-1. Paste article → script + words (title / hook / byline).
-2. **Human turn 1 — Words Gate** (`title_approved`). Nothing builds before this.
+1. Paste article → script written into its Google Doc + the words (title / hook / byline).
+2. **Human turn 1 — Script Gate + Words Gate** (`script_read` + `title_approved`). Nothing
+   builds before both.
 3. On approval, **two things fire at once**: (a) **human turn 2** — start Gordon's
    HeyGen render (`render_started_at`), the LONG POLE, which depends only on the
    spoken track and so never waits on pictures; (b) the engine's gens batch —
@@ -63,6 +75,12 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | drive_folder | text | engine | `PP-EPnn` (artifacts live here on Drive) |
 | video_url / ebook_url / thumbnail_url | text | engine | Drive links to the finished artifacts |
 | **video_approved / ebook_approved / thumbnail_approved / title_approved** | bool | human | the 4 separate gates |
+| **hook / byline** | text | human (board, editable) | the words, promoted out of `notes` (004) |
+| **script_doc_url** | text | create step / human | the script's Google Doc — single source of truth (004) |
+| **script_read** | bool | human ONLY | "I've read the script" — half the Script Gate (004) |
+| **script_snapshot / script_sha256** | text | engine | the exact text approved + rendered (004) |
+| **script_approved_at / script_locked_at** | timestamptz | engine | when the gate passed (004) |
+| **script_changed_since_approval** | bool | engine | Doc edited after approval — flags, never blocks (004) |
 | youtube_copy | text | engine | recommended title + pointer to youtube.txt |
 | **ebook_link** | text | human | public e-book URL (pasted into the YT copy at publish) |
 | **published_url** | text | human | the live YouTube URL |

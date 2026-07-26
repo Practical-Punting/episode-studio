@@ -57,16 +57,29 @@ const STALE_MS = 5 * 60 * 1000;
  * The hook was added 26 Jul 2026: it becomes the main thumbnail text, and on EP10
  * it was never consciously signed off. Approving the words now means approving the
  * exact words the thumbnail will carry. */
-function wordsGatePending(ep) {
-  return ep.status === "queued" && !ep.title_approved;
+/* SCRIPT GATE (Jodie, 26 Jul 2026): the gate passes only when BOTH halves are
+ * done — the words are approved AND "I've read the script" is ticked. Approving
+ * the script is a DECISION and stays human forever, even after auto-render lands.
+ * Starting a render is a chore and may be automated. Automation eats chores,
+ * never decisions. */
+function gatePassed(ep) {
+  return !!(ep.title_approved && ep.script_read);
 }
+function wordsGatePending(ep) {
+  return ep.status === "queued" && !gatePassed(ep);
+}
+/* The words now live in their own columns so the board can EDIT them. Older rows
+ * carried them as "Byline: …" / "Hook: …" lines in notes — still read as a
+ * fallback so nothing already on the rail loses its words. */
 function bylineOf(ep) {
+  if (ep.byline) return ep.byline;
   const m = /byline:\s*(.+)/i.exec(ep.notes || "");
-  return m ? m[1].trim() : null;
+  return m ? m[1].trim() : "";
 }
 function hookOf(ep) {
+  if (ep.hook) return ep.hook;
   const m = /hook:\s*(.+)/i.exec(ep.notes || "");
-  return m ? m[1].trim() : null;
+  return m ? m[1].trim() : "";
 }
 
 // ── state ────────────────────────────────────────────────────────────────
@@ -76,7 +89,7 @@ let SESSION = null;
 let channel = null;
 const inflight = new Set();    // idempotency: one write per key at a time
 // Survives the full re-render that realtime triggers, so a half-typed note isn't lost.
-const UI = { open: new Set(), drafts: new Map(), kinds: new Map() };
+const UI = { open: new Set(), drafts: new Map(), kinds: new Map(), words: new Map() };
 
 // ── helpers ──────────────────────────────────────────────────────────────
 function esc(s) {
@@ -352,6 +365,7 @@ function cardFor(ep) {
     h += "</div>";
   }
 
+  h += scriptDriftNote(ep);
   h += gateFor(ep);
   h += metaFor(ep);
   h += threadFor(ep);
@@ -417,22 +431,67 @@ function gateFor(ep) {
   }
 }
 
+/* The words + script card. The three words are EDITABLE here — the operator is
+ * the last word on them, so they change them in place rather than asking someone
+ * else to. The script itself lives in a Google Doc (its one home); this card
+ * links to it and will not let the gate pass until it's been read. */
 function gateWords(ep) {
-  const byline = bylineOf(ep), hook = hookOf(ep);
-  const missing = '<i class="muted">none yet — add it to the episode notes</i>';
-  return '<div class="gate"><h4>Your turn — approve the words</h4>' +
-    '<p class="g-hint">Lock the title, hook + byline BEFORE anything is built — the thumbnail, ' +
-    "cover, title card and video all use these words. The <b>hook</b> is the big text on the " +
-    "thumbnail, so read it as the words people will actually see. The moment you approve, " +
-    "the render gate opens and the pictures start at the same time.</p>" +
-    '<div class="approvals">' +
-    '<div class="appr"><span class="a-n"><b>Hook (thumbnail text):</b> ' +
-      (hook ? esc(hook) : missing) + "</span></div>" +
-    '<div class="appr"><span class="a-n"><b>Title:</b> ' + esc(ep.title || "—") + "</span></div>" +
-    '<div class="appr"><span class="a-n"><b>Byline:</b> ' + (byline ? esc(byline) : missing) +
-    "</span></div></div>" +
-    '<p style="margin-top:12px"><button class="btn" data-act="approve-words" data-ep="' + ep.id +
-    '">Approve the words &rarr;</button></p></div>';
+  const doc = safeUrl(ep.script_doc_url);
+  const read = !!ep.script_read;
+  const f = (name, label, value, ph) =>
+    '<label class="wf"><span>' + esc(label) + "</span>" +
+    '<input type="text" id="w-' + name + "-" + ep.id + '" value="' + esc(value || "") +
+    '" placeholder="' + esc(ph) + '"></label>';
+
+  let h = '<div class="gate"><h4>Your turn — the script and the words</h4>' +
+    '<p class="g-hint">Nothing is built until you have <b>read the script</b> and ' +
+    "approved these words. Change anything you like here — the thumbnail, cover, " +
+    "title card and video all use exactly what you leave in these boxes. The " +
+    "<b>hook</b> is the big text on the thumbnail.</p>";
+
+  // 1 — the script Doc, its one home. Opens in a new tab; fine on a phone.
+  h += '<div class="scriptrow">';
+  if (doc) {
+    h += '<a class="doclink" href="' + esc(doc) + '" target="_blank" rel="noopener">' +
+         "📄 Open the script &nearr;</a>";
+  } else {
+    h += '<div class="doclink none">No script Doc linked yet — paste its link below.</div>';
+  }
+  h += '<input type="url" id="w-doc-' + ep.id + '" value="' + esc(ep.script_doc_url || "") +
+       '" placeholder="https://docs.google.com/document/d/…">';
+  if (!doc) {
+    h += '<button class="mini" data-act="save-doc" data-ep="' + ep.id + '">Link this Doc</button>';
+  }
+  h += '<label class="tick"><input type="checkbox" data-act="script-read" data-ep="' + ep.id +
+       '"' + (read ? " checked" : "") + (doc ? "" : " disabled") +
+       "><span>I've read the script</span></label>";
+  if (!doc) h += '<p class="g-hint">Link the Doc first — you can\'t tick the box until there\'s a script to read.</p>';
+  h += "</div>";
+
+  // 2 — the three words, editable
+  h += '<div class="wordsform">' +
+    f("hook", "Hook (the big thumbnail text)", hookOf(ep), "e.g. Bet Less, Win More") +
+    f("title", "Title", ep.title, "the episode title") +
+    f("byline", "Byline", bylineOf(ep), "the one-line promise") +
+    "</div>";
+
+  const ready = read;
+  h += '<p style="margin-top:12px">' +
+    '<button class="btn" data-act="approve-words" data-ep="' + ep.id + '"' +
+    (ready ? "" : " disabled") + ">Save &amp; approve &rarr;</button>" +
+    (ready ? "" : ' <span class="muted">— tick “I’ve read the script” to enable</span>') +
+    "</p></div>";
+  return h;
+}
+
+/* Requirement 9: the Doc moved after approval. Say so on the card; never block. */
+function scriptDriftNote(ep) {
+  if (!ep.script_changed_since_approval) return "";
+  const doc = safeUrl(ep.script_doc_url);
+  return '<div class="drift">✎ The script Doc has changed since it was approved. ' +
+    "This build used the version you approved, not the current Doc." +
+    (doc ? ' <a href="' + esc(doc) + '" target="_blank" rel="noopener">Open the script &nearr;</a>' : "") +
+    "</div>";
 }
 
 /* R8 (26 Jul 2026): the render is the LONG POLE and depends only on the spoken
@@ -577,10 +636,19 @@ function harvestDrafts() {
     if (t.value) UI.drafts.set(id, t.value); else UI.drafts.delete(id);
   });
   document.querySelectorAll("select[id^='kind-']").forEach((s) => UI.kinds.set(s.id.slice(5), s.value));
+  // The words boxes are edits-in-progress too — a realtime refresh must not eat
+  // a half-typed hook. Keyed by the full input id.
+  document.querySelectorAll("input[id^='w-']").forEach((i) => UI.words.set(i.id, i.value));
+}
+/* Once a write lands, the saved row is the truth — drop the in-progress copies
+ * for that episode so they can't overwrite what was just stored. */
+function clearWordDrafts(id) {
+  [...UI.words.keys()].forEach((k) => { if (k.endsWith("-" + id)) UI.words.delete(k); });
 }
 function restoreDrafts() {
   UI.drafts.forEach((v, id) => { const t = $("chat-" + id); if (t) t.value = v; });
   UI.kinds.forEach((v, id) => { const s = $("kind-" + id); if (s) s.value = v; });
+  UI.words.forEach((v, id) => { const i = $(id); if (i && v) i.value = v; });
   // Threads read newest-last, so start them scrolled to the bottom.
   document.querySelectorAll(".msgs").forEach((m) => { m.scrollTop = m.scrollHeight; });
 }
@@ -617,9 +685,40 @@ $("lanes").addEventListener("click", async (e) => {
     return;
   }
 
+  if (act === "script-read") {
+    // Half of the Script Gate. Never set by anything but this click.
+    const on = btn.checked;
+    if (!(await writeEpisode(id, { script_read: on }, id + ":read", null))) btn.checked = !on;
+    else toast("toast", on ? "Script marked as read." : "Script no longer marked as read.", true);
+    return;
+  }
+
   if (act === "approve-words") {
-    if (await writeEpisode(id, { title_approved: true }, id + ":words", btn))
-      toast("toast", "Words locked — the engine can start the build.", true);
+    // Save the operator's edits AND close the gate in one write — what's in the
+    // boxes is what gets built, so the two must never drift apart.
+    const val = (n) => ($("w-" + n + "-" + id)?.value || "").trim();
+    const title = val("title"), doc = val("doc");
+    if (!title) { toast("toast", "The title can’t be empty.", false); return; }
+    if (doc && !safeUrl(doc)) { toast("toast", "That script link isn’t a valid https URL.", false); return; }
+    if (!$("w-doc-" + id) || !doc) { toast("toast", "Link the script Doc first — it’s the one home for the script.", false); return; }
+    const patch = {
+      title, hook: val("hook"), byline: val("byline"),
+      script_doc_url: doc, script_read: true, title_approved: true,
+    };
+    if (await writeEpisode(id, patch, id + ":words", btn)) {
+      clearWordDrafts(id);      // saved — the DB is now the truth, not the boxes
+      toast("toast", "Script read and words approved — the build can start.", true);
+    }
+    return;
+  }
+
+  if (act === "save-doc") {
+    const doc = ($("w-doc-" + id)?.value || "").trim();
+    if (!safeUrl(doc)) { toast("toast", "Paste the Doc’s https link first.", false); return; }
+    if (await writeEpisode(id, { script_doc_url: doc }, id + ":doc", btn)) {
+      clearWordDrafts(id);
+      toast("toast", "Script Doc linked.", true);
+    }
     return;
   }
 

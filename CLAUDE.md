@@ -19,6 +19,13 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - The 10-status contract lives in the DB; friendly lane labels live in the UI.
 - `needs_look` is ORTHOGONAL to status (the red card; status unchanged).
 - Human gates are sacred: never auto-render, never auto-publish.
+- **SCRIPT GATE** (Jodie, 26 Jul 2026): the script lives as a Google Doc in the
+  episode's Drive folder — its ONE home. The gate passes only when the words are
+  approved AND "I've read the script" is ticked. The engine re-reads the Doc on
+  approval and builds from that, never from a cached draft. Auto-render may NEVER
+  fire on a script that hasn't passed — `assert_script_gate()`, no override.
+  Approving the script is a DECISION; decisions stay human. Starting a render is
+  a chore and may be automated. Automation eats chores, never decisions.
 - **THE LOCKED ORDER** (approved 26 Jul 2026, in `PP-STANDARDS.md` + `engine/README.md`):
   words gate → render gate AND the gens batch fire in parallel → cover pick
   during the render window → hands-off finish → four approvals → publish.
