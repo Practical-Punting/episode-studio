@@ -60,6 +60,28 @@ build stops; it never falls back to the stale local draft. If the Doc changes
 after approval, `script_changed_since_approval` is set (the card shows it) and the
 build carries on using the approved snapshot.
 
+### Known future upgrade — reading script Docs
+
+The engine is a standalone Python process with no Google login. It cannot use the
+Drive connector that Claude sessions use — that connector belongs to the session,
+not to the machine. So today the engine reads a script Doc through the Doc's
+plain-text export URL (`/export?format=txt`), which requires that Doc to be set to
+**"anyone with the link can view"**.
+
+The proper long-term fix is a **Google service account with read-only Drive
+scope**: the engine authenticates as itself, reads the Doc directly, and no
+sharing is needed at all. It can be swapped in later without undoing any of the
+Script Gate work — only `RealProvider.fetch_script()` changes.
+
+**This is a deliberate, accepted trade-off, not an oversight.** Decided by Jodie,
+26 Jul 2026: every word of these scripts is published publicly on YouTube by
+design, so a link-shared Doc exposes nothing that isn't about to be broadcast
+anyway; the URLs are unguessable; and the `script_snapshot` + `script_sha256`
+audit trail plus the drift flag cover what physical doc-locking would have
+prevented. The sharing rule that goes with it — individual episode script Docs
+ONLY, never a folder, never anything holding subscriber data or method material —
+is a hard rule in `PP-STANDARDS.md`.
+
 ## THE LOCKED ORDER (approved by Jodie, 26 Jul 2026)
 
 Do not re-sequence without her explicit re-approval.
