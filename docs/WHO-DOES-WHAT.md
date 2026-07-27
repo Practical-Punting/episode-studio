@@ -20,8 +20,8 @@ Jodie: if either one seems confused about its lane, point it at this file.
 | Card rendering → clips | **Claude Code** | `render_card.py` / `render_overlay.py` |
 | Video assembly + QC + report | **Claude Code** | Two-pass; `pp-episode-production` skill |
 | **E-book PDF build + QC** | **Claude Code** | `build_ebook.py`; WeasyPrint + GTK installed |
-| **Thumbnail** | **Cowork** makes the Higgsfield hero · **Claude Code** composites the title | Hybrid; 1280×720. See `docs/thumbnail-standard.md` |
-| **YouTube title + description** | **Cowork** | Lead with "how to win at horse racing"; see `docs/youtube-metadata-kit.md` |
+| **Thumbnail** | **Cowork** makes the Higgsfield hero · **Claude Code** composites the title — ⚠️ *this division of labour is STALE; Jodie to rule after EP11* | Hybrid; 1280×720. See `docs/PP-THUMBNAIL-TEMPLATE.md` (canonical) and `docs/PP-STANDARDS.md` §Thumbnail. **`thumbnail-standard.md` is SUPERSEDED and archived** — `docs/archive/thumbnail-standard.md`. |
+| **YouTube title + description** | **Claude Code** (Jodie's ruling, 26 Jul 2026 — moved from Cowork) | Writes it to `PP-EPxx/output/PP-EPxx-youtube.txt`; **Jodie uploads**. Lead with "how to win at horse racing"; see `docs/youtube-metadata-kit.md` |
 | Publishing, sending to Hugh, Mailchimp | **Jodie** | Never automated |
 
 ## What Jodie approves — and what she does NOT (locked from EP03 feedback, 2026-07-21)

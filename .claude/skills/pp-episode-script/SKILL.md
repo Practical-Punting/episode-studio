@@ -283,13 +283,21 @@ After the last article line, before the end card, in order:
 1. **Short warm wind-down** of the topic (1–2 lines) — *the only part that changes per episode.*
 2. **Point to the FREE E-BOOK** — soft, "the link's just below this video," frame it as *continuing
    to help* (see §4J). No hype.
-3. **Responsible-gambling line — MANDATORY, verbatim intent:** "And remember — never bet more than
-   you can afford to lose."
-4. **Warm sign-off:** "That's me for now. Look after yourself, trust your form study, and I'll see
-   you soon." (Never "Good punting"; no "it's just a game".)
+3. 🔒 **Responsible-gambling line — MANDATORY AND WORD-FOR-WORD LOCKED:** "And remember — never bet
+   more than you can afford to lose." **NOT part of the sign-off; never varied.** It is a
+   responsibility line, not furniture — the licence to re-voice the sign-off below must not creep
+   into it by association.
+4. **Warm sign-off — A PATTERN, NOT A FIXED SENTENCE (Jodie, 27 Jul 2026).** *"I am happy for
+   Gordon's sign off to be slightly different each time but very similar to what has been done so
+   far. Either or a variation are fine."* Hit the shape, reword the words: warm, brief, spoken to
+   one person · a **closing marker** ("That's me for now" / "That's me for this week" / a close
+   variation) · **look after yourself** · a **nod to their form study or their punting** ·
+   **see you soon**. Never a promise about winning, never urgency. (Never "Good punting"; no
+   "it's just a game".) **Reword every episode; never repeat a previous episode's sign-off
+   verbatim** — same principle as the midroll invitation in §4E.
 
-Same avatar/voice/background; numbers as words. Approved by Hugh once, then verbatim (only line 1
-changes).
+Same avatar/voice/background; numbers as words. Line 1 (wind-down) and line 4 (sign-off) change
+per episode; lines 2 and 3 hold.
 
 ### 4G — Motion cards (MORE of them; every fact/number gets one)
 - **Standing rule (from EP09):** every **data fact, date and number** Gordon says — anything Dave

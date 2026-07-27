@@ -5,7 +5,9 @@
 - **Rule of the road:** any standard Jodie approves is written **once, here.** Change only on Jodie's say-so.
 - **Division:** the *rules and facts* live here. Claude Code's *build recipes* (ffmpeg graphs, `assemble_episode.py`, `build_ebook.py`, etc.) stay in its `pp-episode-production` skill — but they must obey these rules.
 - **Last updated:** 26 Jul 2026 — three Jodie rulings: the b-roll no-repeat clarification (composition, not subject, §B-roll), the series part treatment (§E-book), and never-fabricate-racing-data (§Motion-graphic cards + Hard never list). Previously 23 Jul 2026 by Cowork Claude: the standing outro and the mid-video like/subscribe rule.
-- ⚠️ **Open conflict, not yet ruled:** the standing outro sign-off reads *"That's me for this week"* in §Standing OUTRO below, but *"That's me for now"* in `pp-episode-script` v1.2 §4F. EP10 and EP11 both shipped *"for now"*, which is also correct for the current DAILY cadence. This file wins by the rule of the road, so one of the two needs changing on Jodie's say-so.
+- ✅ **Sign-off — RULED 27 Jul 2026.** The three documents were never in conflict: they held two
+  valid instances of one shape. The sign-off is now recorded as a **pattern** in §Standing OUTRO
+  and re-voiced each episode. The responsible-gambling line is separate and stays locked.
 
 ---
 
@@ -336,9 +338,26 @@ Every episode's ending obeys these, and `qc_episode.py --episode` HARD-FAILS any
 Gordon always speaks an outro after the last article line, before the end card, in this order:
 1. Short warm topic wind-down (episode-specific, 1–2 lines — no hard cut).
 2. Point to the FREE E-BOOK (soft CTA, "link below", keep it beside you on race day).
-3. **Responsible-gambling line, mandatory:** "And remember — never bet more than you can afford to lose."
-4. Warm sign-off: "That's me for this week… I'll **see you soon**." (Use "see you soon"; do NOT say "Good punting"; do NOT add a "this is a game" line.)
-Rendered with the same avatar/voice/background. Approved by Hugh ONCE, then reuse verbatim (only line 1 changes per episode).
+3. 🔒 **Responsible-gambling line — MANDATORY AND WORD-FOR-WORD LOCKED:**
+   "And remember — never bet more than you can afford to lose."
+   **This is NOT part of the sign-off and is NEVER varied.** It is a responsibility line, not
+   furniture. The sign-off below is deliberately re-voiced each episode; do not let that licence
+   creep into this sentence by association.
+4. **Warm sign-off — A PATTERN, NOT A FIXED SENTENCE (Jodie, 27 Jul 2026).**
+   Jodie: *"I am happy for Gordon's sign off to be slightly different each time but very similar
+   to what has been done so far. Either or a variation are fine."* Hit the shape, reword the words:
+   - warm, brief, spoken to one person;
+   - a **closing marker** — "That's me for now" / "That's me for this week" / a close variation;
+   - **look after yourself**;
+   - a **nod to their form study or their punting**;
+   - **see you soon**.
+   - **Never** a promise about winning, and **never** urgency. Not "Good punting"; no "this is
+     just a game" line.
+   **Reword it every episode; never repeat a previous episode's sign-off verbatim.** Same
+   principle as the midroll chip (reworded each episode) and the b-roll no-repeat law
+   (composition, not subject) — recurring furniture gets re-voiced so it never sounds canned.
+Rendered with the same avatar/voice/background. Only line 1 (the wind-down) and line 4 (the
+sign-off) change per episode; lines 2 and 3 hold.
 
 ## Mid-video like/subscribe invitation (every episode — Hugh's standard, added 23 Jul 2026)
 Gordon gives ONE gentle, authentic like-&-subscribe invitation in the MIDDLE of the video (there's a lot of competing content out there; we want the sensible stuff to reach the right people).

@@ -1,5 +1,5 @@
 # YouTube metadata kit (title + description)
-*Proven on EP02 + EP03, 2026-07-21. Cowork writes these; Jodie pastes them at upload. Titles/descriptions are content Jodie publishes — she reviews before posting.*
+*Proven on EP02 + EP03, 2026-07-21. **Claude Code writes these** (Jodie's ruling, 26 Jul 2026 — ownership moved from Cowork to the build side): write the title + description into `PP-EPxx/output/PP-EPxx-youtube.txt`, and Jodie uploads. Titles/descriptions are content Jodie publishes — she reviews before posting.*
 
 ## Title formula
 - **Lead with the SEO phrase "How to Win at Horse Racing"** (Hugh's request), then a colon/dash and the episode's specific hook.
@@ -24,7 +24,7 @@ What you'll learn:
 
 📘 FREE e-book — "[E-BOOK TITLE]": download it free and keep the full method beside you every race day 👉 [PASTE E-BOOK LINK HERE]
 
-Follow Practical Punting for steady, sensible form study every week — no hype, no promises, just disciplined form study applied for you.
+Follow Practical Punting for steady, sensible form study [CADENCE] — no hype, no promises, just disciplined form study applied for you.
 
 🔗 More: https://practicalpunting.com.au
 
@@ -32,6 +32,15 @@ Please gamble responsibly. If betting is affecting you or someone you know, call
 
 #HorseRacing #HowToWinAtHorseRacing #[TopicTag] #PracticalPunting #RacingTips #BettingStrategy
 ```
+
+## Cadence — a LIVE VARIABLE, not a fixed word (Jodie, 27 Jul 2026)
+`[CADENCE]` in the template above is filled from the current upload cadence, which is
+**DAILY now, moving to weekly further down the road**. Today write **"every day"**; when the
+cadence changes, write "every week" — and change it **here**, once. It is deliberately a
+placeholder rather than a hard-coded word so the template survives the change instead of going
+stale, which is exactly how this file came to say "every week" while three other documents said
+DAILY. The same live variable drives the midroll cadence line (`docs/PP-midroll-invitation-standard.md`)
+and the sign-off's closing marker — one change, three places, all sourced from here.
 
 ## Brand rules for the copy
 - **No hype, no promises, no guarantees.** Steady, sensible, disciplined. This matches the on-screen warranty and the brand voice.

@@ -7,3 +7,4 @@ engine/qc_episode.reference.py -text
 # byte comparison against Drive would silently fail. Same reason as the two
 # reference files above.
 docs/*.md -text
+docs/**/*.md -text

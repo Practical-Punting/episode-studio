@@ -9,7 +9,8 @@ Every episode must end with a proper **spoken outro by Gordon** — he never jus
 1. **A short, warm wind-down** of the episode's topic — one or two lines that make the ending feel finished (not a hard cut). *(This line is episode-specific.)*
 2. **Point to the FREE E-BOOK** — a soft call to action: name the e-book, "the link's below this video," keep it beside you on race day. No hype, no promises.
 3. **Responsible-gambling line — ALWAYS** — verbatim intent: **"And remember — never bet more than you can afford to lose."** This spoken line is mandatory every episode (in addition to the on-screen warranty slide).
-4. **Warm sign-off** — e.g. "That's me for this week. Look after yourself, trust your form study, and I'll **see you soon**." Use **"see you soon"** (not a strict weekly promise). Do **NOT** end on "Good punting", and do **not** add a "this is a game" line — Jodie cut both.
+4. **Warm sign-off — A PATTERN, NOT A FIXED SENTENCE (Jodie, 27 Jul 2026).** Jodie: *"I am happy for Gordon's sign off to be slightly different each time but very similar to what has been done so far. Either or a variation are fine."* Hit the shape, reword the words: warm, brief, spoken to one person · a **closing marker** ("That's me for now" / "That's me for this week" / a close variation) · **look after yourself** · a **nod to their form study or their punting** · **see you soon**. Never a promise about winning, never urgency. Do **NOT** end on "Good punting", and do **not** add a "this is a game" line — Jodie cut both. **Reword every episode; never repeat a previous episode's sign-off verbatim** — same principle as the midroll chip and the b-roll no-repeat law.
+   🔒 **The responsible-gambling line above is NOT part of this pattern.** "And remember — never bet more than you can afford to lose" is word-for-word locked and is never varied. The licence to re-voice the sign-off must not creep into it by association.
 
 ## Then, at the very end (assembly)
 - **End card** — real e-book cover + free e-book link line (no responsible-gambling elements here).
@@ -27,5 +28,9 @@ Every episode must end with a proper **spoken outro by Gordon** — he never jus
 EP05 v1 ended with Gordon stopping mid-air, no e-book mention, no sign-off, and no end music. This rule prevents all of that, permanently.
 
 ---
-## OPEN QUESTION — the sign-off wording (raised 26 Jul 2026, EP11)
-This standard's example reads *"That's me for this week"*, but its own stated intent is to avoid a strict weekly promise (hence *"see you soon"*). The script skill v1.2 says *"That's me for now"*, and that is what EP10 shipped and what EP11 is written with. **On a DAILY cadence "for this week" is wrong.** The two documents disagree and one must be corrected. **Awaiting Jodie's ruling.**
+## RULED — the sign-off wording (raised 26 Jul 2026, ruled 27 Jul 2026)
+There was never a conflict. This standard said *"That's me for this week"* and the script skill
+said *"That's me for now"* — **two valid instances of one shape.** Jodie's ruling: the sign-off
+is a **pattern**, re-voiced each episode, and either wording or a close variation is fine. The
+pattern is recorded in item 4 above and in `docs/PP-STANDARDS.md` §Standing OUTRO. The
+responsible-gambling line is separate and stays word-for-word locked.

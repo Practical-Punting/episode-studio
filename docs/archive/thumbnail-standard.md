@@ -1,3 +1,19 @@
+> # ⛔ SUPERSEDED — ARCHIVED, DO NOT FOLLOW
+>
+> **Superseded 23 July 2026 by the racing-photo decision; archived 27 July 2026.**
+>
+> This document predates the decision that the thumbnail is a **striking racing scene/photo —
+> NOT the host's face**. It is kept for history only.
+>
+> **What replaced it:**
+> - `docs/PP-THUMBNAIL-TEMPLATE.md` — the canonical spec (elements, placement, the standing
+>   template file).
+> - `docs/PP-STANDARDS.md` §Thumbnail — the rule, including the racing-photo style that
+>   "supersedes the old 'real Gordon frame' rule".
+> - `docs/thumbnail-hero-registry.md` — the no-reuse law and the hero history.
+>
+> Nothing below is authoritative.
+
 # Thumbnail standard (Practical Punting YouTube)
 *Proven on EP02 + EP03, 2026-07-21. A thumbnail is a FINISHED artefact Jodie approves — build it fully, then show her once.*
 
