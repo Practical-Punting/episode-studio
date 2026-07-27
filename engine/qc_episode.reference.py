@@ -333,6 +333,71 @@ def stage_rms(qc, final):
 
 
 # ---------------------------------------------------------------------------
+# midroll wording window (Jodie, 28 Jul 2026)
+#
+# The spoken midroll now comes from a FIXED POOL OF TEN pre-approved lines used
+# strictly in order (docs/midroll-line-pool.md): episode N takes L[N mod 10].
+#
+# NINE, NOT TEN - DO NOT "CORRECT" THIS. That cycle recurs at EXACTLY
+# ten-episode intervals: L3 runs at EP13 and again at EP23. A ten-episode window
+# would contain EP13 when EP23 is checked, and would hard-fail every episode
+# from EP23 onward, forever. At nine, the nearest legitimate prior use is always
+# exactly ten back and passes; any accidental duplication closer than that fails,
+# which is the intent.
+#
+# These three helpers are DELIBERATELY DUPLICATED from render_ready.py rather
+# than imported from a shared module. qc_episode.py is protected by a byte-for-
+# byte integrity gate (engine/providers.py::_qc_integrity_gate); a shared import
+# would be an UNGATED back door into the checker, which is precisely the drift
+# the gate exists to stop. Twenty duplicated lines is the lesser evil. If you
+# change one copy, change the other.
+# ---------------------------------------------------------------------------
+MIDROLL_WINDOW = 9
+
+
+def _ep_num(folder_path):
+    """Episode number parsed from a PP-EPnn folder path, or None.
+
+    Handles bare stems (PP-EP03) and post-Stage-8 renames
+    (PP-EP01-The-Trifecta-Mistake). None for unnumbered dev folders."""
+    m = re.search(r"PP-EP(\d+)", os.path.basename(os.path.normpath(folder_path)))
+    return int(m.group(1)) if m else None
+
+
+def midroll_window(ep_dir, window=MIDROLL_WINDOW):
+    """Spoken-words files of the `window` episodes immediately BEFORE this one.
+
+    Ordered by EPISODE NUMBER, never by file mtime. PP-EP98 is a test folder
+    sitting beside the real episodes; mtime ordering would drag it into every
+    real episode's window, numeric ordering keeps it out."""
+    import glob as _glob
+    mine = _ep_num(ep_dir)
+    if mine is None:
+        return []
+    root = os.path.dirname(os.path.abspath(os.path.normpath(ep_dir)))
+    found = []
+    for other in _glob.glob(os.path.join(root, "PP-EP*", "docs", "spoken-words.txt")):
+        n = _ep_num(os.path.dirname(os.path.dirname(other)))
+        if n is not None and n < mine:
+            found.append((n, other))
+    found.sort(key=lambda t: t[0], reverse=True)
+    return found[:window]
+
+
+def midroll_clash(mine_text, ep_dir, window=MIDROLL_WINDOW):
+    """(episode folder name, count compared) - the first episode inside the
+    window already carrying this exact wording, or (None, count)."""
+    prior = midroll_window(ep_dir, window)
+    for _n, other in prior:
+        try:
+            if mine_text and mine_text in open(other, encoding="utf-8").read():
+                return os.path.basename(os.path.dirname(os.path.dirname(other))), len(prior)
+        except OSError:
+            continue
+    return None, len(prior)
+
+
+# ---------------------------------------------------------------------------
 # stage 4b - end sequence + midroll (contract checks; needs --episode)
 # ---------------------------------------------------------------------------
 def _mean_luma(final, t):
@@ -433,19 +498,17 @@ def stage_end_sequence(qc, final, beats, head, episode_path, out_dir):
             paras = [p.strip() for p in
                      open(sw, encoding="utf-8").read().split("\n\n") if p.strip()]
             mine = paras[mb - 1] if mb <= len(paras) else None
-            root = os.path.dirname(ep_dir)
-            import glob as _glob
             if mine:
-                for other in _glob.glob(os.path.join(root, "PP-EP*", "docs", "spoken-words.txt")):
-                    if os.path.abspath(other) == os.path.abspath(sw):
-                        continue
-                    if mine in open(other, encoding="utf-8").read():
-                        qc.fail(f"midroll wording reused VERBATIM from "
-                                f"{os.path.basename(os.path.dirname(os.path.dirname(other)))} - "
-                                "vary the invitation every episode (HeyGen corrupts repeats)")
-                        break
+                which, compared = midroll_clash(mine, ep_dir)
+                if which:
+                    qc.fail(f"midroll wording reused VERBATIM from {which}, which is "
+                            f"inside the {MIDROLL_WINDOW}-episode window - HeyGen "
+                            "corrupts repeats. Take this episode's pool line "
+                            "(L[N mod 10] from docs/midroll-line-pool.md); do NOT "
+                            "reword it")
                 else:
-                    qc.note("midroll wording is unique across episodes")
+                    qc.note(f"midroll wording is fresh within the last "
+                            f"{MIDROLL_WINDOW} episodes ({compared} compared)")
         except Exception as e:
             qc.warn(f"midroll uniqueness check skipped ({e})")
 

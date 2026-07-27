@@ -265,13 +265,23 @@ ONE gentle invitation, in the **MIDDLE** (~45–55%), on a beat boundary, Gordon
 once only. It is the outro voice — warm, plain, wry, Australian. **No hype.** Tie the ask to the
 listener's benefit and to helping *others* find it, not to "help me grow".
 
-- **Fixed shape:** soft value hook → the ask (a like helps others find it; subscribe) → the
-  **cadence line** → a light wry nod → return to content ("Right — where were we.").
+- **Fixed shape:** soft value hook (**naming the video**) → the ask (a like helps others find it;
+  subscribe) → the **cadence line** → a light wry nod → return to content ("Right — where were we.").
+- 🔒 **NAME THE VIDEO AT EVERY ASK (Jodie, 28 Jul 2026).** Wherever Gordon asks something of the
+  viewer — like, subscribe, get the e-book — say **"this video"**, never a bare "this". Clarity
+  drives action. **Narration is exempt**: the opening framing line stays as written, because
+  "this time" against "last time" is doing different work there. Binds §4E here and §4F item 2.
 - **Cadence line — LIVE VARIABLE:** currently **DAILY** ("a fresh one every day at the moment,
-  weekly down the track"). Update when it changes.
-- **VARY the wording every episode** — same shape, fresh phrasing; never reuse verbatim (identical
-  text has previously corrupted the HeyGen render). Also **vary the "noise out there" line** — don't
-  lean on it every time.
+  weekly down the track"). Update when it changes. ⚠️ **It is baked into all ten pool lines**, so
+  when cadence moves to weekly the whole pool needs a fresh batch approval — not a line-by-line fix.
+- 🔒 **DO NOT WRITE THIS LINE. TAKE IT FROM THE POOL (Jodie, 28 Jul 2026).**
+  **SUPERSEDES the old rule** — *"VARY the wording every episode… never reuse verbatim… also vary
+  the 'noise out there' line"* — **which is retired. Do not restore it.**
+  Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. **Episode N takes
+  `L[N mod 10]`, strictly in order**; the pool wraps and never exhausts. Copy the line verbatim,
+  record `build.midroll.line_id` in `episode.json`, add the registry row. **Never paraphrase, never
+  "improve", never write an eleventh.** QC hard-fails a verbatim repeat within the previous NINE
+  episodes (nine, not ten — see `PP-STANDARDS.md` §END SEQUENCE item 4).
 - **On screen:** its own `cta-midroll` beat; a **restrained lower-third** on the charcoal dark-chip
   — a small thumbs-up (like) **and** a Subscribe icon, orange accent, gentle fade. The chip must be
   **composited** (not just rendered) and the icons **present and visible**, with **≥ 6 seconds of
@@ -281,8 +291,10 @@ listener's benefit and to helping *others* find it, not to "help me grow".
 ### 4F — The standing OUTRO (verbatim structure, every episode)
 After the last article line, before the end card, in order:
 1. **Short warm wind-down** of the topic (1–2 lines) — *the only part that changes per episode.*
-2. **Point to the FREE E-BOOK** — soft, "the link's just below this video," frame it as *continuing
-   to help* (see §4J). No hype.
+2. **Point to the FREE E-BOOK** — soft, "the link's just below **this video**," frame it as
+   *continuing to help* (see §4J). No hype. **"this video", never a bare "this"** — this is an ASK,
+   so §4E's *name the video at every ask* rule binds it (Jodie, 28 Jul 2026). This line already
+   complied; the marker is here so it is not softened later.
 3. 🔒 **Responsible-gambling line — MANDATORY AND WORD-FOR-WORD LOCKED:** "And remember — never bet
    more than you can afford to lose." **NOT part of the sign-off; never varied.** It is a
    responsibility line, not furniture — the licence to re-voice the sign-off below must not creep
@@ -294,7 +306,9 @@ After the last article line, before the end card, in order:
    variation) · **look after yourself** · a **nod to their form study or their punting** ·
    **see you soon**. Never a promise about winning, never urgency. (Never "Good punting"; no
    "it's just a game".) **Reword every episode; never repeat a previous episode's sign-off
-   verbatim** — same principle as the midroll invitation in §4E.
+   verbatim.** *(Corrected 28 Jul 2026: this used to say "same principle as the midroll
+   invitation in §4E". It no longer is — the midroll is now a FIXED POOL that is never
+   reworded. The sign-off stays a re-voiced pattern. Do not collapse the two.)*
 
 Same avatar/voice/background; numbers as words. Line 1 (wind-down) and line 4 (sign-off) change
 per episode; lines 2 and 3 hold.
@@ -387,8 +401,9 @@ learned → open a small new question → promise what the guide/next step deliv
 **Seams**
 - [ ] Opening hooks + opens a loop; transitions bridge beats; re-hook near 60–70% (fresh tension,
       controversy or evidence payoff all count — no literal teaser required).
-- [ ] Midroll: fixed shape, reworded fresh, cadence line current, ~45–55%, icons specified with
-      ≥6s full visibility.
+- [ ] Midroll: fixed shape, **line copied verbatim from the pool (`L[N mod 10]`) — never written**,
+      `build.midroll.line_id` recorded, registry row added, "this video" not a bare "this",
+      cadence line current, ~45–55%, icons specified with ≥6s full visibility.
 - [ ] Outro: standing structure verbatim (only wind-down changes); responsible-gambling line present;
       "see you soon" sign-off.
 

@@ -1,10 +1,10 @@
 # PRACTICAL PUNTING — CANONICAL STANDARDS (the single source of truth)
 **This file is THE one place the episode rules live.** Both Cowork Claude and Claude Code read from — and write to — this file, so the rules can never drift between them.
 
-- **Location:** `G:\My Drive\PP Videos\docs\PP-STANDARDS.md` (on Jodie's local Drive, next to the real build).
+- **Location:** `docs/PP-STANDARDS.md` in the **episode-studio repo** (`github.com/Practical-Punting/episode-studio`), locally `C:\Users\jlral\repos\episode-studio\docs\`. **This line used to point at `G:\My Drive\PP Videos\docs\PP-STANDARDS.md`, which has been a 521-byte "MOVED — nothing here is authoritative" signpost since 27 Jul 2026** — the canonical file was pointing at its own tombstone. Fixed 28 Jul 2026. (§IF YOU MOVE A FILE, EVERY SIGNPOST AIMED AT IT MOVES WITH IT — including the one inside the file.)
 - **Rule of the road:** any standard Jodie approves is written **once, here.** Change only on Jodie's say-so.
 - **Division:** the *rules and facts* live here. Claude Code's *build recipes* (ffmpeg graphs, `assemble_episode.py`, `build_ebook.py`, etc.) stay in its `pp-episode-production` skill — but they must obey these rules.
-- **Last updated:** 26 Jul 2026 — three Jodie rulings: the b-roll no-repeat clarification (composition, not subject, §B-roll), the series part treatment (§E-book), and never-fabricate-racing-data (§Motion-graphic cards + Hard never list). Previously 23 Jul 2026 by Cowork Claude: the standing outro and the mid-video like/subscribe rule.
+- **Last updated:** 28 Jul 2026 — four Jodie rulings, all in §Mid-video / §END SEQUENCE / §Standing OUTRO / §Motion-graphic cards: (1) the **spoken midroll comes from a fixed pool of ten**, used in order, never rewritten — this SUPERSEDES "reword it every episode"; (2) the **verbatim window is the previous NINE episodes**, not all of them; (3) the **on-screen chip is fixed standing furniture**, identical every episode; (4) **name the video at every ask** (midroll + outro e-book line; narration exempt). Also fixed: the Location line above, which pointed at this file's own retired signpost. Previously 26 Jul 2026 — three Jodie rulings: the b-roll no-repeat clarification (composition, not subject, §B-roll), the series part treatment (§E-book), and never-fabricate-racing-data (§Motion-graphic cards + Hard never list). Previously 23 Jul 2026 by Cowork Claude: the standing outro and the mid-video like/subscribe rule.
 - ✅ **Sign-off — RULED 27 Jul 2026.** The three documents were never in conflict: they held two
   valid instances of one shape. The sign-off is now recorded as a **pattern** in §Standing OUTRO
   and re-voiced each episode. The responsible-gambling line is separate and stays locked.
@@ -253,6 +253,12 @@ batch starts or the cover pick lands after the master. See `episode-studio/engin
     that is a decision for Jodie — never silently shorten it or quietly give it a smaller offset.
 - **Card sync (locked 25 Jul 2026; tightened after EP10 review; entry delay superseded above):** every card ENTERS on or just after its spoken cue (never before; timed off the WhisperX-anchored shot map) and HOLDS at least `min_card_hold` (10s from EP09) or until the next card needs the frame. When the cue is a phrase INSIDE the beat (not its opening line), give the card a `"cue"` field in episode.json — QC locates the phrase in the master's SRT and hard-fails a card that enters before the words are spoken. **HARD RULE: b-roll clips, motion cards and the midroll chip NEVER share the screen** — a card writing over a clip means one of them wasn't seen; QC computes every window (assembler maths: `broll_offsets` default +1.0, `broll_dur` 5s) and hard-fails any overlap. The midroll chip must SPAN the spoken ask (like -> subscribe), not precede it — anchor `midroll.at` to the SRT. `qc_episode.py --episode` hard-fails a breach of any of these.
 - **Midroll lower-third (locked 25 Jul 2026; duration tightened in script-skill v1.1):** composited over Gordon during the invitation (`build.midroll.composite: true` from EP09) and ALWAYS carries visible like (thumbs-up) + subscribe icons, with **≥6s of full visibility** (fades on top of that — `midroll.dur - 2×fade ≥ 6s`; EP09 shipped 5.0s under the old bar). QC probes the chip region mid-invitation AND checks the visibility maths — hard-fails on either.
+  **STANDING FURNITURE, IDENTICAL EVERY EPISODE (Jodie, 28 Jul 2026)** — it is copied
+  byte-identical from the production skill's `assets/`, like the end card and the warranty
+  slide, and is NOT authored per episode. Its wording, its opaque `#121212` background and
+  its white-glyph-on-solid-orange icon tiles are locked, each with the reason recorded
+  beside it in `docs/midroll-line-pool.md` §The on-screen chip. **The chip does not rotate;
+  the SPOKEN line does** (§Mid-video).
 
 - **🎥 WHILE AN ON-SCREEN CARD IS VISIBLE, THE SHOT MUST BE WIDE (Jodie, 27 Jul 2026).**
   **Binds ON-SCREEN (panel-push) cards ONLY.** Full-frame cards are unaffected — the host is
@@ -353,15 +359,31 @@ Every episode's ending obeys these, and `qc_episode.py --episode` HARD-FAILS any
 3. **End music** — the sting returns at the end card and sits soft under the warranty to the
    fade. **The end is NEVER silent** — QC measures the warranty window's RMS (fail ≤ −34 dB)
    on top of the existing last-8s silence check.
-4. **Midroll QC** — the midroll invitation is REWORDED every episode (verbatim reuse across
-   episodes = QC HARD FAIL; repeated identical text is what HeyGen mangled on EP08), and QC
-   exports the midroll audio segment (`midroll-listen.wav`) for a human LISTEN — confirm the
-   voice/accent stays Gordon before approving the video.
+4. **Midroll QC** — the midroll invitation comes from the **standing pool of ten**
+   (`docs/midroll-line-pool.md`), used strictly in order. **Verbatim reuse within the NINE
+   immediately preceding episodes = QC HARD FAIL** (repeated identical text is what HeyGen
+   mangled on EP08), and QC exports the midroll audio segment (`midroll-listen.wav`) for a
+   human LISTEN — confirm the voice/accent stays Gordon before approving the video.
+   **⚠️ NINE, NOT TEN — do not "correct" this.** A pool of exactly ten used in strict order
+   recurs at exactly ten-episode intervals: `L3` runs at EP13 and again at EP23. A ten-episode
+   window would contain EP13 when EP23 is checked, and would hard-fail **every episode from
+   EP23 onward, forever.** At nine, the nearest legitimate prior use is always exactly ten
+   back and passes; anything closer fails, which is the intent. Episodes are ordered by the
+   number parsed from `PP-EP(\d+)`, **numerically, never by file mtime** — `PP-EP98/` exists
+   on disk and mtime ordering would pull it into every window.
+   *(Superseded 28 Jul 2026: "the midroll invitation is REWORDED every episode; verbatim
+   reuse across ALL episodes = hard fail". The pool makes an across-all-episodes rule
+   impossible to satisfy by construction.)*
 
 ## Standing OUTRO (every episode)
 Gordon always speaks an outro after the last article line, before the end card, in this order:
 1. Short warm topic wind-down (episode-specific, 1–2 lines — no hard cut).
-2. Point to the FREE E-BOOK (soft CTA, "link below", keep it beside you on race day).
+2. Point to the FREE E-BOOK — a soft CTA: name the e-book, **"the link's just below this
+   video"**, keep it beside you on race day. **"this video", never a bare "this"** — this is
+   an ASK, so §Mid-video's *name the video at every ask* rule binds it (Jodie, 28 Jul 2026).
+   *(Was: `soft CTA, "link below"`. `PP-episode-outro-standard.md`, the `pp-episode-script`
+   skill and both EP11 and EP12 already said "below this video"; this file was the only one
+   out of step.)*
 3. 🔒 **Responsible-gambling line — MANDATORY AND WORD-FOR-WORD LOCKED:**
    "And remember — never bet more than you can afford to lose."
    **This is NOT part of the sign-off and is NEVER varied.** It is a responsibility line, not
@@ -378,8 +400,13 @@ Gordon always speaks an outro after the last article line, before the end card, 
    - **Never** a promise about winning, and **never** urgency. Not "Good punting"; no "this is
      just a game" line.
    **Reword it every episode; never repeat a previous episode's sign-off verbatim.** Same
-   principle as the midroll chip (reworded each episode) and the b-roll no-repeat law
-   (composition, not subject) — recurring furniture gets re-voiced so it never sounds canned.
+   principle as the b-roll no-repeat law (composition, not subject) — recurring furniture
+   gets re-voiced so it never sounds canned.
+   *(Corrected 28 Jul 2026: this used to read "same principle as the midroll chip (reworded
+   each episode)". **The chip is now fixed standing furniture, identical every episode**, so
+   that analogy was factually wrong. The sign-off remains a re-voiced pattern; the midroll
+   SPOKEN line is now a fixed pool of ten, which is a third thing again. Three different
+   treatments — do not collapse them.)*
 Rendered with the same avatar/voice/background. Only line 1 (the wind-down) and line 4 (the
 sign-off) change per episode; lines 2 and 3 hold.
 
@@ -387,15 +414,48 @@ sign-off) change per episode; lines 2 and 3 hold.
 Gordon gives ONE gentle, authentic like-&-subscribe invitation in the MIDDLE of the video (there's a lot of competing content out there; we want the sensible stuff to reach the right people).
 - **Placement:** at a natural breath/transition, roughly the middle (~45–55% through), on a beat boundary with Gordon on camera (MCU) — never over a card, never mid-concept, never near the outro. ONCE per episode.
 - **Tone:** the outro voice — warm, plain, wry, Australian. NO hype, NO "smash that like button", NO promises. A quiet, honest ask tied to value, then straight back to the content.
-- **Shape (fixed):** soft value hook ("if this is helping you") → the ask (a like helps others find it; subscribe) → the cadence line (below) → a light, wry nod to the noise out there → return to content ("right — where were we").
-- **VARY it every episode (do NOT reuse verbatim):** Hugh approved the *style*; unlike the standing outro, reword this slightly each episode — same shape, beats and tone, fresh phrasing — so it never sounds canned.
+- **Shape (fixed):** soft value hook ("if this video is helping you") → the ask (a like helps others find it; subscribe) → the cadence line (below) → a light, wry nod to the noise out there → return to content ("right — where were we").
+- 🔒 **NAME THE VIDEO AT EVERY ASK (Jodie, 28 Jul 2026 — standing rule).**
+  **Wherever Gordon ASKS something of the viewer — like, subscribe, get the e-book — name it
+  "this video", never a bare "this".** Clarity drives action, and an ask is the one place
+  vagueness costs something. *"If you're getting value out of this"* → *"If you're getting
+  value out of **this video**"*.
+  **NARRATION IS EXEMPT.** The opening framing line stays as written: it is a hook, and
+  "this time" against "last time" is doing different work there. Forcing "video" into it
+  makes it clunky.
+  **This is a principle, not a list of places, so it generalises to asks we have not
+  invented yet.** Today it binds the midroll invitation (here) and the outro e-book line
+  (§Standing OUTRO item 2).
+  *Origin: Jodie's own hand-edit at the EP12 Script Gate — "If this is doing its job" →
+  "If this **video** is doing its job" — one of only two changes she made to twenty-six
+  paragraphs, and not reported at the time. It is a rule now rather than a silent
+  correction.*
+- 🔒 **THE WORDING COMES FROM A POOL OF TEN — IT IS NEVER REWRITTEN (Jodie, 28 Jul 2026).**
+  **This SUPERSEDES the previous "VARY it every episode / reword this slightly each episode
+  / fresh phrasing" rule entirely. Do not restore that wording.** The old rule asked for
+  fresh prose every episode, which meant the build was writing the ask — and a build that
+  writes its own copy can write anything.
+  - **Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. Episode N takes
+    `L[N mod 10]`, strictly in order.** The pool **wraps** rather than exhausting, so the
+    build never halts for want of a line.
+  - **The lines are never rewritten.** Changing one is a new batch approval, not an edit.
+  - `episode.json` records the choice as `build.midroll.line_id`.
+  - **HARD FAIL if the midroll paragraph is byte-identical to any of the NINE immediately
+    preceding episodes** (see §END SEQUENCE item 4 for why nine, not ten).
+- **THE ON-SCREEN CHIP IS SEPARATE AND DOES NOT ROTATE.** It is fixed standing furniture,
+  identical every episode, copied byte-identical like the end card and the warranty slide.
+  Wording, background opacity and icon treatment are locked in the standing asset with
+  their reasons recorded beside them — see `docs/midroll-line-pool.md` §The on-screen chip.
 - **Cadence line — LIVE VARIABLE:** current upload cadence is **DAILY** (as of Jul 2026), moving to **weekly** later — the line must reflect this ("a fresh one every day at the moment, weekly down the track"). **Update this when the cadence changes.**
 - **In the build:** it's its own `episode.json` beat (`cta-midroll`), part of the spoken script Jodie renders in HeyGen (same avatar/voice/background); timing + assembly place it like any other beat.
 
-**Example variants (style approved — rotate / reword each episode):**
-1. "Quick word before we push on. If you're getting something out of this, a like helps it reach the right people — and we're putting out a fresh one every day just now, weekly a bit later, so subscribe and they'll come to you. There's plenty of noise out there; I'd rather the steady, sensible stuff found the folks who want it. Right — where were we."
-2. "Before we carry on, one quick and honest ask. If this is helping, a like nudges it toward the right people — and there's a new one out daily at the moment, then weekly down the track, so subscribe to keep them coming. Lord knows there's enough noise about; I'd just like the sensible stuff to reach the people after it. Anyway — back to it."
-3. "Let me say one thing, then we'll get on. If you're finding this useful, a like genuinely helps others stumble onto it — and I'm loading a fresh one every day for now, weekly later on, so subscribe if you'd like them to keep turning up. No shortage of noise out there; I'd rather the calm, sensible stuff found its people. Righto — where were we."
+**THE TEN APPROVED LINES LIVE IN `docs/midroll-line-pool.md`.** They are not duplicated
+here — one home, per §WHERE RULES LIVE. That file also carries the `ep → line id` registry.
+
+*The three "example variants" that used to sit here were removed on 28 Jul 2026 and are
+NOT to be restored. They were examples of a rule that no longer exists (reword every
+episode), and leaving illustrative prose beside a fixed pool is how someone ends up
+writing an eleventh line.*
 
 ## Warranty slide (verbatim, every video, every e-book)
 PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading "WHAT ARE YOU PREPARED TO LOSE TODAY?" then "For free and confidential support call 1800 858 858 or visit gamblinghelponline.org.au". No sales@ on the video slide. Full text in the standing template.

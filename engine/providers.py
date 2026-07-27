@@ -344,8 +344,8 @@ class RealProvider:
                 if not b.get("prompt"):
                     raise EngineFlag(
                         f"B-roll clip '{clip}' has no prompt in episode.json — "
-                        "Cowork writes prompts (hats/ethnic-mix/turf wording baked "
-                        "in). Add it, then clear this flag.")
+                        "Claude Code writes the b-roll prompts (hats / ethnic-mix / "
+                        "turf wording baked in). Add it, then clear this flag.")
                 return b["prompt"]
         raise RuntimeError(f"clip {clip} not found in episode.json broll[]")
 
@@ -387,7 +387,7 @@ class RealProvider:
             raise EngineFlag(
                 "The two cover-hero prompts are missing from episode.json. Add a "
                 '"cover": {"hero_a_prompt": "…", "hero_b_prompt": "…"} block — two '
-                "DIFFERENT compositions (Cowork writes them, with the hats / "
+                "DIFFERENT compositions (Claude Code writes them, with the hats / "
                 "ethnic-mix / turf wording baked in). The heroes are generated "
                 "UPFRONT with the b-roll so the cover pick reaches you while "
                 "Gordon is still rendering. Add them, then clear this flag.")
@@ -542,8 +542,8 @@ class RealProvider:
         if missing:
             raise EngineFlag(
                 f"Create-inputs are missing for {d.name}: {', '.join(missing)}. "
-                "Cowork writes these (the create brain is Phase 4). Stage them, "
-                "then clear this flag.")
+                "Claude Code writes these at the create step (the create brain is "
+                "Phase 4). Stage them, then clear this flag.")
         # RENDER-READY SCAN (PP-STANDARDS 25 Jul 2026): catch a glitch-prone
         # script BEFORE Jodie spends a HeyGen render on it.
         try:
@@ -852,7 +852,9 @@ class RealProvider:
         if len(srcs) != 1:
             raise EngineFlag(
                 f"Expected exactly one e-book source HTML in {d.name}/ebook/, found "
-                f"{len(srcs)}. Stage the source (Cowork writes it), then clear this flag.")
+                f"{len(srcs)}. Claude Code writes the e-book source — the article body "
+                "in the standing template's class vocabulary. Stage it, then clear "
+                "this flag.")
         out = d / "output" / f"{ep_folder(ep)}-ebook.pdf"
         self.py("build_ebook.py", srcs[0], out, cwd=d, timeout=600)
         return str(out)
@@ -881,7 +883,8 @@ class RealProvider:
         hits = list((d / "output").glob("*youtube*.txt"))
         if not hits:
             raise EngineFlag(
-                "The YouTube title/description file is missing (Cowork writes the copy "
-                f"per the metadata kit). Save it as {d.name}/output/{ep_folder(ep)}-"
-                "youtube.txt, then clear this flag.")
+                "The YouTube title/description file is missing. Claude Code writes the "
+                "copy per docs/youtube-metadata-kit.md (Jodie's ruling, 26 Jul 2026 — "
+                "ownership moved from Cowork to the build side; Jodie uploads). Save it "
+                f"as {d.name}/output/{ep_folder(ep)}-youtube.txt, then clear this flag.")
         return str(hits[0])
