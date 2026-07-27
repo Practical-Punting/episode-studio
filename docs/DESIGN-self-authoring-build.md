@@ -11,7 +11,17 @@
 | The nine-episode verbatim window, ten-line pool | **RULED** |
 | Name-the-video-at-every-ask | **RULED** — midroll + outro; narration exempt |
 | The 12px cover gutter | **DEFERRED — flag, do not touch** |
-| Implementation | **NOT STARTED. Awaiting Jodie's go, and not while an episode is mid-build.** |
+| Implementation | **1b SHIPPED** (`3b4e1cf`, the midroll pool + nine-episode window). **1b′ SHIPPED** (the skill/registry/rail move into the repo). **1c not started.** |
+
+> ⚠️ **This document is a RECORD of the 1a design, not a live spec.** Two things it
+> describes have since changed and are NOT to be followed from here:
+> **(1)** the `pp-episode-production` skill is **in this repo**, not on Drive (§10 is
+> updated; the reasoning that said "moving it breaks the engine" was three path
+> literals and one `.env` lookup).
+> **(2)** the two `.reference.py` integrity gates **no longer exist** — they were
+> replaced on 28 Jul 2026 by a `git status --porcelain` comparison against HEAD
+> (`engine/gitgate.py`). Wherever this document says "update the reference in the
+> same commit", there is no reference to update; just commit the file.
 
 *On the go-ahead this becomes the implementation brief and the thirteen rule changes in
 §9 land in `PP-STANDARDS.md` and the two skills.*
@@ -427,9 +437,9 @@ furniture, not method material), so the repo is its correct home.
   *inside* the existing steps. **The locked order cannot regress if the step list does
   not move.**
 
-**Production skill — `PP Videos/.claude/skills/pp-episode-production/`**
-*(stays on Drive: `engine.py:50` and `providers.py:249-250` resolve it by path; moving it
-breaks the engine)*
+**Production skill — `.claude/skills/pp-episode-production/` (IN THIS REPO)**
+*(moved off Drive 28 Jul 2026. This section used to say "stays on Drive: moving it breaks
+the engine" — that turned out to be three path literals and one `.env` lookup, all fixed.)*
 - `assets/cards/frame-fullscreen.html`, `frame-panel.html`, `blocks/*.html`
 - `assets/midroll-lowerthird.html` — the new standing chip
 - `scripts/author_cards.py` · `author_cover.py` · `author_thumbnail.py` · `author_ebook.py`

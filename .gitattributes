@@ -1,10 +1,12 @@
-engine/rail.reference.py -text
-engine/qc_episode.reference.py -text
+# The two `.reference.py` byte-comparison copies were DELETED on 28 Jul 2026.
+# rail.py and qc_episode.py now live in this repo, and the integrity gates
+# compare them against git HEAD instead (engine/gitgate.py). The gate uses
+# `git status --porcelain`, which applies git's own clean filters, so it is
+# immune to the autocrlf conversion that made `-text` necessary here.
 
 # The governing standards moved in from Drive on 27 Jul 2026 and must stay
 # BYTE-IDENTICAL to their originals. core.autocrlf is true on this machine, so
 # without -text git would rewrite these LF files as CRLF on checkout and the
-# byte comparison against Drive would silently fail. Same reason as the two
-# reference files above.
+# byte comparison against Drive would silently fail.
 docs/*.md -text
 docs/**/*.md -text

@@ -1,0 +1,8 @@
+{
+  "name": "pp-production",
+  "displayName": "Practical Punting — Episode Production (build side)",
+  "version": "1.0.0",
+  "description": "End-to-end Practical Punting episode BUILD pipeline for Claude Code: HeyGen presenter download, WhisperX-aligned shot map, motion-graphic card render, b-roll (Higgsfield), two-pass ffmpeg assembly (zoom/push, panel cards, logo chip, ducked music, outro), e-book PDF, YouTube thumbnail, and one-command QC — all driven by a per-episode episode.json. Pairs with Cowork's creative-side plugin.",
+  "author": { "name": "Practical Punting / Claude Code" },
+  "keywords": ["video", "ffmpeg", "heygen", "whisperx", "weasyprint", "horse-racing", "practical-punting"]
+}

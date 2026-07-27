@@ -32,7 +32,7 @@ creative work: *"Your job will be purely planning memory, review and checking."*
 | Article → script (~22 paragraphs) | **Claude Code**, via the `pp-episode-script` skill | Written straight into a **Google Doc in the episode's Drive folder** — that Doc is the script's ONE HOME and the single source of truth. `docs/spoken-words.txt` is a derived cache the engine rebuilds from the Doc at the start of every build. **Superseded 26 Jul 2026** (was: Cowork hand-wrote it, no sign-off). |
 | **Script sign-off** | **Jodie / Hugh** — the SCRIPT GATE on the board | Open the Doc from the words card, read it, edit it freely, tick **"I've read the script"**, approve the words. Nothing builds until both are done. Approving the script is a DECISION and stays human forever. |
 | Motion-graphic cards (design + code HTML/CSS) | **Claude Code** | Designs AND renders them. **MORE cards per episode from EP04**; Jodie is NOT asked to approve them. Card entry = spoken cue **+3.0s** (PP-STANDARDS §Motion-graphic cards). |
-| B-roll (Higgsfield) | **Claude Code** | Writes the prompts and generates them via the engine's gens batch. **NEW every episode; no repeats within an episode; no-repeat law is COMPOSITION, not subject** — check the registry first, append after. ⚠️ The registry is **NOT in this repo**: it is Tier 2 and lives at `G:\My Drive\PP Videos\docs\broll-registry.md`, which `providers.py:570` resolves by that path. Jodie is NOT asked to approve it. |
+| B-roll (Higgsfield) | **Claude Code** | Writes the prompts and generates them via the engine's gens batch. **NEW every episode; no repeats within an episode; no-repeat law is COMPOSITION, not subject** — check the registry first, append after. ✅ The registry **is in this repo** at `docs/broll-registry.md` (moved 28 Jul 2026; reclassified TIER 3 by Hugh — marketing material, not a trade secret). *(Was: “NOT in this repo: it is Tier 2 and lives at G:\My Drive\PP Videos\docs\broll-registry.md”.)* Jodie is NOT asked to approve it. |
 | E-book cover | **Claude Code** | Standing template; **built BEFORE the video** (the end-card motion graphic needs the real cover). Jodie picks the hero from the A/B pair. |
 | E-book interior figures | **Claude Code** | **The figures ARE the motion cards** — `build_figures.py` renders each card's print variant. One design, two uses, so the book can never drift from the video. |
 | E-book article HTML (body copy) | **Claude Code** | Article body marked up in the standing template's class vocabulary; exactly ONE `*.html` directly in `PP-EPxx/ebook/`. |
@@ -57,7 +57,8 @@ The **e-book cover is generated BEFORE the video**, because the video's end-card
 
 ## The standing e-book furniture (Claude Code owns these — do not redesign)
 Everything below lives in
-`PP Videos/.claude/skills/pp-episode-production/assets/` and is APPROVED
+`.claude/skills/pp-episode-production/assets/` **in this repo** (moved off Drive
+28 Jul 2026) and is APPROVED
 (Jodie, 2026-07-20, EP02 "Killer Strategies for the Trifecta"):
 
 - **`ebook-template.html`** — the whole shell: A4 page setup, Georgia body,

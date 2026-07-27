@@ -62,67 +62,63 @@ build carries on using the approved snapshot.
 
 ### Rail integrity gate — `rail.py` can't drift unnoticed
 
-`rail.py` lives on Google Drive, outside version control, and it holds the Script
-Gate's enforcement: the `claim_next` filter that refuses to hand out an episode
-nobody has read the script for. A revert there would disable that guarantee
-**silently** — the engine would keep running and the board would still look
-healthy. It is the one failure in the system that had no alarm on it.
+`rail.py` holds the Script Gate's enforcement: the `claim_next` filter that refuses
+to hand out an episode nobody has read the script for. A revert there would disable
+that guarantee **silently** — the engine would keep running and the board would
+still look healthy. It is the one failure in the system that had no alarm on it.
 
-So `engine/rail.reference.py` is a **byte-for-byte** committed copy, and the engine
-sha256s the live file against it **before importing it**. On mismatch, missing file
-or unreadable file it prints both hashes to stderr and **exits 4**. Every `except`
-branch ends in a fatal; `SystemExit` inherits `BaseException`, so the engine's own
-`except Exception` handlers cannot swallow it. There is no bypass flag, no
-environment variable, and `--mock` does not skip it (mock writes to the real rail).
+**Step 2 landed on 28 Jul 2026.** `rail.py` now lives in the repo at
+`engine/rail.py`, and the gate compares it against **git HEAD** instead of against a
+checked-in duplicate (`engine/gitgate.py`). This is what the old note below called
+"step 2 of two", and it is strictly stronger than what it replaces:
 
-**To change rail.py deliberately:** edit the live file, then refresh the reference
-and commit both together, so the diff is reviewable —
-`python -c "import pathlib;pathlib.Path('engine/rail.reference.py').write_bytes(pathlib.Path(r'G:\My Drive\PP Videos\scripts\rail.py').read_bytes())"`
+- it catches an **uncommitted local edit** — the actual risk — which the
+  reference-copy gate could not see at all;
+- it **cannot be defeated by editing two files**, which the old one could, because
+  it compared two copies to each other rather than either to a reviewed baseline;
+- there is **no duplicate to keep in sync**, so the "update the reference in the
+  same commit or every build dies" footgun is gone.
 
-`.gitattributes` marks the reference `-text`. `core.autocrlf` is true on this
-machine, so without that line git would check the file out as CRLF while Drive
-holds LF and the gate would refuse to start over 316 line endings.
+It runs **before `import rail`**, exits **4** on any doubt, and every failure path is
+fatal — `SystemExit` inherits `BaseException`, so the engine's own `except Exception`
+handlers cannot swallow it. No bypass flag, no environment variable, and `--mock`
+does not skip it (mock writes to the real rail).
 
-Named `rail.reference.py`, not `rail.py`, so it can never be picked up by
-`import rail` if `PP_VIDEOS` is ever wrong — a silent fallback to the wrong file is
-exactly what this exists to prevent.
+**To change rail.py deliberately:** edit it and **commit**. That is the whole
+procedure. The gate refuses to run on an uncommitted change, which is the point —
+every version the engine has ever run is in the history, attributable.
 
-This is step 1 of two. Step 2 moves the logic into the repo and leaves a thin shim
-on Drive, at which point there is one copy and divergence becomes impossible rather
-than merely detected.
+*(Retired with this change: `engine/rail.reference.py`, its `-text` line in
+`.gitattributes`, and the byte-comparison helper. The gate uses
+`git status --porcelain`, which applies git's own clean filters, so it is immune to
+the `core.autocrlf` conversion that made `-text` necessary.)*
 
 ### QC integrity gate — `qc_episode.py` can't drift unnoticed
 
-Same pattern as the rail gate, for the checker that judges every finished episode.
-`qc_episode.py` lives on Drive, unversioned, and it already existed in **two copies
-that had drifted**: the spare in `pp-production-plugin/` was three hours older and
-missing three hard-fail rules (card word-cue anchoring, b-roll/card overlap, midroll
-full-visibility). If the weaker one ever ran, an episode would **pass while being
-judged by the wrong rules** — a silent quality failure.
+`qc_episode.py` decides whether a finished episode is good enough to ship. It once
+existed in TWO unversioned copies that had already drifted, the weaker one missing
+three hard-fail rules (card word-cue anchoring, b-roll/card overlap, midroll
+visibility). If the weaker one ever ran, an episode would **pass while being judged
+by the wrong rules** — a silent quality failure.
 
-`engine/qc_episode.reference.py` is a byte-for-byte copy of the canonical live file
-(`.claude/skills/pp-episode-production/scripts/qc_episode.py` — the one the engine
-actually executes). `RealProvider._qc_integrity_gate()` sha256s the live file
-**immediately before shelling out to it**, inside `self_qc`. Mismatch, missing file
-or unreadable file print both hashes to stderr and **exit 5** (the rail gate uses 4).
-No bypass flag, no environment variable. Mock mode never runs this script — it has
-its own `self_qc` — so there is nothing there to skip.
+It now lives in the repo at `.claude/skills/pp-episode-production/scripts/`, and
+`RealProvider._qc_integrity_gate()` asserts it matches **git HEAD** immediately
+before shelling out to it, inside `self_qc`. Any doubt prints to stderr and
+**exits 5** (the rail gate uses 4). No bypass flag, no environment variable. Mock
+mode never runs this script — it has its own `self_qc` — so there is nothing to skip.
 
 Checking at the point of use rather than at startup means a drift introduced
-mid-build is still caught. The cost is that it fires late, after the credits are
-spent — but the build is checkpointed, so fixing the file and restarting resumes at
+mid-build is still caught. The cost is that it fires late, after credits are spent —
+but the build is checkpointed, so fixing the file and restarting resumes at
 `self_qc` rather than rebuilding.
 
-**To change qc_episode.py deliberately:** edit the live file, then refresh the
-reference and commit both together, so the diff is reviewable —
-`python -c "import pathlib;pathlib.Path('engine/qc_episode.reference.py').write_bytes(pathlib.Path(r'G:\My Drive\PP Videos\.claude\skills\pp-episode-production\scripts\qc_episode.py').read_bytes())"`
+**To change qc_episode.py deliberately:** edit it and **commit**. No reference file
+to refresh.
 
-`.gitattributes` marks the reference `-text`, for the same CRLF reason as the rail
-reference.
-
-Still to do (deliberately deferred until after the next end-to-end run): delete the
-duplicate scripts under `pp-production-plugin/`, and extend this gate to the other
-nine engine-invoked scripts.
+*(Retired with this change: `engine/qc_episode.reference.py` and its `-text` line.
+The second drifted copy in `pp-production-plugin/` is retired too — `plugin/pack.py`
+now regenerates the bundle from the repo skill into a gitignored `plugin/dist/`, so
+a checked-in second copy cannot exist to drift.)*
 
 ### Known future upgrade — reading script Docs
 

@@ -58,63 +58,26 @@ MAX_ATTEMPTS = 3
 CREDITS_PER_BROLL = 4                      # conservative planning figure
 CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "60"))  # per episode
 
-# --- rail integrity gate (26 Jul 2026) --------------------------------------
+# --- rail integrity gate (26 Jul 2026; git-backed from 28 Jul 2026) ---------
 # rail.py holds the Script Gate's enforcement — the claim filter that refuses to
-# hand out an episode nobody has read the script for. It lives on Google Drive,
-# outside version control, where a revert would disable that guarantee SILENTLY:
-# the engine would keep running and the board would still look healthy.
+# hand out an episode nobody has read the script for. A revert would disable that
+# guarantee SILENTLY: the engine keeps running and the board still looks healthy.
 #
-# So the repo carries a byte-for-byte reference copy and the engine compares the
-# live file against it BEFORE importing it. Any doubt at all — mismatch, missing
-# file, unreadable file — stops the engine. There is no bypass flag, no
-# environment variable, and --mock does NOT skip it (mock still writes to the
-# real rail).
-RAIL_LIVE = PP_VIDEOS / "scripts" / "rail.py"
-RAIL_REFERENCE = ENGINE_DIR / "rail.reference.py"
+# It now lives IN THE REPO (engine/rail.py), so the gate compares it against git
+# HEAD instead of against a checked-in duplicate. Stronger, not weaker: it catches
+# an UNCOMMITTED edit, which the old reference-copy gate could not see, and it
+# cannot be defeated by editing two files. See engine/gitgate.py for the full
+# reasoning. No bypass flag, no environment variable, and --mock does NOT skip it
+# (mock still writes to the real rail).
+from gitgate import assert_committed      # noqa: E402  (must precede `import rail`)
 
+RAIL_SHA = assert_committed(
+    "engine/rail.py",
+    gate="RAIL INTEGRITY GATE",
+    why="rail.py carries the Script Gate's claim filter. Rather than run on a\n"
+        "version nobody has reviewed, the engine stops here.",
+    code=4)                            # runs BEFORE the import below. No bypass.
 
-def _rail_gate_die(reason, detail=""):
-    """The ONE exit path from the gate. Always fatal; never returns."""
-    print("=" * 72, file=sys.stderr)
-    print("RAIL INTEGRITY GATE FAILED — refusing to start.", file=sys.stderr)
-    print(reason, file=sys.stderr)
-    if detail:
-        print(detail, file=sys.stderr)
-    print("\nrail.py carries the Script Gate's claim filter. Rather than run on a\n"
-          "version nobody has reviewed, the engine stops here.\n"
-          "Fix: make the live file match the committed reference, or make the\n"
-          "change deliberately and update the reference in the same commit.",
-          file=sys.stderr)
-    print("=" * 72, file=sys.stderr)
-    raise SystemExit(4)
-
-
-def _rail_integrity_gate():
-    """Compare the FULL BYTES of the live rail.py against the committed
-    reference. Returns the sha256 on success; otherwise it never returns."""
-    try:
-        reference = RAIL_REFERENCE.read_bytes()
-    except OSError as e:
-        _rail_gate_die(f"Can't read the committed reference copy:\n  {RAIL_REFERENCE}",
-                       f"  {e}")
-    try:
-        live = RAIL_LIVE.read_bytes()
-    except OSError as e:
-        _rail_gate_die(f"Can't read the live rail.py:\n  {RAIL_LIVE}", f"  {e}")
-    ref_sha = hashlib.sha256(reference).hexdigest()
-    live_sha = hashlib.sha256(live).hexdigest()
-    if ref_sha != live_sha:
-        _rail_gate_die(
-            "The live rail.py does NOT match the committed reference.",
-            f"  reference : {ref_sha}  ({len(reference)} bytes)\n"
-            f"  live      : {live_sha}  ({len(live)} bytes)\n"
-            f"  live path : {RAIL_LIVE}")
-    return live_sha
-
-
-RAIL_SHA = _rail_integrity_gate()      # runs BEFORE the import below. No bypass.
-
-sys.path.insert(0, str(PP_VIDEOS / "scripts"))
 import rail  # the one shared Supabase client (RAIL-INTEGRATION.md)
 
 from providers import EngineFlag, MockProvider, RealProvider, ep_folder
@@ -810,7 +773,7 @@ def acquire():
 
 _CODE_FILES = [Path(__file__).resolve(),
                Path(__file__).resolve().parent / "providers.py",
-               PP_VIDEOS / "scripts" / "rail.py"]
+               ENGINE_DIR / "rail.py"]
 _CODE_MTIMES = {p: p.stat().st_mtime for p in _CODE_FILES if p.exists()}
 LOCK = ENGINE_DIR / "engine.lock"
 

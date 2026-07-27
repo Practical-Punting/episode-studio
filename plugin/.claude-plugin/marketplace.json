@@ -1,0 +1,12 @@
+{
+  "name": "practical-punting",
+  "metadata": { "description": "Practical Punting production plugins — the Claude Code build side (episode assembly, e-book, thumbnail, QC)." },
+  "owner": { "name": "Practical Punting" },
+  "plugins": [
+    {
+      "name": "pp-production",
+      "source": "./",
+      "description": "PP episode build pipeline (Claude Code side): shot map -> cards -> b-roll -> two-pass assembly -> e-book PDF -> thumbnail -> QC, driven by episode.json."
+    }
+  ]
+}

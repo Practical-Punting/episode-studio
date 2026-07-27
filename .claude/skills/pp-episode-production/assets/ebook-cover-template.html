@@ -1,0 +1,101 @@
+<!doctype html><html><head><meta charset="utf-8">
+<title>PP e-book cover — CANONICAL TEMPLATE</title>
+<!-- ==========================================================================
+     PRACTICAL PUNTING E-BOOK COVER — standing template (canonical from EP09's
+     overlap fix, 25 Jul 2026). 1588x2238 (A4 ratio) via render_still.py.
+
+     PER-EPISODE (only these change):
+       1. hero.png beside this file (+ assets/ebook-logo.png).
+       2. .title text (the e-book title — may differ from the video hook).
+       3. .subtitle text (the promise line) and .byline text.
+
+     TWO OPTIONAL TITLE CLASSES — opt in from the MARKUP only. Both are INERT
+     until you use them: the default title below renders exactly as it always has.
+
+     Examples below deliberately use [square brackets], not angle brackets, so
+     nothing greps this comment and picks up example markup as live markup.
+     (This bit us on 26 Jul 2026: a substitution script matched the FIRST
+     `div class="title"` in the file — which was an example in here — and silently
+     rewrote the comment instead of the real title. Do not "helpfully" convert
+     these back to angle brackets.)
+
+       .w    HOOK COLOUR SPLIT. Wrap the setup word(s) to set them WHITE against
+             the orange payoff word(s), matching the in-video title card and the
+             thumbnail. Use whenever the cover title carries the episode HOOK.
+               [div class="title"][span class="w"]Hidden[/span] Aces…[/div]
+
+       .part SERIES PART TREATMENT (Jodie, 26 Jul 2026 — PP-STANDARDS §E-book).
+             Decide from the TITLE LENGTH, and use the SAME choice on the cover,
+             the in-video title card and the thumbnail so a series stays consistent:
+               • LONG title — "Part N" sits inline on a line with words beside it:
+                 keep the em dash at full size, plain text, no .part class.
+                 e.g. EP10  [div class="title"]The 12 Vital[br]Form Factors[br]— Part 1[/div]
+               • SHORT title — "Part N" would fall to a line of its own: DROP the
+                 em dash and wrap it in .part (about half title size, own line).
+                 e.g. EP11  [div class="title"][span class="w"]Hidden[/span] Aces[span class="part"]Part 1[/span][/div]
+             Why: on a short title a full-size dash lands alone at the start of a
+             line and reads as a stray mark rather than punctuation.
+
+     LAYOUT RULES (the EP09 lesson — do not regress):
+       - The photo occupies the top 1600px; the TITLE BLOCK sits over its
+         scrimmed lower third (bottom-anchored INSIDE the photo).
+       - The WHITE BAND (below 1600px) is a FLEX COLUMN in normal flow:
+         subtitle -> byline -> (auto gap) -> footrule -> footer. Text of any
+         length stacks; it can NEVER overlap. Never position band text with
+         absolute pixel tops.
+       - QC: scripts/cover_check.py measures the rendered page and FAILS on
+         any overlapping or clipped text. The engine runs it automatically.
+     ========================================================================== -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0}
+  *{box-sizing:border-box}
+  body{width:1588px;height:2238px;background:#fff;font-family:'Barlow',sans-serif;overflow:hidden;position:relative;}
+  .photo{position:absolute;top:0;left:0;width:1588px;height:1600px;overflow:hidden;}
+  .photo img{width:100%;height:100%;object-fit:cover;object-position:center 40%;display:block;}
+  .scrim{position:absolute;left:0;bottom:0;width:100%;height:1000px;
+         background:linear-gradient(to top, rgba(0,0,0,0.66), rgba(0,0,0,0.40) 40%, rgba(0,0,0,0) 80%);}
+  .chip{position:absolute;top:96px;left:96px;background:rgba(20,20,20,0.82);border-radius:22px;
+        padding:26px 40px;display:flex;align-items:center;z-index:5;}
+  .chip img{height:96px;display:block;}
+  .titleblock{position:absolute;left:96px;right:96px;bottom:698px;z-index:3;} /* bottom-anchored over the photo's scrim */
+  .eyebrow{display:flex;align-items:center;gap:26px;margin-bottom:30px;}
+  .eyebrow .rule{width:96px;height:6px;background:#DA532C;}
+  .eyebrow .lbl{color:#fff;font-size:40px;font-weight:800;letter-spacing:0.26em;text-transform:uppercase;
+        text-shadow:0 2px 12px rgba(0,0,0,0.6);}
+  .title{font-family:'Anton',sans-serif;color:#DA532C;text-transform:uppercase;line-height:0.90;
+         font-size:172px;letter-spacing:0.004em;text-shadow:0 6px 34px rgba(0,0,0,0.5);}
+  /* OPT-IN ONLY (see PER-EPISODE note above) — inert unless the markup uses them. */
+  .title .w{color:#fff;}
+  .title .part{display:block;font-size:86px;line-height:1.0;letter-spacing:0.02em;margin-top:18px;}
+  /* THE BAND — normal flow; overlap-proof by construction */
+  .band{position:absolute;top:1600px;left:0;width:1588px;height:638px;background:#fff;
+        padding:88px 96px 56px;display:flex;flex-direction:column;}
+  .subtitle{font-size:74px;font-weight:600;color:#1F1F1F;line-height:1.16;margin:0 0 40px;}
+  .subtitle b{color:#DA532C;font-weight:800;}
+  .byline{font-size:44px;font-weight:500;color:#6b6b6b;font-style:italic;margin:0;}
+  .footrule{height:3px;background:#DA532C;opacity:0.85;margin:auto 0 26px;} /* auto top-margin pins footer to the base */
+  .footer{font-size:40px;color:#6b6b6b;font-weight:500;}
+</style></head>
+<body>
+  <div class="photo"><img src="hero.png"><div class="scrim"></div></div>
+  <!-- DOUBLED-LOGO FIX (Jodie, 27 Jul 2026). This chip previously held
+       assets/ebook-logo.png, which has its OWN dark rounded chip baked into the PNG —
+       so the cover rendered a smaller logo-chip sitting inside this bigger one. Keep
+       THIS chip (the bigger one); use the chip-LESS white-wordmark logo inside it.
+       pp-logo-on-dark.png is transparent with a white wordmark, made for dark panels.
+       Affects every episode built from this template from now on; EP09/EP10 were built
+       with the doubled logo and are NOT retrospectively rebuilt. -->
+  <div class="chip"><img src="assets/pp-logo-on-dark.png" alt="Practical Punting"></div>
+  <div class="titleblock">
+    <div class="eyebrow"><div class="rule"></div><div class="lbl">A Practical Punting Guide</div></div>
+    <div class="title">Episode<br>Title Here</div>
+  </div>
+  <div class="band">
+    <div class="subtitle">The promise line goes here &mdash; it may run to <b>two or three lines</b> without ever colliding.</div>
+    <div class="byline">From the Practical Punting archives &middot; with Gordon</div>
+    <div class="footrule"></div>
+    <div class="footer">A Practical Punting guide &middot; practicalpunting.com.au</div>
+  </div>
+</body></html>

@@ -20,8 +20,9 @@ import subprocess
 import sys
 import tempfile
 
-SCRIPTS = r"G:\My Drive\PP Videos\.claude\skills\pp-episode-production\scripts"
-POOL_MD = r"C:\Users\jlral\repos\episode-studio\docs\midroll-line-pool.md"
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPTS = os.path.join(_REPO, ".claude", "skills", "pp-episode-production", "scripts")
+POOL_MD = os.path.join(_REPO, "docs", "midroll-line-pool.md")
 
 # --- load render_ready.py as a module so we can test its helpers directly ----
 spec = importlib.util.spec_from_file_location("rr", os.path.join(SCRIPTS, "render_ready.py"))

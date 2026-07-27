@@ -28,9 +28,13 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   Google Drive keeps media and episode outputs; Supabase keeps runtime state.
 - **Any rule Jodie approves is written ONCE, here, by Claude Code. Cowork never
   writes rules.**
-- **Two things deliberately did NOT move** and are still read from Drive by path:
-  `broll-registry.md` (`providers.py:570`) and the `pp-episode-production` skill
-  (`engine.py:50`, `providers.py:249-250`). Moving either breaks the engine.
+- **EVERYTHING CODE-SHAPED IS NOW IN THE REPO (28 Jul 2026): CODE IN GITHUB,
+  MEDIA ON DRIVE.** The `pp-episode-production` skill, `broll-registry.md` and
+  `rail.py` all moved in. The engine resolves the skill from
+  `providers.py` → `SKILL_DIR`, and `PP_VIDEOS` now points at **media only**:
+  episode folders, the Google Docs and `.env`. *(This bullet used to read "two
+  things deliberately did NOT move… moving either breaks the engine." They moved;
+  nothing broke.)*
 - `docs/*.md` is marked `-text` in `.gitattributes` so `core.autocrlf` cannot
   rewrite LF as CRLF and break byte-identity with the originals.
 
@@ -52,7 +56,8 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   Re-sequencing needs Jodie's explicit re-approval.
 - Secrets only in `PP Videos/.env` (service_role, HeyGen). Only the anon key
   ships client-side (RLS on). Never commit keys.
-- All Supabase access goes through `PP Videos/scripts/rail.py` — one client.
+- All Supabase access goes through `engine/rail.py` — one client, in the repo
+  since 28 Jul 2026 (was `PP Videos/scripts/rail.py`).
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
