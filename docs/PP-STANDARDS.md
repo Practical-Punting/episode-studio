@@ -503,6 +503,19 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
   skills, specs, decisions.
 - **The claude.ai project is a JOURNAL.** It holds **no rule text** — pointers only.
 - **Google Drive** keeps media and episode outputs. **Supabase** keeps runtime state.
+- **🧩 THE INSTANCE/RECIPE TEST — how to tell code from media when a file is both
+  (Jodie, 28 Jul 2026).** Some files are *shaped* like code and *behave* like output.
+  The test is not the file extension:
+  > **The RECIPE lives in git. The INSTANCE lives on Drive.**
+  A motion card's HTML template is a recipe → repo. The episode's rendered
+  `ep12-c01-….html` and its `.mp4` are instances → Drive. **Worked example (the ruling
+  case): `Channel-Branding/banner.html`, `thumbnail.html` and `PP-brand-kit.html` STAY
+  ON DRIVE.** They are one-off channel assets built beside their large source PNGs, and
+  their template — `assets/youtube-banner-template.html` — is already in the repo skill.
+  Instance on Drive, recipe in git. **This is not an exception to CODE IN GITHUB, MEDIA
+  ON DRIVE; it is what the principle means.** Ask "would I edit this to change every
+  future episode, or did it come out of something I would edit?" The first is a recipe;
+  the second is an instance.
 - **Any rule Jodie approves is written ONCE, in the repo, by Claude Code. Cowork never writes
   rules.**
 - **👥 WHO DOES WHAT — the division of labour lives in `docs/WHO-DOES-WHAT.md`** (ruled by Jodie,
