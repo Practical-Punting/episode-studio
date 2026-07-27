@@ -1,2 +1,9 @@
 engine/rail.reference.py -text
 engine/qc_episode.reference.py -text
+
+# The governing standards moved in from Drive on 27 Jul 2026 and must stay
+# BYTE-IDENTICAL to their originals. core.autocrlf is true on this machine, so
+# without -text git would rewrite these LF files as CRLF on checkout and the
+# byte comparison against Drive would silently fail. Same reason as the two
+# reference files above.
+docs/*.md -text

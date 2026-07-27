@@ -14,6 +14,25 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   GitHub Pages: https://practical-punting.github.io/episode-studio/
 - `engine/` — the orchestrator (Phase 2a spine). See `engine/README.md`.
 - `supabase/` — migrations + `SCHEMA.md` (the data contract — read it first).
+- **`docs/` — THE HOME OF THE GOVERNING STANDARDS.** Read `docs/PP-STANDARDS.md`
+  first for any episode work.
+
+## Where the rules live — ONE HOME (Jodie, 27 Jul 2026)
+- **`docs/` in THIS repo is the single home for the governing standards.** Read
+  them here. Write them here. Never anywhere else.
+- **The Drive copies at `G:\My Drive\PP Videos\docs\` are BEING RETIRED.** They
+  were moved in byte-for-byte on 27 Jul 2026 and are on their way to becoming
+  signposts. **Do not edit them, and do not read them as authoritative** — if
+  the two ever differ, the repo wins.
+- **The claude.ai project is a JOURNAL.** It holds no rule text, pointers only.
+  Google Drive keeps media and episode outputs; Supabase keeps runtime state.
+- **Any rule Jodie approves is written ONCE, here, by Claude Code. Cowork never
+  writes rules.**
+- **Two things deliberately did NOT move** and are still read from Drive by path:
+  `broll-registry.md` (`providers.py:570`) and the `pp-episode-production` skill
+  (`engine.py:50`, `providers.py:249-250`). Moving either breaks the engine.
+- `docs/*.md` is marked `-text` in `.gitattributes` so `core.autocrlf` cannot
+  rewrite LF as CRLF and break byte-identity with the originals.
 
 ## Hard rules
 - The 10-status contract lives in the DB; friendly lane labels live in the UI.
