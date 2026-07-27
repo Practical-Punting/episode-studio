@@ -11,6 +11,25 @@
 
 ---
 
+## ⚖️ WHAT DESERVES A GATE (Jodie, 27 Jul 2026) — read this BEFORE adding a QC check
+**A gate is only worth having if the thing behind it is worth stopping an episode for.**
+A check that halts a build over something Jodie does not care about is **worse than no check**,
+because **Hugh cannot clear it and cannot know it did not matter.** He operates from a browser;
+a red flag he can neither judge nor dismiss is a dead end, not a safety net.
+
+So before adding any HARD FAIL, ask: *would Jodie genuinely want the episode stopped for this?*
+- **Yes** → hard fail (invented data, a card over the host's face, a stale packaging value, an
+  unverifiable figure, b-roll and a card sharing the screen).
+- **No, but it's usually better** → **PREFERENCE**, written as guidance, never wired to a gate.
+- **Worked example:** a proposed ≥1s clearance between b-roll and a card was *my* recommendation,
+  not a ruling. Jodie looked at the actual video and ruled: *"It is ok if one comes straight
+  after the other."* It stays as a preference in the production skill and must never become a
+  hard fail. See also §Motion-graphic cards — b-roll and cards **overlapping** is still a hard
+  fail; *adjacency* is not.
+
+This sits alongside the QC-per-fix rule below, which says every recurring-risk fix gets a check.
+Both are true: **check what matters, and only what matters.**
+
 ## ✅ THE QC-PER-FIX RULE (standing, 25 Jul 2026)
 **Every recurring-risk fix must land in the standard AND the engine AND an automatic QC
 check — never just a note. (Gawande: a checked rule enforces itself.)**
@@ -116,6 +135,11 @@ An episode is NOT finished until every one of these exists and is approved:
 3. **E-book PDF** — `PP-EPxx-ebook.pdf`.
 4. **Thumbnail** — `PP-EPxx-thumbnail.png` (racing-photo style + hook). ← the one most likely to be forgotten; never skip it.
 5. **YouTube title + description** — `PP-EPxx-youtube.txt` (recommended title + alternatives + full description; the real e-book link is pasted in at upload).
+   **WHO WRITES IT: Claude Code.** Jodie's ruling, 26 Jul 2026 — ownership moved from Cowork to
+   the build side. Claude Code writes the title and description into
+   `PP-EPxx/output/PP-EPxx-youtube.txt` per `docs/youtube-metadata-kit.md`; **Jodie uploads.**
+   *Stated here because this file is canonical and every other document defers to it — and
+   because this exact ruling has gone wrong twice by living only in the documents that defer.*
 6. **Assembly report.**
 Jodie approves the video, e-book, thumbnail AND title. Do not declare an episode done if any of these is missing.
 
@@ -421,9 +445,18 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
 - **Google Drive** keeps media and episode outputs. **Supabase** keeps runtime state.
 - **Any rule Jodie approves is written ONCE, in the repo, by Claude Code. Cowork never writes
   rules.**
-- ⚠️ **NOT YET IN FORCE.** Verified 27 Jul 2026: `github.com/Practical-Punting/episode-studio`
+- ⚠️ **PARTLY IN FORCE.** Verified 27 Jul 2026: `github.com/Practical-Punting/episode-studio`
   is **PUBLIC** (`gh repo view` → `"isPrivate": false`; an anonymous API call returns HTTP 200).
-  The tiers below assume a **private** repo, so nothing moves until visibility changes.
+  Jodie's middle road, 27 Jul 2026: **governance standards go into the public repo** — nobody is
+  harmed by reading them, and it means every reader gets the IDENTICAL file instead of copies
+  that drift. **Genuinely commercial craft stays out**: the `pp-episode-script` skill and
+  `broll-registry.md`. The Tier 2 material below still needs a private home.
+- **🧭 IF YOU MOVE A FILE, EVERY SIGNPOST AIMED AT IT MOVES WITH IT (27 Jul 2026).**
+  A signpost pointing at a path that no longer exists is **worse than no signpost**: it reads as
+  authoritative and sends the reader nowhere. Archiving `thumbnail-standard.md` into
+  `docs/archive/` broke its Drive stub within the hour of writing it. **After any move or
+  rename, re-audit every stub and every cross-reference and confirm each target actually
+  resolves** — check the file is there, do not assume it is.
 
 ## 🔒 WHAT MAY BE STORED AND SHARED WHERE — THREE TIERS (Jodie, 27 Jul 2026)
 **THIS SUPERSEDES the previous link-sharing rule and replaces it entirely. Do not restore the
