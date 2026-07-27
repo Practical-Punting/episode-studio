@@ -48,8 +48,18 @@ STATUSES = [
 
 
 # --- config (.env) ---------------------------------------------------------
+# THE .env IS ON DRIVE AND STAYS THERE — TIER 1, never in the repo, deliberately
+# never backed up. rail.py moved INTO the repo on 28 Jul 2026 ("code in GitHub,
+# media on Drive"), so walking up from __file__ no longer reaches PP Videos/.env:
+# it reaches the repo root, which has no .env and a .gitignore forbidding one.
+# Look at PP_VIDEOS explicitly first, then keep the original parent walk so this
+# still works if rail.py is ever run from somewhere under a folder holding a .env.
 def _find_env():
-    """Walk up from this file until a .env is found (project root holds it)."""
+    """Locate the .env: PP_VIDEOS first, then walk up from this file."""
+    pp = os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos")
+    candidate = os.path.join(pp, ".env")
+    if os.path.isfile(candidate):
+        return candidate
     d = os.path.dirname(os.path.abspath(__file__))
     while True:
         candidate = os.path.join(d, ".env")
@@ -57,7 +67,8 @@ def _find_env():
             return candidate
         parent = os.path.dirname(d)
         if parent == d:
-            raise FileNotFoundError(f"no .env found above {__file__}")
+            raise FileNotFoundError(
+                f"no .env at {os.path.join(pp, '.env')} and none above {__file__}")
         d = parent
 
 

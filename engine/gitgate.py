@@ -101,16 +101,24 @@ def assert_committed(rel_path: str, gate: str, why: str, code: int) -> str:
     if r.returncode != 0:
         _die(gate, f"git status failed for {rel_path}", (r.stderr or "").strip(),
              why, code)
-    dirty = r.stdout.strip()
-    if dirty:
+    # NB: porcelain codes are TWO COLUMNS and the first may be a SPACE
+    # (" M" = modified-not-staged). Never .strip() the line — that shifts the
+    # columns and mislabels the state. Split on newline only.
+    lines = [ln for ln in r.stdout.split("\n") if ln.strip()]
+    if lines:
+        dirty = lines[0]
         state = {"??": "is UNTRACKED — it has never been committed",
-                 " M": "has UNCOMMITTED CHANGES",
+                 " M": "has UNCOMMITTED CHANGES (edited, not staged)",
                  "M ": "is STAGED but NOT COMMITTED",
-                 "MM": "is STAGED and further MODIFIED",
+                 "MM": "is STAGED and then further MODIFIED",
                  " D": "has been DELETED from the working tree",
-                 "AM": "is newly ADDED and modified"}.get(dirty[:2], "DIFFERS from HEAD")
+                 "D ": "has been DELETED and staged",
+                 "A ": "is newly ADDED but NOT COMMITTED",
+                 "AM": "is newly ADDED and then modified",
+                 "R ": "has been RENAMED but not committed"}.get(
+                     dirty[:2], "DIFFERS from HEAD")
         _die(gate, f"{rel_path} {state}.",
-             f"  git status: {dirty}\n  path      : {target}", why, code)
+             f"  git status: {dirty!r}\n  path      : {target}", why, code)
 
     r = git("rev-parse", f"HEAD:{rel_path}")
     if r.returncode != 0:
