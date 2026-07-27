@@ -4,7 +4,7 @@
 - **Location:** `docs/PP-STANDARDS.md` in the **episode-studio repo** (`github.com/Practical-Punting/episode-studio`), locally `C:\Users\jlral\repos\episode-studio\docs\`. **This line used to point at `G:\My Drive\PP Videos\docs\PP-STANDARDS.md`, which has been a 521-byte "MOVED — nothing here is authoritative" signpost since 27 Jul 2026** — the canonical file was pointing at its own tombstone. Fixed 28 Jul 2026. (§IF YOU MOVE A FILE, EVERY SIGNPOST AIMED AT IT MOVES WITH IT — including the one inside the file.)
 - **Rule of the road:** any standard Jodie approves is written **once, here.** Change only on Jodie's say-so.
 - **Division:** the *rules and facts* live here. Claude Code's *build recipes* (ffmpeg graphs, `assemble_episode.py`, `build_ebook.py`, etc.) stay in its `pp-episode-production` skill — but they must obey these rules.
-- **Last updated:** 28 Jul 2026 — four Jodie rulings, all in §Mid-video / §END SEQUENCE / §Standing OUTRO / §Motion-graphic cards: (1) the **spoken midroll comes from a fixed pool of ten**, used in order, never rewritten — this SUPERSEDES "reword it every episode"; (2) the **verbatim window is the previous NINE episodes**, not all of them; (3) the **on-screen chip is fixed standing furniture**, identical every episode; (4) **name the video at every ask** (midroll + outro e-book line; narration exempt). Also fixed: the Location line above, which pointed at this file's own retired signpost. Previously 26 Jul 2026 — three Jodie rulings: the b-roll no-repeat clarification (composition, not subject, §B-roll), the series part treatment (§E-book), and never-fabricate-racing-data (§Motion-graphic cards + Hard never list). Previously 23 Jul 2026 by Cowork Claude: the standing outro and the mid-video like/subscribe rule.
+- **Last updated:** 28 Jul 2026 (later) — **HUGH'S RULING, co-owner, FINAL: the repo stays PUBLIC.** §WHERE RULES LIVE and §WHAT MAY BE STORED AND SHARED WHERE rewritten to match: TIER 2 is now **empty** (the `pp-episode-script` skill and `broll-registry.md` are marketing material, not trade secrets — the episodes come from articles PP already publishes openly), TIER 3 absorbs them plus all code, and **TIER 1 is unchanged, absolute and explicitly strengthened**. Earlier on 28 Jul 2026 — four Jodie rulings, all in §Mid-video / §END SEQUENCE / §Standing OUTRO / §Motion-graphic cards: (1) the **spoken midroll comes from a fixed pool of ten**, used in order, never rewritten — this SUPERSEDES "reword it every episode"; (2) the **verbatim window is the previous NINE episodes**, not all of them; (3) the **on-screen chip is fixed standing furniture**, identical every episode; (4) **name the video at every ask** (midroll + outro e-book line; narration exempt). Also fixed: the Location line above, which pointed at this file's own retired signpost. Previously 26 Jul 2026 — three Jodie rulings: the b-roll no-repeat clarification (composition, not subject, §B-roll), the series part treatment (§E-book), and never-fabricate-racing-data (§Motion-graphic cards + Hard never list). Previously 23 Jul 2026 by Cowork Claude: the standing outro and the mid-video like/subscribe rule.
 - ✅ **Sign-off — RULED 27 Jul 2026.** The three documents were never in conflict: they held two
   valid instances of one shape. The sign-off is now recorded as a **pattern** in §Standing OUTRO
   and re-voiced each episode. The responsible-gambling line is separate and stays locked.
@@ -514,12 +514,21 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
   person the hands-off studio is for.
   *Named here as well as there for the same reason the YouTube-copy owner is: a ruling that lives
   only in documents which DEFER to this one is a ruling waiting to go wrong.*
-- ⚠️ **PARTLY IN FORCE.** Verified 27 Jul 2026: `github.com/Practical-Punting/episode-studio`
-  is **PUBLIC** (`gh repo view` → `"isPrivate": false`; an anonymous API call returns HTTP 200).
-  Jodie's middle road, 27 Jul 2026: **governance standards go into the public repo** — nobody is
-  harmed by reading them, and it means every reader gets the IDENTICAL file instead of copies
-  that drift. **Genuinely commercial craft stays out**: the `pp-episode-script` skill and
-  `broll-registry.md`. The Tier 2 material below still needs a private home.
+- ✅ **FULLY IN FORCE — THE REPO IS PUBLIC AND STAYS PUBLIC (Hugh, co-owner, 28 Jul 2026. FINAL.
+  DO NOT RE-OPEN).** `github.com/Practical-Punting/episode-studio` is PUBLIC
+  (`gh repo view` → `"isPrivate": false`; anonymous fetch returns HTTP 200) and that is the
+  settled, deliberate arrangement. **No split, no flip to private, no paid plan.**
+  **Hugh's reasoning, recorded so nobody re-litigates it:** the `pp-episode-script` skill and
+  `broll-registry.md` are **marketing material, not trade secrets** — the episodes are built
+  from articles Practical Punting **already publishes openly**. There is nothing behind the
+  curtain that is not already on the website. This is the co-owner's **commercial judgement**,
+  and commercial judgement is his and Jodie's to make, not the build side's.
+  **This SUPERSEDES the "middle road" of 27 Jul 2026**, which read: *"Genuinely commercial craft
+  stays out: the `pp-episode-script` skill and `broll-registry.md`. The Tier 2 material still
+  needs a private home."* **Do not restore that wording.** Its practical effect was a rule that
+  the practice already ignored — and see §TIER 2 for why that is the dangerous kind of rule.
+  **What survives unchanged is TIER 1** (below): secrets and subscriber data never go anywhere,
+  public repo or not.
 - **🧭 IF YOU MOVE A FILE, EVERY SIGNPOST AIMED AT IT MOVES WITH IT (27 Jul 2026).**
   A signpost pointing at a path that no longer exists is **worse than no signpost**: it reads as
   authoritative and sends the reader nowhere. Archiving `thumbnail-standard.md` into
@@ -527,42 +536,66 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
   rename, re-audit every stub and every cross-reference and confirm each target actually
   resolves** — check the file is there, do not assume it is.
 
-## 🔒 WHAT MAY BE STORED AND SHARED WHERE — THREE TIERS (Jodie, 27 Jul 2026)
-**THIS SUPERSEDES the previous link-sharing rule and replaces it entirely. Do not restore the
-old wording.** The retired clause read: *"Subscriber data, e-book lists, method material,
-broll-registry.md, .env, and anything in PP Videos/docs/ are never link-shared, in whole or in
-part, for any reason."* It was right about the dangerous things and wrong about one clause:
-**"anything in PP Videos/docs/" protected by LOCATION rather than by what a thing IS.** That
-folder now also holds ordinary production standards, harmful to nobody, and the clause became
-the thing blocking them from being stored properly.
+## 🔒 WHAT MAY BE STORED AND SHARED WHERE — THE TIERS (Hugh's ruling, 28 Jul 2026)
+**Two live tiers, and the line between them is bright.** TIER 1 is absolute. Everything else
+that governs behaviour goes in the public repo. TIER 2 is retained as a **named, empty**
+category so there is a place to put something genuinely secret if it ever exists — but it has
+**no members today, and adding one is a Jodie-and-Hugh decision, not a build-side judgement.**
 
-**The distinction the old rule missed:** *link-sharing* means anyone with the address — no
-login, no record, no attribution. A *private repo* means named collaborators, each logged and
-attributed. **They are not the same risk and must not be governed by the same sentence.**
+**Still true, and the reason the tiers exist at all:** *link-sharing* means anyone with the
+address — no login, no record, no attribution. A repo means named, logged, attributed access.
+**They are not the same risk and must not be governed by the same sentence.**
 
-### TIER 1 — never anywhere. No exceptions. Not even a private repo.
+### 🔴 TIER 1 — NEVER ANYWHERE. NO EXCEPTIONS. UNCHANGED AND ABSOLUTE.
 - **`.env` and every secret in it** — the Supabase **service_role** key (bypasses RLS; reads and
-  writes everything) and the **HeyGen** key (spends real money).
-- **Subscriber data.** **E-book download lists.**
-- `.env` is **deliberately never backed up.**
+  writes everything) and the **`HEYGEN_API_KEY`** (spends real money).
+- **Subscriber data. E-book download lists.** Any future list of real people.
+- `.env` is **deliberately never backed up**, and `.gitignore` blocks `.env` / `*.env`.
+- **The repo being public changes NOTHING here.** It was never the thing protecting TIER 1;
+  TIER 1 is protected by never being written down anywhere a machine can copy it.
+- ⚠️ **THIS IS THE TIER THAT MATTERS, AND IT IS THE ONE AT RISK FROM A SLACK NEIGHBOUR.**
+  TIER 2 was rewritten (not quietly ignored) precisely so this one keeps its force. **A rule
+  nobody enforces teaches people to shrug at the tier that does matter.** A standard that says
+  "never public" about something already sitting in a public repo trains the reader that the
+  security section is aspirational — and the next thing they shrug at is the service_role key.
+  **If TIER 2 ever needs a member again, say so out loud and give it a real home. Do not let
+  TIER 1 drift by association.**
 
-### TIER 2 — private repo only. Never public, never link-shared.
-- **Method material** — the punting methods themselves.
-- **`broll-registry.md`.**
-- Reasoning is **commercial, not safety: the methods are the product.**
+### ⚪ TIER 2 — genuinely secret material. **CURRENTLY EMPTY (Hugh, 28 Jul 2026).**
+**Both former members were reclassified to TIER 3 by the co-owner** — the `pp-episode-script`
+skill and `broll-registry.md`. **Reason: they are marketing material, not trade secrets.** Every
+episode is built from an article Practical Punting **already publishes openly**; a document
+describing how those public articles become videos gives away nothing that the website does not.
+Commercial judgement, made by the co-owner.
+**The retired wording, for the record, NOT to be restored:** *"TIER 2 — private repo only. Never
+public, never link-shared. Method material — the punting methods themselves. `broll-registry.md`.
+Reasoning is commercial, not safety: the methods are the product."*
+**If something ever genuinely belongs here** — a paid-subscriber-only method, a commercial
+partner's material — it needs a private home created for it **before** it is written down, and
+a line in this section naming it. Empty is a state, not an invitation.
 
-### TIER 3 — judged on what they ARE, and fine in a private repo.
+### 🟢 TIER 3 — everything that governs behaviour. **Fine in the PUBLIC repo.**
 - Production standards: card timing, thumbnail rules, the episode JSON spec, `WHO-DOES-WHAT`,
-  the outro and midroll standards, the shot-plan rule.
+  the outro and midroll standards, the shot-plan rule, the midroll line pool.
+- **Code**: the engine, `rail.py`, the `pp-episode-production` build recipes and scripts, the
+  standing templates.
+- **`pp-episode-script`** and **`broll-registry.md`** (moved here by Hugh's ruling above).
+- **Why public is actively better here, not merely tolerable:** every reader gets the IDENTICAL
+  file instead of copies that drift, and the work gets history, backup, review and diffs for
+  free. That is the whole reason for **CODE IN GITHUB, MEDIA ON DRIVE**.
 
-### UNCHANGED
-**Only the individual episode script Docs get link-shared. Never a whole folder, and never
-anything holding subscriber data or method material.** A single episode's script Doc is set to
-"anyone with the link can view" because the engine has no Google login and reads it via the
-plain-text export URL; every word of it is about to be broadcast on YouTube anyway and the URL
-is unguessable. Share the **Doc**, never the folder that contains it — sharing a folder shares
-everything in it now and everything ever added to it. This is a rule, not a default: if a task
-seems to need a broader share, the task is wrong; stop and ask Jodie.
+### LINK-SHARING — narrowed to what it was always really protecting
+**Only individual episode script Docs get link-shared. NEVER a whole folder, and never anything
+holding TIER 1 material.** A single episode's script Doc is set to "anyone with the link can
+view" because the engine has no Google login and reads it via the plain-text export URL; every
+word of it is about to be broadcast on YouTube anyway and the URL is unguessable.
+**Share the Doc, never the folder that contains it** — sharing a folder shares everything in it
+now **and everything ever added to it**, which is how a TIER 1 file ends up shared by an
+accident nobody made on purpose. That property is why the folder rule survives Hugh's ruling
+untouched.
+*(Amended 28 Jul 2026: the clause used to read "never anything holding subscriber data or method
+material". "Method material" is no longer a protected class — it is TIER 3 — so the rule now
+names TIER 1, which is what it was always for.)*
 
 ## Hard "never" list
-**Never fabricate racing data** — every figure, form line, price, margin, date, horse or race on a card, e-book figure or thumbnail comes from the source article, or it does not appear (see §Motion-graphic cards); never ElevenLabs; never "tax"/"Agreement Tax"/"20% tax" framing; never hype/promises/guarantees; never a bare BR logo; never all-full-screen cards; never dirt tracks; never a repeated b-roll clip; never publish before the e-book exists; never let Jodie move files by hand; **never link-share a folder, subscriber data or method material — individual episode script Docs only.**
+**Never fabricate racing data** — every figure, form line, price, margin, date, horse or race on a card, e-book figure or thumbnail comes from the source article, or it does not appear (see §Motion-graphic cards); never ElevenLabs; never "tax"/"Agreement Tax"/"20% tax" framing; never hype/promises/guarantees; never a bare BR logo; never all-full-screen cards; never dirt tracks; never a repeated b-roll clip; never publish before the e-book exists; never let Jodie move files by hand; **never link-share a folder, and never link-share TIER 1 material (secrets, subscriber data, e-book lists) — individual episode script Docs only** (amended 28 Jul 2026: "method material" was removed, it is TIER 3 now); **never put a TIER 1 secret in the repo, public or private — that one has no exceptions and never will.**
