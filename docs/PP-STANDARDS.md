@@ -445,6 +445,15 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
 - **Google Drive** keeps media and episode outputs. **Supabase** keeps runtime state.
 - **Any rule Jodie approves is written ONCE, in the repo, by Claude Code. Cowork never writes
   rules.**
+- **👥 WHO DOES WHAT — the division of labour lives in `docs/WHO-DOES-WHAT.md`** (ruled by Jodie,
+  27 Jul 2026). In one line: **Claude Code creates and builds everything that ships** — script,
+  motion cards, b-roll, e-book body and cover, thumbnail and its hero, YouTube copy. **Cowork
+  plans, remembers, reviews and checks, and nothing else** — no episode assets, no rules, not one
+  line of anything that ships. **Jodie approves and publishes** (Words Gate, Script Gate tick,
+  cover hero pick, the four artefacts, the upload). **Hugh** is co-owner and reviewer, and the
+  person the hands-off studio is for.
+  *Named here as well as there for the same reason the YouTube-copy owner is: a ruling that lives
+  only in documents which DEFER to this one is a ruling waiting to go wrong.*
 - ⚠️ **PARTLY IN FORCE.** Verified 27 Jul 2026: `github.com/Practical-Punting/episode-studio`
   is **PUBLIC** (`gh repo view` → `"isPrivate": false`; an anonymous API call returns HTTP 200).
   Jodie's middle road, 27 Jul 2026: **governance standards go into the public repo** — nobody is
