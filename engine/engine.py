@@ -830,7 +830,8 @@ def _stage8_watch():
                 rail.flag_needs_look(
                     ep["id"],
                     f"PP-EP{int(nn):02d} is published but its folder was never "
-                    "renamed (Stage-8 close-out). Run: python rename_episode.py "
+                    "renamed (Stage-8 close-out). Run, from the repo: python "
+                    "engine/rename_episode.py "
                     f"EP{int(nn):02d} \"<approved title>\" --apply, then clear this flag.")
                 log(f"stage-8 watchdog: flagged PP-EP{int(nn):02d} (published, folder not renamed)")
     except Exception as e:

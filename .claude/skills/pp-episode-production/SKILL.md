@@ -37,8 +37,8 @@ shared music master). Two hard rules:
   breaks. (A shared asset in another episode — e.g. EP01's music master — is the
   one legitimate cross-episode reference; keep those few explicit and update them
   if that folder is ever renamed.)
-Rename with `python rename_episode.py <NN> "<approved title>" --apply` (in the
-`PP Videos/` root) — it renames the folder, restems the `PP-EP<NN>-*`
+Rename with `python engine/rename_episode.py <NN> "<approved title>" --apply`
+(from the REPO; it roots itself at the media root via `PP_VIDEOS_DIR`) — it renames the folder, restems the `PP-EP<NN>-*`
 deliverables to match, greps the whole tree for straggler references, and prints
 a before/after report.
 
@@ -71,7 +71,7 @@ blocks the build. See `docs/WHO-DOES-WHAT.md`.
 6. QC (frames + audio + reconcile speech-end / last-cue / total); `ASSEMBLY-REPORT.md`; copy the SRT beside the output.
 7. E-book PDF `build_ebook.py`; thumbnail from a hero + `youtube-thumbnail-template.html` via `render_still.py`.
 8. Save the YouTube title + description to `output/PP-EPxx-youtube.txt` — EVERY episode (WE write the copy per `docs/youtube-metadata-kit.md` — Jodie's ruling 26 Jul 2026, moved from Cowork; Jodie uploads).
-9. **Stage-8 close-out — rename to the standard.** After Jodie approves the FINAL TITLE, run `python rename_episode.py <NN> "<approved title>" --apply` from `PP Videos/`: the working `PP-EP<NN>/` becomes `PP-EP<NN>-<Title-Slug>/` and the `PP-EP<NN>-*` deliverables restem to match. Do it LAST, once the title is locked; fix any stragglers it reports. **This step is watched (EP10 lesson, 25 Jul 2026): the engine's idle loop flags any PUBLISHED episode whose folder is still the bare `PP-EP<NN>` — the rename itself stays a human-timed step (Drive sync + open files), but it can no longer be forgotten.**
+9. **Stage-8 close-out — rename to the standard.** After Jodie approves the FINAL TITLE, run `python engine/rename_episode.py <NN> "<approved title>" --apply` from the REPO: the working `PP-EP<NN>/` becomes `PP-EP<NN>-<Title-Slug>/` and the `PP-EP<NN>-*` deliverables restem to match. Do it LAST, once the title is locked; fix any stragglers it reports. **This step is watched (EP10 lesson, 25 Jul 2026): the engine's idle loop flags any PUBLISHED episode whose folder is still the bare `PP-EP<NN>` — the rename itself stays a human-timed step (Drive sync + open files), but it can no longer be forgotten.**
 Pause for Jodie ONLY at the finished video / e-book / thumbnail (incl. the final title).
 
 ## Toolkit — the standing scripts (v2, 2026-07-23)
@@ -85,7 +85,7 @@ The pipeline is now driven by a script toolkit + one per-episode `episode.json`
 - **`assemble_episode.py <episode.json> <shot-map.json> A|B`** — emits Pass A / Pass B graphs from the contract; reproduces the proven method (title head, MCU/WIDE zoom, panel-push, b-roll, logo chip, fullscreen cards, outro end-sequence, v3 audio). Fill the `build` block for tuning. **Validated: reproduces EP05 v2 exactly.**
 - **`qc_episode.py <final.mp4> <shot-map.json> <out_dir> [--head H] [--episode episode.json]`** — one-command QC: probe + gates, labelled contact sheet, logo crop, loudness/RMS + ending-not-silent check, `QC-REPORT.md`. **With `--episode` (the engine always passes it): the END-SEQUENCE checks** — ~3s settle before the warranty, end card on screen through the e-book mention until the warranty (incl. a dark-frame probe), sting audible under the warranty, midroll wording unique across episodes + a `midroll-listen.wav` exported for human ears (the EP08 lessons; see PP-STANDARDS §END SEQUENCE)), **the PACKAGING-CONSISTENCY check** (each asset source carries the currently-locked slot value from `episode.json → packaging{hook, byline, youtube_title, ebook_title}`; STALE value = HARD FAIL), and **the NUMBERS check** (`numbers-check.md` artifact + a human-confirm WARN).
 - **`render_ready.py <spoken-words.txt> [--episode episode.json]`** — pre-HeyGen scan (numbers as words, odd characters, midroll freshness, length). The engine runs it at audit; run it manually before ANY script is pasted into HeyGen. Never waste a render.
-- **`rename_episode.py <NN> "<title>" [--apply]`** (in the `PP Videos/` ROOT, not `scripts/`) — the Stage-8 folder rename + `PP-EP<NN>-*` restem + straggler grep + before/after report. See the naming standard up top.
+- **`engine/rename_episode.py <NN> "<title>" [--apply]`** (in the REPO since 28 Jul 2026; it roots itself at `PP_VIDEOS_DIR`, so run it from anywhere) — the Stage-8 folder rename + `PP-EP<NN>-*` restem + straggler grep + before/after report. See the naming standard up top.
 - **`video-logo-chip.png`** (in `assets/`) — the standing bottom-right logo on the dark rounded panel; overlaid in Pass A (`overlay=x=W-w-40:y=H-h-40`).
 The detailed Stages below remain the reference for the *how* (the exact ffmpeg
 recipes the toolkit encodes). Worked example: `PP-EP05/docs/episode.json`.
