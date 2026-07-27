@@ -25,6 +25,18 @@ shown*; that skill *builds* it (render, ffmpeg, e-book, thumbnail). The canonica
 
 ---
 
+## 0a. NEVER CHANGE OR "CORRECT" THE ARTICLE (Jodie, 27 Jul 2026)
+**If Practical Punting made a mistake in 1995, it stands — their article, their call. We
+reproduce, we do not improve.** Do not fix a figure that looks wrong, tidy a date, correct a
+name, or smooth an inconsistency. If something looks wrong, **flag it to Jodie and reproduce it
+as written** in the meantime. The only permitted departures are reading for the ear (numbers as
+words) and disclosed typographic tidies, each listed in the build report.
+This is the mirror of §6's never-invent rule and the two must be read together: **never add
+what the article does not say, and never remove or alter what it does.**
+*Where the line falls (EP11):* a card showed "2nd Juggler / 3rd Brave Warrior"; Alan listed four
+beaten horses and gave no placings. Deleting those placings RESTORED the article. Adding them
+was the edit.
+
 ## 0. THE ONE GOLDEN RULE
 **The article is the star. LIFT it across the line — do NOT rewrite it.** *(v1.2 — tightened after EP10 drifted into paraphrase.)*
 Fidelity of **words**, not just facts. The article is **pre-approved content Hugh has signed off and PP owns** — so we publish *its* words, lightly tidied for the ear, **not a fresh paraphrase in our own words**. Keep the author's actual sentences and phrasing wherever they'll play aloud; reword only where the original genuinely won't lift to the spoken ear — and then as little as possible. (A heavy rewrite is effectively *new, unapproved* content and can quietly drift in meaning. Don't.)
