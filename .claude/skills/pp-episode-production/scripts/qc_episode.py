@@ -720,6 +720,58 @@ def stage_card_timing(qc, final, beats, head, episode_path):
         qc.note("no b-roll/card/chip overlaps - every visual owns its moment")
     mid = B.get("midroll") or {}
     if mid.get("composite") and mid.get("beat"):
+        # ---------------------------------------------------------------------
+        # DOES THE CHIP ACTUALLY EXIST? Asked FIRST, before anything is measured.
+        #
+        # TIGHTENED 28 Jul 2026, because these checks PASSED an episode that had no
+        # chip at all. EP13 was assembled with no clip, no `clip` key and no chip
+        # input in the pass B graph, and QC reported "midroll chip visibility ok:
+        # 15.2s fully visible" and "midroll lower-third visible (chip luma 68)".
+        #
+        # Both were measuring the wrong thing:
+        #   · the visibility line is ARITHMETIC ON episode.json (dur - 2*fade). It is
+        #     true of the CONFIGURATION whether or not a chip was ever rendered.
+        #   · the luma probe only fails when the region is TOO BRIGHT (>95). With no
+        #     chip it measured Gordon's dark suit and the desk at luma 68 and passed.
+        #     Brightness where a chip would be is not evidence that a chip is there.
+        #     (With the real chip composited the region reads 55 — DARKER — so the
+        #     old test could never have told the two cases apart.)
+        #
+        # So: assert the ARTEFACT, then measure it. Three things, cheapest first.
+        # `providers.assemble_passB` only adds the chip input when `composite` AND
+        # `clip` are both set, so a missing `clip` silently drops it from the build.
+        ep_root = os.path.dirname(os.path.dirname(os.path.abspath(episode_path)))
+        chip_ok = True
+        clip_name = mid.get("clip")
+        if not clip_name:
+            qc.fail("midroll chip: build.midroll.composite is true but build.midroll.clip "
+                    "is NOT SET, so the assembler never added the chip input and the "
+                    "episode has NO on-screen like/subscribe chip. PP-STANDARDS "
+                    "§Motion-graphic cards requires it every episode.")
+            chip_ok = False
+        else:
+            clip_path = os.path.join(ep_root, "overlay", "clips", clip_name)
+            if not os.path.isfile(clip_path):
+                qc.fail(f"midroll chip: build.midroll.clip names {clip_name!r} but that "
+                        f"file does not exist in overlay/clips/. Render it from the "
+                        f"STANDING asset assets/midroll-lowerthird.html.")
+                chip_ok = False
+            graph = os.path.join(ep_root, "renders", "passB_graph.txt")
+            if os.path.isfile(graph):
+                g = open(graph, encoding="utf-8", errors="replace").read()
+                if clip_name not in g and "[mrl]" not in g:
+                    qc.fail(f"midroll chip: {clip_name!r} exists but is NOT REFERENCED in "
+                            f"renders/passB_graph.txt, so it was not composited into this "
+                            f"video. Re-emit the graph and re-run pass B.")
+                    chip_ok = False
+            else:
+                qc.warn("midroll chip: renders/passB_graph.txt is missing, so I cannot "
+                        "confirm the chip was composited (the clip and the config are "
+                        "both fine)")
+        if chip_ok:
+            qc.note(f"midroll chip artefact ok: {clip_name} present in overlay/clips and "
+                    f"referenced in the pass B graph")
+        # ---------------------------------------------------------------------
         # v1.1 standard (25 Jul 2026): the like+subscribe chip needs >= 6s of FULL
         # visibility, with the fades on top of that (not inside it).
         dur, fade = mid.get("dur", 5.0), mid.get("fade", 0.4)

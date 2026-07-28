@@ -1,0 +1,69 @@
+<!doctype html><html><head><meta charset="utf-8"><title>PP midroll lower-third — STANDING ASSET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700;800&display=swap" rel="stylesheet">
+<style>html,body{margin:0;padding:0}
+/* ==========================================================================
+   PP MIDROLL LOWER-THIRD — THE STANDING ASSET. Copied byte-identical into each
+   episode's overlay/export/, like the end card and the warranty slide.
+
+   PROMOTED FROM EP12's SHIPPED CHIP on 28 Jul 2026. EP12's page is the reference
+   implementation; the markup and every CSS value below are byte-identical to it.
+   Only this header comment and the <title> tag were changed, because both named
+   EP12 and one of them stated a rule that has since been retired (see below).
+   Design doc §8a chose EP12's wording over EP11's because it names both actions
+   explicitly and already carried both fixes.
+
+   🔒 THE WORDING IS FIXED AND IS NOT REWORDED PER EPISODE (Jodie, 28 Jul 2026).
+   Authoritative text, `docs/midroll-line-pool.md` §THE ON-SCREEN CHIP:
+       Doing its job? Like & Subscribe
+       new episodes daily · Practical Punting
+
+   ⚠️ THE COMMENT THIS REPLACES SAID THE OPPOSITE, AND MUST NOT COME BACK. It read
+   "WORDING IS REWORDED FOR EP12 — verbatim reuse across episodes is a QC hard
+   fail". That was true when written and is now retired: the SPOKEN midroll line
+   rotates through a pool of ten, the CHIP does not rotate at all. Carrying that
+   sentence into a standing asset would instruct the next reader to reword the one
+   thing that must never change. Three different treatments — fixed chip, pooled
+   spoken line, re-voiced sign-off — do not collapse them.
+
+   Green field is chroma-keyed out in assembly; only the dark chip remains,
+   composited over the presenter at the cta-midroll beat. Standard: >=6s FULL
+   visibility. episode.json sets dur 16.0 with 0.4s fades = 15.2s; the hold
+   keyframe below runs the clip past the animation so the assembler has clean
+   frames to freeze-extend.
+
+   THE TWO EP11 FIXES ARE CARRIED FORWARD DELIBERATELY — do not regress them.
+   Their reasons live here, beside the values, so neither is tidied away:
+   1. The chip is OPAQUE #121212. At 92% it let the green key field through and
+      rendered dark GREEN, not charcoal, killing contrast.
+   2. BOTH icons are a WHITE glyph on a SOLID orange tile rgba(218,83,44,0.95).
+      The like icon was once an orange thumb on a 16% orange wash and was
+      invisible at broadcast size.
+
+   CADENCE TRAP: "new episodes daily" is baked in here. When cadence moves to
+   weekly it is a ONE-FILE edit — which is the improvement over per-episode chips.
+   ========================================================================== */
+body{width:1920px;height:1080px;overflow:hidden;background:#00FF00}
+.chip{position:absolute;left:96px;bottom:104px;display:flex;align-items:center;gap:28px;
+  background:#121212;border-radius:22px;padding:26px 42px;font-family:'Barlow',sans-serif;
+  box-shadow:0 10px 34px rgba(0,0,0,0.45);}
+.chip .ic{width:66px;height:66px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:rgba(218,83,44,0.95);border-radius:16px;}
+.chip .tx{color:#fff;}
+.chip .tx .a{font-size:46px;font-weight:800;letter-spacing:0.01em;}
+.chip .tx .a span{color:#DA532C;}
+.chip .tx .b{font-size:28px;font-weight:600;color:#B9B9B9;margin-top:2px;}</style>
+<script src="pp-anim.js"></script></head>
+<body>
+<div id="chip" class="chip">
+  <div class="ic" title="like"><svg width="40" height="40" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 7.59C6.22 7.95 6 8.45 6 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg></div>
+  <div class="ic" title="subscribe">
+    <svg width="42" height="30" viewBox="0 0 28 20" fill="#fff"><rect x="0" y="0" width="28" height="20" rx="5" fill="#fff" opacity="0.001"/><path d="M27.4 3.1a3.5 3.5 0 0 0-2.46-2.48C22.77 0 14 0 14 0S5.23 0 3.06.62A3.5 3.5 0 0 0 .6 3.1 36.6 36.6 0 0 0 0 10c0 2.33.2 4.63.6 6.9a3.5 3.5 0 0 0 2.46 2.48C5.23 20 14 20 14 20s8.77 0 10.94-.62a3.5 3.5 0 0 0 2.46-2.48c.4-2.27.6-4.57.6-6.9 0-2.33-.2-4.63-.6-6.9zM11.2 14.3V5.7L18.5 10l-7.3 4.3z"/></svg>
+  </div>
+  <div class="tx"><div class="a">Doing its job? <span>Like &amp; Subscribe</span></div><div class="b">new episodes daily &middot; Practical Punting</div></div>
+</div>
+<script>ppInit([
+ {"sel":"#chip","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":150,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#chip","kf":[{"opacity":1},{"opacity":1}],"opts":{"duration":400,"delay":6800,"easing":"linear"}}
+]);</script>
+</body></html>
