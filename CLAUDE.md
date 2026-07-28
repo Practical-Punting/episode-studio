@@ -61,39 +61,64 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🚫 COMMAND HYGIENE — ONE COMMAND, ONE LINE, OR IT GOES IN A FILE
-**(Jodie, 28 Jul 2026. This is a HARD RULE, not a preference.)**
+## 🚫 COMMAND HYGIENE — THE ONE RULE
+**(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
+version, which was a growing LIST of banned shapes — see "why one rule" below.)**
 
-**NEVER run `python -c` with a multi-line body. Write a `.py` file and run the
-file.** Same for any shell command with a heredoc, nested quotes, or braces
-spanning lines.
+> ### EVERY Bash command must be dead simple:
+> ### ONE tool · LITERAL absolute paths · NO variables · NO chaining · NO quoting tricks.
+> ### Anything more complicated goes in a `.py` file and is run as a file.
 
-**WHY IT MATTERS TO JODIE, and why "I'll be careful" is not good enough:** the
-harness flags these as *"expansion obfuscation"* or *"newline followed by #"*
-and, when it cannot parse a command, **it withholds the "don't ask again"
-button.** So the prompt is UNAPPROVABLE — the identical shape asks her again,
-and again, forever, and there is no action she can take to make it stop. Every
-one of these I type is a permanent tax on her attention, not a one-off.
+**WHY IT MATTERS TO JODIE, and why "I'll be careful" is not good enough:** when
+the harness cannot cleanly parse a command it flags it — *"expansion
+obfuscation"*, *"newline followed by #"* — and **withholds the "don't ask again"
+button.** The prompt is then **UNAPPROVABLE**: the identical shape asks her
+again, and again, forever, and **there is no action she can take to make it
+stop.** Every one of these I type is a permanent tax on her attention, not a
+one-off. She is the operator and she runs nothing herself, so a prompt is pure
+friction for her — never a safety net she asked for.
 
-**This rule exists because a memory did not hold.** It was written up as
-`command-hygiene-for-permissions` and then breached twice within the hour, under
-build momentum. That is exactly what CLAUDE.md is for: it loads every session,
-before anything else, and momentum cannot skip it.
+**WHY ONE RULE AND NOT A LIST.** The first version of this section banned
+multi-line `python -c`, heredocs, nested quotes and braces. It said nothing
+about `cd` chained to a write, or shell variables — **and those two are exactly
+what kept prompting her all afternoon.** A list only ever bans the shapes
+someone already got wrong; the next new shape sails straight through. So the
+rule is now about what a command may BE, not about what it may not contain.
 
-**The checkable version — before running ANY Bash command, ask:**
-1. Does it contain a newline inside quotes? → **write a file.**
-2. Does it contain `<<`, `$(…)` around a quoted block, or quotes inside quotes
-   inside quotes? → **write a file.**
-3. Is it longer than about one screen line? → **probably write a file.**
-4. Otherwise: one simple command, plain arguments. Good.
+**AND IT IS HERE BECAUSE A MEMORY DID NOT HOLD.** This started as the
+`command-hygiene-for-permissions` memory and was breached twice within the hour,
+under build momentum. A memory surfaces when something makes it relevant;
+CLAUDE.md loads every session before anything else, and momentum cannot skip it.
 
-Put scratch scripts in the session scratchpad dir, not in the repo. **Prefer the
-Read / Glob / Grep / Edit tools over shelling out at all** — they never prompt,
-and Glob in particular cannot delete, which is why `find` was removed from the
-allow-list on 28 Jul 2026 (prefix matching cannot exclude `find … -delete`).
+### The six classes that broke it today — all of these go in a file
+| # | Shape | Example of what NOT to type |
+|---|---|---|
+| 1 | **Multi-line `python -c`** | `python -c "` … newline … `"` |
+| 2 | **Heredoc** | `python - <<'PY'` … `PY` |
+| 3 | **Shell variables** | `SP="C:/…/scratchpad"` then `python "$SP/x.py"` |
+| 4 | **Chaining** | `cd repo && rm -rf "$D" && mkdir -p "$D" && python x.py` |
+| 5 | **Loops** | `for t in test_*.py; do python $t; done` |
+| 6 | **Quoting / expansion tricks** | quotes inside quotes inside quotes · `echo "exit=$?"` · `$(…)` round a quoted block |
 
-*Done correctly this session: the permissions edit and `rerun_check.py`.
-Done wrongly this session: two `python -c` blocks with multi-line bodies.*
+**The replacement for every one of them is the same:** write the logic to a `.py`
+file in the session scratchpad, then run `python <literal absolute path>`. That
+command is simple, savable, reviewable, and re-runnable — and it leaves a record
+of what was actually done.
+
+### Before running ANY Bash command, ask
+1. More than one tool invocation? → **file.**
+2. Any `$`, `&&`, `;`, `|`, `<<`, `$(`, backtick, or a `for`/`while`? → **file.**
+3. A path that is not a plain literal? → **file.**
+4. Longer than about one screen line? → **file.**
+5. Otherwise: one command, literal arguments. Good — run it.
+
+**Prefer the Read / Glob / Grep / Edit tools over shelling out at all** — they
+never prompt, and Glob in particular cannot delete, which is why `find` came off
+the allow-list on 28 Jul 2026 (prefix matching cannot exclude `find … -delete`).
+
+*Done right today: `clear_ep13_wrong_article.py`, `create_ep13_row.py`,
+`update_ep13_row.py`, `verify_ep13_gate.py`, `rerun_check.py` — each one a file,
+each one a clean `python <path>` call, each one a record of what it did.*
 
 ## Working here
 - Commit small and focused; push to `main` (Pages deploys from it).

@@ -105,9 +105,20 @@ Then decide and lock the **packaging** — these are the words every asset uses:
 - **Eyebrow** — always `HOW TO WIN AT HORSE RACING`.
 - **Hook** — the big 3–5-word thumbnail phrase, Anton caps, curiosity/strategy only (no odds, no
   guarantees). It should **complement, not repeat** the YouTube title.
-- **Byline** — one supporting line that *explains the cryptic hook* in plain words.
-- **YouTube title** — Hugh's SEO rule: lead with `How to Win at Horse Racing: ` then the specific
-  promise/question.
+  🔒 **ON A MULTI-PART SERIES, THE HOOK MUST WORK FOR EVERY PART (Jodie, 28 Jul 2026).** A
+  concept that lives mostly in Part 1 makes Part 2's thumbnail promise something it cannot
+  keep. Take the hook from the SERIES, and put the part-specific concept in the YouTube
+  title, which is per-episode. *(EP13's ruling: `THE SEVEN AXIOMS` was rejected as a hook for
+  exactly this reason — and because **"axioms" is not Dave's word; his is "rules"**.)*
+- **Byline** — one supporting line that *explains the cryptic hook* in plain words. **If the
+  series name and the article's own headline are the same string, there is no second line to
+  lift and you must write it** — say so when you propose it.
+- **YouTube title** — 🔄 **SPECIFIC PROMISE FIRST, BRAND PHRASE LAST, PIPE SEPARATOR (Jodie,
+  28 Jul 2026):** `<this episode's specific promise> | How to Win at Horse Racing`. **This
+  SUPERSEDES the old "lead with `How to Win at Horse Racing: `" form — do not restore it.**
+  The first ~60 characters are what a viewer sees, and the old shape spent them on the same
+  seven words every time. **This is also where a part-specific signature concept goes.**
+  Full rule and the reasoning: `docs/youtube-metadata-kit.md`.
 - **E-book title.**
 
 Put these in `episode.json` as `packaging {hook, byline, youtube_title, ebook_title}` **verbatim**.

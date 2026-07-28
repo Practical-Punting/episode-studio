@@ -2,13 +2,29 @@
 *Proven on EP02 + EP03, 2026-07-21. **Claude Code writes these** (Jodie's ruling, 26 Jul 2026 — ownership moved from Cowork to the build side): write the title + description into `PP-EPxx/output/PP-EPxx-youtube.txt`, and Jodie uploads. Titles/descriptions are content Jodie publishes — she reviews before posting.*
 
 ## Title formula
-- **Lead with the SEO phrase "How to Win at Horse Racing"** (Hugh's request), then a colon/dash and the episode's specific hook.
+- 🔄 **NEW FORMAT — SPECIFIC PROMISE FIRST, BRAND PHRASE LAST, PIPE SEPARATOR
+  (Jodie, 28 July 2026).** `<the episode's specific promise> | How to Win at Horse Racing`
+  - **From EP13 on:** `The Seven Rules a Ratings Man Lives By | How to Win at Horse Racing`
+  - **This SUPERSEDES the old form** — *"Lead with the SEO phrase 'How to Win at Horse
+    Racing' (Hugh's request), then a colon/dash and the episode's specific hook"* — which
+    produced EP02's `How to Win at Horse Racing: Killer Trifecta Strategies` and EP03's
+    `How to Win at Horse Racing: The 10 Key Factors the Pros Use`. **Do not restore it.**
+  - **Why the flip:** the first ~60 characters are what a viewer actually sees, and under the
+    old form every episode spent them on the same seven words. The brand phrase still earns
+    its keep at the end for search; the front of the title now belongs to the one thing that
+    is different about *this* episode.
+  - ⚠️ **The retired form is attributed to Hugh.** Jodie's direction is what is in force, and
+    it is recorded here as the standing rule. **If Hugh wants the old shape back, that is his
+    call to make — flag it rather than quietly reverting.**
+- **THE YOUTUBE TITLE IS ALSO WHERE THE SIGNATURE CONCEPT GOES** when it does not belong in
+  the hook. Jodie's ruling on EP13: a *series* hook has to work for **every part**, so a
+  concept that lives mostly in Part 1 would make Part 2's thumbnail promise something it
+  cannot keep. Each part has its own YouTube title, so being Part-1-specific is fine there.
+  *(Her second reason, worth keeping: **"axioms" is not Dave's word — his is "rules".**
+  Translate the source's vocabulary into his.)*
 - Keyword-rich, ~50–70 characters, front-loaded (the first ~60 chars are what shows).
 - Name the specific topic (trifecta, key factors, etc.) so it's found in search.
 - Give Jodie one recommended title + two alternatives.
-- Examples:
-  - EP02: `How to Win at Horse Racing: Killer Trifecta Strategies`
-  - EP03: `How to Win at Horse Racing: The 10 Key Factors the Pros Use`
 
 ## Description template
 ```

@@ -790,7 +790,28 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     TEMPLATE, so the standalone file now has no consumer. **Found, not fixed:
     deleting it is Jodie's call** (deletions always are), and it is harmless while
     they agree.
-16. **A stale `plugin/dist/` on the build machine holds a DRIFTED copy of the skill.**
+17. 🔴 **NOTHING SYNCS THE BOARD'S WORDS INTO `episode.json` — the packaging is SPLIT-BRAIN.**
+    **Logged as backlog by Jodie, 28 Jul 2026. Not now.**
+    The Words Gate's three boxes write `hook` / `byline` / `title` to the **RAIL**
+    (`app.js → approve-words`). But `packaging{}` lives in **`episode.json`**, and so do the
+    values derived from it: `cover.title_setup` + `title_payoff` must reassemble into
+    `packaging.hook`, and `thumbnail.l1` + `l2` must too. **Both guards hard-fail on a
+    mismatch.** So an operator who edits a single word at the gate — which is exactly what
+    those boxes are for — silently breaks the cover and thumbnail authoring, and the failure
+    surfaces later, inside the build, as a halt about a field they never touched.
+    **QC is worse off than that.** `qc_episode.py`'s packaging-consistency check compares
+    every asset against `episode.json → packaging`. If the rail and `episode.json` disagree,
+    QC happily passes assets carrying the value nobody approved — which is the EP08 rework
+    bug the check was written to prevent, reintroduced through the back door.
+    **Same class as the "an episode cannot go backwards" split-brain:** two stores that must
+    agree, and nothing that makes them. It has not bitten yet only because EP12's and EP13's
+    packaging were settled before the gate rather than at it.
+    *Sketch of a fix, for when it is picked up: `script_sync` already re-reads the Doc and
+    already writes to the episode folder — it is the natural place to also write the rail's
+    approved hook/byline/title into `episode.json → packaging`, re-derive the cover and
+    thumbnail splits from the hook, and halt loudly if the hook cannot be split (a hook is
+    two colour groups, and only a human can say where the break goes).*
+18. **A stale `plugin/dist/` on the build machine holds a DRIFTED copy of the skill.**
     `SKILL.md`, `youtube-thumbnail-template.html` and `cover_check.py` all differ from
     the repo copy, and every 1c/1d addition is missing from it. **It is gitignored and
     untracked, so nothing ships and no fork is committed** — `plugin/pack.py`
