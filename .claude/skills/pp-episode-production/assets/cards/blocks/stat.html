@@ -11,7 +11,19 @@
 }
 -->
 <!--@css-->
-.big{font-family:'Anton',sans-serif;font-size:300px;line-height:0.86;color:#DA532C;margin-top:auto;transform-origin:left center;}
+/* .big RESERVES DESCENDER DEPTH (28 Jul 2026, after EP13 C11 shipped a collision).
+   line-height:0.86 is deliberate - Anton wants tight leading at display size - but it makes
+   the LINE BOX 258px while the glyphs stand ~298px tall, so anything with a descender hangs
+   ~40px BELOW its own box and lands on whatever follows. EP13 C11's "10kg" did exactly that,
+   through the .sub line, into the video AND the e-book figure. EP12 C1's "60 Days+" carries a
+   y and cleared by 13px - it survived because y is shallower than g, not because the block was
+   safe. Measured: the overhang is 0.133em, so 0.18em contains it and leaves a real gap.
+   In `em` ON PURPOSE, so it scales when autofit_cards.py steps the figure down.
+   THE COST, ACCEPTED: a figure with NO descender (42%, 1800m) now sits further above its
+   caption than before. Reserving worst-case space is all static CSS can do - and a caption
+   sitting low is a look, while a caption with a g through it is a defect. */
+
+.big{font-family:'Anton',sans-serif;font-size:300px;line-height:0.86;color:#DA532C;margin-top:auto;transform-origin:left center;padding-bottom:0.18em;}
 .sub{font-size:46px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#C9C9C9;margin-top:8px;}
 .pay{margin-top:40px;font-size:66px;font-weight:800;color:#FFFFFF;line-height:1.12;max-width:1500px;}
 .note{margin-top:26px;font-size:38px;font-weight:500;font-style:italic;color:#8F8F8F;}
