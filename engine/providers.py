@@ -1272,6 +1272,29 @@ class RealProvider:
                 f"{pages[0].name} doesn't reference pp-logo-on-dark.png — it isn't built "
                 "on the standing thumbnail template (assets/youtube-thumbnail-template.html). "
                 "Rebuild it from the template, then clear this flag.")
+        # THE HERO MUST BE THERE, and this is the guard that says so in words.
+        #
+        # TIGHTENED 28 Jul 2026. EP13 halted here with
+        # `playwright TimeoutError: Page.wait_for_function: Timeout 60000ms exceeded`
+        # because thumbnail/hero.png did not exist: render_still waits for every
+        # image to reach naturalWidth > 0, a 404 never does, and the 60s timeout
+        # became the guard BY ACCIDENT. The right outcome for the wrong reason, and
+        # a stack trace no browser operator can act on.
+        #
+        # The check directly above is the same fault in miniature — it asks whether
+        # the PAGE references the logo, which it does whether or not the horse is
+        # there. Checking the markup is not checking the artefact. Same lesson as
+        # the midroll luma probe.
+        hero = d / "thumbnail/hero.png"
+        if not hero.is_file():
+            raise EngineFlag(
+                f"The thumbnail hero is missing: {d.name}/thumbnail/hero.png\n"
+                "THE THUMBNAIL HERO IS THE PICKED COVER HERO (Jodie, 28 Jul 2026) — the "
+                "one chosen at the cover gate, already generated and already looked at. "
+                f"It should be copied from {d.name}/ebook/cover-src/hero.png.\n"
+                "NOTHING IN THE ENGINE STAGES IT YET: on EP11 and EP12 a human copied it "
+                "by hand. That is the gap, and it is logged — a rule with no enforcer. "
+                "Until the copy is wired in, this flag is the reminder.")
         out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)

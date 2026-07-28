@@ -943,6 +943,43 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     so nothing shipped wrong** — but it is a check whose advice is misleading, and the fix
     is to match against the joined transcript the way the other tool already does.
 
+24. 🔴 **NOTHING STAGES THE PICKED HERO INTO `thumbnail/hero.png` — a rule with no enforcer.**
+    Ruled 28 Jul 2026: *"THE THUMBNAIL HERO IS THE PICKED COVER HERO, unless there is a
+    specific reason not to."* **Nothing was ever asked what would make that true.** On EP11
+    and EP12 a human typed `cp`; the engine has never done it. EP13 reached the thumbnail
+    step with no hero at all.
+    **A manual `cp` is a step Hugh cannot perform**, so this is the same class as the four
+    halts 1d closed and the hand-run `derive_card_timings` (item 21). The engine must copy
+    the picked hero itself — in `cover_pick`, the moment the choice is known, or at the head
+    of `thumbnail`. **Required before Hugh sees this.**
+    **The pattern, now seen three times in one day** (this, the WIDE-shot rule before it was
+    checked, the thumbnail-hero rule itself): **a ruling is not a mechanism.** When a rule is
+    made, the very next question is *what enforces it* — a guard, a step, or a check. If the
+    answer is "someone will remember", it is not a rule, it is a hope.
+    *Tightened meanwhile, not fixed:* the step now HALTS with a message naming the file and
+    where it comes from, instead of hanging for 60s (item 25). That converts a silent
+    accident into a loud, clearable halt — but the halt still needs a human, so the staging
+    is still required.
+
+25. 🔴 **A PLAYWRIGHT STACK TRACE IS NOT AN OPERATOR MESSAGE — and every browser step can
+    produce one.** EP13's thumbnail step halted with:
+    `playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 60000ms exceeded`
+    **Nothing in that names the hero, the page, or the episode.** The cause was a missing
+    image: `render_still.py` waits for `document.images.every(i => i.complete &&
+    i.naturalWidth > 0)`, and a 404 image is `complete` with `naturalWidth === 0`, so the
+    condition can never be satisfied and the wait burns its full 60 seconds.
+    **THE TIMEOUT WAS ACTING AS THE GUARD BY ACCIDENT.** The right outcome for the wrong
+    reason — a system that got lucky, not one that works.
+    **This is the same family as the flag truncation (item 20): the message a stuck operator
+    most needs is the one we render least usable.** Truncation cuts the answer off the front;
+    a stack trace never had an answer in it. Both fail hardest exactly when someone is stuck.
+    **Every step that drives a browser can fail this way** — `render_still`, `render_card`,
+    `render_cards_batch`, `card_check`, `autofit_cards`, `build_figures`. The general fix is
+    that a browser step should assert its inputs BEFORE launching Chromium, and any timeout
+    that survives should be caught and re-raised naming the page and what it was waiting for.
+    ✅ *Done for `render_still.py` on 28 Jul 2026 (local images asserted before launch, fails
+    in 0.1s naming the file). The other five are untouched.*
+
 17. 🔴 **NOTHING SYNCS THE BOARD'S WORDS INTO `episode.json` — the packaging is SPLIT-BRAIN.**
     **Logged as backlog by Jodie, 28 Jul 2026. Not now.**
     The Words Gate's three boxes write `hook` / `byline` / `title` to the **RAIL**
