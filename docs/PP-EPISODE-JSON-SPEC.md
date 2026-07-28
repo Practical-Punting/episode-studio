@@ -81,7 +81,14 @@
 
   "cover": {                             // the two e-book cover heroes (A/B) — REQUIRED
     "hero_a_prompt": "<full Higgsfield prompt, portrait 2:3, hats + ethnic-mix + turf baked in>",
-    "hero_b_prompt": "<a DELIBERATELY DIFFERENT composition — the real alternative>"
+    "hero_b_prompt": "<a DELIBERATELY DIFFERENT composition — the real alternative>",
+    // v2, REQUIRED — the engine AUTHORS ebook/cover-src/cover.html from these
+    "title_setup":  "Hidden",            // the setup word(s) — rendered WHITE
+    "title_payoff": "Aces",              // the payoff word(s) — rendered ORANGE
+    "part":         "Part 2",            // or null on a non-series episode
+    "part_inline":  false,               // the SERIES PART TREATMENT — see below
+    "byline":       "Reading the horse coming back from a spell · from the Practical Punting archives · with Gordon"
+    // NOTE: the cover's SUBTITLE is not here. It is packaging.byline, verbatim.
   },
 
   "figures": [
@@ -129,6 +136,34 @@
   card. That is the point.
 - **A page without the generated marker comment is treated as hand-authored and left
   alone**, so a hand-fix survives every later run.
+
+### v2 — `cover{}`, the fields the engine authors the e-book cover from
+
+The cover is a four-slot substitution into `assets/ebook-cover-template.html`: the
+`<title>` tag, `.title`, `.subtitle` and `.byline`. Everything else — the whole flow-band
+layout that made EP09's overlap impossible by construction — is copied untouched.
+
+- **`title_setup` / `title_payoff`** split the hook for colour: setup WHITE, payoff ORANGE,
+  the same split the in-video title card and the thumbnail use. **They are checked against
+  `packaging.hook`** — if `setup + " " + payoff` does not equal the approved hook, the build
+  halts. The words were locked at the words gate and the cover does not get to differ from
+  them (the EP08 rework lesson).
+- **`part`** is `"Part 2"` or `null`. If set, it **must appear in `packaging.ebook_title`**.
+- **`part_inline`** records the SERIES PART TREATMENT as a decision rather than inferring it
+  from title length: `false` drops the em dash and sets Part N on its own line at about half
+  size (a SHORT title — EP11, EP12); `true` keeps `— Part N` inline at full size (a LONG
+  title — EP10). The rule is in the template header; **which side of it this episode falls on
+  is a human call, so it is stored, not guessed.**
+- **`byline`** is the cover's descriptive furniture line. **The SUBTITLE is not a cover
+  field** — it is `packaging.byline` verbatim, so the promise line on the cover and the
+  approved packaging cannot drift apart.
+
+**The canvas is NOT an episode.json field.** The template declares it once
+(`body{width;height}`), `author_cover.py` writes it into the page as a `pp-canvas` comment,
+and the engine renders at exactly that. Before 28 Jul 2026 the page was 1588×2238 and the
+render 1600×2263, so every cover shipped with a 12px white gutter down the right edge and
+25px along the bottom. EP11 and EP12 shipped that way and are **not** being changed — they
+are published. It cannot recur because there is no second number left to disagree.
 - **Figures reuse cards** — Cowork does NOT author separate illustration art; it maps `figure.n → card.id`.
 - **Timing:** Claude Code generates its own (WhisperX forced-align on the master) — no SRT is provided or expected.
 - **Spoken-words file:** one paragraph per beat, body + standing outro, numbers as words; any setup note is a `#`-comment line (never a bare `[SETUP NOTE …]` block).

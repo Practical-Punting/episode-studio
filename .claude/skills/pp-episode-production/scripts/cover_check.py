@@ -17,6 +17,14 @@ import threading
 import pp_paths  # noqa: F401  (keeps import parity with sibling scripts)
 from playwright.sync_api import sync_playwright
 
+# The Windows console/pipe defaults to cp1252 and cannot encode the em dash
+# below; a parent capturing this as utf-8 then fails to decode it.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+
 HTML = os.path.abspath(sys.argv[1])
 W = int(sys.argv[2]) if len(sys.argv) > 3 else 1588
 H = int(sys.argv[3]) if len(sys.argv) > 3 else 2238

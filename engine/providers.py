@@ -104,6 +104,47 @@ def stage_card_furniture(export: Path) -> list[str]:
     return added
 
 
+def author_missing_cover(ep_dir: Path) -> str:
+    """Author ebook/cover-src/cover.html when it does not exist yet.
+
+    Same guarantees as the cards: a hand-authored page (no generated marker) is
+    never touched, nothing is invented, and a DATA problem halts naming the field.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/author_cover.py"),
+         str(ep_dir / "docs/episode.json"), str(ep_dir / "ebook/cover-src")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode:
+        raise EngineFlag(
+            "The e-book cover could not be authored from episode.json. This is a DATA "
+            "problem, not a missing-file problem — fix the field it names in "
+            f"docs/episode.json, then clear this flag.\n{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
+def cover_canvas(page: Path) -> tuple[int, int]:
+    """THE cover canvas, read from the page itself — one place, one number.
+
+    The page used to be built 1588x2238 while render_ebook_cover() rendered it
+    1600x2263, so every cover shipped with a 12px white gutter down the right
+    edge and 25px along the bottom where the photo should have bled off. EP11 and
+    EP12 shipped that way and are NOT being changed — they are published. What
+    stops it recurring is that there is no longer a second number to disagree
+    with the first: the template declares the canvas, author_cover.py writes it
+    into the page, and this reads it back.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/author_cover.py"),
+         "--canvas", str(page)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    if r.returncode:
+        raise EngineFlag(
+            f"The cover page does not declare its canvas, so there is no safe size to "
+            f"render it at.\n{(r.stderr or r.stdout).strip()[-500:]}")
+    w, h = r.stdout.split()
+    return int(w), int(h)
+
+
 def author_missing_cards(ep_dir: Path) -> str:
     """Author every card page that does not exist yet. Halts are human-shaped.
 
@@ -116,7 +157,7 @@ def author_missing_cards(ep_dir: Path) -> str:
     r = subprocess.run(
         [sys.executable, str(script), str(ep_dir / "docs/episode.json"),
          str(ep_dir / "overlay/export")],
-        capture_output=True, text=True, encoding="utf-8", timeout=300)
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
     if r.returncode:
         raise EngineFlag(
             "The card pages could not be authored from episode.json. This is a DATA "
@@ -165,8 +206,15 @@ class MockProvider:
         # stand-in pushed its text out to x=2441 on a 1920px card — card_check
         # caught it, which is exactly what it is for.
         src = SKILL_DIR / "assets/pp-logo-on-dark.png"
-        if "cover" in Path(rel).name and rel.endswith(".png"):
+        name = Path(rel).name
+        if "cover" in name and rel.endswith(".png"):
             src = REPO_DIR / "engine/testdata/mock-ebook-cover.png"
+        elif name.startswith("hero") and rel.endswith(".png"):
+            # A real photograph, so the cover the mock builds is a cover: the
+            # template scrims the hero and sets white type over it, and a
+            # transparent logo would leave white-on-white that no geometric
+            # check can see.
+            src = SKILL_DIR / "assets/marketing-hero.png"
         if rel.endswith(".png") and src.is_file():
             shutil.copyfile(src, p)
         else:
@@ -239,12 +287,31 @@ class MockProvider:
         return self._artifact(ep_folder(ep), f"broll/{clip}.mp4", f"job {job_id}")
 
     def render_ebook_cover(self, ep, choice="A") -> str:
+        """Real authoring and a real render, like render_cards — local only.
+
+        Faking this would leave the thing this slice changed unproven: that a
+        clean folder with no cover.html now produces a cover instead of a halt
+        telling a browser operator to stage one.
+        """
         self.maybe_fail("ebook_cover")
-        self._work()
         f = ep_folder(ep)
+        d = self.root / f
+        src = d / "ebook/cover-src/cover.html"
+        cover = d / "ebook/cover.png"
         self._artifact(f, "ebook/cover-src/hero.png", f"active hero = {choice}")
-        self._artifact(f, "overlay/export/ebook-cover.png", "cover propagated")
-        return self._artifact(f, "ebook/cover.png", f"e-book cover from hero {choice}")
+        report = author_missing_cover(d)
+        w, h = cover_canvas(src)
+        try:
+            self.run([sys.executable, SKILL_DIR / "scripts/render_still.py",
+                      src, cover, str(w), str(h)], cwd=d, timeout=300)
+            self.run([sys.executable, SKILL_DIR / "scripts/cover_check.py",
+                      src, str(w), str(h)], cwd=d, timeout=180)
+        except RuntimeError as e:
+            raise EngineFlag(f"Mock cover render failed: {str(e)[-700:]}")
+        (d / "overlay/export").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(cover, d / "overlay/export/ebook-cover.png")
+        print(f"    [mock] {report} — rendered {w}x{h}, cover_check clean")
+        return str(cover)
 
     def render_cards(self, ep) -> list[str]:
         """The one mock step that does REAL work, on purpose.
@@ -273,7 +340,7 @@ class MockProvider:
 
     def run(self, args, cwd, timeout=None, tail=800):
         r = subprocess.run([str(a) for a in args], cwd=str(cwd), capture_output=True,
-                           text=True, encoding="utf-8", timeout=timeout or 600)
+                           text=True, encoding="utf-8", errors="replace", timeout=timeout or 600)
         if r.returncode != 0:
             raise RuntimeError(f"{Path(str(args[1])).name} exited {r.returncode}: "
                                f"…{(r.stderr or r.stdout or '').strip()[-tail:]}")
@@ -738,22 +805,23 @@ class RealProvider:
             shutil.copyfile(pick, active)          # hero.png = the picked hero
         src = d / "ebook/cover-src/cover.html"
         cover = d / "ebook/cover.png"
+        # Author the page if it is missing. This is the halt that stopped EP12
+        # first and the second of the four Hugh could not clear: it used to say
+        # "stage one, then clear this flag" to a browser operator.
+        author_missing_cover(d)
         if src.is_file():
-            w, h = 1600, 2263                       # A4-ish cover canvas
-            ref = d / "ebook/cover-src/cover.png"
-            if ref.is_file():                       # mirror the approved dims
-                r = self.run(["ffprobe", "-v", "error", "-show_entries",
-                              "stream=width,height", "-of", "csv=p=0", ref],
-                             cwd=d, timeout=60)
-                w, h = (int(x) for x in r.stdout.strip().split(",")[:2])
+            # The canvas comes from the page, which got it from the template.
+            # The old hard-coded 1600x2263 (and the cover-src/cover.png override
+            # that could disagree with both) are gone — see cover_canvas().
+            w, h = cover_canvas(src)
             self.py("render_still.py", src, cover, w, h, cwd=d)
             # Overlap/clip QC (the EP09 cover lesson): fail rather than ship a
             # cover whose text collides or clips.
             self.py("cover_check.py", src, str(w), str(h), cwd=d, timeout=180)
         elif not cover.is_file():
             raise EngineFlag(
-                f"No e-book cover for {d.name}: neither ebook/cover-src/cover.html "
-                "nor ebook/cover.png exists. Stage one, then clear this flag.")
+                f"No e-book cover for {d.name}: ebook/cover-src/cover.html could not be "
+                "authored and no ebook/cover.png exists. Clear this flag once one does.")
         shutil.copyfile(cover, d / "overlay/export/ebook-cover.png")
         return str(cover)
 

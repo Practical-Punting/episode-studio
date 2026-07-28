@@ -19,6 +19,15 @@
     "C3 is deliberately block:bespoke so every run proves a hand-authored card is",
     "never generated and never overwritten."
   ],
+  "cover": {
+    "hero_a_prompt": "mock hero A prompt — never sent anywhere in mock mode",
+    "hero_b_prompt": "mock hero B prompt — a deliberately different composition",
+    "title_setup": "Mock",
+    "title_payoff": "Hook",
+    "part": null,
+    "part_inline": false,
+    "byline": "A mock cover · from the Practical Punting archives · with Gordon"
+  },
   "cards": [
     {
       "id": "C1",
