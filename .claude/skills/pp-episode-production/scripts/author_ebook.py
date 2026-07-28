@@ -198,6 +198,26 @@ def source_article_path(ep, ep_dir):
 
 # ------------------------------------------------------------------ body parsing
 
+def strip_comments(s: str) -> str:
+    """Remove HTML comments before ANY matching. Comments are not content.
+
+    FOUND BY USING THIS ON EP13, THE DAY AFTER IT WAS WRITTEN. EP13's body carries a
+    header comment that explains the fidelity rule, and that explanation contains the
+    words "every bare <p>". The paragraph regex matched that `<p>` inside the comment,
+    ran on to the next real `</p>`, and reported the COMMENT as a body paragraph that
+    is not in the source article.
+
+    This is the same bug the cover template's header records from 26 Jul 2026: a script
+    matched an EXAMPLE INSIDE A HEADER COMMENT and acted on it. It cost a real halt
+    there and it cost one here. **A file's prose about its own markup will look like
+    markup to anything that does not strip comments first.**
+
+    The emitted page KEEPS its comments — they are the audit trail. Only the check
+    strips them.
+    """
+    return re.sub(r"<!--.*?-->", " ", s, flags=re.S)
+
+
 def parse_body(body: str):
     """Pull the body apart into what must be checked and what must not.
 
@@ -206,6 +226,7 @@ def parse_body(body: str):
     be traceable into the article but need not be a whole paragraph. `figures` is
     the figure numbers referenced, in order.
     """
+    body = strip_comments(body)
     for bad in ("<script", "<style", "<link", "<meta", "<iframe", "<html", "<body"):
         if bad in body.lower():
             raise Halt(f"ebook/{BODY_FILE} contains {bad!r}. The body is the ARTICLE BODY "

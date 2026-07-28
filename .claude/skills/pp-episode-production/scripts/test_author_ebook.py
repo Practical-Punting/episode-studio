@@ -244,6 +244,19 @@ case("a <script> in the body HALTS", "<script",
 case("a second copy of a STANDING page in the body HALTS", "standing",
      body=GOOD_BODY + '<h1 class="section">Please Gamble Responsibly</h1>')
 
+# A HEADER COMMENT THAT TALKS ABOUT MARKUP IS NOT MARKUP.
+# Found by running the gate on EP13 the day after writing it: EP13's body header
+# explains the fidelity rule and says "every bare <p>", so the paragraph regex matched
+# inside the comment, ran on to the next real </p>, and reported the COMMENT as a body
+# paragraph missing from the article. Same bug the cover template records from 26 Jul
+# 2026 — a script matching an example inside a header comment. Comments are stripped
+# before any matching now, and this is the test that keeps them stripped.
+ok("a header comment mentioning <p> and a standing page does NOT break the check",
+   body=("<!-- Every bare <p> in this file reproduces an article paragraph.\n"
+         "     Do not add a Please Gamble Responsibly page here; the shell has one.\n"
+         "     Figures are <img class=\"illus\" src=\"figure-1.png\"> renders. -->\n")
+        + GOOD_BODY)
+
 # ---------------------------------------------------------------- figures
 case("a figure the body shows but episode.json does not map HALTS",
      "does not map to any card",

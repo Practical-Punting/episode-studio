@@ -92,6 +92,33 @@ def midroll_clash(mine_text, ep_dir, window=MIDROLL_WINDOW):
     return None, len(prior)
 
 
+def strip_notes_header(raw: str) -> list[str]:
+    """The spoken paragraphs, with any production-notes header removed.
+
+    THE SAME RULE `build_shot_map.py` USES, deliberately identical: prefer an explicit
+    "PASTE … BELOW …" marker line, otherwise drop leading blocks that are pure `#`
+    comments or a bracketed `[SETUP NOTE …]` block.
+
+    ⚠️ FIXED 28 Jul 2026, FOUND BY RUNNING EP13 FOR REAL. build_shot_map stripped this
+    header and render_ready did not — two tools reading the SAME FILE with different
+    ideas of its format. So a spoken-words file with an ordinary header ("# PP-EP13 —
+    … Part 1") failed the pre-render scan with four bare-numeral errors that were all
+    in the COMMENT, while the spoken track itself was clean. The engine runs this at
+    `audit_inputs`, so that is a halt on every episode whose script file has a header —
+    and the halt names numerals a human cannot find in anything Gordon says.
+
+    Nothing is masked by this: a numeral inside a real spoken paragraph is still caught.
+    """
+    mk = re.search(r"(?im)^.*paste\b.*\bbelow\b.*$", raw)
+    if mk:
+        raw = raw[mk.end():]
+    paras = [p.strip() for p in raw.split("\n\n") if p.strip()]
+    while paras and (all(ln.lstrip().startswith("#") for ln in paras[0].splitlines())
+                     or paras[0].lstrip().startswith("[")):
+        paras.pop(0)
+    return paras
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("spoken_words")
@@ -99,7 +126,7 @@ def main():
     a = ap.parse_args()
 
     text = open(a.spoken_words, encoding="utf-8").read()
-    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+    paras = strip_notes_header(text)
     hard, warn = [], []
 
     # 1. bare numerals

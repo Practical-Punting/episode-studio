@@ -182,6 +182,13 @@ every stumble, every unnatural pause, every line that sounds like a different na
   number**, or the **promise of the payoff**. (EP09 opened on the three-track puzzle — that's the
   shape.)
 - **Open a loop, don't close it.** End the opening with a question you answer later.
+- ✍️ **CREDIT THE AUTHOR THE PAGE NAMES, IN THE OPENING LINE** (Jodie, 28 Jul 2026 —
+  full rule in `PP-STANDARDS.md` §AUTHOR CREDIT). If the source page names an author,
+  Gordon says their name in the opening; if it names nobody, the episode carries no
+  byline. **Written as a rule because of a six-part series whose parts have DIFFERENT
+  authors** — decide it once, not six times, and never inherit a sibling article's
+  byline. Where an article is a two-hander, credit both voices; that is reproduction,
+  not embellishment.
 - **Build the body from Setup → Tension → Payoff loops** (~3–5 across the episode) and **overlap
   them** — open the next before fully closing the current ("that handles speed — but speed's useless
   without the second factor…"). Never leave a clean exit point.

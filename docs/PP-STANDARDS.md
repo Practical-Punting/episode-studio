@@ -460,6 +460,26 @@ writing an eleventh line.*
 ## Warranty slide (verbatim, every video, every e-book)
 PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading "WHAT ARE YOU PREPARED TO LOSE TODAY?" then "For free and confidential support call 1800 858 858 or visit gamblinghelponline.org.au". No sales@ on the video slide. Full text in the standing template.
 
+## ✍️ AUTHOR CREDIT — credit the author the page names (Jodie, 28 July 2026)
+**If the source page names an author, Gordon credits them in the OPENING LINE. If it does
+not, the episode carries no byline.** The test is what the page says, not a house style.
+
+- **This became a rule because of a SIX-PART series where the parts have DIFFERENT
+  authors** — *The Fundamentals of Handicapping* (EP13 on): **Part 1 is Brian Blackwell,
+  Part 2 is Barry Meadow.** Deciding this once, here, stops it being re-litigated six
+  times, and stops part 4 quietly inheriting part 1's byline.
+- **Where more than one author appears in a single article, credit the ones the article
+  presents as its voices.** EP13's piece is a two-hander: the Australian editor and a US
+  expert alternate under `BM:` and `BB:` labels, and both are named in the article's own
+  first paragraph. Naming both is reproduction, not embellishment.
+- **This does NOT contradict EP12 carrying no byline** (Jodie's ruling, 27 Jul 2026). That
+  article's supplied text stated no author, and the live page's Alan Jacobs credit was not
+  confirmed. Same rule, different input: **credit the author the page names, and when the
+  page names nobody, name nobody.**
+- **Never guess a byline from a sibling article.** EP12's source header records exactly this
+  trap — Part 1 was by Alan Jacobs, and assuming Part 2 was too would have credited a real
+  person for work that may not be theirs.
+
 ## E-book
 - **"verify" markers are REVIEW-ONLY (locked 25 Jul 2026):** a cell whose source was unreadable renders as a highlighted "verify" during review, and MUST resolve to a real number or the standard insufficient-data dash before approval/publish. `qc_episode.py --episode` HARD-FAILS any build whose e-book source still contains a verify marker.
 - **Cover layout (locked 25 Jul 2026):** built from the canonical `assets/ebook-cover-template.html` — the white band is a FLOW layout (subtitle → byline → footer stack; overlap impossible by construction), and `cover_check.py` auto-FAILS any overlapping or clipped cover text (the EP09 collision). Never position band text with absolute pixel offsets.
