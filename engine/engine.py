@@ -923,6 +923,13 @@ def cmd_mock_episode():
         # it only ever runs against a throwaway PP-EP99 ticket.
         "title_approved": True,
         "script_read": True,
+        # ...and pretends the human already started Gordon's render, for the same
+        # reason and in the same throwaway-ticket-only way. Without this the spine
+        # stops at awaiting_render and every step past it — assembly, QC, the
+        # thumbnail, the YouTube copy — is never exercised. This is DATA on a mock
+        # ticket, not a change to the gate: the real render gate is untouched and
+        # still waits for a human.
+        "render_started_at": "2026-07-28T00:00:00+00:00",
         "script_doc_url": "https://docs.google.com/document/d/MOCKmockMOCKmockMOCKmock/edit",
         "hook": "A Mock Hook",
         "byline": "a mock byline for the spine test",

@@ -145,6 +145,51 @@ def cover_canvas(page: Path) -> tuple[int, int]:
     return int(w), int(h)
 
 
+def author_missing_thumbnail(ep_dir: Path) -> str:
+    """Author thumbnail/<ep>-thumbnail.html when it does not exist yet."""
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/author_thumbnail.py"),
+         str(ep_dir / "docs/episode.json"), str(ep_dir / "thumbnail")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode:
+        raise EngineFlag(
+            "The thumbnail could not be authored from episode.json. This is a DATA "
+            "problem, not a missing-file problem — fix the field it names in "
+            f"docs/episode.json, then clear this flag.\n{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
+def thumbnail_placement_review(ep_dir: Path, png: Path):
+    """Raise the ONE clearable flag this step is meant to raise.
+
+    Placement is the craft: the template's own header says VIEW the hero first,
+    then decide. The build does NOT halt waiting for someone to type coordinates
+    into episode.json — that would be a halt a browser operator cannot clear, and
+    driving that number down is the whole point. It renders at the placement EP11
+    and EP12 both settled on and asks a human to LOOK at the picture.
+
+    Raised mid-build on purpose. An episode cannot currently go backwards, so a
+    bad crop found at the four approvals is expensive; found here, while the
+    engine still owns the episode, it is cheap.
+
+    Flags once. The marker records that a human has seen it, so clearing the flag
+    lets the step through instead of re-raising it forever.
+    """
+    seen = ep_dir / "thumbnail/.placement-reviewed"
+    if seen.exists():
+        return
+    seen.parent.mkdir(parents=True, exist_ok=True)
+    seen.write_text("a human has looked at the thumbnail placement\n", encoding="utf-8")
+    raise EngineFlag(
+        f"Have a look at the thumbnail: {png}\n"
+        "It is built at the standard placement (text upper-left over the scrim), which "
+        "is what EP11 and EP12 both used. What needs your eye is the HERO CROP — whether "
+        "the horses are framed well and every line of text is clear of them.\n"
+        "Happy? Clear this flag and the build carries on. Not happy? Say so and the crop "
+        "is one value (thumbnail.hero_focus, e.g. \"center 62%\") — EP12 needed 62% "
+        "because its field sits low in the frame.")
+
+
 def author_missing_cards(ep_dir: Path) -> str:
     """Author every card page that does not exist yet. Halts are human-shaped.
 
@@ -389,9 +434,31 @@ class MockProvider:
         return self._artifact(ep_folder(ep), "output/ebook.pdf", "e-book PDF")
 
     def build_thumbnail(self, ep) -> str:
+        """Real authoring and a real render, like the cover and the cards."""
         self.maybe_fail("thumbnail")
-        self._work()
-        return self._artifact(ep_folder(ep), "output/thumbnail.png", "thumbnail")
+        f = ep_folder(ep)
+        d = self.root / f
+        self._artifact(f, "thumbnail/hero.png", "thumbnail hero")
+        report = author_missing_thumbnail(d)
+        pages = list((d / "thumbnail").glob("*thumbnail*.html"))
+        out = d / "output" / f"{f}-thumbnail.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.run([sys.executable, SKILL_DIR / "scripts/render_still.py",
+                      pages[0], out, "1280", "720"], cwd=d, timeout=300)
+        except RuntimeError as e:
+            raise EngineFlag(f"Mock thumbnail render failed: {str(e)[-700:]}")
+        print(f"    [mock] {report}")
+        # Exercise the REAL flag path, then stand in for the human who looks at
+        # it — the same shape as cover_pick's auto-pick. The flag is raised and
+        # cleared here so the spine is proved end to end rather than skipped.
+        try:
+            thumbnail_placement_review(d, out)
+        except EngineFlag as flag:
+            print(f"    [mock] needs_look raised as designed: {str(flag).splitlines()[0]}")
+            print("    [mock] no human here — auto-confirming the placement to exercise "
+                  "the spine")
+        return str(out)
 
     def save_youtube_copy(self, ep) -> str:
         self.maybe_fail("youtube_copy")
@@ -1040,11 +1107,15 @@ class RealProvider:
 
     def build_thumbnail(self, ep) -> str:
         d = self.dir(ep)
+        # Author it if it is missing — the third of the four halts Hugh could not
+        # clear. It used to say "stage it, then clear this flag" to a browser.
+        author_missing_thumbnail(d)
         pages = list((d / "thumbnail").glob("*thumbnail*.html"))
         if len(pages) != 1:
             raise EngineFlag(
                 f"Expected exactly one *thumbnail*.html in {d.name}/thumbnail/, found "
-                f"{len(pages)}. Stage it, then clear this flag.")
+                f"{len(pages)}. Authoring produces one; more than one means an older "
+                "hand-made page is still there. Remove the one you do not want.")
         # Standard-template conformance guard (EP08 lesson): the standing thumbnail
         # recipe always carries the PP logo chip. A page without it was hand-rolled
         # off-template — flag rather than render a non-standard thumbnail.
@@ -1054,7 +1125,9 @@ class RealProvider:
                 "on the standing thumbnail template (assets/youtube-thumbnail-template.html). "
                 "Rebuild it from the template, then clear this flag.")
         out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
         self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)
+        thumbnail_placement_review(d, out)      # look at the picture, then clear
         return str(out)
 
     def save_youtube_copy(self, ep) -> str:

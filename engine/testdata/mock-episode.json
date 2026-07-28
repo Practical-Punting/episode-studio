@@ -28,6 +28,13 @@
     "part_inline": false,
     "byline": "A mock cover · from the Practical Punting archives · with Gordon"
   },
+  "thumbnail": {
+    "l1": "Mock",
+    "l2": "Hook",
+    "part": null,
+    "strap_break_after": "used",
+    "hero_focus": "center"
+  },
   "cards": [
     {
       "id": "C1",

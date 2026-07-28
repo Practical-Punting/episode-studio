@@ -8,8 +8,9 @@
      PER-EPISODE (only these change):
        1. Drop the hero as  hero.png  in PP-EPxx/thumbnail/  and copy
           pp-logo-on-dark.png in beside it.
-       2. Edit .eyebrow (always "Practical Punting"), .l1 / .l2 (the Anton
-          headline, split so the KEY word is the big bottom line), and .strap.
+       2. Edit .l1 / .l2 (the Anton headline: setup word WHITE, payoff word
+          ORANGE), .part (or delete it on a non-series episode), and .strap.
+          The .eyebrow is LOCKED to "How to Win at Horse Racing" — do not edit it.
        3. Build:  python scripts/render_still.py ep-xx-thumbnail.html \
                     ../output/PP-EPxx-thumbnail.png 1280 720   (run from the folder).
 
@@ -40,28 +41,30 @@
      fading to clear across the subject. Tune the % stops / opacities per hero. */
   .scrim{position:absolute;inset:0;background:linear-gradient(123deg,
     rgba(8,10,14,0.94) 0%,
-    rgba(8,10,14,0.86) 20%,
-    rgba(8,10,14,0.60) 38%,
-    rgba(8,10,14,0.26) 52%,
-    rgba(8,10,14,0.06) 66%,
+    rgba(8,10,14,0.88) 20%,
+    rgba(8,10,14,0.64) 38%,
+    rgba(8,10,14,0.28) 52%,
+    rgba(8,10,14,0.07) 66%,
     rgba(8,10,14,0) 78%)}
   /* gentle bottom weight so the logo sits on something */
   .scrim-b{position:absolute;inset:0;background:linear-gradient(to top,
     rgba(8,10,14,0.55) 0%, rgba(8,10,14,0) 24%)}
 
-  .copy{position:absolute;left:56px;top:56px;width:640px}
-  .eyebrow{font-family:'Barlow',sans-serif;font-weight:800;font-size:31px;
-    letter-spacing:0.22em;text-transform:uppercase;color:#DA532C;margin-bottom:20px;
+  .copy{position:absolute;left:56px;top:52px;width:660px}
+  .eyebrow{font-family:'Barlow',sans-serif;font-weight:800;font-size:29px;
+    letter-spacing:0.20em;text-transform:uppercase;color:#DA532C;margin-bottom:18px;
     text-shadow:0 2px 10px rgba(0,0,0,0.7)}
-  .l1,.l2{font-family:'Anton','Barlow',sans-serif;font-weight:400;color:#FFFFFF;
+  .l1,.l2,.part{font-family:'Anton','Barlow',sans-serif;font-weight:400;color:#FFFFFF;
     text-transform:uppercase;line-height:0.88;letter-spacing:0.006em;
     text-shadow:0 6px 30px rgba(0,0,0,0.8)}
-  .l1{font-size:96px}            /* the setup line — smaller */
-  .l2{font-size:150px}           /* the KEY word — huge; shrink if it hits a horse */
-  .bar{width:230px;height:14px;background:#DA532C;margin:26px 0 20px;border-radius:2px;
+  .l1{font-size:96px}                        /* setup word(s) — WHITE */
+  .l2{font-size:150px;color:#DA532C}         /* payoff word(s) — ORANGE (the locked split) */
+  /* 3. SERIES PART TREATMENT — half the .l2 size, own line, NO em dash. */
+  .part{font-size:75px;color:#DA532C;margin-top:12px;letter-spacing:0.03em}
+  .bar{width:230px;height:14px;background:#DA532C;margin:24px 0 18px;border-radius:2px;
     box-shadow:0 4px 16px rgba(0,0,0,0.5)}
-  .strap{font-family:'Barlow',sans-serif;font-weight:700;font-size:30px;
-    letter-spacing:0.02em;color:#F1F1F1;text-shadow:0 3px 14px rgba(0,0,0,0.85)}
+  .strap{font-family:'Barlow',sans-serif;font-weight:700;font-size:29px;
+    letter-spacing:0.02em;color:#F1F1F1;line-height:1.24;text-shadow:0 3px 14px rgba(0,0,0,0.85)}
   .logo{position:absolute;left:56px;bottom:40px;width:210px;display:block;
     filter:drop-shadow(0 4px 14px rgba(0,0,0,0.7))}
 </style></head>
@@ -71,9 +74,10 @@
   <div class="scrim"></div>
   <div class="scrim-b"></div>
   <div class="copy">
-    <div class="eyebrow">Practical Punting</div>
+    <div class="eyebrow">How to Win at Horse Racing</div>
     <div class="l1">Setup line</div>
     <div class="l2">Key word</div>
+    <div class="part">Part N</div><!-- DELETE on a non-series episode -->
     <div class="bar"></div>
     <div class="strap">One-line hook the viewer wants</div>
   </div>

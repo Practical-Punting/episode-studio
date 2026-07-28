@@ -158,6 +158,35 @@ layout that made EP09's overlap impossible by construction — is copied untouch
   field** — it is `packaging.byline` verbatim, so the promise line on the cover and the
   approved packaging cannot drift apart.
 
+### v2 — `thumbnail{}`, the fields the engine authors the YouTube thumbnail from
+
+```jsonc
+"thumbnail": {
+  "l1": "Hidden",              // setup word(s) — WHITE
+  "l2": "Aces",                // payoff word(s) — ORANGE (the locked colour split)
+  "part": "Part 2",            // or null on a non-series episode
+  "strap_break_after": "horse",// which word the strap line breaks after, or null
+  "hero_focus": "center 62%"   // CSS object-position — THE per-image placement value
+}
+```
+
+- **`l1` / `l2` are checked against `packaging.hook`**, exactly as the cover's are. The
+  eyebrow is **not** a field — it is LOCKED to *"How to Win at Horse Racing"* in the
+  template, so it cannot drift again.
+- **The strap is `packaging.byline` verbatim.** Only where it BREAKS is a layout choice, so
+  `strap_break_after` names a word in the byline; a word that is not in it halts.
+- **`hero_focus` is the one genuinely per-image value.** EP11 sat at `center`; EP12 needed
+  `center 62%` because its field sits low in the frame. Everything else EP11 and EP12 tuned
+  — scrim stops, copy box, type sizes, bar margins — they agreed on exactly, so those are
+  now the template's defaults rather than per-episode settings.
+- **PLACEMENT DOES NOT HALT THE BUILD (Jodie, 28 July 2026).** The page is authored at the
+  standard placement, rendered, and a **clearable `needs_look` is raised with the PNG**.
+  Halting until someone types coordinates would be a halt a browser operator cannot clear —
+  a regression against the number this whole exercise drives down. It fires mid-build on
+  purpose: an episode cannot go backwards, so a bad crop found at the four approvals is
+  expensive and one found here is cheap. *(When "send it back a stage" exists, this flag
+  could collapse into the existing thumbnail approval and disappear.)*
+
 **The canvas is NOT an episode.json field.** The template declares it once
 (`body{width;height}`), `author_cover.py` writes it into the page as a `pp-canvas` comment,
 and the engine renders at exactly that. Before 28 Jul 2026 the page was 1588×2238 and the
