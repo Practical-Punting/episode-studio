@@ -60,6 +60,75 @@ CONTENT DOES NOT FIT" is a different one, and it appeared the moment the first w
 |---|---|---|
 | **A — nothing authored** | the episode arrived without pages/PNGs; the engine asks a browser operator to write HTML | **5 halts on EP12 (4-8 above). CLOSED by 1d.** |
 | **B — auto-authored content does not fit** | the pages exist, the words are right, every figure is traced — and the type is two points too big for its box, so `card_check` hard-fails | **EP12 ×2 (fixed by hand), EP13 ×3. CLOSED by `autofit_cards.py`, 28 Jul 2026.** |
+| **C — a card that is BESPOKE BY DESIGN is never authored by anything** | the design says a human authors this page, and no step asks a human to, so the build reaches `cards_render` and halts on a missing clip | **EVERY EPISODE. Hit EP13 live on 28 Jul 2026. OPEN — see §1b.** |
+
+### 1b. HALT CLASS C — THE TITLE CARD. **OPEN, and it recurs every single episode.**
+
+**What happened (EP13, 28 July 2026, live board):**
+`Card TITLE has no clip in overlay/clips: expected exactly one file matching *title*.mp4,
+found 0.` The build stopped at `cards_render` with 15 of 16 clips rendered.
+
+**Why it will happen every time.** `author_cards.py` only authors cards that declare a
+`block`. The title card declares none — and there is **no standing title template in
+`assets/` at all**, unlike the end card and the warranty slide. So nothing on any code path
+produces it. EP11's and EP12's title cards exist only because a human hand-wrote them in a
+past session. **Hugh cannot hand-write a card**, which makes this the same shape of
+blocker as the four that 1d closed.
+
+**⚠️ AND THE FLAG'S OWN GUESS IS WRONG, which cost time.** It says *"Most likely TITLE is
+marked block:'bespoke' … and its page has not been hand-authored yet."* On EP13 TITLE is
+not marked `bespoke` — it has **no `block` key at all**. The message sends the reader to
+look for a value that is not there. A flag that guesses should either be right or say less.
+
+#### 🔎 THE ROOT CAUSE IS A MIS-CLASSIFICATION IN THIS VERY DOCUMENT
+
+**§4 Layer 3 lists `title` among the STANDING cards — "no per-episode content; copied
+byte-identical".** That is simply not true of the title card, and it is why nothing was
+ever built for it:
+
+| Layer-3 card | Per-episode content? | Copyable byte-identical? |
+|---|---|---|
+| `end-card` | composites the rendered cover PNG — same markup every time | **yes** |
+| `warranty` | none | **yes** |
+| `midroll-lowerthird` | none (Jodie, 28 Jul) | **yes** |
+| **`title`** | **the hook, its colour split, the series-part treatment, the byline, the hero, and a per-image `object-position`** | **NO — it is a TEMPLATE WITH SLOTS, like the cover** |
+
+Grouping it with the warranty slide is what left it with neither a template nor an author
+step. §4's own evidence section already noticed the truth and nobody acted on it: *"Same
+for the title card (EP11 vs EP12 differ in four things)."* **Four differences is a template,
+not a copy.**
+
+#### ✅ RECOMMENDED FIX: **(a) — the title card stops being bespoke and is generated.**
+
+**Every slot it needs already exists in `episode.json`, and nothing new has to be invented:**
+
+| Title-card slot | Where it already comes from |
+|---|---|
+| eyebrow | LOCKED to "How to Win at Horse Racing" |
+| headline + colour split | `cover.title_setup` / `cover.title_payoff` — already validated against `packaging.hook` |
+| series part | `cover.part` / `cover.part_inline` — already the ruled treatment |
+| byline | `packaging.byline`, verbatim |
+| hero | the picked cover hero (Jodie's 28 Jul ruling) |
+| `object-position` | the one genuinely per-image value |
+
+That last one is **not a reason to keep it human** — it is the identical problem the
+thumbnail already solved: author at the standard default, render, and raise a **clearable
+`needs_look` with the PNG** so a human looks at the crop. Jodie ruled on exactly that
+pattern for the thumbnail on 28 Jul 2026, with the reasoning recorded: halting until
+someone types coordinates into JSON is a halt Hugh CANNOT clear; looking at a picture and
+clicking is one he can.
+
+**Why NOT (b), gating on an earlier authoring step:** it moves the halt from `cards_render`
+to the create step and changes nothing that matters. **It is still a halt only someone who
+can write HTML can clear**, which is the number this whole programme exists to drive down.
+(b) makes the build tidier; (a) makes it finishable by Hugh.
+
+**Evidence that (a) is straightforward, not optimistic:** EP13's title card was cleared on
+28 Jul 2026 by **pure substitution from EP12's shipped page** — swapping the `<title>` tag,
+the two headline spans, the part line, the byline, the hero and one `object-position`. That
+is a template being instantiated by hand. Writing it down is the whole job.
+
+*Implement nothing yet — Jodie's call on when.*
 
 **Why the distinction is worth keeping rather than folding into one number.** Both are
 equally unclearable by a browser operator, so both belong in the road-to-Hugh count. But
