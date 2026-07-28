@@ -11,6 +11,25 @@ body{width:1920px;height:1080px;overflow:hidden;background:#00FF00}
 .anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
 .hl{font-size:92px;line-height:0.94;margin-top:24px;}
 .logo{position:absolute;right:70px;bottom:56px;width:214px;height:65px;}
+/* THE POSITION RAIL — see frame-fullscreen.html for why it is frame furniture. */
+.rail{margin-top:auto;padding-top:22px;display:flex;gap:12px;align-items:flex-end;}
+.rail .seg{flex:1;height:9px;background:#3A3A3A;border-radius:5px;position:relative;}
+.rail .seg.done{background:#6A4133;}
+.rail .seg.now{background:#DA532C;height:16px;}
+/* Only the rung you are on is named — see frame-fullscreen.html for why. */
+.rail .cap{position:absolute;left:0;bottom:22px;font-size:21px;font-weight:800;
+  letter-spacing:0.16em;text-transform:uppercase;color:#8F8F8F;white-space:nowrap;
+  display:none;}
+.rail .seg.now .cap{color:#FFFFFF;display:block;}
+.rail .seg:nth-last-child(-n+2) .cap{left:auto;right:0;}
+.railnum{margin-top:20px;font-size:26px;font-weight:800;letter-spacing:0.2em;
+  text-transform:uppercase;color:#8F8F8F;}
+body.print .rail .seg{background:#E4E4E4}
+body.print .rail .seg.done{background:#E8BFAF}
+body.print .rail .seg.now{background:#DA532C}
+body.print .rail .cap{color:#777}
+body.print .rail .seg.now .cap{color:#1e1e1e}
+body.print .railnum{color:#777}
 body.print{background:#fff}
 body.print .panel{background:#fff;color:#1e1e1e;border:none}
 body.print .eyebrow .lbl{color:#DA532C}
@@ -26,6 +45,10 @@ body.print .logo{display:none}
   <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">%%EYEBROW%%</div></div>
   <div id="hl" class="anton hl">%%HEADLINE%%</div>
 %%BLOCK_MARKUP%%
+<!--@rail-->
+  <div id="rail" class="rail">%%RAIL_SEGS%%</div>
+  <div id="railnum" class="railnum">Rule %%RAIL_N%% of %%RAIL_OF%%</div>
+<!--@endrail-->
   <img id="logo" class="logo" src="assets/logo.png" alt="Practical Punting">
 </div>
 <script>ppInit([

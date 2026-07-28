@@ -10,6 +10,31 @@
 .anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
 .hl{font-size:104px;line-height:0.96;margin-top:24px;}
 .logo{position:absolute;right:110px;bottom:56px;width:214px;height:65px;}
+/* THE POSITION RAIL — frame furniture, not a block (Jodie, 28 Jul 2026).
+   A card could always SAY a thing; nothing could say WHERE IN THE ARGUMENT it was.
+   EP13 announced SEVEN AXIOMS and only four ever appeared. This is a modifier on the
+   frame precisely so it can ride on ANY block without a new template per combination. */
+.rail{margin-top:auto;padding-top:26px;display:flex;gap:14px;align-items:flex-end;}
+.rail .seg{flex:1;height:10px;background:#3A3A3A;border-radius:5px;position:relative;}
+.rail .seg.done{background:#6A4133;}
+.rail .seg.now{background:#DA532C;height:18px;}
+/* ONLY THE RUNG YOU ARE ON IS NAMED. Seven captions at once do not fit — card_check
+   caught "Time and Distance" running into "Track Variant" and "Fast Racehorses" under
+   the logo. Naming all seven is also clutter: the spine card lists them, the rail says
+   where you are. The last two are right-aligned so they cannot reach the logo chip. */
+.rail .cap{position:absolute;left:0;bottom:24px;font-size:23px;font-weight:800;
+  letter-spacing:0.16em;text-transform:uppercase;color:#8F8F8F;white-space:nowrap;
+  display:none;}
+.rail .seg.now .cap{color:#FFFFFF;display:block;}
+.rail .seg:nth-last-child(-n+2) .cap{left:auto;right:0;}
+.railnum{margin-top:22px;font-size:28px;font-weight:800;letter-spacing:0.2em;
+  text-transform:uppercase;color:#8F8F8F;}
+body.print .rail .seg{background:#E4E4E4}
+body.print .rail .seg.done{background:#E8BFAF}
+body.print .rail .seg.now{background:#DA532C}
+body.print .rail .cap{color:#777}
+body.print .rail .seg.now .cap{color:#1e1e1e}
+body.print .railnum{color:#777}
 body.print{background:#fff}
 body.print .card{background:#fff;color:#1e1e1e}
 body.print .eyebrow .lbl{color:#DA532C}
@@ -24,6 +49,10 @@ body.print .logo{display:none}
   <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">%%EYEBROW%%</div></div>
   <div id="hl" class="anton hl">%%HEADLINE%%</div>
 %%BLOCK_MARKUP%%
+<!--@rail-->
+  <div id="rail" class="rail">%%RAIL_SEGS%%</div>
+  <div id="railnum" class="railnum">Rule %%RAIL_N%% of %%RAIL_OF%%</div>
+<!--@endrail-->
   <img id="logo" class="logo" src="assets/logo.png" alt="Practical Punting">
 </div>
 <script>ppInit([

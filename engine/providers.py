@@ -190,6 +190,92 @@ def thumbnail_placement_review(ep_dir: Path, png: Path):
         "because its field sits low in the frame.")
 
 
+HEAD_BREATH = 0.4          # silence left before the first word, in seconds
+LEAD_SANITY = 20.0         # a lead-in longer than this is not a lead-in
+
+
+def trim_master_lead_in(master: Path) -> str:
+    """Cut the HeyGen master's silent head at INGEST, leaving HEAD_BREATH of air.
+
+    THE DEFECT THIS CLOSES. Avatar IV hands back a master that idles before it speaks
+    — MEASURED 6.35s on EP11, 6.36s on EP12, 6.39s on EP13. The assembly then ADDS
+    title_head (7.0s) on top: passA pads the video by cloning frame 0, passB delays the
+    audio to match. Nothing trimmed the head, so the first word landed at 13.4s and
+    Gordon sat motionless for six and a half seconds. EP11 and EP12 are PUBLISHED like
+    that. Jodie, watching EP13: "host should start talking about 7 seconds but he sits
+    there mute until about 12 or 13. It is weird."
+
+    THE BITTER PART, worth remembering: the number was already being measured.
+    build_shot_map.py computes SPEECH_START from silencedetect and the camera push was
+    scheduled off it. We knew, used it for framing, and never trimmed on it.
+
+    IT IS MEASURED PER EPISODE, NEVER HARDCODED. The three known values differ by tens
+    of milliseconds and a fourth will differ again. A constant here would be the same
+    class of bug as the hardcoded limits in DESIGN §16.19 — right until the day it is
+    silently wrong.
+
+    Doing it at INGEST rather than at assembly is the whole point: every downstream
+    timing — the shot map, every card lead, the b-roll offsets, the midroll, the end
+    sequence — is derived FROM the master, so trimming here makes all of them correct
+    by construction instead of needing a matching offset applied in six places.
+    """
+    out = subprocess.run(
+        ["ffmpeg", "-t", "40", "-i", str(master),
+         "-af", "silencedetect=n=-38dB:d=0.35", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
+    starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", out)]
+    ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", out)]
+    if not (starts and ends and starts[0] < 0.5):
+        return "master lead-in: none to trim (speech starts immediately)"
+    lead = ends[0]
+    if lead > LEAD_SANITY:
+        raise EngineFlag(
+            f"The presenter master appears to be silent for its first {lead:.1f}s. That is "
+            f"too long to be an avatar's lead-in, so this is not trimmed automatically — it "
+            f"is more likely the wrong file, a failed render, or audio that did not attach. "
+            f"Check the master, then clear this flag.")
+    cut = lead - HEAD_BREATH
+    if cut <= 0.05:
+        return f"master lead-in: {lead:.2f}s, already within {HEAD_BREATH}s — left alone"
+    tmp = master.with_suffix(".trimmed.mp4")
+    keep = master.with_name(master.stem + "-untrimmed.mp4")
+    # THE VIDEO IS RE-ENCODED, AND IT HAS TO BE. HeyGen's masters carry a keyframe
+    # every 10s (measured on EP13: 0, 10, 20 …), and a stream copy can only cut ON a
+    # keyframe — so `-c copy -ss 5.99` silently snaps back to 0 and trims NOTHING. It
+    # does not fail; it hands back a file the same length as the one you gave it, which
+    # is exactly the kind of quiet no-op that shipped the mute opening in the first
+    # place. CRF 15 on a talking head is visually transparent, and THE AUDIO IS COPIED
+    # UNTOUCHED so the locked ~189 kbps master survives byte-for-byte.
+    r = subprocess.run(
+        ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{cut:.3f}",
+         "-i", str(master), "-c:v", "libx264", "-crf", "15", "-preset", "medium",
+         "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(tmp)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode or not tmp.is_file():
+        raise EngineFlag(
+            f"Could not trim the presenter master's {lead:.2f}s silent head.\n"
+            f"{(r.stderr or '').strip()[-600:]}")
+    if not keep.exists():                       # keep the original exactly once
+        shutil.copyfile(master, keep)
+    tmp.replace(master)
+    # PROVE THE CUT LANDED. The stream-copy version of this returned success and changed
+    # nothing; a trim that reports what it INTENDED rather than what it DID is worthless.
+    after = subprocess.run(
+        ["ffmpeg", "-t", "40", "-i", str(master),
+         "-af", "silencedetect=n=-38dB:d=0.35", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
+    s2 = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", after)]
+    e2 = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", after)]
+    now = e2[0] if (s2 and e2 and s2[0] < 0.5) else 0.0
+    if now > HEAD_BREATH + 0.35:
+        raise EngineFlag(
+            f"The presenter master was trimmed by {cut:.2f}s but still starts with "
+            f"{now:.2f}s of silence — the cut did not land where it was asked to. The "
+            f"untrimmed original is beside it as {keep.name}. Do not assemble on this.")
+    return (f"master lead-in: trimmed {cut:.2f}s (was {lead:.2f}s silent, now {now:.2f}s — "
+            f"verified after the cut); original kept as {keep.name}")
+
+
 def render_ebook_figures(ep_dir: Path) -> str:
     """Render the e-book figures from the CARD pages — one design, two uses.
 
@@ -1054,6 +1140,7 @@ class RealProvider:
         master = d / "renders/presenter-master.mp4"
         if not master.is_file():
             self._heygen_fetch(ep, master)         # returns only when downloaded
+        print(f"    {trim_master_lead_in(master)}")
         kbps = self._audio_kbps(master)
         if kbps and kbps < 180:
             raise EngineFlag(

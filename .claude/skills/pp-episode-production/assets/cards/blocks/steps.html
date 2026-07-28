@@ -4,8 +4,8 @@
   "note": "FLOW ONLY, ON PURPOSE. The shipped EP12 C10 built this cascade out of absolutely-positioned cards (.st.a/b/c at left:0/180/360, top:0/150/300) with the footnote pinned to the right of .steps — and the note overlapped the third card between 1040px and 1300px. Here the cascade is margin-left on boxes in normal flow and the note is the next box down, so no string length and no step count can make two of them share the same pixels. See DESIGN §11: the collision class is designed out, card_check.py is only the backstop. Cost of the change: the shipped card overlapped its steps by ~8px vertically (a deck-of-cards look) and this one does not. That is a visible difference and Jodie's call, not mine.",
   "required": [],
   "optional": ["note"],
-  "lists": {"steps": {"min": 2, "max": 3, "fields": ["k", "v"]}},
-  "anim": {"steps": {"base": 1150, "step": 650}},
+  "lists": {"steps": {"min": 2, "max": 8, "fields": ["k", "v"]}},
+  "anim": {"steps": {"base": 1150, "step": 300}},
   "fit": {"step_gap": [".st + .st", "margin-top"], "note_size": [".note", "font-size"]}
 }
 -->
@@ -23,6 +23,25 @@
 .st.i1{margin-left:0;border-left:8px solid #DA532C;}
 .st.i2{margin-left:180px;border-left:8px solid #9A6A55;}
 .st.i3{margin-left:360px;border-left:8px solid #6E6E6E;}
+.st .n{display:none;}
+
+/* THE LADDER — the same block carrying a LIST rather than a CASCADE (28 Jul 2026).
+   The cascade above steps 180px right per item, so it can only ever hold three; a
+   fourth would walk off the card. That cap is why EP13 announced SEVEN AXIOMS and
+   showed four, and why `steps` — the library's only PROGRESSION block — had never
+   been used in any episode.
+   From four items up the block drops the cascade and lays the items out as a
+   NUMBERED LADDER in two columns. Same block, same data, same guards; no second
+   template to keep in step. Selected by :has() on the item count, so it is the DATA
+   that picks the layout and nothing has to be declared twice. */
+.steps:has(.st:nth-child(4)){display:flex;flex-wrap:wrap;gap:16px;width:1500px;}
+.steps:has(.st:nth-child(4)) .st{width:calc(50% - 8px);margin-left:0;margin-top:0;
+  padding:20px 26px;border-left:8px solid #4A4A4A;display:flex;align-items:baseline;gap:18px;}
+.steps:has(.st:nth-child(4)) .st .n{display:block;font-family:'Anton',sans-serif;
+  font-size:46px;line-height:1;color:#DA532C;min-width:44px;}
+.steps:has(.st:nth-child(4)) .st .k{font-size:42px;}
+.steps:has(.st:nth-child(4)) .st .v{margin-top:0;font-size:30px;}
+body.print .steps:has(.st:nth-child(4)) .st{border-left-color:#D8D8D8}
 .note{margin-top:26px;width:1380px;font-size:36px;font-weight:600;font-style:italic;color:#9A9A9A;line-height:1.24;}
 <!--@print-->
 body.print .st{background:#F4F4F4}
@@ -31,7 +50,7 @@ body.print .note{color:#777}
 <!--@markup-->
   <div class="steps">
 <!--@each steps-->
-    <div class="st i{{I}}" id="st{{I}}"><div class="k anton">{{ITEM.k}}</div><div class="v">{{ITEM.v}}</div></div>
+    <div class="st i{{I}}" id="st{{I}}"><div class="n anton">{{I}}</div><div class="k anton">{{ITEM.k}}</div><div class="v">{{ITEM.v}}</div></div>
 <!--@endeach-->
   </div>
   <div class="note" id="note">{{note}}</div>
