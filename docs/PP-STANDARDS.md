@@ -562,6 +562,25 @@ not, the episode carries no byline.** The test is what the page says, not a hous
 ## Thumbnail — a MANDATORY, first-class deliverable (the step most likely to be forgotten)
 - Every episode ships a thumbnail. It is on the **Definition of Done** checklist and has its own Jodie approval — never optional (EP05 shipped without one because it was informal). Since it's a racing photo (not a host frame), it no longer needs the finished video and can be produced in parallel with the build.
 - **Racing-photo style (channel look — decided 23 Jul 2026; supersedes the old "real Gordon frame" rule):** the thumbnail is a striking racing scene/photo — lush green turf, atmosphere, from Higgsfield or a PP-owned/licensed still — NOT the host's face. 1280×720, <2 MB.
+- 🔒 **THE THUMBNAIL HERO IS THE PICKED COVER HERO, unless there is a specific reason not to
+  (Jodie, 28 July 2026 — RULED).**
+  Not a fallback, not a cost saving: **it is the house style**, and it has been since EP06.
+  The `thumbnail-style` note Jodie confirmed then already said the hero should ideally be the
+  SAME hero as the e-book cover, **because matching the two ties the video to the guide and
+  helps e-book downloads** — the whole point of the free e-book. Crop to 16:9 at about
+  `center 60%` and expect to tune it per image.
+  - **It costs nothing.** The cover hero is already generated and already paid for, and the
+    picked one has already passed a human eye at the cover-pick gate.
+  - ✅ **THIS CLOSES THE OPEN RULING RAISED AT EP11** — *"every episode's thumbnail hero must
+    be an image that has NEVER been a thumbnail before"*, which was flagged on 26 Jul 2026 as
+    possibly unsustainable, said *"Needs Jodie's ruling before EP12"*, **and never got one;
+    EP12 then shipped without it.** Under this rule the question dissolves: **the picked cover
+    hero is new every episode by construction**, so it can never have been a thumbnail before.
+    Recorded in `docs/thumbnail-hero-registry.md` rather than left dangling a third time.
+  - **"A specific reason not to"** means a real one, named in the registry row — e.g. the
+    picked hero is wrong for a 16:9 crop, or the episode wants deliberate variation. **The
+    REJECTED case is one of them:** EP13's unused hero was racing-impossible, which is exactly
+    why the rule points at the PICKED hero and not at "the other one".
 - Bold Anton caps, colour-split headline, orange eyebrow, small WHITE-wordmark logo in a corner. The thumbnail text is a HOOK (3–5 words), different from — but not contradicting — the title. Strategy/curiosity only; no odds/guarantees.
 - ✅ **DONE 28 Jul 2026 — the thumbnail template CARRIES the series part treatment.**
   The §E-book SERIES PART TREATMENT rule (Jodie, 26 Jul 2026) applies to the cover, the

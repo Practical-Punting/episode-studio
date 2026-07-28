@@ -5,9 +5,20 @@ for the same reason: a rule nobody can check is a rule that gets broken.
 
 ---
 
-## THE RULE (Jodie, 26 Jul 2026) — stricter than the b-roll rule
+## THE RULE (Jodie, 28 Jul 2026 — RULED, and it supersedes the choosing problem below)
+
+> ### THE THUMBNAIL HERO IS THE PICKED COVER HERO, unless there is a specific reason not to.
+
+It is the house style, not a fallback: matching the thumbnail to the e-book cover **ties the
+video to the guide and helps downloads** (Jodie, confirmed EP06). It costs nothing, and the
+image has already passed a human eye at the cover-pick gate. Crop to 16:9 at about
+`center 60%` and expect to tune it per image. Full rule: `PP-STANDARDS.md` §Thumbnail.
+
+**The older rule below still stands and is now satisfied automatically:**
 
 **Every episode's thumbnail hero must be an image that has NEVER been a thumbnail before.**
+*(A picked cover hero is new every episode, so this can no longer be breached by accident —
+see §CLOSED further down for why that mattered.)*
 
 - **No reuse at all** — not the same image, and **not a different composition of the same
   subject**. This is deliberately stricter than the b-roll no-repeat law, which allows a
@@ -42,14 +53,22 @@ you add a row.
 | EP09 | Single horse rounding a bend past a white rail, golden light | |
 | EP10 | Single horse in profile against a dark stormy sky | |
 | EP11 | Three horses on a bend, dark grandstand roofline framing the top-left | `three-horses-bend-grandstand` — a **library spare**, not a cover hero. **See the flag below** |
-| EP12 | *(row still missing — outstanding)* | EP12's thumbnail hero was its **unused cover hero, `hero-b.png`**. Logged here 28 Jul 2026 so the precedent is visible; the subject line still needs filling in |
-| EP13 | **AWAITING JODIE'S CHOICE — see the REJECT below** | Its unused cover hero is **REJECTED** and cannot be used |
+| EP12 | Single chestnut in yellow-and-blue silks clear of the field, coming toward camera on lush turf, crowd along the white rail on the right, soft backlit sky | Its **unused cover hero (`hero-b.png`)**. Row filled in 28 Jul 2026 from the shipped image — it had been missing since EP12 built |
+| EP13 | **The PICKED cover hero A** — head-on group at full stride, lead horse centre-left | ✅ **First episode under the new rule.** Its unused hero B was REJECTED as racing-impossible (below), which is exactly why the rule names the PICKED hero and not "the other one". ⚠️ Hero A is a TIGHT head-on with the lead horse centre-left and the thumbnail text sits LEFT, so **expect the crop to need tuning** — the placement flag surfaces the rendered PNG for Jodie to judge |
 
 ### 🔴 EP13's UNUSED COVER HERO IS REJECTED — racing-impossible (Jodie, 28 July 2026)
 
 `PP-EP13/ebook/cover-src/hero-b.png` shows **horses running on BOTH SIDES of the running
 rail**. Impossible: the rail divides the track and runners are only ever on one side of it.
 **Rejected on sight, for every use — not just for the cover it lost.**
+
+**Looked at and confirmed, 28 Jul 2026, so the record is a description and not a repeat of
+someone's word for it:** the near rail runs as a hard diagonal from lower-left to upper-right
+straight through the middle of the frame; **three runners (orange, green and pale-green silks)
+are on the FAR side of it** while the other twelve are on the near side, so the rail passes
+*between* members of the same field. A second rail line runs along the top right, and the near
+rail's supports splay outward at the bottom left in a way no running rail does. **It is a
+beautiful photograph of something that has never happened.**
 A `REJECTED-hero-b.md` note sits beside the file so the next session cannot mistake it for a
 free image. Rule now in `PP-STANDARDS.md` §B-roll HARD-FAIL list and in `broll-registry.md`.
 
@@ -74,6 +93,36 @@ never-been-a-thumbnail rule below, because a cover hero has never been a thumbna
 | `lone-leader-stormy-sky-left.png` | Single leader head-on, field strung behind, dark treeline left | FREE — but echoes EP03 and EP01/EP08 at subject level |
 
 ---
+
+## ✅ CLOSED — RULED BY JODIE, 28 JULY 2026. The rule below is SUPERSEDED.
+
+> ### THE THUMBNAIL HERO IS THE PICKED COVER HERO, unless there is a specific reason not to.
+
+**This dissolves the open issue rather than answering it.** The question below was *"which
+already-used-looking image do we settle for?"* — and it had no good answer, which is why it sat
+unruled through EP12. Under the new rule **the hero is new every episode by construction**: the
+picked cover hero has never been a thumbnail, so *"must never have been a thumbnail before"* is
+satisfied automatically and the search for a non-echoing spare stops being a job at all.
+
+**Why it is the right answer and not just a convenient one** — the `thumbnail-style` note Jodie
+confirmed at EP06 already said the hero should ideally be the SAME hero as the e-book cover,
+**because matching the two ties the video to the guide and helps e-book downloads.** That is
+the point of the free e-book. So this is the house style being written down, not a new
+compromise. It also costs nothing and the image has already passed a human eye at the
+cover-pick gate.
+
+**"A specific reason not to"** must be a real one, named in the episode's row: the picked hero
+crops badly to 16:9, the episode wants deliberate variation, or the picked hero is unusable.
+Full rule in `docs/PP-STANDARDS.md` §Thumbnail.
+
+**The three-times-dangling lesson, recorded because it is the actual failure here:** this
+question was raised at EP11, marked *"Needs Jodie's ruling before EP12"*, **and EP12 shipped
+without it.** An open question in a standards file is not a placeholder — it is a decision that
+gets made by default, by whoever is building at the time, without anyone noticing they made it.
+**Ask for the ruling, or say plainly that the default is now the rule.**
+
+<details>
+<summary>The superseded open issue, kept for the reasoning (click to read)</summary>
 
 ## ⚠️ OPEN ISSUE, RAISED AT EP11 (26 Jul 2026) — the rule may not be sustainable as written
 
@@ -106,3 +155,12 @@ Both positions are defensible, but with ten episodes logged the subject space is
 My read: **option 2 or 3.** Option 2 protects what the rule is for while staying achievable;
 option 3 keeps the strictness and buys a lot of runway, at the cost of some heroes being less
 dramatic than a field at full stride.
+
+</details>
+
+---
+
+**HOW EP13 WAS RESOLVED (28 Jul 2026):** option 1 of the four put to Jodie — reuse the PICKED
+hero A as the thumbnail hero, **0 credits**. The unused hero B was racing-impossible and
+rejected. Options 2 (the last free spare, an acknowledged echo) and 3 (generate a fresh hero,
+2.0 credits, balance 188.22) were declined as unnecessary once the house style was recognised.

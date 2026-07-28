@@ -241,6 +241,41 @@ def author_missing_ebook(ep_dir: Path) -> str:
     return (r.stdout or "").strip()
 
 
+def autofit_cards(ep_dir: Path) -> str:
+    """Step the type down until the rendered card fits. Runs BETWEEN authoring and
+    checking, because it exists to stop `card_check` halting over type size.
+
+    THE HALT CLASS THIS REMOVES IS A NEW ONE, and it matters that it is named
+    separately: the four halts 1d closed were all "NOTHING WAS AUTHORED" — an episode
+    arrived without pages and the engine asked a browser operator to write HTML. This
+    is "THE AUTO-AUTHORED CONTENT DOES NOT FIT": the pages exist, the words are right,
+    every figure is traced, and the type is two points too big for its box. Hugh can
+    clear the first class about as well as the second — not at all — so it counts, but
+    it is a different failure and hiding it inside the old number would flatter the
+    road-to-Hugh figure.
+
+    Two episodes hit it before it was fixed: EP12 by hand (the 130->126px and 26->24px
+    nudges) and EP13 three times in one episode.
+
+    A card that still will not fit at the floor is a REAL halt and autofit says so —
+    the words are longer than the design can hold, which is a human choice between the
+    words and the layout, not something to shrink away.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/autofit_cards.py"),
+         str(ep_dir / "overlay/export")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+    if r.returncode:
+        raise EngineFlag(
+            "A card's text does not fit its box, and stepping the type down to the floor "
+            "did not clear it. This is NOT a missing-file problem and NOT a stale-template "
+            "problem: the page is authored, the words are right and every figure is traced "
+            "— the content is simply longer than the design can hold. That is a choice "
+            "between the words and the layout, and it is yours, not the build's.\n"
+            f"{(r.stdout or r.stderr).strip()[-1200:]}")
+    return (r.stdout or "").strip()
+
+
 def author_missing_cards(ep_dir: Path) -> str:
     """Author every card page that does not exist yet. Halts are human-shaped.
 
@@ -430,6 +465,7 @@ class MockProvider:
         export.mkdir(parents=True, exist_ok=True)
         added = stage_card_furniture(export)
         report = author_missing_cards(d)
+        fit = autofit_cards(d)          # same order as real: author -> fit -> check
         try:
             self.run([sys.executable, SKILL_DIR / "scripts/card_check.py", export],
                      cwd=d, timeout=600)
@@ -438,6 +474,7 @@ class MockProvider:
         except RuntimeError as e:
             raise EngineFlag(f"Mock card render failed: {str(e)[-700:]}")
         print(f"    [mock] staged {len(added)} furniture file(s); {report}")
+        print(f"    [mock] {fit}")
         return sorted(str(p) for p in (d / "overlay/clips").glob("*.mp4"))
 
     def run(self, args, cwd, timeout=None, tail=800):
@@ -601,9 +638,23 @@ class RealProvider:
 
     def run(self, args, cwd, timeout=None, tail=800):
         """Run a tool; on failure raise with the stderr tail (goes into the
-        plain-English flag if retries exhaust)."""
+        plain-English flag if retries exhaust).
+
+        ⚠️ `encoding="utf-8"` IS LOAD-BEARING, FIXED 28 Jul 2026. Without it,
+        `text=True` decodes with the locale default — cp1252 on this machine — so a
+        child printing an em dash came back as mojibake, went into the EngineFlag
+        message, and landed on Jodie's board as unreadable punctuation in the middle
+        of an error she was trying to read. Every one of these scripts writes UTF-8
+        deliberately (they all call `sys.stdout.reconfigure(encoding="utf-8")`), so
+        the reader has to agree with the writers.
+        `errors="replace"` because a flag message must never itself raise: the cards
+        slice added a strict decode here once and a child's em dash killed the
+        engine's reader thread with a UnicodeDecodeError. A stricter decode is a
+        behaviour change, not a tidy-up.
+        """
         r = subprocess.run([str(a) for a in args], cwd=str(cwd), capture_output=True,
-                           text=True, timeout=timeout or self.PASS_TIMEOUT)
+                           text=True, encoding="utf-8", errors="replace",
+                           timeout=timeout or self.PASS_TIMEOUT)
         if r.returncode != 0:
             err = (r.stderr or r.stdout or "").strip()[-tail:]
             raise RuntimeError(f"{Path(str(args[0])).name if not str(args[0]).endswith('py') else Path(str(args[1])).name} "
@@ -976,6 +1027,10 @@ class RealProvider:
         stage_card_furniture(export)
         # 2. author whatever is missing; hand-authored pages are left alone
         author_missing_cards(d)
+        # 2b. step the type down until it fits, BEFORE the checker judges it. Type
+        #     size is a measurement, not a judgement (design §11), so it should never
+        #     be a halt. Hand-authored pages are left alone here too.
+        print(f"    {autofit_cards(d)}")
         # 3. HARD GATE before we spend Chromium on clips: a card with a collision
         #    would ship into the video AND the matching e-book figure (design §12).
         try:

@@ -51,6 +51,30 @@ Halts 4-8 are five faces of one bug. Each is an `EngineFlag(… "Stage it, then 
 this flag")` — a message that asks a browser operator to write HTML, stage a PNG into a
 directory that does not exist yet, and run a headless render.
 
+### 1a. A SECOND CLASS OF HALT, NAMED SEPARATELY ON PURPOSE (28 July 2026)
+
+**"NOTHING WAS AUTHORED" is not the only halt Hugh cannot clear. "THE AUTO-AUTHORED
+CONTENT DOES NOT FIT" is a different one, and it appeared the moment the first was fixed.**
+
+| Class | What has gone wrong | Count so far |
+|---|---|---|
+| **A — nothing authored** | the episode arrived without pages/PNGs; the engine asks a browser operator to write HTML | **5 halts on EP12 (4-8 above). CLOSED by 1d.** |
+| **B — auto-authored content does not fit** | the pages exist, the words are right, every figure is traced — and the type is two points too big for its box, so `card_check` hard-fails | **EP12 ×2 (fixed by hand), EP13 ×3. CLOSED by `autofit_cards.py`, 28 Jul 2026.** |
+
+**Why the distinction is worth keeping rather than folding into one number.** Both are
+equally unclearable by a browser operator, so both belong in the road-to-Hugh count. But
+they have opposite causes and opposite fixes. Class A was *the engine consuming an artifact
+it never made* — fixed by making it author them. Class B is *the engine making an artifact
+it never measured* — fixed by measuring it. **Rolling B into A's number would have made the
+1d result look complete when a whole class of halt was still live**, and the next episode
+would have re-discovered it as a surprise. EP13 did exactly that, three times in one build.
+
+**The general shape, worth watching for:** every time the build takes over a job a human
+used to do, it inherits the *judgement* that human was silently applying. Authoring the
+cards inherited "does this text fit?" — which nobody had written down, because the person
+staging the page just made it fit. **Expect one of these per job automated**, and name it
+when it appears instead of widening the previous bucket.
+
 **Per PP-STANDARDS §WHAT DESERVES A GATE that is the worst class of halt there is:**
 one the operator can neither judge nor dismiss.
 
