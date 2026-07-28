@@ -7,6 +7,30 @@ clip's subject must NOT already appear below. After an episode ships, add its
 clips here (episode, file, one-line subject). Turf-only, relevant-to-the-line,
 crowd diversity still all apply.
 
+## 🔴 CHECK THE RUNNING RAIL ON EVERY CLIP (Jodie, 28 July 2026)
+
+**NEVER a horse on the wrong side of the running rail, and NEVER runners on both sides of
+it.** The rail divides the track; runners are only ever on one side. A clip that breaks this
+is **racing-WRONG** and is rejected and regenerated, exactly like a riderless horse.
+Full rule: `PP-STANDARDS.md` §B-roll & all generated imagery — HARD-FAIL list.
+
+**Why it is in this file and not only in the standards:** it was found on a COVER HERO
+(EP13's `hero-b.png`), but **the same generator makes the b-roll clips**, so the same fault
+can appear in any of them — and a moving clip is *harder* to spot it in than a still, because
+you see each frame for a fraction of a second.
+
+**⚠️ AND IT IS A DIFFERENT KIND OF DEFECT FROM EVERYTHING ELSE ON THE HARD-FAIL LIST.** The
+others — riderless horses, fused limbs, an object through a body — are things that are broken
+*in the frame*. This one is a picture that is **geometrically and anatomically perfect and
+still shows something that cannot happen on a racecourse.** No automated check can see it.
+**Only a human who knows racing can.**
+
+**So when you glance the 6-up `broll-contact.png` at the render gate, look for the rail** —
+where it runs, and whether every runner is on the same side of it. That glance is the only
+thing standing between this fault and a shipped episode. Prompt wording helps and is worth
+writing ("the field on the inside of the running rail"), but the generator is not obliged to
+obey it, so the wording is not the control — **the look is.**
+
 ## ⚠️ What went wrong on EP03 (the reason for this file)
 EP03's b-roll folder carried over **5 identical clips from EP02** (same bytes):
 `empty-track-golden`, `finish-rail-surge`, `grandstand-crowd`, `odds-board`,

@@ -321,6 +321,30 @@ batch starts or the cover pick lands after the master. See `episode-studio/engin
   people undressed or partly undressed; any object passing through a body; extra/missing/fused
   limbs. Any clip showing these is regenerated — never shipped. The engine exports a 6-up
   `broll-contact.png` after collection for the human glance at the render gate, BEFORE assembly.
+- 🔴 **HARD FAIL — THE RUNNING RAIL (Jodie, 28 July 2026). NEVER a horse on the wrong side of
+  the running rail, and NEVER runners on both sides of it.**
+  The rail divides the track; runners are only ever on one side of it. An image that breaks
+  this is **RACING-WRONG, not merely less attractive**, and it is rejected and regenerated
+  exactly like a riderless horse. **Binds every generated image, not just b-roll** — cover
+  heroes, thumbnail heroes and any future generated still.
+  - **Where it came from:** EP13's `hero-b.png` came back with horses running on both sides of
+    the rail. Jodie saw it instantly; **nothing in the pipeline could have.**
+  - ⚠️ **THIS IS A NEW CLASS OF DEFECT AND IT IS WHY THE HUMAN GLANCE IS NOT OPTIONAL.** The
+    existing HARD-FAIL list is about things that are *anatomically* or *physically* broken in
+    the frame — a floating rider, a fused limb. This one is a picture that is **geometrically
+    perfect, anatomically perfect, and still depicts something that cannot happen on a
+    racecourse.** No checker can see it. **Only someone who knows racing can.**
+  - **So it lives in TWO places, deliberately:** in the prompt wording (say which side of the
+    rail the field is on, and never ask for a shot that implies both), **and on the human QC
+    checklist** — the render-gate contact-sheet glance and the cover-pick look. **Prompt
+    wording alone cannot enforce it**, because the generator is not obliged to obey.
+  - **The trap that made it dangerous, not just ugly:** the UNUSED cover hero is sometimes
+    copied to `thumbnail/hero.png` (EP12 did this), so a rejected hero can walk onto **the most
+    visible asset of the episode** without anyone deciding to put it there. **A rejected image
+    is rejected for every use, not just the one it was rejected for** — say so in writing
+    beside the file, because the next session will not remember.
+  - **Generalise it:** when a generated racing image is wrong in a way no check can see, the
+    fix is a rule plus a human look, never a tighter prompt on its own.
 - **~50% of people wear a hat** (Akubra + fedora types included — Australian racing crowd).
 - **Australian ethnic mix ≈ 75% white, 9% Asian, 9% Middle-Eastern, 5% Black, remainder a mix.** Wide age range. Reject uniform crowds at QC.
 - **Turf only** — lush green grass track, never dirt (models default to US dirt — specify "lush green turf track" every time; reject dirt).
@@ -668,4 +692,4 @@ material". "Method material" is no longer a protected class — it is TIER 3 —
 names TIER 1, which is what it was always for.)*
 
 ## Hard "never" list
-**Never fabricate racing data** — every figure, form line, price, margin, date, horse or race on a card, e-book figure or thumbnail comes from the source article, or it does not appear (see §Motion-graphic cards); never ElevenLabs; never "tax"/"Agreement Tax"/"20% tax" framing; never hype/promises/guarantees; never a bare BR logo; never all-full-screen cards; never dirt tracks; never a repeated b-roll clip; never publish before the e-book exists; never let Jodie move files by hand; **never link-share a folder, and never link-share TIER 1 material (secrets, subscriber data, e-book lists) — individual episode script Docs only** (amended 28 Jul 2026: "method material" was removed, it is TIER 3 now); **never put a TIER 1 secret in the repo, public or private — that one has no exceptions and never will.**
+**Never fabricate racing data** — every figure, form line, price, margin, date, horse or race on a card, e-book figure or thumbnail comes from the source article, or it does not appear (see §Motion-graphic cards); **never a horse on the wrong side of the running rail, and never runners on both sides of it** (added 28 Jul 2026 — racing-impossible, invisible to every automated check, so it is a human-eye reject); never ElevenLabs; never "tax"/"Agreement Tax"/"20% tax" framing; never hype/promises/guarantees; never a bare BR logo; never all-full-screen cards; never dirt tracks; never a repeated b-roll clip; never publish before the e-book exists; never let Jodie move files by hand; **never link-share a folder, and never link-share TIER 1 material (secrets, subscriber data, e-book lists) — individual episode script Docs only** (amended 28 Jul 2026: "method material" was removed, it is TIER 3 now); **never put a TIER 1 secret in the repo, public or private — that one has no exceptions and never will.**

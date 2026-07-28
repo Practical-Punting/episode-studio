@@ -41,7 +41,30 @@ you add a row.
 | EP08 | Full field head-on, tightly bunched, stormy sky | Close to EP01 — logged so the echo is visible, not repeated again |
 | EP09 | Single horse rounding a bend past a white rail, golden light | |
 | EP10 | Single horse in profile against a dark stormy sky | |
-| EP11 | Three horses on a bend, dark grandstand roofline framing the top-left | `three-horses-bend-grandstand` — **see the flag below** |
+| EP11 | Three horses on a bend, dark grandstand roofline framing the top-left | `three-horses-bend-grandstand` — a **library spare**, not a cover hero. **See the flag below** |
+| EP12 | *(row still missing — outstanding)* | EP12's thumbnail hero was its **unused cover hero, `hero-b.png`**. Logged here 28 Jul 2026 so the precedent is visible; the subject line still needs filling in |
+| EP13 | **AWAITING JODIE'S CHOICE — see the REJECT below** | Its unused cover hero is **REJECTED** and cannot be used |
+
+### 🔴 EP13's UNUSED COVER HERO IS REJECTED — racing-impossible (Jodie, 28 July 2026)
+
+`PP-EP13/ebook/cover-src/hero-b.png` shows **horses running on BOTH SIDES of the running
+rail**. Impossible: the rail divides the track and runners are only ever on one side of it.
+**Rejected on sight, for every use — not just for the cover it lost.**
+A `REJECTED-hero-b.md` note sits beside the file so the next session cannot mistake it for a
+free image. Rule now in `PP-STANDARDS.md` §B-roll HARD-FAIL list and in `broll-registry.md`.
+
+**⚠️ THE PRECEDENT THAT MADE THIS DANGEROUS.** The unused cover hero is *sometimes* copied to
+`thumbnail/hero.png` — **EP12 did exactly that.** EP11 did not; it used a library spare. So
+"the unused hero becomes the thumbnail" is **one precedent out of two, not a standing habit**
+— but it is enough of a habit that, left alone, a rejected image would have walked onto the
+most visible asset of the episode with nobody deciding to put it there.
+
+**AND THE DOCUMENTED STYLE IS NEITHER OF THOSE.** The `thumbnail-style` note Jodie confirmed
+on EP06 says: *"Hero = a racing action photo, ideally the SAME hero as the e-book cover
+(`PP-EPnn/ebook/cover-src/hero.png`)"*, because matching the thumbnail to the e-book cover
+**ties the video and the guide together and helps downloads.** Reusing the PICKED hero is
+therefore not a fallback — it is the house style, it costs nothing, and it does not breach the
+never-been-a-thumbnail rule below, because a cover hero has never been a thumbnail.
 
 ## SPARES — `PP Videos/assets/thumbnail-heroes/`
 
