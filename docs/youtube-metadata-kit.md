@@ -160,6 +160,36 @@ and the sign-off's closing marker — one change, three places, all sourced from
 - **EVERY FIGURE TRACES TO THE SOURCE ARTICLE.** No number in the copy may be rounded, tidied,
   averaged or invented. If it is not in the article, it does not go in the description — and
   the notes block at the bottom of the `-youtube.txt` file records where each one came from.
+
+## ✍️ REPRODUCING HIS SENTENCE vs WRITING OUR OWN — two acts, two rules
+**(Jodie, 28 July 2026. Decided once so it is not re-argued every episode.)**
+
+> **REPRODUCING his sentence** — a card, an e-book figure, a quotation — **keeps his rendering
+> EXACTLY.** `10 kgs`, `21 Ibs`, `firstup`, lower-case `joie Denise`. **We do not correct him.**
+> That rule is unchanged and absolute.
+>
+> **WRITING OUR OWN SENTENCE that uses his figure** — a description, a title, a bullet — **uses
+> OUR house style with HIS number untouched. Ten is ten, kilograms are kilograms.**
+
+**THE WORKED EXAMPLE — EP13's weight axiom.** The article says *"it could take as much as
+**10 kgs**-or **21 Ibs**-to change a result, all things being equal."*
+- The **e-book body paragraph** reproduces that sentence and therefore carries **`10 kgs`** and
+  **`21 Ibs`** exactly, scan artefact and all.
+- The **YouTube description** is our own sentence about his figure, so it writes **`10kg`**.
+  **Only a space and a non-standard plural differ, and "10 kgs" is a 1988 typographic quirk
+  that reads as an error in 2026 public copy.**
+
+**HOW TO TELL WHICH ACT YOU ARE PERFORMING.** Ask *whose sentence is this?* If a reader would
+take the words as **his** — inside quotation marks, on a card that presents itself as his line,
+in the reproduced article body — it is a reproduction and nothing may be touched. If the
+sentence is **ours** and merely cites his number, house style applies to everything except the
+number and its unit.
+
+⚠️ **THE LIMIT OF WHAT IS ENFORCED.** `author_cards.py → check_trace()` compares **digit runs
+only** (`digit_runs(norm(val))` against the traced sentence). So *"ten is ten"* **is** machine-
+enforced — an invented `12kg` halts — but *"kilograms are kilograms"* **is not**: a card saying
+`10lb` against a `10 kgs` sentence would pass today. **The unit half of this rule currently
+rests on a human reading it.** *A ruling is not a mechanism.*
 - **No "tax" framing** in titles/descriptions (even where an episode uses the idea internally).
 - Always include the **responsible-gambling line** (Gambling Help Online 1800 858 858 / gamblinghelponline.org.au) and the **practicalpunting.com.au** link.
 - The **e-book link** is the one thing the build side can't fill — leave `[PASTE E-BOOK LINK HERE]` and ask Jodie for the URL (offer to drop it in). *(Said "Cowork" until 28 Jul 2026; ownership moved to Claude Code on 26 Jul — see line 2.)*
