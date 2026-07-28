@@ -16,6 +16,27 @@ mid-flight transforms legitimately overlap):
   · anything sitting under the logo, which is painted last and wins
   · text that has overflowed its own scroll box (a long string breaking its container)
 
+DISPLAY TYPE IS MEASURED BY ITS INK, NOT ITS LINE BOX (added 28 Jul 2026).
+EP13 C11 shipped a collision straight through this checker: `.big` is Anton at
+300px with line-height 0.86, so the LINE BOX is 258px while the glyphs are ~298px
+— and the `g` of "10kg" hung 40px below the box, through the `.sub` line beneath.
+The checker returned "1/1 clean" on it.
+
+The blind spot was the fix for an earlier problem. Range rects are sized by the
+FONT's ascent/descent, which overshoots Anton badly at display sizes and made
+everything look like a collision; the line box was substituted to stop that. But
+the line box is TOO SMALL for tight leading exactly as the font box is too big.
+So above INK_FS the band now comes from canvas TextMetrics
+`actualBoundingBox{Ascent,Descent}` — the TRUE inked extent of those very glyphs.
+That is strictly tighter than the font box, so the false positives it was
+introduced to prevent cannot come back; it is simply the right quantity.
+
+Below INK_FS nothing changes: body text carries real leading, its ink sits inside
+its line box, and the old behaviour is correct and proven. The ink band is used
+for the text-vs-text and under-the-logo rules only. The foreign-panel rule keeps
+its own INK fraction untouched, because that is what EP12 C10's regression test
+is calibrated against.
+
 WHAT IT CANNOT SEE — and this is the point of the memory note "checkers verify
 structure, not appearance": it cannot tell you the headline went grey, that Anton
 fell back to a thin face, or that a diagram communicates nothing. LOOK at the cards.
@@ -56,8 +77,48 @@ W, H = 1920, 1080
 # Runs are only compared ACROSS block containers. Inside one paragraph the
 # Anton headlines run line-height 0.84-0.96, so consecutive line boxes overlap
 # vertically on purpose; that is tight leading, not a collision.
-PROBE = r"""
+PROBE_TMPL = r"""
 (() => {
+  const INK_FS = __INK_FS__;
+  // TRUE inked band for one text run, from the glyphs themselves.
+  //
+  // A Range rect spans the FONT box: its height is fontBoundingBoxAscent +
+  // fontBoundingBoxDescent, with the baseline that far below its top. Canvas
+  // TextMetrics reports both that font box AND the actual inked extent of this
+  // exact string, so the baseline can be located in the rect and the ink band
+  // placed around it. `k` rescales for any disagreement between the CSS font
+  // shorthand and what the element actually resolved to; if it disagrees by
+  // more than a quarter we do not trust the reading and fall back.
+  const _cv = document.createElement('canvas').getContext('2d');
+  const inkChars = (cs, text, r) => {
+    try {
+      _cv.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const m0 = _cv.measureText(text);
+      const fa = m0.fontBoundingBoxAscent, fd = m0.fontBoundingBoxDescent;
+      for (const v of [fa, fd, m0.width]) if (typeof v !== 'number' || !isFinite(v)) return null;
+      const k = r.height / (fa + fd);
+      if (!isFinite(k) || k < 0.8 || k > 1.25) return null;
+      if (!(m0.width > 0)) return null;
+      const sx = r.width / m0.width;
+      if (!isFinite(sx) || sx < 0.8 || sx > 1.25) return null;
+      const base = r.y + fa * k;
+      const out = [];
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (!ch.trim()) continue;
+        const x0 = r.x + _cv.measureText(text.slice(0, i)).width * sx;
+        const x1 = r.x + _cv.measureText(text.slice(0, i + 1)).width * sx;
+        const mc = _cv.measureText(ch);
+        const aa = mc.actualBoundingBoxAscent, ad = mc.actualBoundingBoxDescent;
+        if (typeof aa !== 'number' || typeof ad !== 'number' || !isFinite(aa) || !isFinite(ad))
+          return null;
+        out.push({ch, x: x0, w: Math.max(1, x1 - x0),
+                  y: base - aa * k, h: Math.max(1, (aa + ad) * k)});
+      }
+      return out.length ? out : null;
+    } catch (e) { return null; }
+  };
+
   const root = document.querySelector('.card') || document.querySelector('.panel')
             || document.body;
   const runs = [], boxes = [];
@@ -67,7 +128,11 @@ PROBE = r"""
     let n = el;
     while (n && n !== root && getComputedStyle(n).display.startsWith('inline')) n = n.parentElement;
     n = n || root;
-    if (!blockOf.has(n)) blockOf.set(n, ++blockSeq);
+    if (!blockOf.has(n)) {
+      blockOf.set(n, ++blockSeq);
+      // Tag it so the pixel confirmation below can isolate this block by selector.
+      n.setAttribute('data-cc-block', String(blockOf.get(n)));
+    }
     return {id: blockOf.get(n), el: n};
   };
   const name = (el) => el.id || (typeof el.className === 'string' && el.className.trim()
@@ -107,15 +172,39 @@ PROBE = r"""
     if (!isFinite(lh)) lh = parseFloat(cs.fontSize) * 1.2;
     const rg = document.createRange();
     rg.selectNodeContents(n);
-    for (const r of rg.getClientRects()) {
+    const fs = parseFloat(cs.fontSize);
+    const rects = rg.getClientRects();
+    for (const r of rects) {
       if (r.width < 1 || r.height < 1) continue;
       const cy = r.y + r.height / 2;
-      runs.push({owner: name(el), block: b.id, blockName: name(b.el),
-                 text: n.textContent.trim().slice(0, 40),
-                 boxId: idx.get(b.el),
-                 anc: chain.get(b.el).concat([idx.get(b.el)]),
-                 fs: parseFloat(cs.fontSize),
-                 x: r.x, y: cy - lh / 2, w: r.width, h: lh});
+      const common = {owner: name(el), block: b.id, blockName: name(b.el),
+                      text: n.textContent.trim().slice(0, 40),
+                      boxId: idx.get(b.el),
+                      anc: chain.get(b.el).concat([idx.get(b.el)]),
+                      fs: fs};
+      // DISPLAY TYPE IS EMITTED ONE RECTANGLE PER CHARACTER.
+      //
+      // A single ink rectangle for the whole run is too blunt: EP12 C1's "60
+      // Days+" drops its `y` into the vertical band of "RESUMING FROM A SPELL"
+      // but lands in the WHITESPACE PAST the final L and touches nothing. A
+      // run-wide rectangle calls that a collision; the published card is fine.
+      // Per character, the `y` owns only its own columns, so it clears — while
+      // C11's `g`, which sits directly above the sub line, still collides.
+      // Only for one-line display runs: if it wrapped, the per-character x
+      // mapping would not hold, so fall back to the line box.
+      const chars = (fs >= INK_FS && rects.length === 1)
+                  ? inkChars(cs, n.textContent.trim(), r) : null;
+      if (chars) {
+        for (const c of chars) {
+          runs.push(Object.assign({}, common, {inked: true, ch: c.ch,
+                    x: c.x, y: cy - lh / 2, w: c.w, h: lh,
+                    iy: c.y, ih: c.h}));
+        }
+      } else {
+        runs.push(Object.assign({}, common, {inked: false,
+                  x: r.x, y: cy - lh / 2, w: r.width, h: lh,
+                  iy: cy - lh / 2, ih: lh}));
+      }
     }
   }
 
@@ -151,6 +240,12 @@ PROBE = r"""
 })()
 """
 
+# Above this font-size a run is judged on its INKED band, not its line box.
+# 120px is comfortably above any body copy on a card and comfortably below every
+# display size in the library (.big 300px, .hl 92-140px, .odds 96px), so it
+# separates "type set with real leading" from "type set tight for effect".
+INK_FS = 120
+
 # Text that merely touches (adjacent words on a line) must not read as a clash.
 TOUCH = 1.5
 # Line-box rounding at the card edge is not a clipped word.
@@ -162,6 +257,78 @@ INK = 0.36
 # should not sit on. Below this it is a graphic mark — EP11 c06's 10px winning
 # post crosses the winner's name on purpose, and a strikethrough is 5px.
 MIN_PANEL = 40
+
+# One definition of the threshold, shared with the probe. Never two.
+PROBE = PROBE_TMPL.replace("__INK_FS__", str(INK_FS))
+
+
+def band(r):
+    """The rectangle a run is JUDGED on: its ink above INK_FS, its line box below."""
+    return dict(r, y=r["iy"], h=r["ih"])
+
+
+# A pixel differing from the text-free baseline by more than this is that block's ink.
+PIX_THRESH = 40
+# Fewer confirmed pixels than this is antialiasing on two adjacent glyphs, not a clash.
+PIX_MIN = 40
+
+_HIDE_ALL = ("() => document.querySelectorAll('[data-cc-block]')"
+             ".forEach(e => { e.style.visibility = 'hidden'; })")
+_SHOW_ONE = ("(k) => { document.querySelectorAll('[data-cc-block]').forEach("
+             "e => { e.style.visibility = e.getAttribute('data-cc-block') === k "
+             "? 'visible' : 'hidden'; }); }")
+_RESTORE = ("() => document.querySelectorAll('[data-cc-block]')"
+            ".forEach(e => { e.style.visibility = ''; })")
+
+
+def confirm_by_pixels(page, pairs):
+    """Geometry PROPOSES a collision; the rendered pixels DISPOSE.
+
+    Rectangles cannot settle this on their own, and the failure is not academic.
+    EP12 C1's published "60 Days+" drops its `y` beside "RESUMING FROM A SPELL" —
+    same columns, same vertical band, **and it touches nothing**, because within
+    one glyph the ink bottom varies by column. Every rectangle approximation
+    tried (run-wide ink, then per-character ink) called that card broken. It is
+    not: look at it. Meanwhile EP13 C11's `g` genuinely crosses its sub line.
+
+    So each proposed pair is rendered in isolation and its ink intersected. This
+    runs ONLY for pairs geometry already flagged, so the common case — a clean
+    card — costs nothing.
+
+    CAVEAT, and it matters: this measures an element's whole ink, BACKGROUNDS AND
+    BORDERS INCLUDED. It is glyph-true only for elements carrying colour alone.
+    A chip with a fill would confirm on its fill; geometry is what decides such a
+    pair is worth looking at in the first place.
+    """
+    try:
+        from PIL import Image, ImageChops
+    except ImportError:
+        return set(pairs)          # no imaging: keep every proposal, never silently drop
+    import io as _io
+
+    def grab():
+        return Image.open(_io.BytesIO(page.screenshot())).convert("RGB")
+
+    def mask(base, k):
+        page.evaluate(_SHOW_ONE, str(k))
+        page.wait_for_timeout(40)
+        d = ImageChops.difference(grab(), base).convert("L")
+        return d.point(lambda v: 255 if v > PIX_THRESH else 0, mode="1")
+
+    page.evaluate(_HIDE_ALL)
+    page.wait_for_timeout(40)
+    base = grab()
+    cache, confirmed = {}, set()
+    for a, b in pairs:
+        for k in (a, b):
+            if k not in cache:
+                cache[k] = mask(base, k)
+        shared = ImageChops.logical_and(cache[a], cache[b])
+        if shared.getbbox() and shared.convert("L").histogram()[255] >= PIX_MIN:
+            confirmed.add((a, b))
+    page.evaluate(_RESTORE)
+    page.wait_for_timeout(40)
+    return confirmed
 
 
 def rects_overlap(a, b, pad=TOUCH):
@@ -188,22 +355,31 @@ def check_page(page, url):
     runs, boxes, root, logo = data["runs"], data["boxes"], data["root"], data["logo"]
     problems, seen = [], set()
 
-    # 1. text colliding with text from a DIFFERENT block container
+    # 1. text colliding with text from a DIFFERENT block container.
+    # Geometry proposes; confirm_by_pixels() disposes. See its docstring.
+    proposed = []
     for i, a in enumerate(runs):
         for b in runs[i + 1:]:
             if a["block"] == b["block"]:
                 continue                       # same paragraph: tight leading, by design
-            if not rects_overlap(a, b):
+            ab, bb = band(a), band(b)
+            if not rects_overlap(ab, bb):
                 continue
             key = tuple(sorted((a["blockName"], b["blockName"])))
             if key in seen:
                 continue
             seen.add(key)
-            ox = min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"])
-            oy = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
-            problems.append(
-                f"OVERLAP: {label(a)} collides with {label(b)} — {ox:.0f}x{oy:.0f}px shared, "
-                f"x {max(a['x'], b['x']):.0f}-{min(a['x']+a['w'], b['x']+b['w']):.0f}")
+            ox = min(ab["x"] + ab["w"], bb["x"] + bb["w"]) - max(ab["x"], bb["x"])
+            oy = min(ab["y"] + ab["h"], bb["y"] + bb["h"]) - max(ab["y"], bb["y"])
+            how = " (measured on the INKED glyphs)" if (a["inked"] or b["inked"]) else ""
+            proposed.append((tuple(sorted((a["block"], b["block"]))),
+                             f"OVERLAP: {label(a)} collides with {label(b)} — "
+                             f"{ox:.0f}x{oy:.0f}px shared, "
+                             f"x {max(ab['x'], bb['x']):.0f}-"
+                             f"{min(ab['x']+ab['w'], bb['x']+bb['w']):.0f}{how}"))
+    if proposed:
+        ok = confirm_by_pixels(page, [p for p, _ in proposed])
+        problems.extend(msg for p, msg in proposed if p in ok)
 
     # 2. text sitting on a filled panel that is not its own.
     #
@@ -237,7 +413,7 @@ def check_page(page, url):
     # 3. text running under the logo, which is painted last and wins
     if logo:
         for r in runs:
-            if rects_overlap(r, logo):
+            if rects_overlap(band(r), logo):
                 problems.append(f"UNDER THE LOGO: {label(r)} runs beneath the logo chip")
                 break
 

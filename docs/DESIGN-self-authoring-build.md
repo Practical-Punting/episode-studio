@@ -1029,10 +1029,21 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     (tightest stacked gaps 15-37px); **C11 alone collides.** C11 also shows a **2-4px hairline
     touch between `hl` "KILOS" and `big`** at a single point — visually negligible, recorded
     only so the number is not rediscovered.
-    *(EP11/EP12 were swept too: **EP11 C3 has 238px of text grazing the LOGO in video mode**, a
-    2px-tall sliver at y994-995 — same root cause, the ink below the line box — and it is
-    PUBLISHED. EP11 and EP12 both predate `card_check.py`, which was written after EP12's C10
-    shipped broken; C10 measures clean in the export folder today.)*
+    *(EP11/EP12 were swept too and **both are clean**. EP11 and EP12 predate `card_check.py`,
+    which was written after EP12's C10 shipped broken; C10 measures clean in the export folder
+    today.)*
+
+    ❌ **A FALSE FINDING, CORRECTED THE SAME DAY — and the lesson is in the tool.** This entry
+    first claimed *"EP11 C3 has 238px of text grazing the LOGO in video mode… and it is
+    PUBLISHED."* **It is not text.** `.sub` on that card is a CHIP —
+    `background:#262626; border:2px solid #4a4a4a` — and the isolate-and-diff method measures an
+    element's whole ink, **backgrounds and borders included**. What I measured was the logo
+    painted over a chip's background, which is ordinary painting order. `card_check`'s probe
+    sees no text within 300px of the logo there, and **it was right and I was wrong.**
+    **THE LIMIT TO REMEMBER: a pixel-diff of an element measures its BOX'S ink, not its
+    GLYPHS.** It is only glyph-true for elements with no background or border — which is why
+    the C11 finding survives (EP13's `.big` and `.sub` both carry colour only) and this one did
+    not. Verified the C11 collision by eye on a crop as well as by the diff.
 
     **THE FIX IS NOT AUTO-FIT.** Shrinking `.big` moves the descender up but also moves the
     whole stat group; the real fix is for the `stat` block to **reserve descender depth below
