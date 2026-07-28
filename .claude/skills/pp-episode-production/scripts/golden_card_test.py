@@ -52,11 +52,15 @@ W, H = 1920, 1080
 # and not pixel-equal fails the run.
 EXPECTED = {
     "EP12/ep12-c10-down-in-class.html":
-        "the steps block is FLOW-ONLY by design (§11). The shipped card built the "
-        "cascade from absolutely-positioned boxes that overlapped each other by 8px "
-        "and left the footnote grazing the third card; the block stacks them in "
-        "normal flow with a 12px gap, which is what makes the C10 collision class "
-        "unrepresentable. Same words, looser cascade. Jodie's call to keep or revert.",
+        "the steps stack sits 34px HIGHER than it shipped, and that is the point.\n"
+        "    The cascade itself is reproduced exactly — 8.0px card-to-card overlap, same "
+        "as shipped — using a NEGATIVE MARGIN in normal flow instead of absolute offsets "
+        "(Jodie, 28 Jul 2026), so the collision class stays unrepresentable.\n"
+        "    The 34px is the shipped card's own bug, not reproduced: .steps was given a "
+        "fixed height:424px while its content actually runs 458px, so the third card "
+        "overhung its container and the note grazed it by 8px. In flow the container is "
+        "its content, so the note clears by the full 26px margin. The note itself lands "
+        "at y=951.4 in BOTH, identical.",
 }
 
 

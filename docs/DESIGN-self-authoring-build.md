@@ -11,7 +11,9 @@
 | The nine-episode verbatim window, ten-line pool | **RULED** |
 | Name-the-video-at-every-ask | **RULED** — midroll + outro; narration exempt |
 | The 12px cover gutter | **DEFERRED — flag, do not touch** |
-| Implementation | **1b SHIPPED** (`3b4e1cf`, the midroll pool + nine-episode window). **1b′ SHIPPED** (the skill/registry/rail move into the repo). **1c not started.** |
+| Implementation | **1b SHIPPED** (`3b4e1cf`). **1b′ SHIPPED** (the skill/registry/rail move). **1c PART ONE SHIPPED** — the template library, `author_cards.py`, `card_check.py` and their tests. The rest of 1c (cover / thumbnail / e-book authoring and the `providers.py` wiring) is **not started**. |
+| §4's coverage claim | **CORRECTED 28 Jul 2026 after building it** — see the box at the top of §4. Only `price` and `checklist` repeat; EP11 is 75% bespoke. |
+| EP11 + EP12 | **PUBLISHED to YouTube, 28 Jul 2026.** Two defects found afterwards are recorded in §14a as note-only. |
 
 > ⚠️ **This document is a RECORD of the 1a design, not a live spec.** Two things it
 > describes have since changed and are NOT to be followed from here:
@@ -81,6 +83,37 @@ Both remaining halts convert from *"author the pages"* (impossible in a browser)
 (the content).** Held flat you need `stat-fullscreen`, `stat-panel`, and every other
 pairing. The EP11/EP12 corpus factors cleanly into two independent axes.
 
+### ⚠️ CORRECTED 28 JULY 2026, AFTER BUILDING IT — READ THIS BEFORE THE TABLE BELOW
+
+**The claim this section made was too strong, and the golden-file test found it out.**
+All 24 content cards were read line by line during 1c. What the corpus actually supports:
+
+- **Only TWO blocks have two precedents: `price` and `checklist`.** The 13-line diff below
+  is real, but it is evidence for `price` alone. The other **nine blocks generalise from a
+  single card each**, which makes them reasonable templates but not demonstrated ones.
+- **Coverage is badly lopsided. EP12: 10 of 12 cards. EP11: 3 of 12 — EP11 is 75%
+  bespoke.** The library was derived from EP12 and mostly describes EP12.
+- **Three precedent claims in the table below were wrong.** They are different shapes, not
+  fit variants of one shape:
+
+| Claimed | Actually |
+|---|---|
+| `slate` = EP11 c04 + EP12 c09 | c04 is a **column of key/value rows**; c09 is a **row of stacked cells** |
+| `compare` = EP11 c10 + EP12 c04 | c10 is a **then/now pair of multi-row panels** with a linking arrow; c04 is **two mark/key/value columns** |
+| `stat` = EP11 c03 + EP12 c01 | c03 is **hero figure + odds plaque + two summary cards**; c01 is **figure/sub/payoff/note** |
+
+The table below has been corrected to list only the precedent each block actually has.
+Candidate blocks for the three orphaned shapes — `rows` (EP11 c04), `versus` (EP11 c10),
+`namelist` (EP11 c07) — were **deliberately not built**: each would have exactly one
+precedent, and inventing them to make a coverage number look better is the same mistake in
+a different costume.
+
+> **THE HONEST CONCLUSION (Jodie, 28 July 2026).** Templates speed up the repetitive cards.
+> **A meaningful share of every episode stays hand-made, and that is the expected outcome,
+> not a shortfall to engineer away.** §4 Layer 4 already said bespoke is first-class; this
+> is what that costs and what it buys. Judge the library by whether it removes a halt Hugh
+> cannot clear, not by what percentage of cards it swallows.
+
 ### The evidence
 
 `ep11-c05-turridu-12-1.html` vs `ep12-c11-10-1.html` is a **13-line diff, nine of which
@@ -117,19 +150,27 @@ block ★** → `.logo` (right 110 / bottom 56, 214×65), the `body.print{…}` 
 
 The ★ body ★. Each is a partial with a declared content schema.
 
-| Block | Renders | Precedent |
-|---|---|---|
-| `stat` | huge Anton figure + sub + payoff + note | EP11 c03, EP12 c01 |
-| `price` | `.priceline` — giant price beside a said-line | EP11 c05/c09, EP12 c11 |
-| `slate` | 2-4 key/value cells + optional warn line | EP11 c04/c09, EP12 c09 |
-| `checklist` | N ticked questions, staggered reveal | EP11 c02, EP12 c06 |
-| `compare` | two labelled columns (yes/no, then/now) | EP11 c10, EP12 c04 |
-| `steps` | 2-4 cascading cards **in flow** + note | EP11 c08, EP12 c10 |
-| `bars` | 2-3 labelled bars, `scaleX` wipe | EP12 c03 |
-| `ratio` | N marks, M highlighted | EP12 c12 |
-| `statement` | one big line + one small line | EP12 c08 |
-| `slots` | tag + labelled slots, **values may be null** | EP12 c02 |
-| `chips` | pill row + foot line | EP11 c01, EP12 c02 |
+Precedents below are the ones that **actually exist**, corrected 28 Jul 2026 against the
+shipped corpus. Two precedents means the shape was observed to repeat; one means it is a
+reasonable template nobody has yet reused.
+
+| Block | Renders | Precedent | Repeats? |
+|---|---|---|---|
+| `price` | `.priceline` — giant price beside a said-line | EP11 c05, EP12 c11 | **yes** |
+| `checklist` | N ticked questions, staggered reveal | EP11 c02, EP12 c06 | **yes** |
+| `stat` | huge Anton figure + sub + payoff + note | EP12 c01 | one only |
+| `slate` | 2-4 stacked key/value cells + optional warn line | EP12 c09 | one only |
+| `compare` | two mark/key/value columns + note | EP12 c04 | one only |
+| `steps` | 2-3 cascading cards **in flow** + note | EP12 c10 | one only |
+| `bars` | 2-3 labelled bars, `scaleX` wipe, length **computed** from the traced figure | EP12 c03 | one only |
+| `ratio` | N marks, M highlighted | EP12 c12 | one only |
+| `statement` | one big line + one small line | EP12 c08 | one only |
+| `slots` | tag + labelled slots, **values may be null** | EP12 c02 | one only |
+| `chips` | pill row + foot line | EP11 c01 | one only |
+
+*(EP11 c02's questions and EP12 c02's chip row were previously cited as second precedents
+for `checklist` and `chips`. The first is correct; the second is not — EP12 c02's chips are
+a sub-part of the `slots` block, not an instance of `chips`.)*
 
 ### Layer 3 — STANDING (4)
 
@@ -151,9 +192,20 @@ overwrite*. EP12's `c05` (hand-placed ring sweep) and `c07` (hand-tuned distance
 mix of whole screen and on the screen with the host."* Templates are the **floor, not
 the ceiling.** Expect 2-3 bespoke cards an episode, as EP11 and EP12 both had.
 
-### Honest coverage of EP12's 16 pages
+### Honest coverage — MEASURED 28 July 2026, both episodes
 
-**3 standing (copied) + 11 block-covered + 2 genuinely bespoke.**
+Counting the 12 content cards per episode (the standing pages are copied, not authored):
+
+| | Block-covered | Bespoke |
+|---|---|---|
+| **EP12** (the episode the library was derived from) | **10** | 2 — c05 ink rings, c07 non-linear ruler |
+| **EP11** (the episode it had not seen) | **3** | **9** |
+
+**EP11 is 75% bespoke.** That gap is the honest measure of how far the library generalises,
+and it is why the golden-file test was worth running before writing anything else.
+The nine: c03 hero+plaque+cards · c04 key/value rows · c06 race lane · c07 beaten-horse
+list · c08 horizontal timeline · c09 price+cells · c10 then/now pair · c11 magnifier ·
+c12 arithmetic line.
 
 ---
 
@@ -494,6 +546,25 @@ absolutely positioned at the right of `.steps` while the third step card started
 way the cover's flow band made cover overlaps impossible by construction after EP09.
 `card_check.py` is the backstop, not the primary defence.
 
+> **✅ RESOLVED 28 July 2026 — the look and the guarantee, not one or the other.**
+> Flow-only first looked like it cost the deck-of-cards cascade: the shipped steps overlap
+> each other by 8px, which came from absolute offsets (`top:0/150/300` against a 158px
+> card), and a naive flow version separated them by a 12px gap instead.
+> **Jodie's answer was a third option: keep normal flow, restore the overlap with a
+> NEGATIVE MARGIN.** `.st + .st{margin-top:-8px}`. Measured result: **8.0px card-to-card
+> overlap, identical to shipped**, while every box stays in normal flow — so the note is
+> still the next box down and cannot be overrun by any step count or string length.
+>
+> It also fixed a defect nobody had noticed. The shipped `.steps` carried a hand-set
+> `height:424px` while its own content runs **458px**, so the third card overhung its
+> container and the note grazed it by 8px — a smaller instance of the very bug that was
+> fixed. In flow the container is its content, so the note clears by the full 26px. The
+> note lands at y=951.4 in both; only the stack sits 34px higher, which is exactly the
+> container-height bug not being reproduced.
+>
+> **The general lesson: "flow-only" constrains WHERE a box may be, not how it may look.
+> A negative margin is still flow.**
+
 **Font-size auto-fit** is also automatable, not a judgement: the two font nudges between
 EP11 c05 and EP12 c11 (130→126, 26→24) are pure text-length fitting. Measure the rendered
 overflow and step down.
@@ -570,6 +641,28 @@ both on disk, complete, with shipped and approved outputs.
 8. **Look at every rendered page.** Not the report — the pixels.
 
 ---
+
+## 14a. Found by the golden-file test in EP11/EP12 — NOTE ONLY, NOTHING TO CHANGE
+
+**Both episodes were PUBLISHED to YouTube on 28 July 2026.** Neither of these is being
+fixed; they are recorded so they are not rediscovered as new.
+
+1. **EP12 C10's fix left an 8px residue, and it has shipped.** `.steps` was given a fixed
+   `height:424px` while its absolutely-positioned content runs to 458px, so the third step
+   card overhangs its container and the note's line box grazes it by exactly **8.0px**.
+   Sub-visual — the inked glyphs miss by a few px, which is why `card_check.py` does not
+   hard-fail it. The 260px collision that was fixed is genuinely gone. Same root cause:
+   absolute positioning plus a hand-set container height. **The `steps` block cannot
+   reproduce it, so it cannot recur.**
+
+2. **DATA-CONTRACT DRIFT, for a future episode — EP12 C11's headline.**
+   `episode.json` records `headline: "10/1"`; the shipped card's headline is
+   **"Joie Denise"**, with 10/1 as the price. The only such mismatch across 24 cards.
+   It matters because the packaging-consistency check and any future authoring both read
+   `episode.json` as the source of truth for what is on the card, and here it is wrong.
+   **Fix forward: when a card's headline and its hero figure are different things, the
+   headline field must hold the headline.** `author_cards.py` currently sidesteps this by
+   taking the headline from the page during back-fill; new episodes must not need that.
 
 ## 15. Deferred, flagged, NOT to be fixed now
 

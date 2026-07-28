@@ -12,7 +12,12 @@
 <!--@css-->
 .steps{margin-top:auto;}
 .st{box-sizing:border-box;background:#2B2B2B;border-radius:20px;padding:26px 34px;width:940px;}
-.st + .st{margin-top:12px;}
+/* THE DECK-OF-CARDS OVERLAP, DONE IN FLOW (Jodie, 28 Jul 2026).
+   The shipped card got its 8px overlap from absolute offsets (top:0/150/300 against a
+   158px card). A NEGATIVE MARGIN gets the same overlap while every box stays in normal
+   flow — so the note is still the next box down and cannot be overrun, whatever the
+   step count or string length. The look and the guarantee, not one or the other. */
+.st + .st{margin-top:-8px;}
 .st .k{font-family:'Anton',sans-serif;font-size:52px;line-height:1.02;}
 .st .v{margin-top:10px;font-size:36px;font-weight:600;color:#B4B4B4;}
 .st.i1{margin-left:0;border-left:8px solid #DA532C;}
