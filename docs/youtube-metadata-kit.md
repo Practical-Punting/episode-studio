@@ -110,6 +110,19 @@ rulings.)**
   Plus **`#SpeedMaps` `#TrackBias` `#SectionalTimes` `#BarrierTrials` `#Blackbooker`
   `#Quaddie`** *where they genuinely fit the episode.*
 
+  **TWO TESTS BEFORE THE SCORE — a high score does not win slot 3 on its own.**
+  - **SLOT 3 MUST NOT RESTATE SLOT 2.** Slot 2 is fixed at `#FormAnalysis`, and slots 1–3 are
+    the only ones a viewer reads. **An episode tag that means roughly what `#FormAnalysis`
+    already means spends a display slot on nothing.** `#LearnToReadForm` (9.3) and
+    `#HorseRacingAnalysis` (9.2) both score high and both fail this test most of the time —
+    **check the pair before you check the number.**
+  - **A NARROW TAG MUST MATCH WHAT THE EPISODE IS *ABOUT*, NOT ONE PART OF IT** (Jodie, EP13).
+    The topical tags above earn slot 3 only when the episode is genuinely about that thing.
+    **EP13 covers track bias in one axiom of seven, so `#TrackBias` would advertise a seventh
+    of the episode** — it is saved for an episode that is actually about it. EP13 took
+    `#HorseRacing101` (9.5): highest-scored, honest for a foundations piece, and it says
+    something `#FormAnalysis` does not.
+
 - 🔴 **NICHE BEATS VOLUME, DECISIVELY.** `#AustralianHorseRacing` scores **9.2** (~2,867 posts,
   competition **3/10**). `#HorseRacing` scores **6.1** (1.4–1.7M posts, competition **10/10**).
   **We are invisible in the mega tag.** **DO NOT add `#HorseRacing` back for its size** — its
