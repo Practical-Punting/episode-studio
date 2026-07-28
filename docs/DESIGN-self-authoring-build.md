@@ -11,7 +11,8 @@
 | The nine-episode verbatim window, ten-line pool | **RULED** |
 | Name-the-video-at-every-ask | **RULED** — midroll + outro; narration exempt |
 | The 12px cover gutter | **DEFERRED — flag, do not touch** |
-| Implementation | **1b SHIPPED** (`3b4e1cf`). **1b′ SHIPPED** (the skill/registry/rail move). **1c PART ONE SHIPPED** — the template library, `author_cards.py`, `card_check.py` and their tests. The rest of 1c (cover / thumbnail / e-book authoring and the `providers.py` wiring) is **not started**. |
+| Implementation | **1b SHIPPED** (`3b4e1cf`). **1b′ SHIPPED** (the skill/registry/rail move). **1c PART ONE SHIPPED** — the template library, `author_cards.py`, `card_check.py` and their tests. **1d SHIPPED in four slices: cards (`fd4fd4e`) · cover (`80963d2`) · thumbnail (`3764b60`) · e-book.** All four halts Hugh could not clear are gone. Still open: `save_youtube_copy` (stays a flag, text corrected) and the standing `assets/midroll-lowerthird.html`, which does not exist yet. |
+| The e-book BODY question | **RULED 28 Jul 2026 — option A with a MACHINE CHECK. See §3a.** Supersedes the "read this" flag in §12. |
 | §4's coverage claim | **CORRECTED 28 Jul 2026 after building it** — see the box at the top of §4. Only `price` and `checklist` repeat; EP11 is 75% bespoke. |
 | EP11 + EP12 | **PUBLISHED to YouTube, 28 Jul 2026.** Two defects found afterwards are recorded in §14a as note-only. |
 
@@ -69,11 +70,64 @@ the same rule that keeps the Script Gate human forever.
 | The 16 card pages | halt (NO) | **authored** from the template library + `episode.json` |
 | `thumbnail/ep-NN-thumbnail.html` | halt (NO) | **authored**; hero choice + registry row stay a decision |
 | E-book **shell, layout, figures** | halt (NO) | **authored** — the layout is the beautiful part and it templates cleanly |
-| E-book **BODY** | halt (NO) | **editorial.** Straight from the article, §0a fidelity, no normalising. Drafted, then a *read-this* flag |
+| E-book **BODY** | halt (NO) | **editorial.** Straight from the article, §0a fidelity, no normalising. Written at SCRIPT time; gated by a **machine fidelity check**, not a read-this flag — see §3a |
 | `output/*youtube*.txt` | halt (NO) | **editorial.** Stays Claude Code's to write; the flag text stops naming Cowork |
 
 Both remaining halts convert from *"author the pages"* (impossible in a browser) to
 *"read this and say yes"* (a click). That is the whole point of the exercise.
+
+## 3a. ✅ THE E-BOOK BODY — RULED 28 JULY 2026 (Jodie). Option A, with a MACHINE CHECK.
+
+This section of the design left one genuine question open: the body is editorial, so
+*how* does anyone know it is faithful? The design's answer was a clearable *read-this*
+flag (§12's "E-book body read — FLAG"). **That is superseded. Do not restore it.**
+
+**THE RULING, in three parts:**
+
+1. **Claude Code writes the e-book BODY FILE at SCRIPT TIME** — `<episode>/ebook/body.html`
+   — when the article is in hand and the fidelity work is already being done. The build
+   step `ebook_pdf` therefore does **not** halt for a human read.
+2. **A FIDELITY CHECK hard-fails** if the body departs from the source article beyond a
+   **DECLARED list of departures** (EP12's was exactly one: spaced hyphens set as em
+   dashes for print). It must catch **silent normalisation** — `firstup` as one word and
+   lower-case `joie Denise` must survive to print, per §0a.
+3. **A missing body file HALTS naming the file** (e.g. an older episode). A data halt,
+   the same pattern as everywhere else.
+
+**HER REASONING, RECORDED SO IT IS NOT RE-LITIGATED:**
+
+- **Option B asked a human to eyeball twenty paragraphs for byte-level faithfulness,
+  which is what humans are worst at and machines are best at.**
+- **EP11's `firstup` was normalised to `first-up` — and it got PAST human review.** It
+  was even *disclosed* in the build report. Disclosure is not detection.
+- **The human check does not disappear.** The e-book is already one of the four
+  approvals, so a mid-build read would be a **second gate on the same document**, which
+  breaks *"a gate is only worth having if the thing behind it is worth stopping an
+  episode for"* (PP-STANDARDS §WHAT DESERVES A GATE).
+
+**WHAT WAS BUILT (28 Jul 2026), and the two design choices inside it:**
+
+- The rule is one sentence: **every bare `<p>` in the body must be a
+  character-for-character reproduction of a paragraph of the source article**, in order,
+  each article paragraph used at most once, undeclared omissions banned. Normalisation,
+  capitalisation, invention, dropping and reordering all fall out of that one rule
+  rather than each needing its own special case.
+- **The comparison folds NOTHING** — not case, not quotes, not dashes, not punctuation.
+  This is deliberately the OPPOSITE of `author_cards.py`'s `norm()`, which folds quotes
+  and dashes on purpose. A card *trace* asks "is this sentence in the article?"; the
+  e-book asks "**is this the article?**", and that is a much stronger question. Folding
+  anything here would hide exactly the defect the check exists for.
+- **Departures are a fixed vocabulary in CODE, not free text in DATA.** Same reasoning
+  as guard 3 in §6: a departure engine that can express anything can hide anything.
+  Adding a name is a code change, which means a diff and a reviewer. **There is no
+  "normalise" departure and there must never be one** — EP11's disclosed normalisation
+  is now not representable. A declared departure that changes nothing also halts, so
+  the list cannot rot into boilerplate that gets copied forward.
+
+**Proven, not asserted:** `test_author_ebook.py` — 31 checks, including EP12's real
+shipped body passing the gate unmodified (20/21 paragraphs verbatim, one declared
+omission, one declared departure) and the exact EP11 `firstup` defect FAILING with the
+message *"the body says 'first-up?' where the article says 'firstup?'"*.
 
 ---
 
@@ -530,7 +584,10 @@ guesses, never silently ships.
    EP12"*, and EP12 shipped without it).
 4. **The e-book article BODY.** §0a fidelity is the whole job — reproducing `firstup` and
    lower-case `joie Denise` is *deliberate non-normalisation*, and any automatic markup
-   pass will silently tidy them.
+   pass will silently tidy them. **Still true and still not templated — but it is no
+   longer surfaced as a look-at-this.** It is written at script time and gated by a
+   machine comparison against the article; see §3a for Jodie's 28 Jul ruling and why a
+   human read was the wrong instrument for this particular job.
 5. **YouTube title + description.** EP12's call — that the 1995 headline promises a value
    factor the article never delivers, so don't inherit a promise the episode can't keep;
    and keep Joie Denise's 10/1 out of the description so a long price can't read as a tip
@@ -584,7 +641,8 @@ Every one of these is a lesson currently written down but not enforced.
 | Midroll verbatim within the previous **nine** episodes | **HARD** | the EP08 HeyGen mangle |
 | Title-hero crop review | **FLAG** (clearable) | EP12's sliced jockeys |
 | Thumbnail placement review | **FLAG** (clearable) | per-hero craft |
-| E-book body read | **FLAG** (clearable) | §0a fidelity |
+| ~~E-book body read~~ → **e-book FIDELITY check** | ~~FLAG~~ **HARD** | §0a fidelity. **Changed by Jodie's 28 Jul ruling — see §3a.** A human read of twenty paragraphs is not a check; a character comparison is. EP11's `firstup` passed a human and would fail this |
+| E-book figures render | **HARD** (missing) / warn (dark) | a book with a hole in it; nothing ran `build_figures.py` at all before 28 Jul 2026 |
 
 ---
 
@@ -689,17 +747,31 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
    *"MOVED — nothing here is authoritative"* stub.
 3. `PP-EPISODE-JSON-SPEC.md` is headed *"Cowork writes it"* and omits `cue`, `build{}`,
    `thumbnail_hook`, `signature_concepts`, `source`.
-4. The skill's documented print scaffold (`.card.print`) matches no shipped card (all use
-   `body.print`), so **`build_figures.py:73` reports "no print theme" on every figure of
-   every episode** while the figures are in fact correct.
-5. `build_figures.py:76` screenshots `.card`; panel-push cards have only `.panel`.
+4. ✅ **FIXED 28 Jul 2026.** The skill's documented print scaffold (`.card.print`) matched
+   no shipped card (all use `body.print`), so `build_figures.py:73` reported "no print
+   theme" on every figure of every episode while the figures were in fact correct. **Both
+   halves fixed:** the SKILL section now documents `body.print` (and carries the story, so
+   it cannot quietly drift back), and the check no longer names a class at all — it
+   measures whether the figure actually came out LIGHT, which is the question that
+   matters. *A warning that is always wrong is worse than no warning: it trains you to
+   skip the output.*
+5. ✅ **FIXED 28 Jul 2026.** `build_figures.py:76` screenshot `.card`; panel-push cards
+   have only `.panel`, so those figures fell through to the whole 1920×1080 page. Measured
+   on EP12's published book: fullscreen figures start their ink at x=220, panel-push ones
+   at x=408 — ~188px of white surround the others do not have. It now takes `.card` **or**
+   `.panel`, and finding NEITHER is a loud skip rather than a silent page shot. EP11/EP12
+   are published and are not re-rendered.
 6. `pp-episode-script/SKILL.md:308` asks for a **count-up**; the production skill says a
    count-up renders **frozen and silently wrong**.
 7. Card entry `+3.0s` vs "on or just after" — the script skill carries only the old rule,
    unmarked.
-8. `youtube-thumbnail-template.html` has no `.part` and its eyebrow says *"Practical
-   Punting"* where the standard locks *"How to Win at Horse Racing"*. Two episodes of
-   hand-added drift.
+8. ✅ **FIXED in the 1d thumbnail slice (`3764b60`).** `youtube-thumbnail-template.html`
+   had no `.part` and its eyebrow said *"Practical Punting"* where the standard locks
+   *"How to Win at Horse Racing"* — two episodes of hand-added drift, plus a third item
+   found while fixing those two (the `.l2` orange colour split). All three are in the
+   template and asserted by `test_author_thumbnail.py`. PP-STANDARDS §Thumbnail's
+   "OUTSTANDING" bullet was corrected on 28 Jul 2026; it had gone stale and was saying
+   the reverse of the truth.
 9. `assets/README.md:59-66` still teaches pulling an MCU frame of Gordon for the
    thumbnail — superseded 23 Jul 2026 and explicitly listed as do-not-follow.
 10. `pp-episode-production/SKILL.md:342` states `≥1s` b-roll/card clearance as a rule;
@@ -708,7 +780,24 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
 12. `PP-EPISODE-JSON-SPEC.md:74` requires a `layout` MIX; nothing checks it.
 13. `thumbnail-hero-registry.md` has no EP12 row and its *"Needs Jodie's ruling before
     EP12"* question went unanswered.
-14. Cards have no overlap/clip checker while the cover does.
+14. Cards have no overlap/clip checker while the cover does. ✅ **FIXED in 1c**
+    (`card_check.py`).
+15. **`assets/ebook-marketing-page.html` is a SECOND COPY of the marketing block that
+    also lives inside `ebook-template.html`.** Byte-identical today — verified 28 Jul
+    2026 — but it is a duplicate of an approved standing page with nothing comparing
+    the two, which is exactly the shape of the Drive/plugin fork the skill signpost
+    exists to warn about. `author_ebook.py` takes the marketing page from the
+    TEMPLATE, so the standalone file now has no consumer. **Found, not fixed:
+    deleting it is Jodie's call** (deletions always are), and it is harmless while
+    they agree.
+16. **A stale `plugin/dist/` on the build machine holds a DRIFTED copy of the skill.**
+    `SKILL.md`, `youtube-thumbnail-template.html` and `cover_check.py` all differ from
+    the repo copy, and every 1c/1d addition is missing from it. **It is gitignored and
+    untracked, so nothing ships and no fork is committed** — `plugin/pack.py`
+    regenerates it from the repo skill. But a stale bundle sitting on disk is a booby
+    trap for anything that ever resolves the skill from there, and it would silently
+    build to the pre-1c standard. Re-run `plugin/pack.py` or remove the directory.
+    **Found, not fixed — a deletion is Jodie's call.**
 
 ---
 

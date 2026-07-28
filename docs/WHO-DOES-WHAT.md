@@ -89,7 +89,18 @@ Into `PP-EPxx/ebook/`:
    cards in print mode. **The figures ARE the cards.** No separate illustration batch.
 3. **The article body as HTML** using the template's class vocabulary (`.kicker`, `h1.section`,
    `h2.rule`, `.lead`, `blockquote`, `.pullquote`, `.byline`, `img.illus`, `div.pagebreak`) —
-   body only, dropped into the standing shell. Exactly ONE `*.html` directly in `ebook/`.
+   body only, dropped into the standing shell.
+   **UPDATED 28 Jul 2026 — it is `ebook/body.html`, written at SCRIPT time.** The shell is
+   no longer copied by hand: `author_ebook.py` joins the standing template to this file and
+   writes `PP-EPNN-ebook-source.html`. *(This item used to say "exactly ONE `*.html`
+   directly in `ebook/`", which the engine also enforced by globbing. That is no longer
+   true — there are two, `body.html` and the authored source — and the engine now looks for
+   the authored one by name.)*
+   **The body is the one part of the book that is not templated, and it is gated by a
+   MACHINE, not a human read:** every bare `<p>` must reproduce a paragraph of the source
+   article character-for-character, after the departures declared in
+   `episode.json → ebook.departures[]`. See PP-STANDARDS §E-book and
+   `pp-episode-script/SKILL.md` §4K.
 4. Tall/portrait figures get `class="illus portrait"` — ~57% column width, centred, with each
    heading + text + figure kept **together on one page** (no orphaned headings, EP03 lesson).
    Place each figure **with its section**; the exact page number is secondary.

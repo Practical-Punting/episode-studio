@@ -1,0 +1,36 @@
+<!-- MOCK E-BOOK ARTICLE BODY — for `engine.py run --mock` only.
+
+     Not a real Practical Punting e-book. It exists so a mock run exercises the
+     REAL fidelity gate: every paragraph below is a verbatim reproduction of a
+     paragraph in engine/testdata/mock-source-article.md, and if the gate were
+     broken the mock would stop saying so.
+
+     It is deliberately NOT a trivially-passing fixture:
+       - it makes the one declared departure (spaced hyphens set as em dashes),
+         so the departure machinery is exercised rather than bypassed;
+       - it omits the article's own headline line and DECLARES that omission, so
+         the omit_paragraphs path runs too;
+       - figure 1 comes from a FULLSCREEN card and figure 2 from a PANEL-PUSH
+         card, so both of build_figures.py's box selectors are exercised. Before
+         28 Jul 2026 the panel one silently fell through to the whole page.
+     -->
+<div class="kicker">Practical Punting Guide</div>
+<h1 class="section">Mock Episode</h1>
+<p class="lead">A mock e-book, built only by the engine's mock provider.</p>
+<p class="byline">Practical Punting, mock edition.</p>
+
+<h2 class="rule">First-Uppers &mdash; Be Careful</h2>
+
+<p>Most horses resuming from a spell &mdash; say 60 days or more &mdash; will lose at their first run back. That's an iron-clad fact.</p>
+
+<img class="illus" src="figure-1.png" alt="Most of them lose &mdash; 60 days or more resuming from a spell">
+
+<h2 class="rule">Studying The Form</h2>
+
+<p>When you study the form, ask what the horse's claims to the race are, whether its recent form lays a viable claim, and whether there is an earlier race you can relate to this one.</p>
+
+<img class="illus" src="figure-2.png" alt="See each horse as an individual &mdash; the questions to ask of every runner">
+
+<h2 class="rule">The Price</h2>
+
+<p>The winner was more or less neglected in the pre-race summaries and in the betting. He was sent out at 12/1, and any punter who took the time would have been forewarned that he was a better chance than his odds indicated.</p>

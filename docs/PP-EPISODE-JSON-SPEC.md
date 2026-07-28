@@ -95,7 +95,12 @@
     { "n": 1, "card": "C3" },            // e-book figure N = the print render of card CXX (one design, two uses)
     { "n": 2, "card": "C10" }
     // ... book figures map to cards; Claude Code renders straight from the card HTML (its print variant)
-  ]
+  ],
+
+  "ebook": {                             // v2, REQUIRED — the e-book FIDELITY DECLARATION
+    "departures": ["spaced-hyphen-em-dash"],
+    "omit_paragraphs": ["FIRST-UPPERS AND THE VALUE FACTOR"]
+  }
 }
 ```
 
@@ -193,7 +198,46 @@ and the engine renders at exactly that. Before 28 Jul 2026 the page was 1588×22
 render 1600×2263, so every cover shipped with a 12px white gutter down the right edge and
 25px along the bottom. EP11 and EP12 shipped that way and are **not** being changed — they
 are published. It cannot recur because there is no second number left to disagree.
+### v2 — `ebook{}`, the fidelity declaration the e-book is GATED on
+
+The e-book's shell, layout and figures are AUTHORED from the standing template. The
+article **BODY is editorial** and lives in **`ebook/body.html`, written at SCRIPT
+time** — when the article is in hand and the fidelity work is being done anyway.
+
+**What replaces a human read of that body is a machine check.** `author_ebook.py`
+hard-fails unless every plain `<p>` in the body is a **character-for-character**
+reproduction of a paragraph of the article named in `source`, in order, after the
+departures declared here are applied. It does not fold case, quotes, dashes or
+punctuation, because every one of those is a thing §0a says must survive.
+
+- **`departures[]`** — names from a **FIXED VOCABULARY**, not free text, so
+  `episode.json` cannot describe an arbitrary transform. Today the vocabulary has
+  exactly one member: **`spaced-hyphen-em-dash`** (the article's spaced hyphens
+  ` - ` are set as em dashes for print — EP12's one disclosed departure). Adding a
+  name is a code change, which means a diff and a reviewer. **There is no
+  "normalise" departure and there must never be one.** Write `[]` if the body
+  reproduces the article exactly; a MISSING key halts, and a departure that
+  changes nothing in this article also halts, so the list cannot become
+  boilerplate that gets copied forward and stops meaning anything.
+- **`omit_paragraphs[]`** — every article paragraph the body does not reproduce,
+  **quoted verbatim** from the article. You do not get to drop a paragraph without
+  writing down which one. Most episodes need exactly one entry: the article's own
+  headline line, which is set as the `h1.section` heading rather than as body prose.
+- **Why a machine and not a person (Jodie, 28 Jul 2026):** the rejected option
+  asked a human to eyeball twenty paragraphs for byte-level faithfulness — what
+  humans are worst at and machines are best at. **EP11's `firstup` was normalised
+  to `first-up`, disclosed, and got PAST human review.** And the human check does
+  not disappear: the e-book is already one of the four approvals, so a mid-build
+  read would be a second gate on the same document, which breaks *"a gate is only
+  worth having if the thing behind it is worth stopping an episode for"*.
+- **If `ebook/body.html` is missing the build HALTS naming the file** — the same
+  data-halt shape as everywhere else. No body file means no fidelity check, which
+  means no gate.
+
 - **Figures reuse cards** — Cowork does NOT author separate illustration art; it maps `figure.n → card.id`.
+  **The body must show exactly the figures `figures[]` maps, no more and no fewer** —
+  checked both ways, so the book can neither print a broken image nor quietly drop
+  a figure the engine rendered.
 - **Timing:** Claude Code generates its own (WhisperX forced-align on the master) — no SRT is provided or expected.
 - **Spoken-words file:** one paragraph per beat, body + standing outro, numbers as words; any setup note is a `#`-comment line (never a bare `[SETUP NOTE …]` block).
 

@@ -4,17 +4,36 @@
 <meta charset="utf-8">
 <!-- ==========================================================================
      PRACTICAL PUNTING E-BOOK TEMPLATE  (approved EP02, 2026-07-20)
-     Standing shell: page setup, header logo, cover slot, warranty page,
-     marketing page. Only the ARTICLE BODY changes per book.
+     Standing shell: page setup, header logo, cover slot, marketing page,
+     warranty page. Only the ARTICLE BODY changes per book.
+
+     THE BUILD AUTHORS FROM THIS FILE — ONE SLOT (28 Jul 2026)
+       `author_ebook.py` substitutes exactly ONE thing into this template: the
+       ARTICLE BODY block below, taken from the episode's `ebook/body.html`.
+       Everything else — page setup, the header logo, the cover slot, the
+       marketing page, the warranty page, the page ORDER — is copied
+       byte-identical. The body is written at SCRIPT time, when the article is
+       in hand, and a machine FIDELITY CHECK compares it against the source
+       article before the book is built. See `docs/PP-STANDARDS.md` §E-book.
+
+     ⚠️ THE SLOT IS MATCHED AS AN EXACT LITERAL and must occur exactly ONCE.
+     If you edit the ARTICLE BODY block below, `author_ebook.py` halts rather
+     than guessing. That is deliberate: on 26 Jul 2026 a substitution script
+     matched an EXAMPLE INSIDE A HEADER COMMENT and rewrote the comment
+     instead of the real markup. Fix the pairing, never loosen the match.
 
      PER-BOOK CHECKLIST
-       1. Drop these files in the book folder (all ship with this template):
-          cover.png (the real magazine cover — run fix_cover_footer.py if its
-          baked footer needs a credit removed), ebook-logo-white.png,
-          ebook-logo.png, marketing-hero.png, illustration PNGs.
-       2. Replace ARTICLE BODY below. Keep the class vocabulary:
+       1. Drop these files in the book folder (author_ebook.py stages the
+          standing ones for you when they are absent): cover.png (written by
+          the engine's ebook_cover step — see the COVER SLOT note below),
+          ebook-logo-white.png, ebook-logo.png, marketing-hero.png, and the
+          figure-N.png figures build_figures.py renders from the motion cards.
+       2. Write `ebook/body.html` — the ARTICLE BODY only, no shell. Keep the
+          class vocabulary, which is the one PP-STANDARDS §E-book names and the
+          one author_ebook.py enforces:
           .kicker / h1.section / h2.rule / .lead / blockquote / .pullquote /
-          .byline / img.illus / div.pagebreak
+          .byline / .note / .divider / img.illus (+ .portrait) /
+          div.pagebreak / div.avoid
        3. Build:  python build_ebook.py <this-file> <out.pdf>
        4. QC: page count, all links live, header logo on content pages only,
           centred blocks actually centred (see the justify gotcha below).
@@ -23,6 +42,28 @@
      approved standing pages. Text lives in HTML, never baked into images.
      GOTCHA: the global `p { text-align: justify }` silently left-aligns any
      centred single-line <p>. Centred paragraphs need their own text-align.
+
+     ---- TWO THINGS EP11 AND EP12 EACH HAND-FIXED, NOW FIXED HERE ----
+     Both episodes made the SAME two corrections to this file by hand. Two
+     episodes hand-fixing the same thing is the definition of a template that
+     is wrong, so it is corrected here rather than a third time downstream.
+     (EP11 and EP12 are PUBLISHED and are not being rebuilt.)
+
+     1. PAGE ORDER — marketing SECOND-LAST, warranty LAST. This template used
+        to ship warranty-then-marketing, which contradicted PP-STANDARDS
+        §E-book ("cover -> body(+illustrations) -> marketing (2nd-last) ->
+        warranty (last)", Hugh's order change). The standard wins; the blocks
+        below are now in the standard's order.
+     2. COVER SLOT — `cover.png`, not `cover-fixed.png`. `cover.png` is what
+        the engine's `ebook_cover` step actually writes, so the book picks up a
+        re-rendered cover automatically instead of going stale against a second
+        file that nothing updates.
+
+     Also removed, because both episodes removed it and nothing uses it: the
+     `.cover*` rules (a text-only cover page, superseded by the real rendered
+     cover image slot) and the `.imgbox` dashed placeholders (superseded by
+     real figure-N.png renders). Neither is in the class vocabulary the
+     standard names.
      ========================================================================== -->
 <style>
 @page {
@@ -47,15 +88,6 @@
 body { font-family: 'Georgia', 'Times New Roman', serif; color: #2a2a2a; font-size: 14pt; line-height: 1.6; }
 h1, h2, h3, .kicker, .cover-title, .cover-sub { font-family: 'Helvetica Neue', 'Arial', sans-serif; }
 
-/* COVER — light, print-friendly (minimal ink) */
-.cover { page-break-after: always; height: 297mm; width: 210mm; background: #ffffff; color: #1e1e1e; position: relative; box-sizing: border-box; padding: 45mm 24mm; }
-.cover:before { content: ""; position: absolute; top:0; left:0; right:0; height: 8mm; background: #DA532C; }
-.cover:after { content: ""; position: absolute; bottom:0; left:0; right:0; height: 3mm; background: #DA532C; }
-.cover .brand { font-size: 12pt; letter-spacing: 3px; text-transform: uppercase; color: #DA532C; font-weight: 700; }
-.cover-title { font-size: 40pt; font-weight: 800; line-height: 1.05; margin: 60mm 0 6mm 0; color:#1e1e1e; }
-.cover-sub { font-size: 15pt; font-weight: 400; color: #555; line-height: 1.35; }
-.cover .footer { position: absolute; bottom: 12mm; left: 24mm; right:24mm; font-family:'Helvetica Neue',sans-serif; font-size: 10pt; color:#999; }
-
 /* HEADINGS */
 .kicker { color:#DA532C; font-weight:700; text-transform:uppercase; letter-spacing:2px; font-size:9pt; margin: 0 0 4px 0; }
 h1.section { page-break-after: avoid;  font-size: 21pt; font-weight: 800; color:#1e1e1e; margin: 0 0 14px 0; line-height:1.1; border-bottom: 3px solid #DA532C; padding-bottom: 8px; }
@@ -67,10 +99,6 @@ blockquote { margin: 14px 0; padding: 10px 18px; border-left: 4px solid #DA532C;
 .pullquote { font-family:'Helvetica Neue',sans-serif; font-weight:700; font-size: 15pt; color:#1e1e1e; text-align:center; margin: 20px 30px; line-height:1.3; }
 .pullquote .accent { color:#DA532C; }
 
-/* IMAGE PLACEHOLDERS */
-.imgbox { border: 2px dashed #DA532C; background:#faf6f4; border-radius:8px; padding: 26px 20px; text-align:center; margin: 18px 0; color:#a8674f; font-family:'Helvetica Neue',sans-serif; font-size:9.5pt; page-break-inside: avoid; }
-.imgbox .tag { display:inline-block; background:#DA532C; color:#fff; font-weight:700; font-size:8pt; letter-spacing:1px; padding:3px 9px; border-radius:3px; text-transform:uppercase; margin-bottom:8px; }
-.imgbox .desc { color:#7a7a7a; }
 .illus { display:block; margin: 18px auto; max-width: 92%; max-height: 78mm; page-break-inside: avoid; page-break-before: avoid; }
 /* Portrait figures (e.g. Canva pictures with a baked-in title/label): sized tastefully, centred, kept with their section. */
 .illus.portrait { width: 57%; max-width: 57%; max-height: 165mm; margin: 20px auto; }
@@ -85,49 +113,26 @@ p:has(+ .illus) { page-break-inside: avoid; }
 </head>
 <body>
 
-<!-- ============ REAL COVER (Claude Design magazine cover) ============ -->
+<!-- ============ REAL COVER — the rendered ebook/cover.png ============ -->
 <div style="page-break-after: always; height: 297mm; width: 210mm; overflow: hidden;">
-  <img src="cover-fixed.png" style="width: 210mm; height: 297mm; object-fit: cover; display: block;">
+  <img src="cover.png" style="width: 210mm; height: 297mm; object-fit: cover; display: block;">
 </div>
 
-<!-- ===================== ARTICLE BODY — REPLACE PER BOOK ===================== -->
+<!-- ===================== ARTICLE BODY — THE ONE SLOT ===================== -->
 <div class="kicker">Practical Punting Guide</div>
 <h1 class="section">Book Title Here</h1>
 <p class="lead">Opening lead paragraph.</p>
-<p>Body copy. Use <span class="pullquote">pullquotes</span>, blockquotes for
-quoted experts, and <img class="illus" src="01-example@2x.png" alt="..."> for
-the batch-made illustrations.</p>
-<p class="byline">By Author Name — Practical Punting.</p>
-<!-- =================== END ARTICLE BODY — REPLACE PER BOOK =================== -->
-
-<!-- WARRANTY PAGE -->
-<div class="pagebreak"></div>
-<div class="kicker">Important</div>
-<h1 class="section">Please Gamble Responsibly</h1>
-
-<p style="font-size:13pt; line-height:1.6;">Whilst past results can indicate a reliable method, turf speculation cannot be guaranteed for future performance. Equestrian Publishing Pty Ltd (the Company) therefore does not provide any guarantees or warranties against or in respect of fulfillment of future profits.</p>
-
-<p style="font-size:13pt; line-height:1.6;">When deciding how much to outlay on your bets you must make sure not to over extend these amounts and you must never outlay more than you can comfortably afford to lose.</p>
-
-<p style="font-size:13pt; line-height:1.6;">For the majority of people, gambling is an enjoyable leisure and entertainment activity. However, for some, gambling can have negative impacts.</p>
-
-<p style="font-size:13pt; line-height:1.6;">We believe it is vital that you know your limits and enjoy the fun. We strongly repeat that you budget to ensure your gambling expenditure is kept to an amount you can afford.</p>
-
-<div class="avoid" style="margin-top:26px; padding:18px; background:#f4f4f4; border-radius:6px; text-align:center;">
-  <p style="font-family:'Helvetica Neue',sans-serif; font-weight:800; font-size:21pt; color:#1e1e1e; margin:4px 0 12px 0; text-align:center; line-height:1.15;">What are you prepared to lose today?</p>
-  <p style="font-size:12pt; color:#555; margin:0; text-align:center;">For free and confidential support call <strong>1800 858 858</strong> or visit <strong><a href="https://www.gamblinghelponline.org.au" style="color:#555; text-decoration:none;">gamblinghelponline.org.au</a></strong></p>
-</div>
-
-<div class="avoid" style="margin-top:30px; padding-top:14px; border-top:1px solid #ddd; text-align:center;">
-  <p style="font-size:9.5pt; color:#888; line-height:1.5; margin:0;">Copyright &copy; 2026 Practical Punting &mdash; Equestrian Publishing Pty Ltd ABN 18 106 237 199. All rights reserved.<br>Contact: <a href="mailto:sales@equest.com.au" style="color:#DA532C; text-decoration:none;">sales@equest.com.au</a></p>
-</div>
+<p class="byline">Practical Punting, Month Year.</p>
+<h2 class="rule">A Section Heading</h2>
+<p>The article's own sentences, reproduced. Figures are the print renders of the
+motion cards: <img class="illus" src="figure-1.png" alt="what the figure shows">.</p>
+<!-- =================== END ARTICLE BODY — THE ONE SLOT =================== -->
 
 
 <!-- ================================================================
-     REUSABLE MARKETING PAGE — the LAST page of every PP e-book.
-     To reuse: copy this whole block + ebook-logo.png + marketing-hero.png
-     into the next book's folder. All text is real HTML (never baked into
-     images). Approved copy source: marketing-copy.md.
+     REUSABLE MARKETING PAGE — SECOND-LAST page of every PP e-book
+     (PP-STANDARDS §E-book, Hugh's order change). All text is real HTML
+     (never baked into images). Approved copy source: marketing-copy.md.
      ================================================================ -->
 <div style="page: marketing; page-break-before: always;">
 <div style="text-align:center; margin-bottom: 14px;">
@@ -149,6 +154,34 @@ the batch-made illustrations.</p>
 </div>
 </div>
 <!-- ============================ END REUSABLE MARKETING PAGE ============================ -->
+
+
+<!-- ================================================================
+     WARRANTY PAGE — the VERY LAST page of every PP e-book
+     (PP-STANDARDS §E-book, Hugh's order change). Standing approved
+     page, verbatim. DO NOT REDESIGN.
+     ================================================================ -->
+<div class="pagebreak"></div>
+<div class="kicker">Important</div>
+<h1 class="section">Please Gamble Responsibly</h1>
+
+<p style="font-size:13pt; line-height:1.6;">Whilst past results can indicate a reliable method, turf speculation cannot be guaranteed for future performance. Equestrian Publishing Pty Ltd (the Company) therefore does not provide any guarantees or warranties against or in respect of fulfillment of future profits.</p>
+
+<p style="font-size:13pt; line-height:1.6;">When deciding how much to outlay on your bets you must make sure not to over extend these amounts and you must never outlay more than you can comfortably afford to lose.</p>
+
+<p style="font-size:13pt; line-height:1.6;">For the majority of people, gambling is an enjoyable leisure and entertainment activity. However, for some, gambling can have negative impacts.</p>
+
+<p style="font-size:13pt; line-height:1.6;">We believe it is vital that you know your limits and enjoy the fun. We strongly repeat that you budget to ensure your gambling expenditure is kept to an amount you can afford.</p>
+
+<div class="avoid" style="margin-top:26px; padding:18px; background:#f4f4f4; border-radius:6px; text-align:center;">
+  <p style="font-family:'Helvetica Neue',sans-serif; font-weight:800; font-size:21pt; color:#1e1e1e; margin:4px 0 12px 0; text-align:center; line-height:1.15;">What are you prepared to lose today?</p>
+  <p style="font-size:12pt; color:#555; margin:0; text-align:center;">For free and confidential support call <strong>1800 858 858</strong> or visit <strong><a href="https://www.gamblinghelponline.org.au" style="color:#555; text-decoration:none;">gamblinghelponline.org.au</a></strong></p>
+</div>
+
+<div class="avoid" style="margin-top:30px; padding-top:14px; border-top:1px solid #ddd; text-align:center;">
+  <p style="font-size:9.5pt; color:#888; line-height:1.5; margin:0;">Copyright &copy; 2026 Practical Punting &mdash; Equestrian Publishing Pty Ltd ABN 18 106 237 199. All rights reserved.<br>Contact: <a href="mailto:sales@equest.com.au" style="color:#DA532C; text-decoration:none;">sales@equest.com.au</a></p>
+</div>
+<!-- ============================ END WARRANTY PAGE ============================ -->
 
 </body>
 </html>

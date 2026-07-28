@@ -185,10 +185,37 @@ re-render (render_still), card batch (render_cards_batch), HeyGen master
 pickup by project name via the API `video_url` (+ the ≥180 kbps audio gate),
 shot map (build_shot_map), pass A/B (emit the graph with assemble_episode.py,
 then run the documented ffmpeg command with the exact input layout), QC
-(qc_episode), e-book (build_ebook/WeasyPrint), thumbnail (render_still).
+(qc_episode), e-book (build_figures → author_ebook → build_ebook/WeasyPrint),
+thumbnail (render_still).
 Find-or-build everywhere: a staged artifact is used, never rebuilt or
 re-spent. Proven end-to-end on a staged EP07-asset test episode (PP-EP98):
 QC PASS, 0 credits, 0 retries.
+
+### The build authors its own assets (1d, 28 Jul 2026) — the four halts are gone
+
+The engine used to RENDER assets it never AUTHORED, so an episode arriving
+without them halted with a message asking a browser operator to write HTML.
+Four such halts existed; all four are now closed, each in its own slice:
+**cards** (`fd4fd4e`) · **cover** (`80963d2`) · **thumbnail** (`3764b60`) ·
+**e-book**. Missing PAGES are authored from the standing templates; missing
+DATA still halts, which is correct — but it now names the card and the field.
+Nothing is ever overwritten: a page without the generated marker is treated as
+hand-authored and left alone.
+
+**`ebook_pdf` is the last of the four, and it does three things:**
+1. `build_figures.py` renders the figures from the CARD pages in print mode —
+   one design, two uses. Nothing ran this before; every earlier episode's
+   figures were made by hand. A figure that fails to render HALTS.
+2. `author_ebook.py` joins the standing shell to the episode's `ebook/body.html`
+   **and runs the FIDELITY GATE** — the body must reproduce the source article
+   character-for-character, departures aside, or the build stops naming the
+   exact word. See PP-STANDARDS §E-book and `DESIGN-self-authoring-build.md` §3a.
+3. `build_ebook.py` renders and QCs the PDF.
+
+**None of this moved a step.** `PHASES` and `check_locked_order()` are
+unchanged — authoring happens INSIDE the existing steps, which is why the
+locked order cannot regress. The figures are built in ASSEMBLING from
+`overlay/export`, which `cards_render` filled back in BUILDING.
 
 ### Higgsfield: hands-off gens via the CLI (B+, wired 2026-07-24)
 

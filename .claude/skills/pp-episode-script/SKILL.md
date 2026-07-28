@@ -57,6 +57,8 @@ For each episode you deliver:
 4. **The card specs** (C01…Cn) — one idea per card, payoff figure is the hero (see §4G).
 5. **The b-roll prompts** — enough cuts that no talking-head stretch runs uncovered past ~40s (see §4H).
 6. **The numbers list** — every figure, for the human tick before cards lock (see §3, Step 8).
+7. **🆕 The e-book ARTICLE BODY — `ebook/body.html`** (see §4K). The one part of the
+   e-book that is not templated. **Write it NOW, while the article is in front of you.**
 
 These flow into `episode.json` (each beat carries shot type + card ref + b-roll ref + the
 packaging block verbatim).
@@ -394,6 +396,63 @@ promise.** If an email is needed, say so plainly with an easy out. Deliver the v
 then offer the guide as the natural next step. Use **Link → Gap → Promise**: reference what he just
 learned → open a small new question → promise what the guide/next step delivers.
 
+### 4K — The e-book ARTICLE BODY (write it HERE, at script time) — 28 July 2026
+
+**The e-book's shell, layout, cover and figures are all AUTHORED by the engine from
+the standing template. The article BODY is not, and never will be** — reproducing
+`firstup` as one word and lower-case `joie Denise` is §0a *deliberate
+non-normalisation*, and any automatic markup pass silently tidies exactly that.
+
+**So you write it, at script time, into `<episode>/ebook/body.html`.** Not later, not
+at build time. You have the article open, you are already doing the fidelity work for
+the spoken track, and this is the same work with the tidying switched OFF.
+
+**Write the ARTICLE BODY ONLY.** No `<html>`, no `<style>`, no page setup, no cover,
+no marketing page, no warranty page — every one of those is standing furniture copied
+byte-identical from `assets/ebook-template.html`, and a second copy in the body makes
+the book print the page twice with the unapproved copy second.
+
+Use the class vocabulary, which is the one PP-STANDARDS §E-book names and the one the
+build enforces: `.kicker` · `h1.section` · `.lead` · `.byline` · `h2.rule` ·
+`blockquote` / `.pullquote` · `.note` · `img.illus` (+ `.portrait`) · `div.pagebreak` ·
+`div.avoid`. **A bare `<p>` means "this is the article's own prose"** — that is the
+element the fidelity check reads, so do not put your own writing in one.
+
+Figures are `<img class="illus" src="figure-N.png" alt="…">`, numbered to match
+`episode.json → figures[]`. They are the print renders of the motion cards — one
+design, two uses — so you place them and write their alt text, and never author
+separate illustration art.
+
+#### 🔒 THE BODY IS GATED BY A MACHINE, NOT BY A HUMAN READ (Jodie, 28 July 2026)
+
+`author_ebook.py` hard-fails unless **every bare `<p>` is a character-for-character
+reproduction of a paragraph of the source article**, in order, after the departures
+you declare in `episode.json → ebook.departures`. It folds nothing — not case, not
+quotes, not dashes, not punctuation.
+
+So two things are required of you in `episode.json`:
+
+- **`ebook.departures[]`** — names from a fixed vocabulary. Today there is one:
+  `spaced-hyphen-em-dash`. Write `[]` if you changed nothing at all. **There is no
+  "normalise" departure**, so a tidy you feel like making is not expressible: either
+  it is one of the named print departures or it does not happen.
+- **`ebook.omit_paragraphs[]`** — any article paragraph the body does not reproduce,
+  **quoted verbatim**. Usually one entry: the article's own headline line, which
+  becomes the `h1.section` heading. You do not get to drop a paragraph silently.
+
+**Why this is a machine check and not a "read this" flag.** The alternative was to
+halt the build and ask a person to compare twenty paragraphs word by word — what
+humans are worst at and machines are best at. **EP11's `firstup` was normalised to
+`first-up`, DISCLOSED in the build report, and still got past human review.** And the
+human check has not gone anywhere: the finished e-book is already one of the four
+approvals, so a mid-build read would be a second gate on the same document — which
+breaks *"a gate is only worth having if the thing behind it is worth stopping an
+episode for"*.
+
+**Practically, this makes your job easier, not harder:** copy the paragraphs across
+and resist every instinct to improve them. If the check fires it tells you the exact
+word, e.g. *"the body says 'first-up?' where the article says 'firstup?'"*.
+
 ---
 
 ## 5. QC / SELF-REVIEW CHECKLIST (run before hand-off)
@@ -406,6 +465,10 @@ learned → open a small new question → promise what the guide/next step deliv
 - [ ] Article's facts, advice and order kept faithfully; nothing invented or reordered.
 - [ ] Any quotes attributed ("As … says") — pass if the article has none.
 - [ ] One idea per beat; beat count sized to the article (~14–24 typical, never padded to a target).
+- [ ] **`ebook/body.html` written** (§4K), with `ebook.departures[]` and
+      `ebook.omit_paragraphs[]` in `episode.json`. **Prove it rather than believe it:**
+      run `python author_ebook.py docs/episode.json ebook --check-only`. It is the same
+      gate the build runs, and it will not be kinder later.
 
 **Packaging (Words Gate)**
 - [ ] Eyebrow = HOW TO WIN AT HORSE RACING; hook 3–5 words complementing the title; byline explains

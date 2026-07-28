@@ -108,22 +108,40 @@ recipes the toolkit encodes). Worked example: `PP-EP05/docs/episode.json`.
 - **E-book figures = the cards (one design, two uses):** `build_figures.py
   <episode.json> <overlay/export> <ebook_out>` renders each `figures[] {n,card}`
   from the card HTML at 2x. Cards need the **print block** below to render light for
-  print; without it they render as-is (the script warns).
+  print; without it the figure comes out DARK and the script says so.
+  **Wired into the engine's `ebook_pdf` step from 28 Jul 2026** — before that nothing
+  ran it and every episode's figures were produced by hand.
 
-**Card print mode (add to the card scaffold so figures render light):**
+**Card print mode — THE CLASS GOES ON `body`, NOT ON `.card`:**
 ```html
 <style>
- .card.print{background:#fff;color:#1e1e1e}
- .card.print .eyebrow .lbl{color:#DA532C}
- .card.print .anton,.card.print #hl{color:#1e1e1e}
- .card.print .rtxt,.card.print #sub{color:#333}
- .card.print .row,.card.print .box{background:#faf6f4;border-color:#e2c9bf}
- .card.print svg text{fill:#333} .card.print svg .svgnum{fill:#DA532C}
- .card.print .logo{display:none}   /* the e-book has its own header logo */
+ body.print{background:#fff}
+ body.print .card,body.print .panel{background:#fff;color:#1e1e1e;border:none}
+ body.print .eyebrow .lbl{color:#DA532C}
+ body.print .anton,body.print #hl{color:#1e1e1e}
+ body.print .rtxt,body.print #sub{color:#333}
+ body.print .row,body.print .box{background:#faf6f4;border-color:#e2c9bf}
+ body.print svg text{fill:#333} body.print svg .svgnum{fill:#DA532C}
+ body.print .logo{display:none}   /* the e-book has its own header logo */
 </style>
-<script>if(new URLSearchParams(location.search).has('print')){var c=document.querySelector('.card');if(c)c.classList.add('print');}</script>
+<script>if(new URLSearchParams(location.search).has('print')){document.body.classList.add('print');}</script>
 ```
 Refine per card (SVG fills, shadows) as needed; EP05's cards predate this (dark-only).
+
+> ⚠️ **THIS SECTION USED TO DOCUMENT `.card.print`, AND NOTHING EVER MATCHED IT.**
+> Every shipped card in the corpus, and both frame templates the card library emits,
+> put the class on `body` — which is also the only place that works for a
+> **panel-push** card, because those have no `.card` element at all, only `.panel`.
+> `build_figures.py` believed this section and tested `.card.print`, so it reported
+> *"no print theme"* on **every figure of every episode** while the figures were in
+> fact correct. Both were fixed on 28 Jul 2026: the check now measures whether the
+> figure actually came out LIGHT (the question that matters — a dark figure is a
+> charcoal rectangle on white paper) rather than naming a class, and the screenshot
+> selector takes `.card` **or `.panel`**. Panel-push figures were previously shot as
+> the whole 1920×1080 page and shipped with ~188px of white margin the others did
+> not have. **Two lessons: a warning that is always wrong trains you to skip the
+> output, and a scaffold documented in prose will drift from the scaffold in code
+> unless something compares them.**
 
 ## Stage 0 — Inputs
 

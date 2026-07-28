@@ -477,23 +477,60 @@ PP logo on the slide; warranty text at the TOP; at the BOTTOM the large heading 
     consistently across all three assets. Decide once per episode from the title length and
     use the same treatment everywhere.
 - Article near-verbatim, print-friendly light pages, warranty at the end, soft CTA to the tips service.
-- **E-book figures = the print render of the video's motion cards** — ONE design source, so the book can never drift from the video. Cowork maps each figure to a card (`figure N = card CXX` in `episode.json`); Claude Code renders the figure **straight from the card HTML** (its e-book/print variant) to PNG with Playwright/Chromium. **Not Higgsfield.**
-- Article-body HTML uses the template classes: `.kicker`, `h1.section`, `.byline`, `.lead`, `h2.rule`, `blockquote`/`.pullquote`, `img.illus` (+ `.portrait`), `.pagebreak`. Warranty + marketing pages come from the template.
+- 🔒 **THE ARTICLE BODY IS GATED BY A MACHINE, NOT BY A HUMAN READ (Jodie, 28 Jul 2026).**
+  The e-book's **shell, layout, cover and figures are AUTHORED** from the standing
+  template. The **BODY stays editorial** — that is Jodie's ruling 6 and it stands — and
+  it is written **at SCRIPT time** into `<episode>/ebook/body.html`, when the article is
+  in hand and the fidelity work is being done anyway. So `ebook_pdf` does **not** halt to
+  ask anyone to read it.
+  - **What stands in for that read is a HARD FAIL.** `author_ebook.py` refuses to build
+    the book unless every bare `<p>` in the body is a **character-for-character**
+    reproduction of a paragraph of the source article, in order, after the departures
+    declared in `episode.json → ebook.departures[]`. It folds nothing — not case, not
+    quotes, not dashes, not punctuation — because each of those is something §0a says
+    must survive. Any paragraph the body does not reproduce must be declared, quoted, in
+    `ebook.omit_paragraphs[]`.
+  - **Departures are a fixed vocabulary in code, not free text in data**, so an episode
+    cannot describe an arbitrary transform. Today there is exactly one member:
+    `spaced-hyphen-em-dash` (EP12's one disclosed departure). **There is no "normalise"
+    departure and there must never be one.** Adding a name is a code change.
+  - **Why a machine (recorded so it is not re-litigated):** the alternative asked a human
+    to eyeball twenty paragraphs for byte-level faithfulness — what humans are worst at
+    and machines are best at. **EP11's `firstup` was normalised to `first-up`, DISCLOSED,
+    and still got past human review.** And the human check does not disappear: the
+    finished e-book is already one of the four approvals, so a mid-build read would be a
+    second gate on the same document — see §WHAT DESERVES A GATE.
+  - **A missing `ebook/body.html` HALTS naming the file.** No body file means no fidelity
+    check, which means no gate.
+- **E-book figures = the print render of the video's motion cards** — ONE design source, so the book can never drift from the video. Each figure maps to a card (`figure N = card CXX` in `episode.json`); Claude Code renders the figure **straight from the card HTML** (its e-book/print variant) to PNG with Playwright/Chromium. **Not Higgsfield.** `build_figures.py` runs inside the engine's `ebook_pdf` step from 28 Jul 2026 — before that nothing ran it and every episode's figures were made by hand. **A figure that fails to render HALTS** (a book with a hole in it is not shippable); a figure that renders DARK warns loudly and does not halt (it is ugly, not broken, and a human approves the finished book).
+- Article-body HTML uses the template classes: `.kicker`, `h1.section`, `.byline`, `.lead`, `h2.rule`, `blockquote`/`.pullquote`, `.note`, `.divider`, `img.illus` (+ `.portrait`), `.pagebreak`, `.avoid`. **The vocabulary is ENFORCED** — an unknown `<p class>` halts, so article prose cannot be dressed up as editorial furniture to slip past the fidelity check. Warranty + marketing pages come from the template, copied byte-identical; a second copy in the body halts.
 - Claude Code owns the shell + `build_ebook.py` and BUILDS the book. **Page order: cover → body(+illustrations) → marketing (2nd-last) → warranty (last).** Logo on every page. Batch ALL illustrations, present the finished book for ONE approval.
+  ✅ **THE STANDING TEMPLATE NOW OBEYS THAT ORDER (fixed 28 Jul 2026).**
+  `assets/ebook-template.html` shipped warranty-then-marketing, contradicting this line,
+  and **EP11 and EP12 EACH swapped the two blocks by hand** — along with the same second
+  fix, the cover slot pointing at `cover-fixed.png` instead of the `cover.png` the engine
+  actually writes. Two episodes hand-fixing the same thing is the definition of a template
+  that is wrong, so both are corrected in the template. `test_author_ebook.py` asserts the
+  order and the cover slot against the template itself, so they cannot drift back silently.
+  (EP11 and EP12 are published and are NOT rebuilt.)
 - Cover: keep the established template (logo chip TL, orange eyebrow rule, big Anton title over a Higgsfield hero, white band w/ byline + footer). Footer reads "A Practical Punting guide · practicalpunting.com.au" — no source attribution on the cover. Build cover text as real HTML layers so wording changes never need a re-gen.
 
 ## Thumbnail — a MANDATORY, first-class deliverable (the step most likely to be forgotten)
 - Every episode ships a thumbnail. It is on the **Definition of Done** checklist and has its own Jodie approval — never optional (EP05 shipped without one because it was informal). Since it's a racing photo (not a host frame), it no longer needs the finished video and can be produced in parallel with the build.
 - **Racing-photo style (channel look — decided 23 Jul 2026; supersedes the old "real Gordon frame" rule):** the thumbnail is a striking racing scene/photo — lush green turf, atmosphere, from Higgsfield or a PP-owned/licensed still — NOT the host's face. 1280×720, <2 MB.
 - Bold Anton caps, colour-split headline, orange eyebrow, small WHITE-wordmark logo in a corner. The thumbnail text is a HOOK (3–5 words), different from — but not contradicting — the title. Strategy/curiosity only; no odds/guarantees.
-- ⚠️ **OUTSTANDING — the thumbnail template does NOT yet carry the series part treatment.**
+- ✅ **DONE 28 Jul 2026 — the thumbnail template CARRIES the series part treatment.**
   The §E-book SERIES PART TREATMENT rule (Jodie, 26 Jul 2026) applies to the cover, the
-  in-video title card AND the thumbnail. `assets/ebook-cover-template.html` was given the
-  opt-in `.part` class on 26 Jul 2026 and is done. **`assets/youtube-thumbnail-template.html`
-  has NOT been updated** — it already does the colour split via `.l1`/`.l2` but has no
-  "Part N" option at all. Until it does, a short-title series episode will need the
-  treatment hand-added to its thumbnail page, which is exactly the drift the rule exists to
-  prevent. **Not yet done, deliberately deferred — do not treat this bullet as satisfied.**
+  in-video title card AND the thumbnail. `assets/ebook-cover-template.html` got the opt-in
+  `.part` class on 26 Jul 2026; **`assets/youtube-thumbnail-template.html` got it in the
+  1d thumbnail slice (`3764b60`)**, along with the two other things EP11 and EP12 had each
+  hand-added: the eyebrow locked to *"How to Win at Horse Racing"* (it said *"Practical
+  Punting"*) and the `.l2` orange colour split. `test_author_thumbnail.py` asserts all
+  three against the template itself, so they cannot drift back silently.
+  *(This bullet used to read "OUTSTANDING … NOT yet been updated … do not treat this
+  bullet as satisfied". It was true when written and is now the reverse of the truth —
+  which is worse than no bullet, per §IF YOU MOVE A FILE. Corrected while re-reading the
+  standards against the code in the e-book slice.)*
 
 ## Audience & voice
 - Write everything for "Dave" (see the pp-my-audience-avatar skill). Gordon's voice: warm, plain, wry, Australian, zero AI-slop words.

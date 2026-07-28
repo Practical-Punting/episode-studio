@@ -17,8 +17,25 @@
     "episode would arrive without the fields the authoring needs. The mock has to",
     "fail the same way the real thing would.",
     "C3 is deliberately block:bespoke so every run proves a hand-authored card is",
-    "never generated and never overwritten."
+    "never generated and never overwritten.",
+    "figures[] maps figure 1 to a FULLSCREEN card and figure 2 to a PANEL-PUSH one, so",
+    "every mock run exercises both of build_figures.py's box selectors. Until 28 Jul",
+    "2026 the panel one silently fell through and shot the whole 1920x1080 page, so four",
+    "figures an episode shipped with white margins the others did not have."
   ],
+  "ebook": {
+    "departures": ["spaced-hyphen-em-dash"],
+    "omit_paragraphs": ["MOCK: FIRST-UP RUNNERS AND THE VALUE FACTOR"],
+    "_why": [
+      "The BODY is editorial and is written at SCRIPT time; the shell, layout and",
+      "figures are authored. What replaces a human read of the body is the fidelity",
+      "gate in author_ebook.py, which hard-fails on any departure from the source",
+      "article beyond the names listed here. EP11 normalised 'firstup' to 'first-up',",
+      "disclosed it, and it got PAST human review — that is the defect this catches.",
+      "omit_paragraphs quotes the article's own headline line, which is set as the h1",
+      "section heading rather than reproduced as body prose."
+    ]
+  },
   "cover": {
     "hero_a_prompt": "mock hero A prompt — never sent anywhere in mock mode",
     "hero_b_prompt": "mock hero B prompt — a deliberately different composition",
@@ -94,7 +111,10 @@
     }
   ],
   "broll": [],
-  "figures": [],
+  "figures": [
+    { "n": 1, "card": "C1" },
+    { "n": 2, "card": "C2" }
+  ],
   "build": {
     "standing": {"title": "TITLE", "endcard": "END", "warranty": "WARRANTY"}
   }

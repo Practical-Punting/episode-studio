@@ -190,6 +190,57 @@ def thumbnail_placement_review(ep_dir: Path, png: Path):
         "because its field sits low in the frame.")
 
 
+def render_ebook_figures(ep_dir: Path) -> str:
+    """Render the e-book figures from the CARD pages — one design, two uses.
+
+    Nothing in the engine ran build_figures.py before this. EP12's twelve figures
+    were produced by hand, which is the same shape of gap as the pages the cards
+    slice fixed: the engine consumed an artifact it never made.
+
+    Safe to run here, in ASSEMBLING: the figures come from `overlay/export`, which
+    `cards_render` filled back in BUILDING. Nothing moves in the locked order.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/build_figures.py"),
+         str(ep_dir / "docs/episode.json"), str(ep_dir / "overlay/export"),
+         str(ep_dir / "ebook")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+    if r.returncode:
+        raise EngineFlag(
+            "The e-book figures could not be rendered from the card pages. A figure "
+            "maps to a card (episode.json -> figures[]), so this is either a mapping "
+            "that names a card with no page or a card page that will not render — "
+            "both name themselves below. A book with a hole in it is not shippable, "
+            f"which is why this stops here.\n{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
+def author_missing_ebook(ep_dir: Path) -> str:
+    """Author the e-book source page, and RUN THE FIDELITY GATE.
+
+    Two jobs in one call, on purpose. The shell, the layout and the figures are
+    templated; the article BODY is editorial and is written at script time. What
+    replaces the human read of that body is a machine check that hard-fails on any
+    departure from the source article beyond a declared list — see the long note at
+    the top of author_ebook.py for Jodie's reasoning, and §0a for why it matters
+    that "firstup" and lower-case "joie Denise" survive to print.
+
+    The gate runs on EVERY pass, including passes where nothing is written, because
+    it is a gate and not an authoring step.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/author_ebook.py"),
+         str(ep_dir / "docs/episode.json"), str(ep_dir / "ebook")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode:
+        raise EngineFlag(
+            "The e-book could not be built from episode.json and the article body. "
+            "This is a DATA problem, not a missing-file problem — the message below "
+            "names either the field to fix or the exact word where the body departs "
+            f"from the source article.\n{(r.stderr or r.stdout).strip()[-1400:]}")
+    return (r.stdout or "").strip()
+
+
 def author_missing_cards(ep_dir: Path) -> str:
     """Author every card page that does not exist yet. Halts are human-shaped.
 
@@ -316,6 +367,12 @@ class MockProvider:
         (self.root / "docs").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPO_DIR / "engine/testdata/mock-source-article.md",
                         self.root / "docs/mock-source-article.md")
+        # The e-book article BODY, as if written at script time. It is editorial —
+        # the article reproduced near-verbatim — so the engine never authors it; it
+        # gates it. Scaffolding it here is the mock standing in for the create step,
+        # exactly as it stands in for the Script Gate and the started render.
+        shutil.copyfile(REPO_DIR / "engine/testdata/mock-ebook-body.html",
+                        self.root / folder / "ebook/body.html")
         self._artifact(folder, "docs/spoken-words.txt", "script")
         return {"folder": folder}
 
@@ -429,9 +486,28 @@ class MockProvider:
         return self._artifact(ep_folder(ep), "output/QC-REPORT.md", "self-QC passed")
 
     def build_ebook(self, ep) -> str:
+        """Real authoring, real figures, a real PDF — like the cover and the cards.
+
+        Every part of this is local: Chromium renders the figures from the card
+        pages, and WeasyPrint renders the PDF. No credits, no network. Faking it
+        would leave the thing this slice changed unproven — that a clean folder
+        with no e-book source produces a book instead of a halt asking a browser
+        operator to write HTML, and that the fidelity gate really runs.
+        """
         self.maybe_fail("ebook_pdf")
-        self._work()
-        return self._artifact(ep_folder(ep), "output/ebook.pdf", "e-book PDF")
+        f = ep_folder(ep)
+        d = self.root / f
+        print(f"    [mock] figures: {render_ebook_figures(d)}")
+        print(f"    [mock] {author_missing_ebook(d)}")
+        src = d / "ebook" / f"{f}-ebook-source.html"
+        out = d / "output" / f"{f}-ebook.pdf"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.run([sys.executable, SKILL_DIR / "scripts/build_ebook.py", src, out],
+                     cwd=d, timeout=600)
+        except RuntimeError as e:
+            raise EngineFlag(f"Mock e-book build failed: {str(e)[-700:]}")
+        return str(out)
 
     def build_thumbnail(self, ep) -> str:
         """Real authoring and a real render, like the cover and the cards."""
@@ -1093,16 +1169,33 @@ class RealProvider:
         return str(d / "output/qc/QC-REPORT.md")
 
     def build_ebook(self, ep) -> str:
+        """Figures from the cards, then the page, then the PDF.
+
+        This was the LAST of the four halts Hugh could not clear. It used to say
+        "Claude Code writes the e-book source … stage it, then clear this flag" to
+        an operator working from a browser, and it stopped EP12 dead.
+
+        The shell, the layout and the figures are now authored; the article BODY
+        stays editorial and is written at script time, gated by the fidelity check
+        rather than by a human read (see author_ebook.py's header).
+        """
         d = self.dir(ep)
-        srcs = [p for p in (d / "ebook").glob("*.html")]
-        if len(srcs) != 1:
+        print(f"    figures: {render_ebook_figures(d)}")
+        print(f"    {author_missing_ebook(d)}")
+        src = d / "ebook" / f"{ep_folder(ep)}-ebook-source.html"
+        if not src.exists():
+            # Authoring succeeded but the page is not where it should be — that can
+            # only be a hand-made source under a different name. Name what we
+            # looked for rather than globbing and hoping.
+            others = sorted(p.name for p in (d / "ebook").glob("*-ebook-source.html"))
             raise EngineFlag(
-                f"Expected exactly one e-book source HTML in {d.name}/ebook/, found "
-                f"{len(srcs)}. Claude Code writes the e-book source — the article body "
-                "in the standing template's class vocabulary. Stage it, then clear "
-                "this flag.")
+                f"The e-book source {src.name} is missing from {d.name}/ebook/."
+                + (f" These are there instead: {', '.join(others)} — rename the one you "
+                   f"want to {src.name}, or delete the stragglers." if others else
+                   " Authoring reported success, so this is unexpected; check the ebook "
+                   "folder."))
         out = d / "output" / f"{ep_folder(ep)}-ebook.pdf"
-        self.py("build_ebook.py", srcs[0], out, cwd=d, timeout=600)
+        self.py("build_ebook.py", src, out, cwd=d, timeout=600)
         return str(out)
 
     def build_thumbnail(self, ep) -> str:
