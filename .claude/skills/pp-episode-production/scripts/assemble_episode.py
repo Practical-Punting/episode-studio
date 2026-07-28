@@ -171,7 +171,15 @@ def passB():
     env = (f"if(lt(t,0.5),t/0.5,if(lt(t,5.0),1,if(lt(t,6.5),1-(t-5.0)/1.5*0.96,"
            f"if(lt(t,{sw0}),0.04,if(lt(t,{sw1}),0.04+(t-{sw0})/{round(sw1-sw0,2)}*0.51,"
            f"if(lt(t,{blm}),0.55,if(lt(t,{soft}),0.42,max(0,0.42*(1-(t-{soft})/0.5)))))))))")
-    fc += (f"[{MUSIC_IN}:a]aloop=loop=4:size=6000000,atrim=duration={TOTAL},asetpts=PTS-STARTPTS,"
+    # aloop=loop=-1 is INFINITE, bounded by the atrim that follows. It used to be
+    # loop=4, which is FIVE plays of the music master — 5 x 117.8s = 589s. That was
+    # enough for every episode ever made until EP13 ran 790s, and then the last 201
+    # seconds had NO MUSIC AT ALL: the end card and the warranty slide played over
+    # ~10s of digital silence, which is exactly what "the end is NEVER silent"
+    # (PP-STANDARDS §END SEQUENCE item 3, the EP08 lesson) exists to prevent.
+    # A hardcoded loop count is a runtime limit nobody declared. Infinite + atrim has
+    # no limit to exceed, so this cannot come back at a longer episode.
+    fc += (f"[{MUSIC_IN}:a]aloop=loop=-1:size=6000000,atrim=duration={TOTAL},asetpts=PTS-STARTPTS,"
            f"volume='{env}':eval=frame,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[musraw];\n")
     fc += ("[musraw][spkey]sidechaincompress=threshold=0.015:ratio=14:attack=12:release=420:makeup=1:level_sc=2[mus];\n")
     fc += "[sp][mus]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[aout]"

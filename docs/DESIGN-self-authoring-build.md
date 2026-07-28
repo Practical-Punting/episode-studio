@@ -883,6 +883,66 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     TEMPLATE, so the standalone file now has no consumer. **Found, not fixed:
     deleting it is Jodie's call** (deletions always are), and it is harmless while
     they agree.
+19. 🔴 **HARDCODED LIMITS NO EPISODE HAD YET EXCEEDED — the family, not the instance.**
+    **Logged 28 Jul 2026 after EP13's silent ending. Jodie's framing, and it is the right
+    one: the question is not "is this one fixed" but "what else is waiting for a longer
+    episode?"** The music bug sat in the build from the first episode and was invisible
+    for twelve of them, because every episode was short enough. Found by search:
+
+    | Limit | Where | Value | What breaks it |
+    |---|---|---|---|
+    | ✅ music loop | `assemble_episode.py:182` | was `aloop=loop=4` = **5×117.8s = 589s** | **an episode over 589s. EP13 at 790s. FIXED** → `loop=-1`, bounded by the existing `atrim` |
+    | 🔴 **flag message truncation** | `providers.run(tail=800)` + `[-900:]`/`[-1200:]`/`[-1400:]` at 10 call sites | **last 800–1400 chars** | **a tool whose output exceeds it — and it takes the LAST N, so the FIRST failures are cut.** See item 20; this one already bit |
+    | ffmpeg pass timeout | `providers.PASS_TIMEOUT` | **2400s** | EP13's Pass B took 265s at 3× realtime. A ~30-min episode approaches it |
+    | HeyGen list page | `providers.py:1072` | `limit=100` | the 101st render in the account |
+    | card-block list caps | 8 block schemas | `max` 2–12 (chips/checklist 6, steps 3, bars 3, slate 4) | more items than the block allows — **but these HALT loudly in `validate()`, so they are safe-by-halt, not silent** |
+    | autofit step cap | `autofit_cards.MAX_STEPS` | **14** | nothing realistic; it floors first |
+
+    **The pattern worth naming: a cap is dangerous in proportion to how QUIETLY it fails.**
+    The block caps are fine because exceeding one stops the build with a message naming the
+    card. The music loop was dangerous because exceeding it produced a *valid file* with
+    silence in it. The truncation is dangerous for the same reason — it produces a *valid
+    message* with the answer missing. **When adding a limit, ask what happens on the far
+    side of it: a halt, or a plausible-looking wrong result?**
+
+20. 🔴 **THE FLAG MESSAGE SHOWS THE TAIL, SO THE FAILURE IS CUT OFF THE FRONT.**
+    `RealProvider.run()` puts `…{err[-tail:]}` into the exception, `tail=800`. QC's report
+    is **3,051 characters** and its `## HARD FAILS` section sits near the TOP, before the
+    passing notes. So an 800-character tail showed Jodie **only the checks that passed** —
+    she had to tell me not to work from the panel, because neither of us could see the
+    actual failure. **A message that truncates the front is worse than one that truncates
+    the back**: failures are written first, and the tail is exactly the part that does not
+    matter. Fix is a one-liner (take the HEAD, or head+tail with an elision), but it is a
+    change to how every flag reads, so it is logged, not done.
+
+21. 🔴 **`derive_card_timings.py` IS NOT WIRED INTO THE ENGINE — its own docstring says so.**
+    *"NOT WIRED INTO THE ENGINE. Run by hand."* It is the tool that turns cue phrases into
+    card leads and `midroll.at`, and PP-STANDARDS §Motion-graphic cards **mandates** its
+    output (CARD ENTRY = SPOKEN CUE + 3.0s, timed off the SRT). On EP13 nothing ran it, so
+    `build.leads` stayed empty, the assembler placed cards at beat starts, and **nine of
+    thirteen cards entered before their spoken cue** — C1 by 9.6 seconds.
+    **A hand-run step is a step Hugh cannot perform, and it gets skipped exactly when it
+    matters** — after a long build, when everyone is looking at the render. It must run
+    inside `shot_map` or at the head of `assemble_passA`, after the SRT exists and before
+    any window is used. **Required before Hugh sees this.**
+
+22. 🔴 **`derive_card_timings.py` SILENTLY FALLS BACK TO A PREVIOUS EPISODE'S PHRASES.**
+    `ask = mid.get("ask") or ["a like is what pushes it", "saves you hunting"]` — those are
+    **EP12's midroll line**, hard-coded as a default. EP13 uses pool line `L3`, so the
+    phrases were not in its master and the tool refused to write `midroll.at`. It failed
+    safe *this* time only because the wrong phrases happened to be absent. **Had EP13 reused
+    a line containing them, it would have anchored the chip to the wrong sentence and said
+    nothing.** A default that names another episode's words should be a loud failure:
+    *"build.midroll.ask is not set — it must quote the ask from this episode's pool line."*
+
+23. 🟡 **QC's cue-phrase check searches WITHIN a single SRT line.** EP13 C6's cue
+    (`put it in a special bank`) is spoken, but the SRT wraps it across two lines
+    (`…and put it in` / `a special bank,`), so QC reports *"cue phrase not found — check the
+    cue text"* and sends the reader to check something that is correct.
+    `derive_card_timings` joins the text and finds it without trouble. **Warning only today,
+    so nothing shipped wrong** — but it is a check whose advice is misleading, and the fix
+    is to match against the joined transcript the way the other tool already does.
+
 17. 🔴 **NOTHING SYNCS THE BOARD'S WORDS INTO `episode.json` — the packaging is SPLIT-BRAIN.**
     **Logged as backlog by Jodie, 28 Jul 2026. Not now.**
     The Words Gate's three boxes write `hook` / `byline` / `title` to the **RAIL**
