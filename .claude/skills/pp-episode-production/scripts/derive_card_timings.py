@@ -133,6 +133,26 @@ def overlaps(a, b):
     return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
+def hold_for(cid, card, holds, build):
+    """How long this card is on screen — THE SAME PRECEDENCE assemble_episode.py uses.
+
+    This tool used to read `holds[cid]` else `default_hold`, and knew nothing about
+    `hero_hold`. assemble_episode.py gives every card with `hero: true` the longer
+    hero_hold (12s vs 10s), so for hero cards this tool was checking overlaps against
+    a window TWO SECONDS SHORTER than the one that actually gets built.
+
+    It cost a full re-encode on EP13: C1 was cleared here at 33.19-43.19, the stopwatch
+    b-roll was placed to start at 44.18 — and the shipped episode put C1 up until 45.19,
+    so qc_episode hard-failed on a b-roll under a card. The overlap checker has to model
+    the assembler exactly, or it is checking a video nobody is going to build.
+    """
+    if cid in holds:
+        return float(holds[cid])
+    if card.get("hero"):
+        return float(build.get("hero_hold", 12.0))
+    return float(build.get("default_hold", 8.0))
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -194,7 +214,7 @@ def main():
                             f"card toward its cue. Only later shifts are legal.")
             extra = 0.0
         lead = round(t - bs + ENTRY_DELAY + extra, 2)
-        hold = float(holds.get(cid, build.get("default_hold", 8.0)))
+        hold = hold_for(cid, c, holds, build)
         enter, exit_ = round(bs + lead, 2), round(bs + lead + hold, 2)
         leads[cid] = lead
         windows[cid] = (enter, exit_)
@@ -228,7 +248,7 @@ def main():
             base = float((build.get("leads") or {}).get(cid, 0.0) or 0.0)
             lead = round(base + ENTRY_DELAY, 2)
             beat = next(c["beat"] for c in epj["cards"] if c["id"] == cid)
-            hold = float(holds.get(cid, build.get("default_hold", 8.0)))
+            hold = hold_for(cid, c, holds, build)
             bs = beat_start.get(beat, 0.0)
             leads[cid] = lead
             windows[cid] = (round(bs + lead, 2), round(bs + lead + hold, 2))
