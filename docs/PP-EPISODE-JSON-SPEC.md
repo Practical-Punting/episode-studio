@@ -1,5 +1,18 @@
-# PP `episode.json` — the agreed hand-off contract (Cowork writes it → Claude Code reads it)
-*Single source of truth for the machine-readable spec. Both sides build to THIS. v1, 2026-07-22 (agreed from Claude Code's BUILD-TO-COWORK-FEEDBACK point 1 + Cowork's pipeline plugin). Cowork writes `docs/episode.json` per episode; Claude Code's assembler + e-book builder consume it — zero placement interpretation.*
+# PP `episode.json` — the build contract (Claude Code writes it → the engine reads it)
+*Single source of truth for the machine-readable spec. v2, 28 July 2026. **Claude Code writes `docs/episode.json` at the create step**; the engine's card authoring, assembler and e-book builder consume it — zero placement interpretation, zero invention.*
+
+> **v2 CHANGED WHO WRITES THIS FILE, AND WHAT IT MUST CARRY.**
+> The v1 header said *"Cowork writes it"*. That has been wrong since `WHO-DOES-WHAT.md`
+> ruled that Cowork writes **not one line of anything that ships**.
+>
+> **The substantive change: `cards[]` must now carry `block`, `content{}` and `trace{}`.**
+> Before 28 Jul 2026 a card's actual content lived as English prose in `detail`, and the
+> engine could not author a card page from it — so an episode with no card pages halted
+> and asked a browser operator to write HTML. The engine now authors those pages from
+> `content{}`. **If these fields are absent the build still halts** — it has simply moved
+> from *"write the pages yourself"* (impossible for Hugh) to *"card C4 is missing the key
+> `payoff`"* (a sentence someone can act on). **Populate them at create time.**
+> See `DESIGN-self-authoring-build.md` §5-§6.
 
 ## Shape
 ```jsonc
@@ -24,11 +37,26 @@
     {
       "id": "C1",
       "beat": 1,                         // which beat it sits on (explicit — never inferred)
-      "eyebrow": "PRACTICAL PUNTING",
-      "headline": "A MATTER OF WEIGHT",
+      "page": "ep13-c01-most-of-them-lose.html",   // v2, REQUIRED: the file in overlay/export/
+      "eyebrow": "Start Here, and Be Honest",
+      "headline": "MOST OF THEM LOSE",   // the packaging-consistency value
+      "headline_display": "Most of Them Lose",  // v2: what is SET on the card; may carry <br>
       "detail": "<one-line description of the card's content/animation>",
       "hero": true,                      // hero card (bigger moment) or not
-      "layout": "fullscreen"             // "fullscreen" | "panel-push"  (MUST be a MIX across the episode)
+      "layout": "fullscreen",            // FRAME: "fullscreen" | "panel-push"  (MUST be a MIX)
+      "block": "stat",                   // v2, REQUIRED: which body template, or "bespoke"
+      "fit": {                           // v2, optional: MEASUREMENTS ONLY, never text
+        "headline_size": "104px"
+      },
+      "content": {                       // v2, REQUIRED unless block is "bespoke"
+        "figure": "60 Days+",
+        "figure_sub": "Resuming from a spell",
+        "payoff": "Most will lose at their first run back.",
+        "note": null                     // EXPLICIT null = an empty slot a human chose
+      },
+      "trace": {                         // v2, REQUIRED for every figure-bearing key
+        "figure": "Most horses resuming from a spell - say 60 days or more - will lose at their first run back."
+      }
     }
     // ... every card, incl. standing TITLE / END CARD / WARRANTY
   ],
@@ -72,6 +100,35 @@
 - **card→beat and broll→beat are EXPLICIT** (in both `beats[]` and `cards[]/broll[]`). The assembler never decides placement.
 - **b-roll `flags`:** `turf` (must be grass), `saddled`, `crowd-diverse` (~75/9/9/5 mix, ~50% in hats), and `non-turf` for weigh-in / form / odds-board / studio shots so Claude Code's turf-QC doesn't false-flag them. No clip repeats within an episode.
 - **`layout` must be a MIX** — never all `fullscreen`; use `panel-push` on a good share of cards.
+
+### v2 — `block` / `content{}` / `trace{}`, the fields the engine authors cards from
+
+- **`block`** names a body template in
+  `.claude/skills/pp-episode-production/assets/cards/blocks/`. Run
+  `python author_cards.py` with an unknown one and it lists what exists. Today:
+  `stat` `price` `slate` `checklist` `compare` `steps` `bars` `ratio` `statement`
+  `slots` `chips`.
+- **`block: "bespoke"` means hand-authored.** The engine never generates it and never
+  overwrites it. Expect 2-3 an episode — it is what protects the mix Jodie asked for, not
+  an escape hatch for a card nobody could be bothered specifying. **Say WHY in `detail`.**
+- **Every key the block declares must be PRESENT.** Explicit `null` renders an empty slot
+  and records that a human decided it is empty; a **missing** key HALTS, because absence
+  records nothing. This is the EP12 `_placeholder` lesson: a placeholder that looks like
+  data is worse than no data, because it defeats the check meant to catch it.
+- **`trace{}` is required for any `content` value containing a figure**, keyed by the
+  content key (or the list name). Its value is the **source sentence, verbatim**. The build
+  checks two things: the sentence is a literal substring of the article named in `source`,
+  **and** every number in the displayed value actually appears in that sentence. EP11's C7
+  passed the first test and failed the second — the sentence was real, it just never stated
+  the placings that had been inferred from listing order and put on screen as fact.
+- **`fit{}` carries measurements, never text.** Values must be bare numbers with an
+  optional `px`/`em`/`%`. It exists for per-card font and spacing nudges; a string in it
+  halts.
+- **The generator cannot invent.** There is no LLM in it — it copies a value from
+  `content{}` into a slot or it fails. Anything you do not write here cannot appear on a
+  card. That is the point.
+- **A page without the generated marker comment is treated as hand-authored and left
+  alone**, so a hand-fix survives every later run.
 - **Figures reuse cards** — Cowork does NOT author separate illustration art; it maps `figure.n → card.id`.
 - **Timing:** Claude Code generates its own (WhisperX forced-align on the master) — no SRT is provided or expected.
 - **Spoken-words file:** one paragraph per beat, body + standing outro, numbers as words; any setup note is a `#`-comment line (never a bare `[SETUP NOTE …]` block).

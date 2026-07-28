@@ -1,0 +1,85 @@
+{
+  "episode": "MOCK",
+  "title": "Mock Episode",
+  "byline": "A mock episode used only by engine.py run --mock",
+  "source": "Mock article, not for publication. Verbatim source: docs/mock-source-article.md",
+  "spoken_words_file": "docs/spoken-words.txt",
+  "packaging": {
+    "hook": "Mock Hook",
+    "byline": "A mock episode used only by engine.py run --mock",
+    "youtube_title": "Mock Episode",
+    "ebook_title": "Mock Episode"
+  },
+  "_why": [
+    "This fixture carries block/content{}/trace{} on every card BECAUSE that is what",
+    "a real episode.json must now carry. If the mock scaffolded the old shape, a",
+    "--mock run would prove the render side works while hiding the fact that a real",
+    "episode would arrive without the fields the authoring needs. The mock has to",
+    "fail the same way the real thing would.",
+    "C3 is deliberately block:bespoke so every run proves a hand-authored card is",
+    "never generated and never overwritten."
+  ],
+  "cards": [
+    {
+      "id": "C1",
+      "beat": 1,
+      "cue": "sixty days or more",
+      "page": "c01-most-of-them-lose.html",
+      "layout": "fullscreen",
+      "block": "stat",
+      "eyebrow": "Start Here, and Be Honest",
+      "headline": "MOST OF THEM LOSE",
+      "headline_display": "Most of Them Lose",
+      "detail": "Hero figure treatment: a huge orange 60 DAYS+ slams in over the payoff line.",
+      "fit": {"headline_size": "104px", "headline_leading": "0.96", "headline_top": "24px"},
+      "content": {
+        "figure": "60 Days+",
+        "figure_sub": "Resuming from a spell",
+        "payoff": "Most will lose at their first run back.",
+        "note": "“That’s an iron-clad fact.”"
+      },
+      "trace": {
+        "figure": "Most horses resuming from a spell - say 60 days or more - will lose at their first run back."
+      }
+    },
+    {
+      "id": "C2",
+      "beat": 2,
+      "cue": "what are its claims",
+      "page": "c02-see-each-horse.html",
+      "layout": "panel-push",
+      "block": "checklist",
+      "eyebrow": "Treat Each Runner on Level Terms",
+      "headline": "SEE EACH HORSE AS AN INDIVIDUAL",
+      "headline_display": "See Each Horse<br>as an Individual",
+      "detail": "Three ticked questions reveal in a left-to-right stagger.",
+      "fit": {"headline_size": "92px", "headline_leading": "0.94", "headline_top": "24px"},
+      "content": {
+        "items": [
+          "What are its claims to the race?",
+          "Has it recent form that lays a viable claim?",
+          "Is there a race you can relate to this one?"
+        ]
+      },
+      "trace": {}
+    },
+    {
+      "id": "C3",
+      "beat": 3,
+      "cue": "sent out at twelve to one",
+      "page": "c03-the-price.html",
+      "layout": "fullscreen",
+      "block": "bespoke",
+      "eyebrow": "The Payoff",
+      "headline": "THE PRICE",
+      "detail": "HAND-AUTHORED ON PURPOSE. The mock keeps one bespoke card so every run proves the generator leaves it alone.",
+      "content": {},
+      "trace": {}
+    }
+  ],
+  "broll": [],
+  "figures": [],
+  "build": {
+    "standing": {"title": "TITLE", "endcard": "END", "warranty": "WARRANTY"}
+  }
+}

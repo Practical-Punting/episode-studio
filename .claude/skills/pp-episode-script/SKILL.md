@@ -333,6 +333,32 @@ per episode; lines 2 and 3 hold.
 - A card spec carries: `card id` · beat · Anton headline · eyebrow · payoff figure(s) · the animation
   (what moves, order, timing) · full-screen or Panel-Push · the print/e-book note.
 
+#### 🔒 THE CARD'S CONTENT GOES IN `content{}`, NOT ONLY IN PROSE (28 July 2026)
+**The engine now AUTHORS the card pages from `episode.json`.** Before this, a card's real
+content lived only as English prose in `detail`, nothing could build a page from it, and an
+episode with no card pages halted asking a browser operator to write HTML. So every card you
+spec must also carry, per `docs/PP-EPISODE-JSON-SPEC.md` §v2:
+
+- **`block`** — which body template renders it, or `"bespoke"` if it is hand-authored.
+  `bespoke` is first-class and expected 2-3 times an episode; **say why in `detail`.**
+- **`content{}`** — the actual strings, one key per slot the block declares. **Every declared
+  key must be present.** Write explicit `null` for a slot that is deliberately empty; a
+  MISSING key halts the build, because `null` records a decision and absence records nothing.
+- **`trace{}`** — for any value carrying a figure, the **verbatim source sentence**. The build
+  checks the sentence is really in the article AND that the number you are putting on screen
+  is really in that sentence.
+- **`page`** — the filename in `overlay/export/`.
+
+**Write these AS YOU SPEC THE CARD, not afterwards.** `detail` stays exactly as it is: it is
+the human-readable spec and the audit trail. `content{}` is the same card said in a way a
+machine can build without guessing.
+
+**Why the trace field is not paperwork:** EP11's C7 put "2nd Juggler" and "3rd Brave Warrior"
+on screen. The article names the four beaten horses and never gives a placing for any of them
+— the placings were inferred from listing order and asserted as fact. Every automated check
+passed; it shipped into the video and e-book figure 7. `trace{}` is where §9's *"if you cannot
+point to the source sentence, it does not ship"* finally became something a machine enforces.
+
 ### 4H — B-roll (MORE cuts; mounted horses, everyone dressed)
 - **Standing rule:** enough b-roll that **no talking-head stretch runs uncovered (no card, no
   b-roll) for more than ~40 seconds** — every clip matched to the exact line. (EP09's longest bare

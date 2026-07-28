@@ -66,6 +66,65 @@ class EngineFlag(Exception):
     message (plain English!) and does not retry — it isn't transient."""
 
 
+# --- card authoring (1d, 28 Jul 2026) ----------------------------------------
+# The engine used to render cards it never authored, so an episode with no card
+# pages halted with "Zero card HTML pages existed — stage them, then clear this
+# flag": a message that asks a browser operator to write HTML. That halt is gone.
+# Missing pages are now AUTHORED from the template library; missing DATA still
+# halts, which is correct — a halt over an unwritten figure is a halt a human
+# should clear.
+#
+# Never overwrite. author_cards.py refuses to touch a page that does not carry
+# its generated marker, and the furniture below is copied only when absent, so a
+# hand-fixed page survives every subsequent run.
+CARD_DEPS = (                       # what an authored page needs beside it
+    ("assets/pp-anim.js", "pp-anim.js"),
+    ("assets/assets/logo.png", "assets/logo.png"),
+)
+STANDING_CARDS = (                  # design §4 Layer 3 — copied, never authored
+    ("assets/warranty-slide.html", "warranty-slide.html"),
+    ("assets/end-card-template.html", "end-card-template.html"),
+)
+
+
+def stage_card_furniture(export: Path) -> list[str]:
+    """Copy the standing pages and the assets an authored card needs.
+
+    Returns what it added. Existing files are left exactly as they are — this is
+    the same find-or-build policy the rest of RealProvider uses.
+    """
+    added = []
+    for src_rel, dst_rel in (*CARD_DEPS, *STANDING_CARDS):
+        src, dst = SKILL_DIR / src_rel, export / dst_rel
+        if dst.exists() or not src.is_file():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        added.append(dst_rel)
+    return added
+
+
+def author_missing_cards(ep_dir: Path) -> str:
+    """Author every card page that does not exist yet. Halts are human-shaped.
+
+    author_cards.py exits 2 when a guard fires (unknown block, missing key,
+    untraceable figure). That is a real halt and it is kept — but it names the
+    card and the key, so it is something a person can act on, unlike "stage the
+    pages yourself".
+    """
+    script = SKILL_DIR / "scripts/author_cards.py"
+    r = subprocess.run(
+        [sys.executable, str(script), str(ep_dir / "docs/episode.json"),
+         str(ep_dir / "overlay/export")],
+        capture_output=True, text=True, encoding="utf-8", timeout=300)
+    if r.returncode:
+        raise EngineFlag(
+            "The card pages could not be authored from episode.json. This is a DATA "
+            "problem, not a missing-file problem — fix the field it names in "
+            f"docs/episode.json, then clear this flag.\n{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
 def ep_folder(ep) -> str:
     """Working folder name for an episode (bare stem until the Stage-8 rename)."""
     nn = ep.get("ep_number")
@@ -96,7 +155,22 @@ class MockProvider:
     def _artifact(self, folder: str, rel: str, note: str) -> str:
         p = self.root / folder / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(f"mock artifact: {note}\n", encoding="utf-8")
+        # A .png stub used to be a text file with a .png name. The end card
+        # composites overlay/export/ebook-cover.png, so a fake one renders as an
+        # alt-text box and the mock stops resembling a real run. Copy a real
+        # image instead — it costs nothing and keeps the mock honest.
+        #
+        # A cover gets a PORTRAIT placeholder at the real 1:1.414 ratio. This is
+        # not fussiness: the end card sizes itself from the cover, and a square
+        # stand-in pushed its text out to x=2441 on a 1920px card — card_check
+        # caught it, which is exactly what it is for.
+        src = SKILL_DIR / "assets/pp-logo-on-dark.png"
+        if "cover" in Path(rel).name and rel.endswith(".png"):
+            src = REPO_DIR / "engine/testdata/mock-ebook-cover.png"
+        if rel.endswith(".png") and src.is_file():
+            shutil.copyfile(src, p)
+        else:
+            p.write_text(f"mock artifact: {note}\n", encoding="utf-8")
         return str(p)
 
     def _work(self):
@@ -139,7 +213,16 @@ class MockProvider:
         for sub in ("docs", "renders", "overlay/export", "overlay/clips",
                     "broll", "ebook", "thumbnail", "output"):
             (self.root / folder / sub).mkdir(parents=True, exist_ok=True)
-        self._artifact(folder, "docs/episode.json", "create inputs")
+        # A REAL episode.json, carrying block/content{}/trace{} exactly as a real
+        # one must. Scaffolding the old shape would let a mock run prove the
+        # render side works while hiding that a real episode arrives without the
+        # fields the authoring needs — which is the trap this step exists to head
+        # off. The source article goes beside it so trace-or-halt really runs.
+        fixture = REPO_DIR / "engine/testdata/mock-episode.json"
+        shutil.copyfile(fixture, self.root / folder / "docs/episode.json")
+        (self.root / "docs").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(REPO_DIR / "engine/testdata/mock-source-article.md",
+                        self.root / "docs/mock-source-article.md")
         self._artifact(folder, "docs/spoken-words.txt", "script")
         return {"folder": folder}
 
@@ -164,11 +247,37 @@ class MockProvider:
         return self._artifact(f, "ebook/cover.png", f"e-book cover from hero {choice}")
 
     def render_cards(self, ep) -> list[str]:
+        """The one mock step that does REAL work, on purpose.
+
+        Authoring and rendering cards is local Chromium — no credits, no network,
+        nothing external. Faking it would mean the mock could not prove the thing
+        1d changed: that a clean folder with no card pages now produces cards
+        instead of a halt a browser operator cannot clear.
+        """
         self.maybe_fail("cards_render")
-        self._work()
         f = ep_folder(ep)
-        return [self._artifact(f, f"overlay/clips/card-{i:02d}.mp4", "card clip")
-                for i in range(1, 4)]
+        d = self.root / f
+        export = d / "overlay/export"
+        export.mkdir(parents=True, exist_ok=True)
+        added = stage_card_furniture(export)
+        report = author_missing_cards(d)
+        try:
+            self.run([sys.executable, SKILL_DIR / "scripts/card_check.py", export],
+                     cwd=d, timeout=600)
+            self.run([sys.executable, SKILL_DIR / "scripts/render_cards_batch.py",
+                      export, d / "overlay/clips"], cwd=d, timeout=900)
+        except RuntimeError as e:
+            raise EngineFlag(f"Mock card render failed: {str(e)[-700:]}")
+        print(f"    [mock] staged {len(added)} furniture file(s); {report}")
+        return sorted(str(p) for p in (d / "overlay/clips").glob("*.mp4"))
+
+    def run(self, args, cwd, timeout=None, tail=800):
+        r = subprocess.run([str(a) for a in args], cwd=str(cwd), capture_output=True,
+                           text=True, encoding="utf-8", timeout=timeout or 600)
+        if r.returncode != 0:
+            raise RuntimeError(f"{Path(str(args[1])).name} exited {r.returncode}: "
+                               f"…{(r.stderr or r.stdout or '').strip()[-tail:]}")
+        return r
 
     def poll_heygen(self, ep, polls_so_far):
         self.maybe_fail("heygen_download")
@@ -306,8 +415,16 @@ class RealProvider:
         pat = pats.get(cid) or f"*c{int(cid[1:]):02d}*.mp4"   # C7 -> *c07*.mp4
         hits = [p for p in sorted(clips.glob(pat)) if "lowerthird" not in p.name]
         if len(hits) != 1:
-            raise RuntimeError(f"card {cid}: expected exactly one clip matching "
-                               f"{pat} in overlay/clips, found {len(hits)}")
+            # An EngineFlag, NOT a RuntimeError: a card that did not land is not a
+            # transient fault, so retrying burns three full Chromium batch renders
+            # before saying anything. Fail once, in plain English. (Design §16.11.)
+            raise EngineFlag(
+                f"Card {cid} has no clip in overlay/clips: expected exactly one file "
+                f"matching {pat}, found {len(hits)}. Most likely {cid} is marked "
+                f'block:"bespoke" in episode.json and its page has not been hand-authored '
+                f"yet — bespoke cards are never generated, by design. Otherwise the page "
+                f"is named so it does not match, or it failed to render. "
+                f"Retrying will not fix any of those.")
         return hits[0]
 
     def _audio_kbps(self, path: Path) -> float:
@@ -642,7 +759,24 @@ class RealProvider:
 
     def render_cards(self, ep) -> list[str]:
         d = self.dir(ep)
-        self.py("render_cards_batch.py", d / "overlay/export", d / "overlay/clips", cwd=d)
+        export = d / "overlay/export"
+        export.mkdir(parents=True, exist_ok=True)
+        # 1. the standing pages + the assets an authored card needs
+        stage_card_furniture(export)
+        # 2. author whatever is missing; hand-authored pages are left alone
+        author_missing_cards(d)
+        # 3. HARD GATE before we spend Chromium on clips: a card with a collision
+        #    would ship into the video AND the matching e-book figure (design §12).
+        try:
+            self.py("card_check.py", export, cwd=d, timeout=600)
+        except RuntimeError as e:
+            raise EngineFlag(
+                "A card page has a layout collision and must not be rendered — it "
+                "would ship into the video and the matching e-book figure. Each "
+                "problem below names the elements and the overlap.\n"
+                f"{str(e)[-900:]}")
+        # 4. render every page to a clip
+        self.py("render_cards_batch.py", export, d / "overlay/clips", cwd=d)
         epj = self.epjson(ep)
         ids = [c["id"] for c in epj["cards"]]
         return [str(self._clip(ep, cid)) for cid in ids]     # verifies every card landed
