@@ -61,6 +61,40 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
+## 🚫 COMMAND HYGIENE — ONE COMMAND, ONE LINE, OR IT GOES IN A FILE
+**(Jodie, 28 Jul 2026. This is a HARD RULE, not a preference.)**
+
+**NEVER run `python -c` with a multi-line body. Write a `.py` file and run the
+file.** Same for any shell command with a heredoc, nested quotes, or braces
+spanning lines.
+
+**WHY IT MATTERS TO JODIE, and why "I'll be careful" is not good enough:** the
+harness flags these as *"expansion obfuscation"* or *"newline followed by #"*
+and, when it cannot parse a command, **it withholds the "don't ask again"
+button.** So the prompt is UNAPPROVABLE — the identical shape asks her again,
+and again, forever, and there is no action she can take to make it stop. Every
+one of these I type is a permanent tax on her attention, not a one-off.
+
+**This rule exists because a memory did not hold.** It was written up as
+`command-hygiene-for-permissions` and then breached twice within the hour, under
+build momentum. That is exactly what CLAUDE.md is for: it loads every session,
+before anything else, and momentum cannot skip it.
+
+**The checkable version — before running ANY Bash command, ask:**
+1. Does it contain a newline inside quotes? → **write a file.**
+2. Does it contain `<<`, `$(…)` around a quoted block, or quotes inside quotes
+   inside quotes? → **write a file.**
+3. Is it longer than about one screen line? → **probably write a file.**
+4. Otherwise: one simple command, plain arguments. Good.
+
+Put scratch scripts in the session scratchpad dir, not in the repo. **Prefer the
+Read / Glob / Grep / Edit tools over shelling out at all** — they never prompt,
+and Glob in particular cannot delete, which is why `find` was removed from the
+allow-list on 28 Jul 2026 (prefix matching cannot exclude `find … -delete`).
+
+*Done correctly this session: the permissions edit and `rerun_check.py`.
+Done wrongly this session: two `python -c` blocks with multi-line bodies.*
+
 ## Working here
 - Commit small and focused; push to `main` (Pages deploys from it).
 - `python engine/engine.py run --mock --watch` exercises the engine safely
