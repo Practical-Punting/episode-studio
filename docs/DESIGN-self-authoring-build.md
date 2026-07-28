@@ -980,6 +980,69 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     ✅ *Done for `render_still.py` on 28 Jul 2026 (local images asserted before launch, fails
     in 0.1s naming the file). The other five are untouched.*
 
+26. 🔴 **`card_check.py` MEASURES THE LINE BOX, SO IT CANNOT SEE A DESCENDER COLLISION —
+    and EP13 C11 ships with one, in the video AND the e-book.**
+    **Found 28 Jul 2026 by looking at `figure-11.png`, then measured pixel-true. REPORT ONLY —
+    nothing fixed, nothing re-rendered, on Jodie's instruction.**
+
+    **THE DEFECT.** C11's `.big` is `10kg` at 300px. The **`g` descender cuts through the
+    `.sub` line "TO CHANGE A RESULT"** — measured **602 shared ink pixels in video mode, 558 in
+    print**, over x617-711. Worst-column vertical clearance is **-13px**. It is in
+    `ebook/figure-11.png`, in `overlay/clips/ep13-c11-ten-kilos.mp4`, and in
+    **`PP-EP13-FINAL.mp4` at 565.4s** (verified by extracting the frame). *Severity differs by
+    medium: the master overlays this card at `scale=810`, ~42%, so on video it reads as tight;
+    the e-book figure prints it at full width, where it reads as broken.*
+
+    **WHY THE GATE PASSED IT — the compensation IS the blind spot.** `card_check.py` takes each
+    text run's **height from the CSS line box, not from the glyphs**, and says so on purpose:
+    *"Range rects are sized by the FONT's ascent/descent, which for Anton overshoots the visible
+    glyphs by tens of pixels at display sizes."* That fix stops Anton raising FALSE positives —
+    and it is exactly what hides a TRUE one. `.big` is `font-size:300px; line-height:0.86`, so
+    the band measured is **258px while the inked glyph is taller**. The descender lives in the
+    42px the checker does not look at. **`python card_check.py ep13-c11-ten-kilos.html` → `✓
+    1/1 clean` today, on the colliding page.**
+
+    **AND AUTO-FIT COULD NEVER HAVE HELPED.** `autofit_cards.py` imports `card_check` and uses
+    *"the checker's OWN probe and OWN verdict"* — by design, so the two cannot drift. So it
+    shrinks until `card_check` stops complaining, and **`card_check` was never complaining.**
+    One blind spot, inherited by both tools, because there is deliberately only one
+    implementation of what a collision is. *The single-source-of-truth that makes them
+    consistent also makes them consistently wrong.*
+
+    **IT IS NOT THE BLOCK — IT IS A DESCENDER IN THE `stat` BLOCK.** Measured across every
+    stat-shape card ever built (`.big` is 300px/258px and `.sub` 46px in all of them):
+
+    | card | `.big` | descender | worst-column clearance |
+    |---|---|---|---|
+    | EP12 C1 | `60 Days+` | **y** | **13px — clear, but the narrowest margin ever shipped** |
+    | EP13 C7 | `42%` | none | 24px clear |
+    | EP13 C13 | `1800m` | none | 22px clear |
+    | **EP13 C11** | **`10kg`** | **g** | **−13px — OVERLAP** |
+
+    **EP12 C1 has the same block, the same size and a real descender, and cleared by 13px.
+    It did not pass because the design is sound; it passed because `y` is shallower than `g`.**
+    The block reserves no descender room at all — clearance is whatever the glyph happens to
+    leave. **EP11 uses the stat shape nowhere, so it is not exposed.**
+
+    **SCOPE, MEASURED, NOT ASSUMED.** All 13 EP13 cards swept in both render modes at
+    **every shared pixel** (threshold 1, not 60): **twelve clean with no near misses**
+    (tightest stacked gaps 15-37px); **C11 alone collides.** C11 also shows a **2-4px hairline
+    touch between `hl` "KILOS" and `big`** at a single point — visually negligible, recorded
+    only so the number is not rediscovered.
+    *(EP11/EP12 were swept too: **EP11 C3 has 238px of text grazing the LOGO in video mode**, a
+    2px-tall sliver at y994-995 — same root cause, the ink below the line box — and it is
+    PUBLISHED. EP11 and EP12 both predate `card_check.py`, which was written after EP12's C10
+    shipped broken; C10 measures clean in the export folder today.)*
+
+    **THE FIX IS NOT AUTO-FIT.** Shrinking `.big` moves the descender up but also moves the
+    whole stat group; the real fix is for the `stat` block to **reserve descender depth below
+    `.big`**, and for `card_check` to measure **ink, not the line box**, for any run whose
+    font-size is above ~120px. Both are Jodie's call and neither is started.
+    ⚠️ **This is the THIRD guard today found measuring the wrong thing** — beside the standing
+    midroll chip that nothing made standing (item in §8a) and the thumbnail hero rule with no
+    stager (item 24). *A ruling is not a mechanism; nor is a checker that measures the wrong
+    quantity.*
+
 17. 🔴 **NOTHING SYNCS THE BOARD'S WORDS INTO `episode.json` — the packaging is SPLIT-BRAIN.**
     **Logged as backlog by Jodie, 28 Jul 2026. Not now.**
     The Words Gate's three boxes write `hook` / `byline` / `title` to the **RAIL**
