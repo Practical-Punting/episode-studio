@@ -1,0 +1,81 @@
+<!doctype html><html><head><meta charset="utf-8"><title>REGRESSION FIXTURE — PP EP12 c10 BEFORE the collision fix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- ⚠️ THIS PAGE IS DELIBERATELY BROKEN. IT IS A TEST FIXTURE, NOT AN EPISODE ASSET.
+     Do not render it into a clip and do not copy it into an episode folder.
+
+     It reconstructs EP12 card C10 as it stood BEFORE the collision was fixed, so that
+     card_check.py can be proved to FAIL on it. A checker that only ever passes things
+     which already pass is a green light I wrote myself and must not be trusted
+     (memory: look-at-the-rendered-output).
+
+     PROVENANCE OF THE RECONSTRUCTION — the broken page was never in version control
+     (cards live on Drive), so this is rebuilt from the record the fix itself left
+     behind, namely the comment still sitting in the shipped ep12-c10-down-in-class.html:
+
+         "The note was absolutely positioned at the right of .steps and COLLIDED with
+          the third step card (which starts at left:360px and is 940px wide, so its
+          right edge reaches 1300px). Now it sits in normal flow BELOW the steps and is
+          width-capped so it clears the logo in the bottom-right."
+
+     Everything else on this page is byte-identical to the shipped card. The only
+     changes are the four .note declarations below: position/right/top/width instead of
+     margin-top. .steps keeps the absolute cascade it shipped with.
+
+     Geometry, in .steps-local coordinates (.steps is 1700px wide — the 1920px card less
+     its 110px padding either side):
+        .st.c  left:360  width:940            -> occupies 360 .. 1300
+        .note  right:0   width:660            -> occupies 1040 .. 1700
+        overlap                               -> 1040 .. 1300, which is the 260px the
+                                                 fix comment describes.
+-->
+<style>html,body{margin:0;padding:0}body{width:1920px;height:1080px;overflow:hidden;background:#1F1F1F}
+.card{box-sizing:border-box;width:1920px;height:1080px;background:#1F1F1F;position:relative;overflow:hidden;font-family:'Barlow',sans-serif;color:#fff;padding:84px 110px;display:flex;flex-direction:column;}
+.eyebrow{display:flex;align-items:center;gap:24px;}
+.rule{width:72px;height:6px;background:#DA532C;transform-origin:left center;}
+.eyebrow .lbl{font-size:36px;font-weight:800;letter-spacing:0.20em;text-transform:uppercase;}
+.anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
+.hl{font-size:104px;line-height:0.96;margin-top:20px;}
+.steps{margin-top:auto;position:relative;height:424px;}
+.st{position:absolute;box-sizing:border-box;background:#2B2B2B;border-radius:20px;padding:26px 34px;width:940px;}
+.st .k{font-family:'Anton',sans-serif;font-size:52px;line-height:1.02;}
+.st .v{margin-top:10px;font-size:36px;font-weight:600;color:#B4B4B4;}
+.st.a{left:0;top:0;border-left:8px solid #DA532C;}
+.st.b{left:180px;top:150px;border-left:8px solid #9A6A55;}
+.st.c{left:360px;top:300px;border-left:8px solid #6E6E6E;}
+/* THE BUG, reconstructed: pinned to the right of .steps, overrunning .st.c. */
+.note{position:absolute;right:0;top:300px;width:660px;font-size:36px;font-weight:600;font-style:italic;color:#9A9A9A;line-height:1.24;}
+.logo{position:absolute;right:110px;bottom:56px;width:214px;height:65px;}
+body.print{background:#fff}
+body.print .card{background:#fff;color:#1e1e1e}
+body.print .eyebrow .lbl{color:#DA532C}
+body.print .anton{color:#1e1e1e}
+body.print .st{background:#F4F4F4}
+body.print .st .v{color:#666}
+body.print .note{color:#777}
+body.print .logo{display:none}
+</style>
+<script src="pp-anim.js"></script></head>
+<body><div class="card">
+  <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">But Look Where She Had Been</div></div>
+  <div id="hl" class="anton hl">Down in Class</div>
+  <div class="steps">
+    <div class="st a" id="st1"><div class="k anton">Queensland Oaks</div><div class="v">Won &mdash; in race record time</div></div>
+    <div class="st b" id="st2"><div class="k anton">Queensland Derby</div><div class="v">10 June &mdash; 5th, beaten 3.3 lengths</div></div>
+    <div class="st c" id="st3"><div class="k anton">Today</div><div class="v">A handicap for fillies and mares</div></div>
+    <div class="note" id="note">The second mare in the handicap, Castle Song, had failed in a Sydney Welter last start.</div>
+  </div>
+  <img id="logo" class="logo" src="assets/logo.png" alt="Practical Punting">
+</div>
+<script>ppInit([
+ {"sel":"#rule","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":500,"delay":100,"easing":"ease-out"}},
+ {"sel":"#eyb","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":400,"delay":250,"easing":"ease-out"}},
+ {"sel":"#hl","kf":[{"opacity":0,"transform":"translateY(40px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":660,"delay":500,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#st1","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":620,"delay":1150,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#st2","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":620,"delay":1800,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#st3","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":620,"delay":2450,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":560,"delay":3150,"easing":"ease-out"}},
+ {"sel":"#logo","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":600,"delay":3700,"easing":"ease-out"}}
+]);</script>
+<script>if(new URLSearchParams(location.search).has('print')){document.body.classList.add('print');}</script>
+</body></html>

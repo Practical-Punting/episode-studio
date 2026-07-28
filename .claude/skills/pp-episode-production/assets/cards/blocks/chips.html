@@ -1,0 +1,40 @@
+<!--@schema
+{
+  "precedent": ["EP11 c01"],
+  "required": [],
+  "optional": ["foot"],
+  "lists": {"chips": {"min": 2, "max": 6, "fields": ["label", "tone"],
+                      "enum": {"tone": ["", "last"]}}},
+  "anim": {"chips": {"base": 1150, "step": 330}},
+  "fit": {"chip_size": [".chip", "font-size"], "foot_size": [".foot", "font-size"]}
+}
+-->
+<!--@css-->
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;}
+.chips{display:flex;flex-wrap:wrap;gap:32px;max-width:1620px;}
+.chip{background:#262626;border:2px solid #4a4a4a;border-radius:22px;padding:30px 46px;font-size:52px;font-weight:700;color:#CFCFCF;}
+.chip.last{background:#2b1c15;border-color:#DA532C;color:#DA532C;position:relative;}
+.strike{display:none;}
+.chip.last .strike{display:block;position:absolute;left:34px;right:34px;top:50%;height:5px;background:#DA532C;transform-origin:left center;}
+.foot{margin-top:76px;font-size:50px;font-weight:600;color:#B9B9B9;}
+.foot b{color:#DA532C;font-weight:800;}
+<!--@print-->
+body.print .chip{background:#f4f4f4;border-color:#ddd;color:#666}
+body.print .chip.last{background:#faf6f4;border-color:#e2c9bf;color:#DA532C}
+body.print .foot{color:#555}
+<!--@markup-->
+  <div class="mid">
+    <div class="chips">
+<!--@each chips-->
+      <div class="chip {{ITEM.tone}}" id="k{{I}}">{{ITEM.label}}<div class="strike"></div></div>
+<!--@endeach-->
+    </div>
+    <div id="foot" class="foot">{{foot}}</div>
+  </div>
+<!--@anim-->
+<!--@each chips-->
+ {"sel":"#k{{I}}:not(.last)","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":460,"delay":{{DELAY}},"easing":"ease-out"}},
+ {"sel":"#k{{I}}.last","kf":[{"opacity":0,"transform":"scale(0.82)"},{"opacity":1,"transform":"scale(1.05)","offset":0.72},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":700,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":".chip.last .strike","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":480,"delay":2950,"easing":"ease-out"}},
+ {"sel":"#foot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":3500,"easing":"ease-out"}}

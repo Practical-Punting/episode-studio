@@ -1,0 +1,38 @@
+<!--@schema
+{
+  "precedent": ["EP12 c09"],
+  "required": [],
+  "optional": ["warn"],
+  "lists": {"cells": {"min": 2, "max": 4, "fields": ["k", "v", "sub"]}},
+  "anim": {"cells": {"base": 1200, "step": 500}},
+  "fit": {
+    "value_size": [".s .v", "font-size"],
+    "warn_size": [".warn", "font-size"]
+  }
+}
+-->
+<!--@css-->
+.slate{margin-top:auto;display:flex;gap:26px;}
+.s{flex:1;background:#2B2B2B;border-radius:20px;padding:30px 34px;border-left:8px solid #DA532C;}
+.s .k{font-size:28px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#9A9A9A;}
+.s .v{margin-top:14px;font-family:'Anton',sans-serif;font-size:66px;line-height:1.02;color:#fff;}
+.s .v small{display:block;font-family:'Barlow',sans-serif;font-size:32px;font-weight:600;color:#B4B4B4;margin-top:10px;letter-spacing:0;text-transform:none;}
+.warn{margin-top:44px;font-size:52px;font-weight:700;color:#C9C9C9;font-style:italic;}
+<!--@print-->
+body.print .s{background:#F4F4F4}
+body.print .s .k{color:#777}
+body.print .s .v{color:#1e1e1e}
+body.print .s .v small{color:#666}
+body.print .warn{color:#777}
+<!--@markup-->
+  <div class="slate">
+<!--@each cells-->
+    <div class="s" id="s{{I}}"><div class="k">{{ITEM.k}}</div><div class="v">{{ITEM.v}}<small>{{ITEM.sub}}</small></div></div>
+<!--@endeach-->
+  </div>
+  <div class="warn" id="warn">{{warn}}</div>
+<!--@anim-->
+<!--@each cells-->
+ {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(28px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#warn","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":540,"delay":2850,"easing":"ease-out"}}

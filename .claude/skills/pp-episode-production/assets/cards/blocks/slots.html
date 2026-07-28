@@ -1,0 +1,49 @@
+<!--@schema
+{
+  "precedent": ["EP12 c02"],
+  "note": "THE EMPTY-SLOT BLOCK. A slot's v is written null when the article names the label but gives no figure. That is EP12 C2: the source says the First-up line tells you how many times a horse has won first-up, and gives no numbers. Explicit null draws the dotted rule; a MISSING v halts.",
+  "required": ["tag"],
+  "optional": ["said"],
+  "lists": {"slots": {"min": 1, "max": 4, "fields": ["k", "v"]},
+            "chips": {"min": 0, "max": 4, "fields": null}},
+  "anim": {"slots": {"base": 1550, "step": 350}, "chips": {"base": 2950, "step": 300}},
+  "fit": {"said_size": [".said", "font-size"]}
+}
+-->
+<!--@css-->
+.row{margin-top:58px;display:flex;align-items:stretch;gap:28px;}
+.tag{flex:none;display:flex;align-items:center;background:#DA532C;color:#fff;font-weight:800;font-size:40px;letter-spacing:0.18em;text-transform:uppercase;padding:0 34px;border-radius:14px;}
+.slot{flex:1;background:#2B2B2B;border:3px solid #3E3E3E;border-radius:16px;padding:26px 32px;}
+.slot .k{font-size:30px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9A9A9A;}
+.slot .v{margin-top:14px;height:56px;border-bottom:5px dotted #5A5A5A;}
+.said{margin-top:56px;font-size:52px;font-weight:700;color:#EDEDED;line-height:1.18;max-width:1400px;}
+.said b{color:#DA532C;}
+.chips{margin-top:40px;display:flex;gap:20px;}
+.chip{background:#2B2B2B;border:2px solid #454545;border-radius:999px;padding:14px 30px;font-size:32px;font-weight:700;color:#C9C9C9;}
+<!--@print-->
+body.print .slot{background:#F4F4F4;border-color:#DDD}
+body.print .slot .k{color:#777}
+body.print .said{color:#444}
+body.print .chip{background:#F4F4F4;border-color:#DDD;color:#555}
+<!--@markup-->
+  <div class="row">
+    <div class="tag" id="tag">{{tag}}</div>
+<!--@each slots-->
+    <div class="slot" id="s{{I}}"><div class="k">{{ITEM.k}}</div><div class="v">{{ITEM.v}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="said" id="said">{{said}}</div>
+  <div class="chips">
+<!--@each chips-->
+<div class="chip" id="ch{{I}}">{{ITEM}}</div>
+<!--@endeach-->
+  </div>
+<!--@anim-->
+ {"sel":"#tag","kf":[{"opacity":0,"transform":"translateX(-30px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":520,"delay":1150,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@each slots-->
+ {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":540,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#said","kf":[{"opacity":0,"transform":"translateY(22px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":580,"delay":2400,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@each chips-->
+ {"sel":"#ch{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":{{DELAY}},"easing":"ease-out"}},
+<!--@endeach-->

@@ -1,0 +1,42 @@
+<!--@schema
+{
+  "precedent": ["EP12 c03"],
+  "note": "Bar LENGTH is computed from the item's own traced number, never hand-set. EP12 C3 drew the 180-day bar at exactly twice the 90-day bar because 180 is twice 90; making that proportion a computation rather than a measurement means a bar cannot misstate the ratio it is drawing.",
+  "required": [],
+  "optional": ["ask", "chip"],
+  "lists": {"bars": {"min": 2, "max": 3, "fields": ["label", "value", "note", "tone"],
+                     "enum": {"tone": ["hi", ""]},
+                     "numeric": ["value"],
+                     "scale": {"field": "value", "span": 1040}}},
+  "anim": {"bars": {"base": 1150, "step": 1000, "base2": 1800, "step2": 1250}},
+  "fit": {"label_size": [".blabel", "font-size"], "ask_size": [".ask", "font-size"]}
+}
+-->
+<!--@css-->
+.bars{margin-top:auto;margin-bottom:20px;}
+.barrow{display:flex;align-items:center;gap:36px;margin-top:40px;}
+.blabel{flex:none;width:300px;font-family:'Anton',sans-serif;font-size:78px;line-height:1;}
+.bar{height:78px;border-radius:12px;transform-origin:left center;background:#6E6E6E;}
+.bar.hi{background:#DA532C;}
+.bnote{flex:none;margin-left:26px;font-size:34px;font-weight:600;font-style:italic;color:#9A9A9A;}
+.ask{margin-top:46px;font-size:60px;font-weight:800;color:#DA532C;}
+.chip{margin-top:30px;display:inline-block;background:#2B2B2B;border:2px solid #454545;border-radius:999px;padding:14px 30px;font-size:32px;font-weight:700;color:#C9C9C9;align-self:flex-start;}
+<!--@print-->
+body.print .bar{background:#B4B4B4}
+body.print .bnote{color:#777}
+body.print .chip{background:#F4F4F4;border-color:#DDD;color:#555}
+<!--@markup-->
+  <div class="bars">
+<!--@each bars-->
+    <div class="barrow"><div class="blabel anton">{{ITEM.label}}</div><div id="bar{{I}}" class="bar {{ITEM.tone}}" style="width:{{WIDTH}}px"></div><div class="bnote" id="bn{{I}}">{{ITEM.note}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="ask" id="ask">{{ask}}</div>
+  <div class="chip" id="chip">{{chip}}</div>
+<!--@anim-->
+<!--@each bars-->
+ {"sel":"#bar{{I}}","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":700,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#bn{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":420,"delay":{{DELAY2}},"easing":"ease-out"}},
+<!--@endeach-->
+ {"sel":"#ask","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":3450,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#chip","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":4050,"easing":"ease-out"}}

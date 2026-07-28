@@ -1,0 +1,30 @@
+<!--@schema
+{
+  "precedent": ["EP11 c02", "EP12 c06"],
+  "required": [],
+  "optional": [],
+  "lists": {"items": {"min": 2, "max": 6, "fields": null}},
+  "anim": {"items": {"base": 1150, "step": 550}},
+  "fit": {
+    "list_top": [".qs", "margin-top"],
+    "item_gap": [".q", "margin-top"],
+    "item_size": [".q", "font-size"]
+  }
+}
+-->
+<!--@css-->
+.qs{margin-top:50px;}
+.q{display:flex;gap:30px;align-items:flex-start;margin-top:34px;font-size:52px;font-weight:600;color:#EDEDED;line-height:1.16;}
+.q .t{flex:none;color:#DA532C;font-weight:800;font-size:56px;line-height:1;}
+<!--@print-->
+body.print .q{color:#444}
+<!--@markup-->
+  <div class="qs">
+<!--@each items-->
+    <div class="q" id="q{{I}}"><span class="t">&#10003;</span><span>{{ITEM}}</span></div>
+<!--@endeach-->
+  </div>
+<!--@anim-->
+<!--@each items-->
+ {"sel":"#q{{I}}","kf":[{"opacity":0,"transform":"translateX(-34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->

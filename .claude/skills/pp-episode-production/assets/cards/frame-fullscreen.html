@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><title>%%TITLE%%</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+%%GENMARK%%
+<style>html,body{margin:0;padding:0}body{width:1920px;height:1080px;overflow:hidden;background:#1F1F1F}
+.card{box-sizing:border-box;width:1920px;height:1080px;background:#1F1F1F;position:relative;overflow:hidden;font-family:'Barlow',sans-serif;color:#fff;padding:84px 110px;display:flex;flex-direction:column;}
+.eyebrow{display:flex;align-items:center;gap:24px;}
+.rule{width:72px;height:6px;background:#DA532C;transform-origin:left center;}
+.eyebrow .lbl{font-size:38px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;}
+.anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
+.hl{font-size:104px;line-height:0.96;margin-top:24px;}
+.logo{position:absolute;right:110px;bottom:56px;width:214px;height:65px;}
+body.print{background:#fff}
+body.print .card{background:#fff;color:#1e1e1e}
+body.print .eyebrow .lbl{color:#DA532C}
+body.print .anton{color:#1e1e1e}
+body.print .logo{display:none}
+%%BLOCK_CSS%%
+%%BLOCK_PRINT%%
+%%FIT_CSS%%
+</style>
+<script src="pp-anim.js"></script></head>
+<body><div class="card">
+  <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">%%EYEBROW%%</div></div>
+  <div id="hl" class="anton hl">%%HEADLINE%%</div>
+%%BLOCK_MARKUP%%
+  <img id="logo" class="logo" src="assets/logo.png" alt="Practical Punting">
+</div>
+<script>ppInit([
+ {"sel":"#rule","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":500,"delay":100,"easing":"ease-out"}},
+ {"sel":"#eyb","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":400,"delay":250,"easing":"ease-out"}},
+ {"sel":"#hl","kf":[{"opacity":0,"transform":"translateY(40px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":660,"delay":500,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+%%BLOCK_ANIM%%,
+ {"sel":"#logo","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":600,"delay":%%LOGO_DELAY%%,"easing":"ease-out"}}
+]);</script>
+<script>if(new URLSearchParams(location.search).has('print')){document.body.classList.add('print');}</script>
+</body></html>

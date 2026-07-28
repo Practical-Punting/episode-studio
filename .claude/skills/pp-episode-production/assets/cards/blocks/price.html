@@ -1,0 +1,30 @@
+<!--@schema
+{
+  "precedent": ["EP11 c05", "EP12 c11"],
+  "required": ["price", "said"],
+  "optional": ["quote"],
+  "fit": {
+    "quote_top": [".quiet", "margin-top"],
+    "price_size": [".price", "font-size"]
+  }
+}
+-->
+<!--@css-->
+.quiet{margin-top:26px;font-size:44px;font-weight:600;color:#9A9A9A;font-style:italic;max-width:1180px;line-height:1.2;}
+.priceline{margin-top:auto;display:flex;align-items:center;gap:64px;}
+.price{font-family:'Anton',sans-serif;font-size:360px;line-height:0.84;color:#DA532C;transform-origin:left center;}
+.said{font-size:56px;font-weight:800;color:#F2E4DD;line-height:1.14;}
+.said b{color:#DA532C;}
+<!--@print-->
+body.print .quiet{color:#777}
+body.print .said{color:#5a3a2c}
+<!--@markup-->
+  <div id="quiet" class="quiet">{{quote}}</div>
+  <div class="priceline">
+    <div class="price" id="price">{{price}}</div>
+    <div class="said" id="said">{{said}}</div>
+  </div>
+<!--@anim-->
+ {"sel":"#quiet","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":1100,"easing":"ease-out"}},
+ {"sel":"#price","kf":[{"opacity":0,"transform":"scale(0.46)"},{"opacity":1,"transform":"scale(1.08)","offset":0.68},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":880,"delay":1700,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#said","kf":[{"opacity":0,"transform":"translateX(34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":620,"delay":2600,"easing":"ease-out"}}

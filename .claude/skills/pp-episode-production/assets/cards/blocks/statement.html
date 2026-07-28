@@ -1,0 +1,22 @@
+<!--@schema
+{
+  "precedent": ["EP12 c08"],
+  "flex_frame": true,
+  "required": ["line"],
+  "optional": ["note"],
+  "fit": {"line_size": [".big", "font-size"], "note_size": [".small", "font-size"]}
+}
+-->
+<!--@css-->
+.big{margin-top:auto;font-size:72px;font-weight:700;line-height:1.18;color:#EDEDED;max-width:1460px;}
+.big b{color:#DA532C;font-weight:800;}
+.small{margin-top:auto;margin-bottom:8px;font-size:44px;font-weight:600;font-style:italic;color:#9A9A9A;}
+<!--@print-->
+body.print .big{color:#333}
+body.print .small{color:#777}
+<!--@markup-->
+  <div class="big" id="big">{{line}}</div>
+  <div class="small" id="small">{{note}}</div>
+<!--@anim-->
+ {"sel":"#big","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":700,"delay":1250,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#small","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":540,"delay":2150,"easing":"ease-out"}}

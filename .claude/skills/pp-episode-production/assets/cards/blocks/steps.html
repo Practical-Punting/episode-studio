@@ -1,0 +1,37 @@
+<!--@schema
+{
+  "precedent": ["EP12 c10"],
+  "note": "FLOW ONLY, ON PURPOSE. The shipped EP12 C10 built this cascade out of absolutely-positioned cards (.st.a/b/c at left:0/180/360, top:0/150/300) with the footnote pinned to the right of .steps — and the note overlapped the third card between 1040px and 1300px. Here the cascade is margin-left on boxes in normal flow and the note is the next box down, so no string length and no step count can make two of them share the same pixels. See DESIGN §11: the collision class is designed out, card_check.py is only the backstop. Cost of the change: the shipped card overlapped its steps by ~8px vertically (a deck-of-cards look) and this one does not. That is a visible difference and Jodie's call, not mine.",
+  "required": [],
+  "optional": ["note"],
+  "lists": {"steps": {"min": 2, "max": 3, "fields": ["k", "v"]}},
+  "anim": {"steps": {"base": 1150, "step": 650}},
+  "fit": {"step_gap": [".st + .st", "margin-top"], "note_size": [".note", "font-size"]}
+}
+-->
+<!--@css-->
+.steps{margin-top:auto;}
+.st{box-sizing:border-box;background:#2B2B2B;border-radius:20px;padding:26px 34px;width:940px;}
+.st + .st{margin-top:12px;}
+.st .k{font-family:'Anton',sans-serif;font-size:52px;line-height:1.02;}
+.st .v{margin-top:10px;font-size:36px;font-weight:600;color:#B4B4B4;}
+.st.i1{margin-left:0;border-left:8px solid #DA532C;}
+.st.i2{margin-left:180px;border-left:8px solid #9A6A55;}
+.st.i3{margin-left:360px;border-left:8px solid #6E6E6E;}
+.note{margin-top:26px;width:1380px;font-size:36px;font-weight:600;font-style:italic;color:#9A9A9A;line-height:1.24;}
+<!--@print-->
+body.print .st{background:#F4F4F4}
+body.print .st .v{color:#666}
+body.print .note{color:#777}
+<!--@markup-->
+  <div class="steps">
+<!--@each steps-->
+    <div class="st i{{I}}" id="st{{I}}"><div class="k anton">{{ITEM.k}}</div><div class="v">{{ITEM.v}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="note" id="note">{{note}}</div>
+<!--@anim-->
+<!--@each steps-->
+ {"sel":"#st{{I}}","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":620,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":560,"delay":3150,"easing":"ease-out"}}

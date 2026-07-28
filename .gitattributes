@@ -10,3 +10,11 @@
 # byte comparison against Drive would silently fail.
 docs/*.md -text
 docs/**/*.md -text
+
+# The card template library and the card_check regression fixture, added 28 Jul
+# 2026. These are reference artifacts: the golden-file test regenerates EP11's
+# and EP12's shipped pages from them and diffs the rendered PNGs, and the fixture
+# reproduces EP12's C10 as it stood before the collision fix. Keep them LF so a
+# fresh clone measures the same bytes this machine does.
+.claude/skills/pp-episode-production/assets/cards/**/*.html -text
+.claude/skills/pp-episode-production/scripts/testdata/*.html -text

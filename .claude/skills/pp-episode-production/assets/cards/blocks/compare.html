@@ -1,0 +1,38 @@
+<!--@schema
+{
+  "precedent": ["EP12 c04"],
+  "required": [],
+  "optional": ["note"],
+  "lists": {"cols": {"min": 2, "max": 2, "fields": ["tone", "k", "v"],
+                     "enum": {"tone": ["yes", "no"]}}},
+  "anim": {"cols": {"base": 1200, "step": 600}},
+  "fit": {"value_size": [".col .v", "font-size"], "note_size": [".note", "font-size"]}
+}
+-->
+<!--@css-->
+.cols{margin-top:56px;display:flex;gap:40px;}
+.col{flex:1;background:#2B2B2B;border-radius:22px;padding:38px 40px;border-top:8px solid #6E6E6E;}
+.col.yes{border-top-color:#DA532C;}
+.col .mark{font-size:72px;line-height:1;font-weight:800;}
+.col.yes .mark:before{content:"\2713";color:#DA532C;}
+.col.no .mark:before{content:"\2717";color:#8A8A8A;}
+.col .k{margin-top:16px;font-size:32px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9A9A9A;}
+.col .v{margin-top:18px;font-size:56px;font-weight:700;line-height:1.14;color:#EDEDED;}
+.note{margin-top:54px;font-size:44px;font-weight:600;font-style:italic;color:#9A9A9A;max-width:1420px;line-height:1.2;}
+<!--@print-->
+body.print .col{background:#F4F4F4}
+body.print .col .k{color:#777}
+body.print .col .v{color:#333}
+body.print .note{color:#777}
+<!--@markup-->
+  <div class="cols">
+<!--@each cols-->
+    <div class="col {{ITEM.tone}}" id="c{{I}}"><div class="mark"></div><div class="k">{{ITEM.k}}</div><div class="v">{{ITEM.v}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="note" id="note">{{note}}</div>
+<!--@anim-->
+<!--@each cols-->
+ {"sel":"#c{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":560,"delay":2500,"easing":"ease-out"}}
