@@ -337,6 +337,111 @@ def stage_thumbnail_hero(ep_dir: Path) -> str:
     return f"thumbnail hero staged from the picked cover hero ({src.name} -> {dst.name})"
 
 
+def stage_title_hero(ep_dir: Path) -> str:
+    """Copy the PICKED cover hero into overlay/export/title-hero.png. Never overwrite.
+
+    Same shape as stage_thumbnail_hero, and for the same reason: a browser operator
+    cannot copy a file, so the engine does the chore rather than raising a flag about
+    it.
+
+    WHICH HERO. EP11 and EP12 deliberately used the UNUSED hero here, so the title
+    card and the e-book cover were not the same photograph. EP13 could not — its
+    hero B shows horses on both sides of the running rail and is rejected under the
+    §B-roll hard-fail list — and Jodie's 28 Jul ruling settled the general case on
+    the PICKED hero. So the picked one is the default, and an episode that wants the
+    spare puts its own file here: this never overwrites what it finds.
+    """
+    dst = ep_dir / "overlay/export/title-hero.png"
+    if dst.is_file():
+        return f"title hero already staged ({dst.name}) — left exactly as it is"
+    src = ep_dir / "ebook/cover-src/hero.png"
+    if not src.is_file():
+        return ("title hero NOT staged: there is no picked cover hero at "
+                "ebook/cover-src/hero.png to copy from")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, dst)
+    return f"title hero staged from the picked cover hero ({src.name} -> {dst.name})"
+
+
+def author_missing_title(ep_dir: Path) -> str:
+    """Author overlay/export/<ep>-title.html when it does not exist yet.
+
+    A1. The title card halted EP11, EP12 and EP13 with `Card TITLE has no clip in
+    overlay/clips` — a message that asks a browser operator to write and place an
+    HTML page. It fires on every episode and Hugh cannot clear it. It is now
+    authored from episode.json, and only a DATA problem halts.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/author_title_card.py"),
+         str(ep_dir / "docs/episode.json"), str(ep_dir / "overlay/export")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+    if r.returncode:
+        raise EngineFlag(
+            "The title card could not be authored from episode.json. This is a DATA "
+            "problem, not a missing-file problem — fix the field it names in "
+            f"docs/episode.json, then clear this flag.\n{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
+def title_placement_review(ep_dir: Path, png: Path):
+    """The ONE clearable flag the title card is meant to raise.
+
+    Everything else on the card is substituted from approved fields and the type
+    size is measured. `object-position` is the single genuinely per-image value —
+    where the hero sits in the 16:9 window — and it cannot be chosen without
+    looking at the picture. So the card is authored at the default, RENDERED, and a
+    human is asked to look at a PNG rather than to type a coordinate blind.
+
+    Flags once. The marker records that a human has seen it, so clearing the flag
+    lets the step through instead of re-raising it forever.
+    """
+    seen = ep_dir / "overlay/export/.title-placement-reviewed"
+    if seen.exists():
+        return
+    seen.parent.mkdir(parents=True, exist_ok=True)
+    seen.write_text("a human has looked at the title card placement\n", encoding="utf-8")
+    raise EngineFlag(
+        f"Have a look at the title card: {png}\n"
+        "The words are already settled — the headline, the part line and the byline "
+        "are the approved packaging, and the type size is measured, not chosen. What "
+        "needs your eye is the HERO CROP: whether the horses are framed well in the "
+        "16:9 window and every line of text is clear of them.\n"
+        "Happy? Clear this flag and the build carries on. Not happy? It is one value "
+        'in docs/episode.json — "title_card": {"hero_focus": "center 62%"} — which is '
+        "exactly what EP12 needed, because its field sits low in the frame. Say so and "
+        "it is one edit and a re-render.")
+
+
+def title_preview(ep_dir: Path, clip: Path) -> Path:
+    """A still of the title card, grabbed from THE CLIP THAT WILL SHIP.
+
+    Not a re-render of the page. Everything on this card animates in over ~2.35s,
+    so a screenshot of the page at load shows a half-built card with the byline
+    still at opacity 0 — and re-rendering would in any case be a second opinion
+    about pixels the video does not use. The frame comes from the rendered clip,
+    at the end, where everything has landed.
+    """
+    out = ep_dir / "overlay/export/title-preview.png"
+    dur = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(clip)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
+    try:
+        at = max(0.0, float(dur) - 0.2)
+    except ValueError:
+        at = 3.0
+    subprocess.run(
+        ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+         "-ss", f"{at:.2f}", "-i", str(clip), "-frames:v", "1", str(out)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if not out.is_file():
+        raise EngineFlag(
+            f"The title card rendered to {clip.name} but a preview frame could not be "
+            f"taken from it, so there is nothing to show you. Look at the clip itself, "
+            f"then clear this flag.")
+    return out
+
+
 def _shipping_srt(ep_dir: Path):
     """Which SRT goes out beside the video — (path, one line saying which and why).
 
@@ -653,7 +758,12 @@ class MockProvider:
         export = d / "overlay/export"
         export.mkdir(parents=True, exist_ok=True)
         added = stage_card_furniture(export)
+        hero = stage_title_hero(d)
         report = author_missing_cards(d)
+        # The title card too — same order as real. The mock exists to prove that a
+        # clean folder produces cards instead of a halt, and TITLE was the last
+        # halt in that class, so leaving it out would make the mock lie.
+        title = author_missing_title(d)
         fit = autofit_cards(d)          # same order as real: author -> fit -> check
         try:
             self.run([sys.executable, SKILL_DIR / "scripts/card_check.py", export],
@@ -663,6 +773,8 @@ class MockProvider:
         except RuntimeError as e:
             raise EngineFlag(f"Mock card render failed: {str(e)[-700:]}")
         print(f"    [mock] staged {len(added)} furniture file(s); {report}")
+        print(f"    [mock] {hero}")
+        print(f"    [mock] {title}")
         print(f"    [mock] {fit}")
         return sorted(str(p) for p in (d / "overlay/clips").glob("*.mp4"))
 
@@ -1214,8 +1326,13 @@ class RealProvider:
         export.mkdir(parents=True, exist_ok=True)
         # 1. the standing pages + the assets an authored card needs
         stage_card_furniture(export)
+        # 1b. the title card's photograph — a file copy, not a decision (A1)
+        print(f"    {stage_title_hero(d)}")
         # 2. author whatever is missing; hand-authored pages are left alone
         author_missing_cards(d)
+        # 2a. and the TITLE card, which used to be hand-made on every episode and
+        #     halted every one of them with "Card TITLE has no clip in overlay/clips"
+        print(f"    {author_missing_title(d)}")
         # 2b. step the type down until it fits, BEFORE the checker judges it. Type
         #     size is a measurement, not a judgement (design §11), so it should never
         #     be a halt. Hand-authored pages are left alone here too.
@@ -1234,7 +1351,14 @@ class RealProvider:
         self.py("render_cards_batch.py", export, d / "overlay/clips", cwd=d)
         epj = self.epjson(ep)
         ids = [c["id"] for c in epj["cards"]]
-        return [str(self._clip(ep, cid)) for cid in ids]     # verifies every card landed
+        clips = [str(self._clip(ep, cid)) for cid in ids]    # verifies every card landed
+        # 5. ONE look, at the one value that cannot be measured — the hero crop.
+        #    Raised here, with the picture, while the engine still owns the episode:
+        #    an episode cannot go backwards, so a bad crop found at the four
+        #    approvals is expensive and the same crop found now is a flag.
+        if "TITLE" in ids:
+            title_placement_review(d, title_preview(d, self._clip(ep, "TITLE")))
+        return clips
 
     def poll_heygen(self, ep, polls_so_far):
         """The render is a HUMAN step; we only pick up the finished master via

@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><title>%%TITLE%%</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+%%GENMARK%%
+<!-- THE STANDING TITLE CARD. Authored by author_title_card.py from episode.json.
+
+     It was hand-made on every episode up to EP13 and halted every one of them with a
+     message a browser operator could not act on. The proof that it is a TEMPLATE and
+     not a design decision is in EP13's own header comment: "Built from EP12's shipped
+     ep12-title.html … Only the per-episode slots changed." If a human can instantiate
+     it by substitution, so can the engine.
+
+     THE SLOTS, all read from docs/episode.json:
+       cover.title_setup   -> the WHITE half of the headline
+       cover.title_payoff  -> the ORANGE half
+       cover.part          -> the series line, half the headline size, orange
+       packaging.byline    -> the one-line promise under it
+     The eyebrow is CONSTANT — the channel line, the same on every episode.
+
+     WHY THE COLOUR SPLIT COMES FROM cover.*: the e-book cover and the thumbnail are
+     built from those same fields, so the title card, the cover and the thumbnail
+     cannot disagree about which words are emphasised. One source, three artefacts.
+
+     SERIES TREATMENT (PP-STANDARDS §E-book, Jodie 26 Jul 2026): no em dash — the part
+     sits on its own line at half the headline size, still orange, so the parts of a
+     series read as one set. With no part the line is omitted, not left empty.
+
+     TYPE SIZE IS MEASURED, NOT CHOSEN. EP12 set 170px for "HIDDEN ACES" and EP13 set
+     150px for "THE RATINGS GAME" — that is text-length fitting done by eye, which is
+     exactly what the 28 Jul ruling says is a measurement. author_title_card.py
+     measures the headline in the real Anton and writes the largest size that fits on
+     one line. `white-space:nowrap` below is the SAFETY NET, not the mechanism: a
+     headline that still overruns cannot wrap quietly, it overflows `.card` (which
+     clips) and card_check hard-fails — the same detector that already gates the
+     content cards, so there is one implementation of "too long", not two.
+
+     object-position IS THE ONE GENUINELY PER-IMAGE VALUE. It is authored at the
+     default and the render is put in front of a human, exactly as the thumbnail crop
+     is: a number nobody has looked at is a guess, and a halt asking for a number
+     nobody can see is worse. -->
+<style>html,body{margin:0;padding:0}body{width:1920px;height:1080px;overflow:hidden;background:#1F1F1F}
+.card{box-sizing:border-box;width:1920px;height:1080px;background:#1F1F1F;position:relative;overflow:hidden;font-family:'Barlow',sans-serif;color:#fff;}
+.hero{position:absolute;inset:0;}
+.hero img{width:100%;height:100%;object-fit:cover;object-position:%%HERO_FOCUS%%;display:block;}
+/* The scrim is what keeps the words legible over ANY hero — it is not decoration.
+   Steeper on the left, where the type sits, and nearly clear on the right so the
+   photograph is still a photograph. */
+.scrim{position:absolute;inset:0;background:linear-gradient(78deg, rgba(15,15,15,0.90) 0%, rgba(15,15,15,0.66) 42%, rgba(15,15,15,0.20) 78%, rgba(15,15,15,0.05) 100%);}
+.inner{position:absolute;left:110px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;max-width:1260px;}
+.eyebrow{display:flex;align-items:center;gap:24px;}
+.rule{width:72px;height:6px;background:#DA532C;transform-origin:left center;}
+.eyebrow .lbl{font-size:36px;font-weight:800;letter-spacing:0.24em;text-transform:uppercase;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,0.7);}
+.anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
+.t1{margin-top:40px;font-size:%%TITLE_SIZE%%px;line-height:0.92;color:#DA532C;text-shadow:0 6px 30px rgba(0,0,0,0.6);white-space:nowrap;}
+.t1 .setup{color:#fff;}
+.pt{margin-top:20px;font-size:%%PART_SIZE%%px;letter-spacing:0.05em;color:#DA532C;text-shadow:0 4px 20px rgba(0,0,0,0.65);}
+.byl{margin-top:44px;font-size:54px;font-weight:600;letter-spacing:0.01em;color:#E4E4E4;text-shadow:0 3px 16px rgba(0,0,0,0.65);}
+.logo{position:absolute;right:110px;bottom:84px;width:214px;height:65px;}
+</style>
+<script src="pp-anim.js"></script></head>
+<body><div class="card">
+<div class="hero"><img src="title-hero.png" alt=""><div class="scrim"></div></div>
+<div class="inner">
+  <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">How to Win at Horse Racing</div></div>
+  <div id="t1" class="anton t1"><span class="setup">%%TITLE_SETUP%%</span> %%TITLE_PAYOFF%%</div>
+%%PART_LINE%%
+  <div id="byl" class="byl">%%BYLINE%%</div>
+</div>
+<img id="logo" class="logo" src="assets/logo.png" alt="Practical Punting"></div>
+<script>ppInit([
+ {"sel":"#rule","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":500,"delay":100,"easing":"ease-out"}},
+ {"sel":"#eyb","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":400,"delay":260,"easing":"ease-out"}},
+ {"sel":"#t1","kf":[{"opacity":0,"transform":"translateY(46px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":700,"delay":520,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+%%PART_ANIM%% {"sel":"#byl","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":1350,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#logo","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":600,"delay":1750,"easing":"ease-out"}}
+]);</script>
+<script>if(new URLSearchParams(location.search).has('print')){document.body.classList.add('print');}</script>
+</body></html>
