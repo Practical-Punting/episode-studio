@@ -1054,6 +1054,50 @@ Recorded here so they are not lost. None blocks this design; several are cheap.
     stager (item 24). *A ruling is not a mechanism; nor is a checker that measures the wrong
     quantity.*
 
+27. 🔴🔴 **A CHECK THAT SHARES ITS SOURCE WITH THE THING IT CHECKS IS NOT A CHECK.**
+    **(Jodie, 29 Jul 2026. The sharpest instance of a guard that was not guarding, and the
+    one that did the most damage.)**
+
+    **`renders/generated.srt` IS NOT A TRANSCRIPT.** `build_shot_map.py` CONSTRUCTS it from
+    `spoken-words.txt`: paragraph boundaries word-proportional and snapped to a real pause
+    **only if one lies within ±3.5s**, then cues laid out inside a paragraph
+    **character-proportionally with no snapping at all**. Card leads are derived from that
+    file — and `qc_episode`'s word-cue test then read **the same file** to decide whether the
+    cards landed on their cues. **It was comparing a number with itself.**
+
+    **THE MECHANISM OF FAILURE:** an error larger than the ±3.5s snap window can never be
+    corrected, so drift accumulates unchecked.
+
+    **WHAT IT COST.** Measured against wav2vec2 forced alignment of the same audio:
+    **mean error 5.15s, median 7.05s, worst 12.32s**, eight of fourteen cues out by >2s.
+    **Eleven of fourteen EP13 cards entered BEFORE their spoken cue** — C4 by **12.3s** —
+    against a standard that says a card enters on or just after its cue, NEVER before.
+    Proof it is the constructed file that is wrong: at 144-150s the audio is still on Axiom 4
+    (*"a skilful jockey can help the horse in overcoming bad draws"*); **"Axiom 5 / Track bias"
+    does not begin until 156.0s**, where the constructed SRT claims **144.22s**.
+
+    ⚠️ **AND IT REPORTED GREEN THE WHOLE TIME** — through EP11, EP12 and three rebuilds of
+    EP13. **Jodie reported this fault BY EYE on EP11 and was told, by measurement, that she was
+    wrong.** It is also the real answer to *"the ideas in the script and the motion graphics
+    don't line up"*: the cards were not out of step because the wrong moments were chosen, they
+    were out of step because **they were up to twelve seconds early.**
+
+    **FIXED TONIGHT (the numbers, not the mechanism):** `qc_episode` and
+    `derive_card_timings` now prefer `renders/aligned.srt` — timings from forced alignment —
+    and say so **loudly** when it is missing rather than grading the build against its own
+    homework. The cue search also now spans up to three consecutive blocks, because a phrase
+    straddling two blocks was reported *"not found"*, which **downgrades a HARD FAIL to a
+    warning and leaves that card silently unchecked** (EP13's C6 and C14 both did this).
+    Re-pointed, the checker **hard-failed the build it had just passed**.
+
+    **THE PERMANENT FIX IS THE TOP EP14 ITEM: timings from forced alignment, TEXT from
+    `spoken-words.txt`, never blind transcription.** Whisper misheard *"Here's a claim"* →
+    *"He's a client"*, *"wind direction"* → *"wing direction"*, *"luck in running"* →
+    *"lucking running"* — so the transcript must never supply the words, only the clock.
+    **Runtime is ~1m40s for a 13-minute episode — trivial beside a 12-minute pass A.**
+    ⚠️ **EP11 AND EP12 ARE PUBLISHED CARRYING THIS. They are NOT to be re-cut** — re-uploading
+    loses view history.
+
 17. 🔴 **NOTHING SYNCS THE BOARD'S WORDS INTO `episode.json` — the packaging is SPLIT-BRAIN.**
     **Logged as backlog by Jodie, 28 Jul 2026. Not now.**
     The Words Gate's three boxes write `hook` / `byline` / `title` to the **RAIL**
