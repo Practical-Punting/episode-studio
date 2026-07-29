@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""supervisor.py — start the engine, and keep starting it. Run by Task Scheduler.
+
+    python supervisor.py            # one tick: start the engine if it is not up
+    python supervisor.py --status   # say what it would do, change nothing
+
+WHY THIS EXISTS
+---------------
+The engine died overnight on 28 July 2026 and nothing noticed for hours. It has now
+gone down twice in two days, and only ONE of those was a fault:
+
+  1. A socket-level timeout on the Supabase poll in the idle loop went past
+     `rail._request`'s `HTTPError`-only handler to the top of the process. Fixed (B6)
+     — but a fix for one cause is not a supervisor.
+  2. **The stale-code guard exiting on purpose.** `_code_changed()` ends the process
+     whenever engine.py, providers.py or rail.py changes, so that months-old logic is
+     never left running in memory. That is CORRECT behaviour, and it means **every
+     deploy leaves the engine down until a human restarts it.**
+
+Case 2 is the one that actually bit, twice, and it is not a bug to be fixed — it is a
+design decision that needs a partner. This is the partner.
+
+WHAT IT GUARANTEES, AND WHAT IT DELIBERATELY DOES NOT
+-----------------------------------------------------
+It starts the engine. It does **not** decide anything, clear anything, render
+anything or publish anything. A supervisor that could do any of those would be
+automation eating a decision; this one eats a chore — *"go and start it again"*.
+
+THE THREE THINGS JODIE MADE REQUIREMENTS, NOT NOTES
+---------------------------------------------------
+1. **The working directory is set explicitly.** Task Scheduler's default cwd is
+   `C:\\Windows\\System32`, and the engine resolves the skill and the lock relative to
+   itself but the *scripts it shells out to* run with `cwd=` the episode folder. An
+   implicit cwd is a difference between "it works when I run it" and "it works".
+2. **`.env` is located explicitly.** `rail.py` looks for `PP_VIDEOS_DIR/.env` and
+   then walks up from `__file__` — and since the repo moved off Drive, that walk
+   reaches the repo root, which has no `.env` **and a .gitignore forbidding one**. So
+   `PP_VIDEOS_DIR` is set here rather than left to a default that has already been
+   wrong once.
+3. **stdout goes to a DATED log file.** Without it a crash is invisible again, which
+   is the entire fault being fixed. A supervisor whose failures are silent is worse
+   than none, because it also removes the human habit of checking.
+
+IT REFUSES TO START INTO A BROKEN ENVIRONMENT, LOUDLY. If G: is not mounted (Drive
+not up yet after a boot) or the `.env` is unreadable, it writes WHY to the log and
+exits 0 — the next tick five minutes later will find Drive up. Starting the engine
+into a missing Drive would produce a confusing failure and a `needs_look` about an
+episode, blaming the episode for the machine.
+"""
+import argparse
+import datetime as _dt
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+ENGINE_DIR = Path(__file__).resolve().parent
+REPO = ENGINE_DIR.parent
+LOG_DIR = ENGINE_DIR / "logs"
+LOCK = ENGINE_DIR / "engine.lock"
+
+# Requirement 2, explicit. Overridable for a test rig, but never implicit.
+PP_VIDEOS = Path(os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos"))
+
+
+def now():
+    return _dt.datetime.now()
+
+
+def log_path(t=None) -> Path:
+    return LOG_DIR / f"engine-{(t or now()):%Y-%m-%d}.log"
+
+
+def say(msg: str) -> None:
+    """One line, to the dated log AND to stdout, stamped. Never swallowed."""
+    line = f"[{now():%Y-%m-%d %H:%M:%S}] [supervisor] {msg}"
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(log_path(), "a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+    # THE FILE IS WRITTEN FIRST AND UNCONDITIONALLY. Under pythonw.exe `sys.stdout`
+    # is None and this print would raise — a supervisor that dies trying to announce
+    # itself is exactly the silent failure this whole thing exists to end.
+    try:
+        print(line, flush=True)
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
+def engine_pid():
+    """The pid of a LIVE engine, or None. Mirrors engine._acquire_lock exactly.
+
+    A lingering handle makes OpenProcess succeed on an exited process, so only exit
+    code 259 (STILL_ACTIVE) counts as running — the same trap engine.py documents.
+    """
+    if not LOCK.exists():
+        return None
+    try:
+        pid = int(LOCK.read_text().strip())
+    except (ValueError, OSError):
+        return None
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)
+        if not h:
+            return None
+        code = ctypes.c_ulong()
+        alive = k.GetExitCodeProcess(h, ctypes.byref(code)) and code.value == 259
+        k.CloseHandle(h)
+        return pid if alive else None
+    except (OSError, AttributeError):
+        return None
+
+
+def environment_problem():
+    """Why the engine must NOT be started right now — or None if it may be."""
+    if not PP_VIDEOS.is_dir():
+        return (f"{PP_VIDEOS} is not there. Google Drive is probably not mounted yet "
+                f"(usual right after a boot). Not starting; the next tick will retry.")
+    env = PP_VIDEOS / ".env"
+    if not env.is_file():
+        return (f"no .env at {env}. The engine cannot reach Supabase without it, and "
+                f"it must NEVER be moved into the repo — the repo is public.")
+    return None
+
+
+def start():
+    problem = environment_problem()
+    if problem:
+        say(f"NOT STARTING — {problem}")
+        return 0
+
+    pid = engine_pid()
+    if pid:
+        say(f"engine already running (pid {pid}) — nothing to do")
+        return 0
+
+    env = dict(os.environ)
+    env["PP_VIDEOS_DIR"] = str(PP_VIDEOS)          # requirement 2
+    env["PYTHONUNBUFFERED"] = "1"                  # or the log lags the failure
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    say(f"starting: {sys.executable} engine.py run --watch")
+    say(f"  cwd            {ENGINE_DIR}")
+    say(f"  PP_VIDEOS_DIR  {PP_VIDEOS}")
+    say(f"  log            {log_path()}")
+
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(log_path(), "a", encoding="utf-8") as fh:
+        # THE TASK INSTANCE LIVES AS LONG AS THE ENGINE. With the task set to ignore
+        # a new instance while one is running, the 5-minute repetition is then a
+        # no-op during normal operation and a restart within 5 minutes of any exit —
+        # crash or the deliberate stale-code exit alike.
+        r = subprocess.run(
+            [sys.executable, str(ENGINE_DIR / "engine.py"), "run", "--watch"],
+            cwd=str(ENGINE_DIR),                   # requirement 1
+            env=env, stdout=fh, stderr=subprocess.STDOUT)
+    say(f"engine exited {r.returncode} — the next tick will start it again")
+    return 0
+
+
+def status():
+    pid = engine_pid()
+    problem = environment_problem()
+    print(f"engine        {'running, pid ' + str(pid) if pid else 'NOT running'}")
+    print(f"lock          {LOCK} ({'present' if LOCK.exists() else 'absent'})")
+    print(f"PP_VIDEOS_DIR {PP_VIDEOS} ({'ok' if PP_VIDEOS.is_dir() else 'MISSING'})")
+    print(f"log today     {log_path()} "
+          f"({log_path().stat().st_size} bytes)" if log_path().exists()
+          else f"log today     {log_path()} (not written yet)")
+    print(f"would         {'NOT start — ' + problem if problem else ('do nothing' if pid else 'START the engine')}")
+    return 0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--status", action="store_true",
+                    help="report and change nothing")
+    a = ap.parse_args()
+    sys.exit(status() if a.status else start())

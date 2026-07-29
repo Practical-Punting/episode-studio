@@ -14,6 +14,47 @@ python engine/engine.py status                # quick board glance
 python engine/engine.py cleanup-mock          # remove mock tickets + .mock/ artifacts
 ```
 
+## THE SUPERVISOR — the engine starts itself (29 Jul 2026)
+
+```
+python engine/supervisor.py --status              # what it would do; changes nothing
+python engine/install_supervisor_task.py --show   # the Task Scheduler entry
+python engine/prove_supervisor.py                 # kill the engine, watch it come back
+```
+
+A Windows scheduled task, **"PP Episode Studio engine"**, runs `supervisor.py` at
+logon and **every 5 minutes indefinitely**. The supervisor starts
+`engine.py run --watch` and nothing else — it never renders, never publishes and
+never clears a flag.
+
+**Why.** The engine went down twice in two days and only one of those was a fault.
+The other was the **stale-code guard exiting on purpose**: `_code_changed()` ends the
+process whenever `engine.py`, `providers.py` or `rail.py` changes, which is correct —
+and it means every deploy leaves the engine down until a human restarts it. That is
+not a bug to fix; it is a design decision that needed a partner.
+
+- **Working directory and `PP_VIDEOS_DIR` are set explicitly.** Task Scheduler's
+  default cwd is `System32`, and since the repo moved off Drive `rail.py`'s parent
+  walk no longer reaches `PP Videos/.env`.
+- **Everything is appended to `engine/logs/engine-YYYY-MM-DD.log`** (gitignored). A
+  supervisor whose failures are silent is worse than none.
+- **It refuses to start into a broken environment, loudly** — no `G:`, no `.env` —
+  and logs why rather than blaming an episode for the machine.
+- **`IgnoreNew` + the engine's own lock.** The task instance lives as long as the
+  engine, so the 5-minute tick is a no-op during normal running.
+- ⚠️ **The repetition is on a DAILY trigger, not the logon one.** On the logon
+  trigger it registered fine, reported `Next Run Time: N/A` and would not have ticked
+  once until the next logon. *An installed task that never fires is the hope it was
+  meant to replace.*
+- ⚠️ **There is no boot trigger.** It runs in the interactive session because **G: is
+  Google Drive and only exists there**; a boot trigger could not fire before login
+  anyway, and registering one needs administrator rights.
+
+**PROVED, not asserted (29 Jul 2026):** engine killed on pid 76464, back by itself on
+pid 75784 **13 seconds later** with no human involved — the whole sequence in the
+dated log. *13s because the kill landed just before a tick boundary; the guaranteed
+bound is 5 minutes.*
+
 Config comes from `PP Videos/.env` via `scripts/rail.py` (the ONE Supabase
 client — service_role key, never client-side). Overrides:
 `PP_VIDEOS_DIR`, `ENGINE_WORKER`, `ENGINE_CREDIT_CEILING`, `ENGINE_RETRY_DELAYS`,
