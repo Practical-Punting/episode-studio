@@ -239,18 +239,19 @@ JOB_BLOCKS = {
     # "anchor, or a bare statement". A bare statement IS an assertion, so it must
     # declare `anchor` and be counted against the 40% cap — not hide under `relate`.
     "anchor": {"stat", "price", "statement"},
-    # ⚠️ `slate` and `checklist` are MY EXTENSION of Jodie's list, awaiting her word.
-    # Her mapping was relate -> compare|steps|bars|ratio, which leaves slate and
-    # checklist with no legal job at all. The standard defines relate as "shows how
-    # two or more things connect — a chain, a contrast, a trade-off, a cause", and a
-    # slate of parallel panels or a checklist of contributing causes does exactly
-    # that (EP13 C3's two lists of what degrades ability; C4's four conditions that
-    # set the bias). Without them six cards are unbuildable.
+    # `slate` and `checklist` CONFIRMED for relate by Jodie, 29 Jul 2026: "four causes
+    # pointing at one outcome IS a relationship, and C3's two lists of what stands
+    # between ability and result is the same shape." SUBJECT TO THE LIST QUALIFIER
+    # below — a list earns `relate` only when it shows what the items connect TO.
     "relate": {"compare", "steps", "bars", "ratio", "slate", "checklist"},
     "orient": {"steps", "slate"},
     # `locate` is the rail modifier — it rides on any block, so it constrains none.
     "locate": None,
 }
+
+# Blocks that merely ENUMERATE. They can relate — but only by naming the thing the
+# items connect to (see the list qualifier in check_job).
+LIST_BLOCKS = {"checklist", "slate"}
 
 # R3 IS MEASURED ON THE BLOCK, NEVER ON THE DECLARED JOB. Assertion "fell" from 54%
 # to 20% overnight while the pictures stayed identical, because the cards had been
@@ -302,6 +303,18 @@ def check_job(card):
                 f"{j!r} needs one of {sorted(allowed)} (pp-visual-standard R3a). A job is a "
                 f"CLAIM about what the card does — relabelling a block does not change the "
                 f"picture, and R3 is measured on the BLOCK for exactly that reason."]
+    # THE LIST QUALIFIER (Jodie, 29 Jul 2026). A list block earns `relate` only when it
+    # shows what the items connect TO. "These four things set the track bias" is a
+    # relationship — many causes, one outcome. A bare enumeration with no subject is
+    # assertion wearing a list's clothes, and it must declare `anchor` and count
+    # against the 40% cap instead. The connection has to be NAMED, so the claim is
+    # explicit and reviewable rather than implied by the choice of block.
+    if j == "relate" and blk in LIST_BLOCKS and not str(card.get("relates_to") or "").strip():
+        return [f"card {card.get('id', '?')}: a {blk!r} claiming job 'relate' must name what "
+                f"its items connect to, in 'relates_to' (pp-visual-standard R3a, the list "
+                f"qualifier). Many causes pointing at ONE outcome is a relationship; a bare "
+                f"enumeration is assertion wearing a list's clothes — declare 'anchor' for "
+                f"that and let it count against the 40% cap."]
     return []
 
 

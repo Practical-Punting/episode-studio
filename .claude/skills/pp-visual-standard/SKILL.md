@@ -58,7 +58,13 @@ Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 
 **R3 · AT MOST 40% OF CONTENT CARDS MAY BE PURE ASSERTION.** **Measured on the BLOCK the card actually uses** (`stat`, `price`, or a bare `statement`) — **never on the declared `job`.** *A job is a CLAIM, not a fact: relabelling a `statement` as `relate` improves the number without changing a single pixel. EP13 as shipped was 54% by block; after the rebuild it is 20% by block — because the cards changed, not the labels.* → **halt.**
 
-**R3a · THE DECLARED JOB MUST BE CONSISTENT WITH THE BLOCK.** `anchor` → `stat`/`price`; `relate` → `compare`/`steps`/`bars`/`ratio`; `orient` → `steps`/`slate`. A card cannot claim to relate two things while using a block that can only assert one. → **halt.**
+**R3a · THE DECLARED JOB MUST BE CONSISTENT WITH THE BLOCK.** `anchor` → `stat`/`price`/`statement`; `relate` → `compare`/`steps`/`bars`/`ratio`/`slate`/`checklist`; `orient` → `steps`/`slate`. A card cannot claim to relate two things while using a block that can only assert one. → **halt.**
+
+> **THE LIST QUALIFIER** *(Jodie, 29 Jul 2026 — so the loophole cannot reopen).* **A LIST BLOCK (`checklist`, `slate`) EARNS `relate` ONLY WHEN IT SHOWS WHAT THE ITEMS CONNECT TO.** *"These four things set the track bias"* is a relationship — many causes, one outcome. **A bare enumeration with no subject is assertion wearing a list's clothes: it declares `anchor` and counts against the 40% cap.** Enforced by requiring the card to name the connection in `relates_to`; a list block claiming `relate` without one halts.
+
+> ## 🔴 THE RULE CAUGHT ITS AUTHOR WITHIN MINUTES — PUT ON THE RECORD BECAUSE THAT IS THE POINT
+> EP13's assertion share was reported as having fallen from **54% to 20%**. **The pictures were identical.** The cards had been **RELABELLED, not changed** — six of them, by Claude Code, declaring `relate` on blocks that can only assert. R3a was built and immediately **hard-failed six of its own author's labels**; measured on the BLOCK the true figure was **33%**, not 20%.
+> **A metric you can move by editing a label is not a metric.** This is why R3 counts blocks and R3a checks the claim — and why the gate was written before the number was believed.
 
 **R4 · AN ANNOUNCED COUNT MUST BE KEPT.** If any card says "seven", seven must be shown and each member must carry its position. → **halt.**
 

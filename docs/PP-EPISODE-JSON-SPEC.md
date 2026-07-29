@@ -54,6 +54,15 @@
                                          // structure, so their subject is the EPISODE, not one
                                          // sentence — they are exempt from the fit and
                                          // relevance window tests.
+      "relates_to": "the day's track bias — four conditions, one outcome",
+                                         // v3, REQUIRED when a LIST block (checklist,
+                                         // slate) declares job "relate". Names what the
+                                         // items connect TO. Many causes pointing at one
+                                         // outcome is a relationship; a bare enumeration
+                                         // with no subject is assertion wearing a list's
+                                         // clothes and must declare "anchor" instead,
+                                         // counting against the 40% cap. (R3a, the list
+                                         // qualifier — Jodie, 29 Jul 2026.)
       "fit": {                           // v2, optional: MEASUREMENTS ONLY, never text
         "headline_size": "104px"
       },

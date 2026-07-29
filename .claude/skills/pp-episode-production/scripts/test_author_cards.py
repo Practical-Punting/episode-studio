@@ -88,6 +88,34 @@ case("a card with NO job halts (visual standard R2)", _nojob, "MISSING 'job'")
 case("an invented job halts — the vocabulary is closed",
      lambda: run(stat_card(job="explain")), "not one of")
 
+
+def _job_block_clash():
+    probs = ac.check_job({"id": "C2", "block": "statement", "job": "relate"})
+    if probs:
+        raise ac.Halt(probs[0])
+
+
+case("a statement claiming 'relate' halts (R3a — a job is a claim)",
+     _job_block_clash, "declares job 'relate' but uses block")
+
+
+def _list_without_connection():
+    probs = ac.check_job({"id": "C4", "block": "checklist", "job": "relate"})
+    if probs:
+        raise ac.Halt(probs[0])
+
+
+case("a list block claiming 'relate' with nothing to relate TO halts",
+     _list_without_connection, "relates_to")
+
+# the positive control for the qualifier: name the connection and it builds
+if ac.check_job({"id": "C4", "block": "checklist", "job": "relate",
+                 "relates_to": "the day's track bias"}):
+    FAIL.append(("a list block that NAMES its connection is allowed",
+                 "unexpected halt"))
+else:
+    PASS.append(("a list block that NAMES its connection is allowed", "no halt, as expected"))
+
 # ---- 2. unknown content key ---------------------------------------------
 case("unknown content key halts",
      lambda: run(stat_card(content=dict(stat_card()["content"], sparkle="yes"))),
