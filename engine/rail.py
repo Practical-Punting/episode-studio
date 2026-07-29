@@ -35,10 +35,39 @@ CLI (quick manual checks):
     python rail.py status <id> <status>
 """
 
-import os, sys, json, urllib.request, urllib.error, urllib.parse
+import http.client
+import os, sys, json, ssl, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone
 
 TABLE = "episodes"
+
+
+class RailUnavailable(RuntimeError):
+    """The rail could not be reached after retrying. NOT a fault in the data."""
+
+
+# --- surviving the network (28/29 Jul 2026) ---------------------------------
+# THE ENGINE DIED OVERNIGHT ON ONE SLOW HTTPS READ and stayed dead 10h51m. The
+# traceback bottomed out in http/client.py `_read_status` — the request went out
+# and the response never came — and `_request` caught ONLY HTTPError, so a
+# socket-level TimeoutError went straight past it to the top of the process.
+# A read timing out on a home connection at 22:05 is an ORDINARY EVENT, not an
+# exception.
+#
+# WHAT IS TRANSIENT, and nothing else: timeouts, resets, DNS, TLS hiccups, and
+# the server-side/back-off status codes. A 401, a 404, a 409 or a bad payload is
+# a REAL FAULT and must still stop loudly — a blanket `except Exception` would
+# trade a loud death for a silent zombie, which is worse.
+TRANSIENT_STATUS = {408, 425, 429, 500, 502, 503, 504}
+TRANSIENT_NET = (TimeoutError, ConnectionError, ssl.SSLError,
+                 http.client.HTTPException, urllib.error.URLError)
+RETRY_DELAYS = (2, 5, 10, 20, 30, 60, 60, 60)      # ~3.8 min, then give up loudly
+
+# POST IS NEVER RETRIED. A timeout cannot tell us whether the insert landed, and
+# a duplicate episode row is worse than a failed one. Every call that polls —
+# the ones that actually killed the engine — is a GET or a PATCH, and a PATCH
+# setting fields to fixed values is idempotent.
+RETRYABLE_METHODS = {"GET", "PATCH"}
 
 # The status contract, in order. Kept here so it lives in exactly one place.
 STATUSES = [
@@ -107,17 +136,55 @@ def _headers(write=False):
     return h
 
 
+def _log(msg):
+    """One line, on stderr, so it lands in the engine's terminal without pretending
+    to be engine output."""
+    print(f"[rail] {msg}", file=sys.stderr, flush=True)
+
+
 def _request(method, query="", body=None, write=False):
-    """One place for every HTTP call to the rail."""
+    """One place for every HTTP call to the rail — including surviving the network.
+
+    Transient failures are retried with backoff and logged one line at a time.
+    Real faults (401, 404, 409, a bad payload) are raised on the first try, loudly.
+    """
     url = _BASE + query
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method, headers=_headers(write))
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            raw = r.read().decode()
-            return json.loads(raw) if raw else []
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{method} {url} -> {e.code}: {e.read().decode()}") from None
+    retryable = method in RETRYABLE_METHODS
+    attempts = len(RETRY_DELAYS) + 1 if retryable else 1
+
+    for attempt in range(1, attempts + 1):
+        req = urllib.request.Request(url, data=data, method=method,
+                                     headers=_headers(write))
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                raw = r.read().decode()
+                if attempt > 1:
+                    _log(f"recovered after {attempt} attempts: {method} {query[:60]}")
+                return json.loads(raw) if raw else []
+        except urllib.error.HTTPError as e:
+            # HTTPError subclasses URLError, so it MUST be caught first or every
+            # 401 would be treated as a network blip and retried into silence.
+            if not (retryable and e.code in TRANSIENT_STATUS):
+                raise RuntimeError(f"{method} {url} -> {e.code}: {e.read().decode()}") from None
+            why = f"HTTP {e.code}"
+        except TRANSIENT_NET as e:
+            why = f"{type(e).__name__}: {e}"
+
+        # MUST be >= attempts, not > len(RETRY_DELAYS): with attempts == 1 (a POST)
+        # the loop would otherwise fall off its end and RETURN None — a failed write
+        # reported as success. The first version did exactly that and the test still
+        # passed, because it only asserted the retry COUNT.
+        if attempt >= attempts:
+            raise RailUnavailable(
+                f"{method} gave up after {attempt} attempt(s) ({why}). "
+                + ("This is the network, not the data."
+                   if retryable else
+                   "A POST is never retried: a timeout cannot say whether the insert "
+                   "landed, and a duplicate row is worse than a failed one."))
+        delay = RETRY_DELAYS[attempt - 1]
+        _log(f"{why} on {method} {query[:60] or '/'} — retry {attempt} in {delay}s")
+        time.sleep(delay)
 
 
 def _now():

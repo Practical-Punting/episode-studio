@@ -852,18 +852,32 @@ def cmd_run(mock, watch):
             log(f"{changed} changed on disk since start — exiting so fresh code loads "
                 "(restart the engine)")
             return
-        ep = acquire()
-        if not ep:
+        # THE IDLE LOOP MUST OUTLIVE THE NETWORK. This is where the engine was when
+        # it died on 28 Jul: EP13 released and parked, nothing claimed, so the only
+        # outbound calls in flight were these rail polls. rail retries the transient
+        # family itself; RailUnavailable means it has been unreachable for minutes,
+        # and the right answer to that is to wait and poll again, not to exit and
+        # leave the board saying "working" all night.
+        try:
+            ep = acquire()
+            if not ep:
+                if not watch:
+                    _why_idle()
+                    log("nothing to do (no claimable episode) — exiting")
+                    return
+                if time.time() - _gate_last > 300:
+                    _why_idle()
+                    _gate_last = time.time()
+                if not mock and time.time() - _s8_last > 600:
+                    _stage8_watch()
+                    _s8_last = time.time()
+                time.sleep(idle_poll)
+                continue
+        except rail.RailUnavailable as e:
             if not watch:
-                _why_idle()
-                log("nothing to do (no claimable episode) — exiting")
-                return
-            if time.time() - _gate_last > 300:
-                _why_idle()
-                _gate_last = time.time()
-            if not mock and time.time() - _s8_last > 600:
-                _stage8_watch()
-                _s8_last = time.time()
+                raise
+            log(f"!! the rail is unreachable ({e}) — staying up and polling; "
+                f"nothing is lost, the engine simply cannot see the board yet")
             time.sleep(idle_poll)
             continue
 

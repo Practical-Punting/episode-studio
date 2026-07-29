@@ -47,7 +47,9 @@ const APPROVALS = [
 ];
 
 /* A frozen engine can't flag itself, so the BOARD decides staleness client-side. */
-const STALE_MS = 5 * 60 * 1000;
+const STALE_MS = 3 * 60 * 1000;   // the engine beats every 30s and renews a 3-min
+                                 // lease, so 3 minutes of silence is already several
+                                 // missed beats — not a slow moment. (29 Jul 2026)
 
 /* WORDS GATE (PP-STANDARDS 2026-07-25): a queued episode isn't claimable by the
  * engine until the words (title + HOOK + byline) are approved — lock words BEFORE
@@ -147,16 +149,36 @@ function senderFor(email) {
 
 /* "Needs a look" has two sources: the engine set the flag, OR the engine went quiet
  * mid-work (which it could never report itself). Both get the red treatment. */
+/* THE ENGINE IS STOPPED — one place that decides it, so the chip, the elapsed line
+ * and the alert can never disagree.
+ *
+ * On 28 Jul the engine died at 22:05 and this board went on saying "Working for
+ * 1 d 1 hr · render cooking 1 d 1 hr" until 08:56 the next morning. Everything else
+ * on the readiness list stops Hugh doing a task; THIS ONE TOLD HIM A LIE — it said
+ * the machine was working while the machine was dead.
+ *
+ * The age of the heartbeat in small grey type was already on the card. It is not a
+ * warning: it only means something to someone who already knows the rule, and Hugh
+ * never will. So say it in words, in the chip, where the status normally goes. */
+function engineStopped(ep) {
+  if (!WORKING.has(ep.status)) return null;
+  const beat = ep.heartbeat_at || ep.updated_at;
+  if (!beat) return null;
+  const age = Date.now() - new Date(beat).getTime();
+  if (age <= STALE_MS) return null;
+  return { since: beat, age: age };
+}
+
 function needsLook(ep) {
   if (ep.needs_look) {
     return { msg: ep.needs_look_message || "The engine flagged this one — it needs a human.", flagged: true };
   }
-  if (WORKING.has(ep.status)) {
-    const beat = ep.heartbeat_at || ep.updated_at;
-    if (beat && Date.now() - new Date(beat).getTime() > STALE_MS) {
-      return { msg: "The engine hasn't checked in for " + ago(beat) +
-                    ". It may be stuck — worth a look.", flagged: false };
-    }
+  const dead = engineStopped(ep);
+  if (dead) {
+    return { msg: "ENGINE STOPPED — nothing has been building for " + ago(dead.since) +
+                  ". The episode is safe and nothing is lost; it picks up where it left " +
+                  "off. Start the engine again on the build machine: " +
+                  "python engine/engine.py run --watch", flagged: true };
   }
   return null;
 }
@@ -332,7 +354,13 @@ function renderBoard() {
 }
 
 function cardFor(ep) {
-  const st = wordsGatePending(ep)
+  // THE CHIP MUST NOT SAY "Building…" WHEN NOTHING IS BUILDING. The status column
+  // is the truth about the EPISODE; the heartbeat is the truth about the MACHINE,
+  // and when they disagree the machine wins — an episode cannot be building if
+  // nothing is running.
+  const st = engineStopped(ep)
+    ? { label: "ENGINE STOPPED", cls: "alert", pct: (ep.progress_pct || 0) }
+    : wordsGatePending(ep)
     ? { label: "Your turn — words", cls: "need", pct: 3 }
     : STATUS[ep.status] || { label: ep.status || "—", cls: "wait", pct: 10 };
   const nl = needsLook(ep);
@@ -379,6 +407,12 @@ function elapsedLine(ep) {
     return ep.finished_at ? "Published " + ago(ep.finished_at) + " ago" : "Published";
   }
   if (WORKING.has(ep.status)) {
+    // NEVER say "Working" about a machine that is not running. This line claimed
+    // "Working for 1 d 1 hr · render cooking 1 d 1 hr" for eleven hours after the
+    // engine died — "render cooking" is the cruellest part, because it describes
+    // something actively happening.
+    const dead = engineStopped(ep);
+    if (dead) return "ENGINE STOPPED — no check-in for " + ago(dead.since);
     const base = ep.started_at ? "Working for " + ago(ep.started_at) : "Working";
     const beat = ep.heartbeat_at ? " · last check-in " + ago(ep.heartbeat_at) + " ago" : "";
     // The long pole runs in parallel — show it, so "Building…" never looks idle.
