@@ -99,22 +99,42 @@ blockquote { margin: 14px 0; padding: 10px 18px; border-left: 4px solid #DA532C;
 .pullquote { font-family:'Helvetica Neue',sans-serif; font-weight:700; font-size: 15pt; color:#1e1e1e; text-align:center; margin: 20px 30px; line-height:1.3; }
 .pullquote .accent { color:#DA532C; }
 
-/* A HEADING MUST NEVER BE THE LAST THING ON A PAGE (Jodie, 28 Jul 2026).
-   EP13 page 10 ended with "THE WEIGHT ANGLE" and one line of body; the rest ran to
-   page 11. The article's headings are INLINE BOLD at the head of a paragraph — that is
-   how the source writes them and §0a reproduces them in place — so `h2.rule`'s
-   page-break-after:avoid cannot reach them: to the layout engine they are simply line
-   one of a <p>. `orphans` is the rule that CAN reach them. At 3, a paragraph that
-   cannot leave three lines behind moves whole to the next page, which takes the heading
-   with it. A paragraph shorter than three lines is kept together anyway, so short ones
-   (EP13's AXIOM 3, two lines) are unaffected. In the BUILDER, not in an episode:
-   every article we will ever set writes its headings this way. */
-p { orphans: 3; widows: 2; }
-.illus { display:block; margin: 18px auto; max-width: 92%; max-height: 78mm; page-break-inside: avoid; page-break-before: avoid; }
+/* A HEADING MUST NEVER BE THE LAST THING ON A PAGE — AND NOTHING ELSE MAY BE WELDED
+   SHUT TO ACHIEVE IT (Jodie, 29 Jul 2026, replacing the blunt version below).
+
+   The article writes its headings as INLINE BOLD at the head of a paragraph, and §0a
+   reproduces them exactly there, so the layout engine cannot see them as headings at
+   all. The first fix reached for `orphans: 3` — which worked, and cost too much: with
+   `p:has(+ .illus)` and `.illus{page-break-before:avoid}` it welded A PARAGRAPH PLUS A
+   WHOLE PICTURE into one unbreakable block. When that block would not fit, it jumped
+   and took the gap with it: EP13's page 2 came out 25% full.
+
+   author_ebook.py now marks those paragraphs `.haslead` as it writes the body — MARKUP,
+   not words; the text stays byte-identical and the fidelity gate still proves 28/28.
+   So the rules can be precise instead of blunt:
+     · a HEADING keeps its first two lines and cannot end a page  (orphans on .haslead)
+     · an ORDINARY paragraph breaks normally, and may be parted from its figure
+     · a FIGURE may start a page — at the top of the next page it still reads as
+       belonging to the text before it
+   The unbreakable unit shrinks from "a paragraph plus a picture" to "a heading plus two
+   lines", which fits almost anywhere. */
+p { orphans: 2; widows: 2; }
+p.haslead { orphans: 3; page-break-after: avoid; break-after: avoid; }
+/* A figure never splits across pages, but it MAY start one. `page-break-before: avoid`
+   used to weld it to the paragraph above; with `p:has(+ .illus)` that made a
+   paragraph-plus-picture into one indivisible block, and a block too tall for the
+   space left jumped and took the white space with it. A figure at the top of the next
+   page still plainly belongs to the text before it. */
+.illus { display:block; margin: 18px auto; max-width: 92%; max-height: 78mm; page-break-inside: avoid; }
 /* Portrait figures (e.g. Canva pictures with a baked-in title/label): sized tastefully, centred, kept with their section. */
 .illus.portrait { width: 57%; max-width: 57%; max-height: 165mm; margin: 20px auto; }
-/* Keep the paragraph that introduces a figure whole, so heading + paragraph + figure stay together on one page (never split). */
-p:has(+ .illus) { page-break-inside: avoid; }
+/* REMOVED 29 Jul 2026 — this was `p:has(+ .illus) { page-break-inside: avoid; }`.
+   Together with `.illus{page-break-before:avoid}` it made a paragraph and its picture
+   ONE unbreakable block, so a block that would not fit jumped whole and left the gap
+   behind: EP13's page 2 finished 25% full with the text that belonged there on page 3.
+   An ordinary paragraph may now break, and may be parted from its figure. What is kept
+   together is the thing that actually needs it — a heading and its first lines, via
+   `p.haslead` above. */
 
 .pagebreak { page-break-before: always; }
 .avoid { page-break-inside: avoid; }

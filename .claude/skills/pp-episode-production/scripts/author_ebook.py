@@ -177,6 +177,54 @@ def article_paragraphs(path: str) -> list[str]:
     return [re.sub(r"\s+", " ", p.strip()) for p in re.split(r"\n\s*\n", body) if p.strip()]
 
 
+# A paragraph OPENS WITH A HEADING when its first thing is a bold run. Both shapes the
+# article uses count: "<b>WET TRACKS BETTING</b><br>prose" and "<b>AXIOM 2: Time and
+# Distance.</b> prose". Requiring the <br> caught only 6 of 13 and left every axiom
+# heading invisible to the layout engine.
+#
+# A heading that starts MID-paragraph cannot be helped by a paragraph-level class —
+# EP13's AXIOM 1 sits after a <br> inside the opening paragraph, exactly as the source
+# prints it, and §0a forbids moving it. Reported below rather than silently skipped.
+HEAD_LEAD = re.compile(r"(<p)(\s[^>]*)?(>)(\s*<b>.*?</b>)", re.S | re.I)
+MID_LEAD = re.compile(r"<br\s*/?>\s*<b>", re.I)
+
+
+def mark_headings(body):
+    """Tell the layout engine which paragraphs OPEN WITH A HEADING.
+
+    The article writes its headings as inline bold at the head of a paragraph —
+    "AXIOM 3: Track Variant." then a <br> then the prose — and §0a reproduces them
+    exactly there. To the layout engine they are simply line one of a <p>, so it
+    cannot keep a heading with its text, which is why `orphans` was reached for as a
+    workaround: a blunt instrument that also welded ordinary paragraphs to figures
+    and left a quarter-full page 2.
+
+    This is MARKUP, NOT WORDS. It adds a class to the <p> and wraps nothing; every
+    character of the article's text is untouched, and the fidelity gate — which
+    strips tags before comparing — must still pass 28/28. That is asserted below.
+    """
+    marked = [0]
+
+    def add_class(m):
+        marked[0] += 1
+        attrs = m.group(2) or ""
+        if "class=" in attrs:
+            attrs = re.sub(r'class="([^"]*)"', lambda c: f'class="{c.group(1)} haslead"', attrs)
+        else:
+            attrs += ' class="haslead"'
+        return m.group(1) + attrs + m.group(3) + m.group(4)
+
+    out = HEAD_LEAD.sub(add_class, body)
+    mid = len(MID_LEAD.findall(body))
+    print(f"headings marked: {marked[0]} paragraph(s) open with a bold lead-in "
+          f"(markup only — the text is untouched)")
+    if mid:
+        print(f"  note: {mid} heading(s) sit MID-paragraph, where the source prints them. "
+              f"A paragraph-level rule cannot keep those with their text, and §0a forbids "
+              f"moving them.")
+    return out
+
+
 def source_article_path(ep, ep_dir):
     """The verbatim source article named in episode.json -> source.
 
@@ -546,7 +594,7 @@ def main():
             f"declared departures: {', '.join(deps) if deps else 'none'}; "
             f"declared omissions: {len(ebook.get('omit_paragraphs') or [])}. "
             f"The check is in author_ebook.py and it HARD-FAILS; it is not advisory. -->")
-    page = tpl.replace(SLOT_BODY, head + "\n" + body)
+    page = tpl.replace(SLOT_BODY, head + "\n" + mark_headings(body))
 
     os.makedirs(a.out_dir, exist_ok=True)
     out = os.path.join(a.out_dir, f"{ep_stem(a.out_dir)}-ebook-source.html")
