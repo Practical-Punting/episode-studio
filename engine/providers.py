@@ -276,6 +276,87 @@ def trim_master_lead_in(master: Path) -> str:
             f"verified after the cut); original kept as {keep.name}")
 
 
+def derive_timings(ep_dir: Path) -> str:
+    """Card leads, the midroll anchor and every overlap check — derived, not guessed.
+
+    Runs with --write, so build.leads and build.midroll.at come from the SRT rather
+    than from whatever was last typed into episode.json. It refuses to write if any
+    check fails, and that refusal is a HALT here: a build that carries on with stale
+    leads produces exactly what EP13 produced — cards ahead of the words, with every
+    instrument reporting them on-cue.
+
+    IT MUST RUN AFTER align_to_script. The tool prefers renders/aligned.srt and falls
+    back to the constructed SRT with a warning; in a normal build that fallback must
+    never be taken, so the absence of aligned.srt is treated as a halt, not a shrug.
+    """
+    aligned = ep_dir / "renders/aligned.srt"
+    if not aligned.is_file():
+        raise EngineFlag(
+            "renders/aligned.srt is missing, so card timings would be derived from the "
+            "CONSTRUCTED SRT — interpolated from spoken-words.txt, measured at a mean "
+            "5.15s error and a worst of 12.32s. That is what put nine of EP13's cards "
+            "ahead of their spoken cue. align_to_script runs at ingest, right after the "
+            "master is trimmed; run it, then clear this flag.")
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/derive_card_timings.py"),
+         str(ep_dir), "--write"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+    out = (r.stdout or "") + (r.stderr or "")
+    if r.returncode:
+        raise EngineFlag(
+            "The card timings could not be derived, so nothing was written and the "
+            "existing leads are stale. Every problem below is a DECISION — a card that "
+            "cannot take its window, an overlap, a cue that is not in the SRT — and the "
+            "tool refuses to guess at any of them.\n"
+            + "\n".join(l for l in out.splitlines() if l.strip().startswith("!!"))[:900])
+    tail = [l for l in out.splitlines() if "leads" in l or "midroll.at" in l]
+    return "card timings derived from the aligned SRT — " + ("; ".join(tail)[:240] or "written")
+
+
+def stage_thumbnail_hero(ep_dir: Path) -> str:
+    """Copy the PICKED cover hero into thumbnail/hero.png. Never overwrite.
+
+    The thumbnail hero IS the picked cover hero (Jodie, 28 Jul 2026), and the cover
+    gate has already written it to ebook/cover-src/hero.png. Staging it is a file
+    copy — a chore, and automation eats chores. It halted EP11, EP12 and EP13 and a
+    human did it by hand each time, because a browser operator cannot copy a file.
+
+    NEVER OVERWRITES. A thumbnail hero already on disk may have been placed
+    deliberately — a different crop, a hand-picked frame — and silently replacing it
+    at build time would be the engine overruling a human. If it is there, it wins.
+    """
+    dst = ep_dir / "thumbnail/hero.png"
+    if dst.is_file():
+        return f"thumbnail hero already staged ({dst.name}) — left exactly as it is"
+    src = ep_dir / "ebook/cover-src/hero.png"
+    if not src.is_file():
+        return ("thumbnail hero NOT staged: there is no picked cover hero at "
+                "ebook/cover-src/hero.png to copy from")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, dst)
+    return f"thumbnail hero staged from the picked cover hero ({src.name} -> {dst.name})"
+
+
+def _shipping_srt(ep_dir: Path):
+    """Which SRT goes out beside the video — (path, one line saying which and why).
+
+    aligned.srt carries timings measured from the audio; generated.srt is
+    interpolated from spoken-words.txt and was measured at a mean 5.15s error,
+    worst 12.32s. The viewer's captions get the good one, and falling back is
+    LOUD — a caption track silently a dozen seconds out is not a small thing.
+    """
+    aligned = ep_dir / "renders/aligned.srt"
+    built = ep_dir / "renders/generated.srt"
+    if aligned.is_file():
+        return aligned, f"{aligned.name} (timings measured from the audio)"
+    if built.is_file():
+        return built, ("!! renders/aligned.srt is MISSING, so the shipped captions come "
+                       "from the CONSTRUCTED SRT — interpolated, measured at a mean 5.15s "
+                       "error and a worst of 12.32s. Run align_to_script and re-assemble "
+                       "before these captions go anywhere near a viewer.")
+    return None, "!! no SRT found — the video ships with NO captions"
+
+
 def align_to_script(ep_dir: Path) -> str:
     """Write renders/aligned.srt — OUR words, the AUDIO's timings — at ingest.
 
@@ -1218,6 +1299,15 @@ class RealProvider:
         sm = d / "renders/shot-map.json"
         if not sm.is_file():
             raise RuntimeError("build_shot_map ran but renders/shot-map.json is missing")
+        # A2 — DERIVE THE WINDOWS HERE, WHERE THE SRT AND THE SHOT MAP BOTH EXIST AND
+        # NOTHING HAS USED THEM YET.
+        #
+        # derive_card_timings.py said "NOT WIRED INTO THE ENGINE. Run by hand." for
+        # three episodes. Nobody ran it on EP13, so nine of thirteen cards entered
+        # BEFORE their spoken cue — C1 by 9.6 seconds. A hand-run step is one Hugh
+        # cannot perform at all, and it gets skipped exactly when it matters most:
+        # after a long build, when everyone is looking at the render.
+        print(f"    {derive_timings(d)}")
         return str(sm)
 
     def make_covers_ab(self, ep):
@@ -1302,18 +1392,49 @@ class RealProvider:
             cmd += ["-i", self._clip(ep, standing[role])]
         cmd += ["-i", d / "renders/presenter-master.mp4", "-i", self.music]
         mid = epj["build"].get("midroll") or {}
-        if mid.get("composite") and mid.get("clip"):
-            cmd += ["-i", d / "overlay/clips" / mid["clip"]]   # input MUSIC_IN+1
+        # A4 — A MISSING VALUE MUST NOT QUIETLY DROP THE CHIP.
+        # This used to read `if mid.get("composite") and mid.get("clip")`, so a missing
+        # `clip` silently assembled a video with NO like/subscribe chip at all — which
+        # is exactly what EP13 shipped, while QC reported a chip present because it was
+        # checking episode.json rather than the graph. A value nobody set is not a
+        # decision to omit the chip; it is an omission, and omissions must be loud.
+        if mid.get("composite"):
+            clip_name = mid.get("clip")
+            if not clip_name:
+                raise EngineFlag(
+                    "build.midroll.composite is true but build.midroll.clip is not set, so "
+                    "the like/subscribe chip would be left out of the assembly entirely. "
+                    "The chip is a STANDING asset — the same file every episode — so this "
+                    "should have been filled in at authoring. Set it to "
+                    "'midroll-lowerthird.mp4' and re-run.")
+            clip_path = d / "overlay/clips" / clip_name
+            if not clip_path.is_file():
+                raise EngineFlag(
+                    f"build.midroll.clip names {clip_name!r} but that file is not in "
+                    f"overlay/clips. The chip is rendered from the standing "
+                    f"assets/midroll-lowerthird.html — render it, then re-run.")
+            cmd += ["-i", clip_path]                           # input MUSIC_IN+1
         final = d / "output" / f"{ep_folder(ep)}-FINAL.mp4"
         cmd += ["-filter_complex_script", graph, "-map", "[vout]", "-map", "[aout]",
                 "-c:v", "libx264", "-crf", "18", "-preset", "medium",
                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
                 "-movflags", "+faststart", "-map_metadata", "-1", "-dn", final]
         self.run(cmd, cwd=d)
-        # ship the SRT beside the output, per the runbook
-        srt = d / "renders/generated.srt"
-        if srt.is_file():
-            shutil.copyfile(srt, final.with_suffix(".srt"))
+        # A7 — SHIP THE SRT A VIEWER ACTUALLY READS, AND SHIP THE GOOD ONE.
+        #
+        # This said `renders/generated.srt` — the CONSTRUCTED file, interpolated from
+        # spoken-words.txt, measured at a mean 5.15s error and a worst of 12.32s. The
+        # alignment work re-pointed derive_card_timings and qc_episode to aligned.srt
+        # and MISSED THIS LINE, so EP13's shipped captions were byte-for-byte the bad
+        # file while the good one sat in the same folder, written two hours earlier.
+        #
+        # THE GENERAL FORM, worth more than the fix: the change reached every
+        # INSTRUMENT and missed the ARTEFACT. Ask of every fix — what does a human
+        # actually receive, and did the fix reach it?
+        src, why = _shipping_srt(d)
+        if src:
+            shutil.copyfile(src, final.with_suffix(".srt"))
+        print(f"    captions: {why}")
         return str(final)
 
     def _qc_integrity_gate(self):
@@ -1400,16 +1521,25 @@ class RealProvider:
         # the PAGE references the logo, which it does whether or not the horse is
         # there. Checking the markup is not checking the artefact. Same lesson as
         # the midroll luma probe.
+        # A3 — DO THE COPY, DO NOT ASK A HUMAN TO DO IT.
+        #
+        # This used to raise a flag reading "It should be copied from
+        # ebook/cover-src/hero.png" — asking a person to perform a copy the engine
+        # ALREADY PERFORMS ITSELF three hundred lines earlier, at the cover pick
+        # (`shutil.copyfile(pick, active)`). A browser operator cannot copy a file at
+        # all, so it halted every episode and a human did it by hand on EP11 and EP12.
+        # The flag even said so: "a rule with no enforcer". This is the enforcer.
+        print(f"    {stage_thumbnail_hero(d)}")
         hero = d / "thumbnail/hero.png"
         if not hero.is_file():
+            # Kept LOUD for the case the copy cannot fix: no picked hero to copy FROM.
             raise EngineFlag(
                 f"The thumbnail hero is missing: {d.name}/thumbnail/hero.png\n"
                 "THE THUMBNAIL HERO IS THE PICKED COVER HERO (Jodie, 28 Jul 2026) — the "
                 "one chosen at the cover gate, already generated and already looked at. "
-                f"It should be copied from {d.name}/ebook/cover-src/hero.png.\n"
-                "NOTHING IN THE ENGINE STAGES IT YET: on EP11 and EP12 a human copied it "
-                "by hand. That is the gap, and it is logged — a rule with no enforcer. "
-                "Until the copy is wired in, this flag is the reminder.")
+                f"The engine stages it automatically from {d.name}/ebook/cover-src/"
+                "hero.png, but that file is not there either — so there is no picked "
+                "hero to copy. Pick a cover first; that gate writes it.")
         out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)

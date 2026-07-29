@@ -35,8 +35,16 @@ IT NEVER GUESSES. If a cue phrase is not found in the SRT it is a HARD FAIL and 
 is written — an unlocatable cue means the words changed or the master is wrong, and either
 way a human needs to look. There is no fuzzy fallback on purpose.
 
-NOT WIRED INTO THE ENGINE. Run by hand. Wiring it into shot_map/assemble is a separate
-decision on the backlog.
+WIRED INTO THE ENGINE (29 Jul 2026) — providers.derive_timings() calls it with --write
+from build_shot_map, after the SRT exists and before any window is used.
+
+For three episodes this docstring told the reader it was unwired and had to be run by
+hand — and on EP13 nobody ran it: nine of thirteen cards entered BEFORE their spoken
+cue, C1 by 9.6 seconds. (The old wording is deliberately not repeated here;
+test_hand_steps.py greps this file for it, and a quotation would make that check pass
+on nothing — the same trap as the EP12 ask phrases below.) A hand-run step is one Hugh cannot perform at all, and it gets skipped
+exactly when it matters most — after a long build, when everyone is looking at the
+render. It can still be run by hand for a report; --write is what the engine uses.
 """
 import json, re, sys, pathlib
 
@@ -291,11 +299,34 @@ def main():
     # ---- 4. midroll: FOLLOWS the ask, never precedes or spans it -----------
     mid = build.get("midroll", {})
     dur, fade = float(mid.get("dur", 16.0)), float(mid.get("fade", 0.4))
-    ask = mid.get("ask") or ["a like is what pushes it", "saves you hunting"]
-    a0, a1 = find_phrase(tl, ask[0]), find_phrase(tl, ask[1])
+    # A5 — NO DEFAULT. This used to be `mid.get("ask") or [ ...two literal phrases... ]`
+    # and those two literals were EP12'S WORDS, hardcoded. On EP13 it failed safe only
+    # by luck: they happened to be absent from this master, so the lookup missed and
+    # the tool refused to guess. Had EP13's pool line contained either, the chip would
+    # have anchored to the WRONG SENTENCE and nothing would have said so.
+    #
+    # The phrases are deliberately NOT quoted here. A default nobody can copy back in
+    # is safer than one sitting in a comment, and test_hand_steps.py greps this file
+    # for them — a comment would make that check pass on nothing.
+    #
+    # The ask must quote THIS episode's pool line. A value nobody set is not a
+    # default to fall back on — it is a question nobody answered.
+    ask = mid.get("ask")
+    if not ask or len(ask) < 2 or not all(str(x).strip() for x in ask[:2]):
+        problems.append(
+            "build.midroll.ask is not set — it must quote the ask from THIS episode's "
+            "pool line (docs/midroll-line-pool.md), first phrase and last, verbatim. "
+            "There is deliberately no default: the previous one was EP12's words, and a "
+            "chip anchored to another episode's sentence is worse than no chip.")
+        ask = None
+    a0 = a1 = None
+    if ask:
+        a0, a1 = find_phrase(tl, ask[0]), find_phrase(tl, ask[1])
     mid_at = None
     print(f"\nMIDROLL CHIP — FOLLOWS the ask by {MIDROLL_FOLLOW}s; never precedes it, never spans it")
-    if a0 is None or a1 is None:
+    if not ask:
+        print("  build.midroll.ask is NOT SET — refusing to guess (see the problem above)")
+    elif a0 is None or a1 is None:
         problems.append(f"midroll: ask phrase not found in the SRT "
                         f"({ask[0]!r} -> {'ok' if a0 else 'MISSING'}, "
                         f"{ask[1]!r} -> {'ok' if a1 else 'MISSING'}). Not guessing midroll.at.")
