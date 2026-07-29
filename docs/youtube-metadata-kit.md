@@ -2,10 +2,42 @@
 *Proven on EP02 + EP03, 2026-07-21. **Claude Code writes these** (Jodie's ruling, 26 Jul 2026 — ownership moved from Cowork to the build side): write the title + description into `PP-EPxx/output/PP-EPxx-youtube.txt`, and Jodie uploads. Titles/descriptions are content Jodie publishes — she reviews before posting.*
 
 ## Title formula
+
+> ## ⭐ THE TITLE IS DERIVED, NOT INVENTED, AND THE FILE CARRIES ONE OF THEM
+> ### `youtube_title = TitleCase(packaging.byline) + " | How to Win at Horse Racing"`
+> **ONE decided title, on line 1, alone. No recommendation. No alternatives. No menu.**
+> Enforced by `scripts/youtube_title.py`, which is the ONLY place the house form exists
+> — the kit describes it, that file *is* it. The engine refuses a copy file that carries
+> a second candidate.
+
+**WHY IT IS DERIVED (Jodie, 29 July 2026).** The YouTube title used to be composed at
+**~86%, long after the last approval gate** — `title_approved` was already true on EP13
+before the copy file was written. **So the one string a viewer sees first had no gate at
+all.** `packaging.byline` is approved at the **Words Gate on turn 1**, so deriving from it
+means the title **inherits an approval it already has**: no new gate, no new button for
+Hugh, nothing invented late.
+
+**THE MEASUREMENT THAT SETTLED IT.** Jodie's own EP13 title —
+`How a Professional Assesses Race Form | How to Win at Horse Racing` — is the byline
+(*"How a professional assesses race form"*) title-cased, with the channel line appended.
+Word for word. Not the episode title, and not a written phrase.
+
+**Title case:** small words stay lower case unless first or last —
+*a, an, the, and, but, or, for, nor, at, by, in, of, on, to, up, as, if, is.*
+Hyphenated compounds capitalise each part (`first-up` → `First-Up`).
+
+> 🔴 **WHY "ONE TITLE" IS A RULE AND NOT A PREFERENCE.** EP13's copy file offered a
+> recommendation and two alternatives, **none of which was the title Jodie wanted.** She
+> composed her own, published it — and `episode.json` went on carrying the one she had
+> rejected, because **nothing wrote her decision back.** Her words: *"The agreed title was
+> not there — rather a set of other ideas!"*
+> **A FILE THAT ASKS A QUESTION IS A HALT WEARING A TEXT FILE'S CLOTHES.** It looks
+> finished and it is not, and nothing on the board is watching for the answer.
+
 - 🔄 **THE ORDER: EPISODE-SPECIFIC PART FIRST, CHANNEL LINE LAST, PIPE SEPARATOR
   (Jodie, 28 July 2026; ✅ RULED THE SAME WAY BY HUGH, 28 July 2026 — in force from
   EP11/EP12 onward).** `<episode-specific hook> | How to Win at Horse Racing`
-  - **Example:** `The Seven Rules a Ratings Man Lives By | How to Win at Horse Racing`
+  - **Example:** `How a Professional Assesses Race Form | How to Win at Horse Racing`
   - ⚠️ **YOUTUBE COPY ONLY.** The **episode title**, the **e-book title** and the **folder
     name** are unaffected by this rule — it governs the YouTube title field and nothing else.
   - ⚠️ **ALREADY-PUBLISHED VIDEOS ARE NOT RETITLED.** The rule applies going forward; it is
@@ -29,8 +61,12 @@
   *(Her second reason, worth keeping: **"axioms" is not Dave's word — his is "rules".**
   Translate the source's vocabulary into his.)*
 - Keyword-rich, ~50–70 characters, front-loaded (the first ~60 chars are what shows).
-- Name the specific topic (trifecta, key factors, etc.) so it's found in search.
-- Give Jodie one recommended title + two alternatives.
+  *This is a property of the BYLINE now, not of a phrase written here. If a title comes
+  out too long or too vague, the byline is what changes — at the Words Gate, where Jodie
+  is already looking at it.*
+- ~~Give Jodie one recommended title + two alternatives.~~ **RETIRED 29 July 2026.** See
+  the derivation rule at the top: one decided title, and `packaging.youtube_title` is a
+  RECORD of the derivation, not a second opinion.
 
 ## 🔎 THE OPENING SENTENCE — the indexed window (Jodie, 28 July 2026)
 **The first sentence must carry the episode's real SEARCH TERM and the phrase "horse racing" —

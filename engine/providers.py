@@ -442,6 +442,33 @@ def title_preview(ep_dir: Path, clip: Path) -> Path:
     return out
 
 
+def check_youtube_title(ep_dir: Path, copy_txt: Path) -> str:
+    """The gate on the one string a viewer sees first (A6).
+
+    The YouTube title used to be composed at ~86% — long after `title_approved` was
+    already true — so it had NO gate at all. It is now DERIVED from
+    `packaging.byline`, which is approved at the Words Gate on turn 1, and this
+    checks the file a human actually pastes from: one decided title, on line 1, in
+    the house form, appearing exactly once.
+
+    EP13 is why. Its copy file offered a recommendation and two alternatives, none
+    of which was the title Jodie wanted; she composed her own and nothing wrote her
+    decision back to episode.json.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/youtube_title.py"), "--check",
+         str(ep_dir / "docs/episode.json"), str(copy_txt)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    if r.returncode:
+        raise EngineFlag(
+            "The YouTube copy does not carry ONE decided title. The title is derived "
+            "from packaging.byline — approved at the Words Gate — so it is not a "
+            "choice to be offered here: a file that asks a question is a halt wearing "
+            "a text file's clothes.\n"
+            f"{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
 def _shipping_srt(ep_dir: Path):
     """Which SRT goes out beside the video — (path, one line saying which and why).
 
@@ -1679,4 +1706,5 @@ class RealProvider:
                 "copy per docs/youtube-metadata-kit.md (Jodie's ruling, 26 Jul 2026 — "
                 "ownership moved from Cowork to the build side; Jodie uploads). Save it "
                 f"as {d.name}/output/{ep_folder(ep)}-youtube.txt, then clear this flag.")
+        check_youtube_title(d, hits[0])
         return str(hits[0])
