@@ -45,6 +45,15 @@
       "hero": true,                      // hero card (bigger moment) or not
       "layout": "fullscreen",            // FRAME: "fullscreen" | "panel-push"  (MUST be a MIX)
       "block": "stat",                   // v2, REQUIRED: which body template, or "bespoke"
+      "job": "anchor",                   // v3, REQUIRED: what the card is FOR —
+                                         //   "orient" | "locate" | "relate" | "anchor"
+                                         // See the pp-visual-standard skill, which OWNS this
+                                         // vocabulary. A card that does none of the four jobs
+                                         // is decoration and must not be built (R2: no job,
+                                         // no build). `orient` cards introduce the whole
+                                         // structure, so their subject is the EPISODE, not one
+                                         // sentence — they are exempt from the fit and
+                                         // relevance window tests.
       "fit": {                           // v2, optional: MEASUREMENTS ONLY, never text
         "headline_size": "104px"
       },

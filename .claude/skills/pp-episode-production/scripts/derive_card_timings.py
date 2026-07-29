@@ -22,7 +22,8 @@ THE RULES IT ENFORCES (all from PP-STANDARDS, none invented here):
     so lead = (cue_start - beat_start) + ENTRY_DELAY.
   · SHIFT THE WINDOW, NEVER SHORTEN THE CARD — holds are read, never reduced.
   · Un-cued cards INHERIT THE SHIFT of the card they follow; they are not exceptions.
-  · The midroll chip must SPAN the spoken ask, not precede it, with >=6s full visibility.
+  · The midroll chip FOLLOWS the start of the spoken ask by 1.0s -- never precedes it,
+    never spans it -- with >=6s full visibility.
   · CHECK ALL FOUR OVERLAP CLASSES: card-card, card-midroll, b-roll-card, b-roll-midroll.
   · While an ON-SCREEN (panel-push) card is visible the shot must be WIDE for the WHOLE
     window, entry to exit — not merely at the in-point. Full-screen cards are unaffected.
@@ -41,6 +42,7 @@ import json, re, sys, pathlib
 
 ENTRY_DELAY = 3.0          # PP-STANDARDS: card entry = spoken cue + 3.0s
 MIDROLL_MIN_FULL = 6.0     # >=6s of FULL visibility (fades on top)
+MIDROLL_FOLLOW = 1.0       # the chip enters this long AFTER the ask starts (never before)
 
 
 # ---------- SRT -> a word-level timeline ------------------------------------
@@ -286,34 +288,42 @@ def main():
                      f"{title_win[1]-title_win[0]:.2f}s — update it.")
     windows["TITLE"], windows["END"], windows["WARRANTY"] = title_win, end_win, warr_win
 
-    # ---- 4. midroll: must SPAN the spoken ask ------------------------------
+    # ---- 4. midroll: FOLLOWS the ask, never precedes or spans it -----------
     mid = build.get("midroll", {})
     dur, fade = float(mid.get("dur", 16.0)), float(mid.get("fade", 0.4))
     ask = mid.get("ask") or ["a like is what pushes it", "saves you hunting"]
     a0, a1 = find_phrase(tl, ask[0]), find_phrase(tl, ask[1])
     mid_at = None
-    print(f"\nMIDROLL CHIP — must SPAN the ask, not precede it")
+    print(f"\nMIDROLL CHIP — FOLLOWS the ask by {MIDROLL_FOLLOW}s; never precedes it, never spans it")
     if a0 is None or a1 is None:
         problems.append(f"midroll: ask phrase not found in the SRT "
                         f"({ask[0]!r} -> {'ok' if a0 else 'MISSING'}, "
                         f"{ask[1]!r} -> {'ok' if a1 else 'MISSING'}). Not guessing midroll.at.")
     else:
+        # THE CHIP FOLLOWS THE ASK — it does not span it (Jodie, 29 Jul 2026,
+        # SUPERSEDING "must SPAN the spoken ask"; PP-STANDARDS §Card sync amended in
+        # the same commit).
+        #
+        # Spanning meant the chip arrived BEFORE Gordon began the ask — on EP13 by
+        # 0.40s, WHICH JODIE HEARD. The picture was announcing the words instead of
+        # following them: the same fault as a card entering before its cue.
+        #
+        # +1.0s, not the +3.0s a card gets. The card delay exists because a card
+        # illustrates something being EXPLAINED — words first, picture after, so the
+        # viewer hears the idea before seeing it drawn. The chip reinforces a direct
+        # REQUEST, and 3.0s is a third of an 8.5s ask. 1.0s follows without lagging.
         a1_end = a1 + 1.2                       # let the closing phrase finish
-        lo, hi = a1_end + fade - dur, a0 - fade
+        mid_at = round(a0 + MIDROLL_FOLLOW, 2)
+        full = dur - 2 * fade
         print(f"  ask spoken      : {a0:.2f} -> {a1_end:.2f}  ({a1_end-a0:.2f}s)")
-        print(f"  legal at range  : {lo:.2f} .. {hi:.2f}   (dur {dur}, fade {fade})")
-        if lo > hi:
-            problems.append(f"midroll: the ask runs {a1_end-a0:.2f}s but the chip only offers "
-                            f"{dur-2*fade:.2f}s of full visibility. LENGTHEN dur — do not "
-                            f"clip the ask. Jodie's call.")
-        else:
-            mid_at = round(max(lo, min(hi, a0 - fade)), 2)
-            full = dur - 2 * fade
-            print(f"  midroll.at      : {mid_at:.2f}   (full visibility {full:.2f}s)")
-            if full < MIDROLL_MIN_FULL:
-                problems.append(f"midroll: {full:.2f}s full visibility is under the "
-                                f"{MIDROLL_MIN_FULL}s bar.")
-            windows["MIDROLL"] = (mid_at, round(mid_at + dur, 2))
+        print(f"  chip FOLLOWS by : {MIDROLL_FOLLOW}s  (never precedes; never spans)")
+        print(f"  midroll.at      : {mid_at:.2f}   (full visibility {full:.2f}s)")
+        if mid_at < a0:
+            problems.append(f"midroll: at {mid_at:.2f} would precede the ask at {a0:.2f}.")
+        if full < MIDROLL_MIN_FULL:
+            problems.append(f"midroll: {full:.2f}s full visibility is under the "
+                            f"{MIDROLL_MIN_FULL}s bar.")
+        windows["MIDROLL"] = (mid_at, round(mid_at + dur, 2))
 
     # ---- 5. ALL FOUR OVERLAP CLASSES ---------------------------------------
     broll_dur = float(build.get("broll_dur", 5))

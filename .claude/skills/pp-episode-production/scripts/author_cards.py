@@ -224,6 +224,33 @@ def walk_values(content):
             yield k, v
 
 
+JOBS = ("orient", "locate", "relate", "anchor")
+
+
+def check_job(card):
+    """R2 of the visual standard: EVERY CARD DECLARES ITS JOB. No job, no build.
+
+    The four jobs are orient / locate / relate / anchor, and they are the answer to
+    "what is this card FOR". A card that does none of them is decoration — and
+    decoration is not free: the coherence principle says it makes the episode
+    WORSE, not merely no better. The vocabulary is owned by the pp-visual-standard
+    skill; this is only the gate.
+
+    It is a closed list on purpose, exactly like `ebook.departures` and the block
+    names: a free-text field would let "job": "explain" through, and the whole
+    point is that the author must pick one of four and live with it.
+    """
+    j = card.get("job")
+    if j is None:
+        return [f"card {card.get('id', '?')}: MISSING 'job'. Every card must declare what it is "
+                f"FOR — one of {', '.join(JOBS)} (pp-visual-standard R2). A card that does none "
+                f"of the four is decoration and must not be built."]
+    if j not in JOBS:
+        return [f"card {card.get('id', '?')}: job {j!r} is not one of {', '.join(JOBS)}. "
+                f"This is a closed vocabulary, not free text."]
+    return []
+
+
 def check_trace(card, article_norm):
     """Trace-or-halt. Any value with a digit must be traceable to the article."""
     cid = card.get("id", "<no id>")
@@ -532,6 +559,7 @@ def main():
         try:
             blk = load_block(c["block"])
             validate(c, blk)
+            problems += check_job(c)
             problems += check_trace(c, article)
             plan.append((c, blk))
         except Halt as e:

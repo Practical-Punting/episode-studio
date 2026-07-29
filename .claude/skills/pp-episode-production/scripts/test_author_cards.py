@@ -44,7 +44,7 @@ def case(name, fn, expect):
 
 
 def stat_card(**over):
-    c = {"id": "C1", "block": "stat", "layout": "fullscreen",
+    c = {"id": "C1", "block": "stat", "layout": "fullscreen", "job": "anchor",
          "eyebrow": "Start Here", "headline_display": "Most of Them Lose",
          "content": {"figure": "60 Days+", "figure_sub": "Resuming from a spell",
                      "payoff": "Most will lose at their first run back.",
@@ -58,7 +58,9 @@ def stat_card(**over):
 def run(card, block=None):
     blk = ac.load_block(block or card["block"])
     ac.validate(card, blk)
-    probs = ac.check_trace(card, ARTICLE)
+    # check_job runs in main() alongside check_trace; mirror BOTH here or the suite
+    # reports green on a gate it never exercises.
+    probs = ac.check_job(card) + ac.check_trace(card, ARTICLE)
     if probs:
         raise ac.Halt(probs[0])
     ac.render_card(card, blk, ac.load_frame(card.get("layout", "fullscreen")))
@@ -74,6 +76,17 @@ except Exception as e:                                        # noqa: BLE001
 # ---- 1. unknown block ----------------------------------------------------
 case("unknown block halts",
      lambda: run({"id": "C9", "block": "notablock", "content": {}}), "unknown block")
+
+# ---- 1b. pp-visual-standard R2: no job, no build -------------------------
+def _nojob():
+    c = stat_card()
+    del c["job"]
+    return run(c)
+
+
+case("a card with NO job halts (visual standard R2)", _nojob, "MISSING 'job'")
+case("an invented job halts — the vocabulary is closed",
+     lambda: run(stat_card(job="explain")), "not one of")
 
 # ---- 2. unknown content key ---------------------------------------------
 case("unknown content key halts",
