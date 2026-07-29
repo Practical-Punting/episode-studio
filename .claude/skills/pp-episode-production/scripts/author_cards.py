@@ -226,6 +226,53 @@ def walk_values(content):
 
 JOBS = ("orient", "locate", "relate", "anchor")
 
+# R3a — a job is a CLAIM, and a claim needs a check.
+#
+# Assertion fell from 54% to 20% overnight and the pictures were IDENTICAL: the
+# cards had been RELABELLED, not changed. A `statement` block declaring itself
+# `relate` makes the metric improve while the episode does not — which is the
+# oldest way there is to pass a gate without doing the work. So the declared job
+# must be consistent with the block that actually renders: a card cannot claim to
+# relate two things using a block that can only assert one.
+JOB_BLOCKS = {
+    # `statement` is here on the standard's OWN wording: R3 counts pure assertion as
+    # "anchor, or a bare statement". A bare statement IS an assertion, so it must
+    # declare `anchor` and be counted against the 40% cap — not hide under `relate`.
+    "anchor": {"stat", "price", "statement"},
+    # ⚠️ `slate` and `checklist` are MY EXTENSION of Jodie's list, awaiting her word.
+    # Her mapping was relate -> compare|steps|bars|ratio, which leaves slate and
+    # checklist with no legal job at all. The standard defines relate as "shows how
+    # two or more things connect — a chain, a contrast, a trade-off, a cause", and a
+    # slate of parallel panels or a checklist of contributing causes does exactly
+    # that (EP13 C3's two lists of what degrades ability; C4's four conditions that
+    # set the bias). Without them six cards are unbuildable.
+    "relate": {"compare", "steps", "bars", "ratio", "slate", "checklist"},
+    "orient": {"steps", "slate"},
+    # `locate` is the rail modifier — it rides on any block, so it constrains none.
+    "locate": None,
+}
+
+# R3 IS MEASURED ON THE BLOCK, NEVER ON THE DECLARED JOB. Assertion "fell" from 54%
+# to 20% overnight while the pictures stayed identical, because the cards had been
+# relabelled. A metric you can move by editing a label is not a metric.
+ASSERTION_BLOCKS = {"stat", "price", "statement"}
+MAX_ASSERTION = 0.40
+
+
+def check_mix(cards):
+    """R3: at most 40% of content cards may be pure assertion, counted BY BLOCK."""
+    content = [c for c in cards if c.get("block") and c.get("page")]
+    if not content:
+        return []
+    hard = [c["id"] for c in content if c["block"] in ASSERTION_BLOCKS]
+    share = len(hard) / len(content)
+    if share > MAX_ASSERTION:
+        return [f"EPISODE MIX: {len(hard)} of {len(content)} content cards are pure assertion "
+                f"({share*100:.0f}%), over the {MAX_ASSERTION*100:.0f}% cap "
+                f"(pp-visual-standard R3). The assertion cards are {hard}. Measured on the "
+                f"BLOCK, not the declared job — relabelling does not change a picture."]
+    return []
+
 
 def check_job(card):
     """R2 of the visual standard: EVERY CARD DECLARES ITS JOB. No job, no build.
@@ -248,6 +295,13 @@ def check_job(card):
     if j not in JOBS:
         return [f"card {card.get('id', '?')}: job {j!r} is not one of {', '.join(JOBS)}. "
                 f"This is a closed vocabulary, not free text."]
+    allowed = JOB_BLOCKS.get(j)
+    blk = card.get("block")
+    if allowed is not None and blk not in allowed and blk != "bespoke":
+        return [f"card {card.get('id', '?')}: declares job {j!r} but uses block {blk!r}. "
+                f"{j!r} needs one of {sorted(allowed)} (pp-visual-standard R3a). A job is a "
+                f"CLAIM about what the card does — relabelling a block does not change the "
+                f"picture, and R3 is measured on the BLOCK for exactly that reason."]
     return []
 
 
@@ -564,6 +618,7 @@ def main():
             plan.append((c, blk))
         except Halt as e:
             problems.append(str(e))
+    problems += check_mix(cards)
     if problems:
         print(f"AUTHORING HALTED — {len(problems)} problem(s):", file=sys.stderr)
         for p in problems:

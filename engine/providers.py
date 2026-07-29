@@ -276,6 +276,28 @@ def trim_master_lead_in(master: Path) -> str:
             f"verified after the cut); original kept as {keep.name}")
 
 
+def align_to_script(ep_dir: Path) -> str:
+    """Write renders/aligned.srt — OUR words, the AUDIO's timings — at ingest.
+
+    A PROMOTION, not a rewrite: this ran as a scratchpad tool on the night EP13's
+    timing fault was found, and is now standing so no episode can be built from the
+    constructed SRT by default. It verifies itself after writing and raises rather
+    than leaving a half-good timing file where everything downstream would trust it.
+    """
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/align_to_script.py"), str(ep_dir)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
+    if r.returncode:
+        raise EngineFlag(
+            "Could not align the script to the master's audio, so renders/aligned.srt was "
+            "NOT written. Everything after this — card entries, the camera moves, the "
+            "midroll anchor, b-roll placement — would otherwise fall back to timings "
+            "INTERPOLATED from the script rather than measured from the audio, which is "
+            "what put eleven of EP13's cards ahead of the words.\n"
+            f"{(r.stderr or r.stdout).strip()[-900:]}")
+    return (r.stdout or "").strip()
+
+
 def render_ebook_figures(ep_dir: Path) -> str:
     """Render the e-book figures from the CARD pages — one design, two uses.
 
@@ -1141,6 +1163,12 @@ class RealProvider:
         if not master.is_file():
             self._heygen_fetch(ep, master)         # returns only when downloaded
         print(f"    {trim_master_lead_in(master)}")
+        # STANDING STEP, immediately after the trim (Jodie, 29 Jul 2026). Everything
+        # downstream — card leads, the midroll anchor, b-roll offsets, the shot map
+        # and the checks that grade them — derives from a transcript, so the good one
+        # must exist BEFORE anything can reach for the constructed one. Same move as
+        # the standing midroll chip: take what works and make it standing.
+        print(f"    {align_to_script(d)}")
         kbps = self._audio_kbps(master)
         if kbps and kbps < 180:
             raise EngineFlag(

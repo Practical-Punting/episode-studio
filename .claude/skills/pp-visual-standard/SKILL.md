@@ -2,7 +2,7 @@
 name: pp-visual-standard
 description: >
   The editorial standard for Practical Punting motion-graphic cards — what a card
-  is FOR, the eight rules every card must pass, and how a SEQUENCE of cards should
+  is FOR, the ten rules every card must pass, and how a SEQUENCE of cards should
   read. ALWAYS use this skill when designing, authoring, choosing a block for, or
   reviewing PP episode cards, when writing the shot plan, when deciding which
   moments of an article deserve a card, or when critiquing a rendered contact
@@ -25,7 +25,7 @@ description: >
 Narrated video with graphics, teaching a method, is a heavily studied problem (Mayer, *Cognitive Theory of Multimedia Learning*; Ausubel on advance organizers). Four findings bind us:
 
 - **REDUNDANCY.** On-screen text that duplicates the narration makes comprehension **worse than no text at all.** Not neutral — harmful. *A card that sets the sentence he is speaking is worse than no card.*
-- **TEMPORAL CONTIGUITY.** A picture separated in time from its words loses most of its value. *Cue + 3.0s, verified against the transcript, never estimated.*
+- **TEMPORAL CONTIGUITY.** A picture separated in time from its words loses most of its value. **Timing is a WINDOW, not a point: the card must be ON SCREEN WHILE THE WORDS IT ILLUSTRATES ARE SPOKEN.** *(This line used to read "Cue + 3.0s, verified against the transcript". That is the POINT rule, and it is not sufficient — it is exactly what put EP13's axiom-three card on screen as Gordon began axiom four, because the cue sat in the last five words of its own paragraph so cue+3.0s could only land in the next subject. Entry is still cue + 3.0s; **R10 is what makes it correct.**)*
 - **PRE-TRAINING / ADVANCE ORGANIZER.** Naming the parts **before** explaining them measurably improves retention. *If the article has a numbered method, show the whole list first.*
 - **SIGNALLING.** Cues showing what matters, and where the viewer is, reduce wasted effort. *"RULE 4 OF 7."*
 - **COHERENCE.** Removing decorative material **improves** learning. A card that adds nothing is not free.
@@ -48,7 +48,7 @@ Narrated video with graphics, teaching a method, is a heavily studied problem (M
 
 ---
 
-## 3. The eight rules
+## 3. The ten rules
 
 Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 
@@ -56,7 +56,9 @@ Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 
 **R2 · EVERY CARD DECLARES ITS JOB.** No `job`, no build. → **halt.**
 
-**R3 · AT MOST 40% OF CONTENT CARDS MAY BE PURE ASSERTION** (`anchor`, or a bare statement). EP13 was 54%. → **halt.**
+**R3 · AT MOST 40% OF CONTENT CARDS MAY BE PURE ASSERTION.** **Measured on the BLOCK the card actually uses** (`stat`, `price`, or a bare `statement`) — **never on the declared `job`.** *A job is a CLAIM, not a fact: relabelling a `statement` as `relate` improves the number without changing a single pixel. EP13 as shipped was 54% by block; after the rebuild it is 20% by block — because the cards changed, not the labels.* → **halt.**
+
+**R3a · THE DECLARED JOB MUST BE CONSISTENT WITH THE BLOCK.** `anchor` → `stat`/`price`; `relate` → `compare`/`steps`/`bars`/`ratio`; `orient` → `steps`/`slate`. A card cannot claim to relate two things while using a block that can only assert one. → **halt.**
 
 **R4 · AN ANNOUNCED COUNT MUST BE KEPT.** If any card says "seven", seven must be shown and each member must carry its position. → **halt.**
 
@@ -70,6 +72,16 @@ Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 
 **R9 · NOTHING ON SCREEN MAY CONTRADICT THE NARRATION.** → **halt.**
 *EP13's C5 shouted "ENOUGH WEIGHT WILL STOP A TRAIN" — the claim Gordon states in order to demolish it — with his rebuttal in the smallest grey italic on the card. **A viewer skimming learned the opposite of the lesson.** When the article states a claim to reject it, the REBUTTAL takes the big type and the claim goes in the opposing column.*
+
+**R10 · A CARD'S VISIBLE WINDOW MUST COVER THE WORDS IT ILLUSTRATES.** → **halt.**
+- **ENTRY** — the card must enter **while its passage is still being spoken**: not before it starts, not after it ends.
+- **RELEVANCE** — overlap ÷ card window **≥ 80%**. Most of a card's life is spent on its own subject.
+- **TRESPASS** — hard fail if it is still up when **another card's subject begins**. It may outlive its own words; it may never sit on top of someone else's.
+- **Timing is a WINDOW, not a point.** Mayer's temporal contiguity: words and picture must arrive **together**.
+
+> **The failure that produced R10.** EP13's axiom-three card entered **0.8s AFTER its passage ended**, as Gordon said "Axiom four, class". Every instrument passed it, because every instrument asked *"did it enter at cue + 3.0s?"* — and it had. **Nobody asked whether the subject was still being discussed.** Jodie saw it by eye, three times, and was right every time.
+
+> ⚠️ **R10 AND R6 TOGETHER EXPOSE A SCRIPTING FAULT, NOT A LAYOUT ONE.** If a card needs more seconds to be read than its passage lasts, the words on screen are not the problem — **the script has under-served the idea.** EP13 gives axiom three, the hinge of the entire method, **8.4 seconds**, and gives axiom four **25**. No layout can fix that. **Catch it in the shot plan, before HeyGen is paid:** *"this card needs 13s, this passage is 8s — one of them has to change."*
 
 ---
 
@@ -97,7 +109,7 @@ Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 
 > **The trap that caused this.** `statement` always works, so it becomes the default and nothing pushes back. **The templated EP13 came out LESS varied than hand-made EP12.** *Anything the machine can always fall back on, it will.*
 
-**Known blocks:** 3 assert (`statement`, `stat`, `price`) · 2 parallel (`compare`, `slate`) · 2 magnitude (`bars`, `ratio`) · 3 list · **1 progression (`steps`)**. `steps` is the only block that shows a sequence and it went unused for three episodes because it was capped at three items. **Reach for it.**
+**Known blocks:** 3 assert (`statement`, `stat`, `price`) · 2 parallel (`compare`, `slate`) · 2 magnitude (`bars`, `ratio`) · 3 list · **1 progression (`steps`)**. `steps` is the only block that shows a sequence and it went unused for three episodes because it was capped at three items. **That cap is gone — it now takes up to eight, and from four up it lays out as a numbered ladder, so it carries a seven-rule spine.** **Reach for it.**
 
 ---
 
