@@ -160,7 +160,15 @@ def main():
     write = "--write" in sys.argv
 
     epj_path = d / "docs/episode.json"
-    srt_path = d / "renders/generated.srt"
+    # PREFER FORCED ALIGNMENT. renders/generated.srt is CONSTRUCTED from
+    # spoken-words.txt by interpolation, and deriving leads from it then checking them
+    # against it is circular -- it put eleven of EP13's cards up to 12.3s AHEAD of the
+    # words while every check said "on-cue" (Jodie, 29 Jul 2026).
+    srt_path = d / "renders/aligned.srt"
+    if not srt_path.is_file():
+        srt_path = d / "renders/generated.srt"
+        print("!! renders/aligned.srt is missing - falling back to the CONSTRUCTED SRT.\n"
+              "   Leads derived from it cannot be trusted to land on the spoken cue.\n")
     map_path = d / "renders/shot-map.json"
     for p in (epj_path, srt_path, map_path):
         if not p.is_file():

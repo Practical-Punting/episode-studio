@@ -664,9 +664,29 @@ def stage_card_timing(qc, final, beats, head, episode_path):
     # WORD-CUE anchor (Jodie, 25 Jul 2026): a card carrying a "cue" phrase must
     # never enter before that phrase is SPOKEN. Cue times come from the master's
     # SRT, scoped to the card's beat so repeated phrases can't mislead.
-    srt_path = os.path.join(os.path.dirname(os.path.dirname(episode_path)),
-                            "renders", "generated.srt")
+    # A CHECK THAT SHARES ITS SOURCE WITH THE THING IT CHECKS IS NOT A CHECK.
+    # (Jodie, 29 Jul 2026.) renders/generated.srt is NOT a transcript --
+    # build_shot_map.py CONSTRUCTS it from spoken-words.txt by interpolation, and the
+    # card leads are derived from that same file. So this test was comparing a number
+    # with itself and reported "enters on its spoken cue" for EP11, EP12 and three
+    # rebuilds of EP13 while cards ran up to 12.3s AHEAD of the words. Jodie reported
+    # the fault by eye on EP11 and was told, by measurement, that she was wrong.
+    #
+    # renders/aligned.srt carries timings from FORCED ALIGNMENT of the actual audio.
+    # Prefer it always; if it is absent, say so loudly rather than quietly grading the
+    # build against its own homework.
+    _rend = os.path.join(os.path.dirname(os.path.dirname(episode_path)), "renders")
+    aligned_path = os.path.join(_rend, "aligned.srt")
+    srt_path = os.path.join(_rend, "generated.srt")
     cued = [c for c in content if cards[c].get("cue")]
+    if os.path.isfile(aligned_path):
+        srt_path = aligned_path
+        qc.note("cue check reads renders/aligned.srt (forced alignment of the audio)")
+    elif cued:
+        qc.warn("NO renders/aligned.srt - the cue check is falling back to generated.srt, "
+                "which is CONSTRUCTED from spoken-words.txt by the same interpolation the "
+                "card leads came from. It cannot detect a card leading its cue. Treat every "
+                "'enters on its spoken cue' note below as UNVERIFIED.")
     if cued and os.path.isfile(srt_path):
         def _t2s(x):
             h, m, rest = x.split(":"); s, ms = rest.split(",")
@@ -681,8 +701,28 @@ def stage_card_timing(qc, final, beats, head, episode_path):
             bn = cards[c]["beat"]
             b0 = bs(bn)
             b1 = beats[bn - 1]["end"] + head if bn <= len(beats) else b0 + 60
-            hit = next((s0 for s0, txt in segs
-                        if b0 - 2 <= s0 <= b1 and _norm_words(cards[c]["cue"]) in txt), None)
+            # The phrase may STRADDLE two SRT blocks -- EP13's C6 ("put it in a special
+            # bank") and C14 ("quantified as a numerical rating") both do. A
+            # single-block search reports "not found", which downgrades a HARD FAIL to
+            # a warning and leaves the card silently unchecked. Search rolling windows
+            # of up to three consecutive blocks, and attribute the hit to the block the
+            # phrase actually STARTS in -- i.e. the window still matches once, but the
+            # tail alone does not.
+            cue_n = _norm_words(cards[c]["cue"])
+            inrange = [(s0, txt) for s0, txt in segs if b0 - 2 <= s0 <= b1]
+            hit = None
+            for i in range(len(inrange)):
+                for w in (1, 2, 3):
+                    if i + w > len(inrange):
+                        break
+                    joined = " ".join(t for _, t in inrange[i:i + w])
+                    if cue_n in joined:
+                        tail = " ".join(t for _, t in inrange[i + 1:i + w])
+                        if cue_n not in tail:
+                            hit = inrange[i][0]
+                        break
+                if hit is not None:
+                    break
             if hit is None:
                 qc.warn(f"card {c}: cue phrase {cards[c]['cue']!r} not found in the SRT "
                         f"near beat {bn} - check the cue text")
