@@ -57,7 +57,37 @@ description: >
 
 **Context**
 - [ ] **Australian** where the shot implies a place — Australian tracks, crowds, light and vegetation.
-- [ ] **Era-appropriate** if the article is historical. Our source articles run from the 1980s and 90s; a shot implying that period must not carry modern gear, modern signage or modern crowds.
+- [ ] **CONTEMPORARY.** Modern gear, modern crowds, modern light — see the ruling below.
+
+---
+
+## 2a. 🔒 THE B-ROLL IS MODERN. ALWAYS. (Jodie, 29 July 2026)
+
+> **"I would prefer the b roll looks modern from now please. Put this as a rule."**
+
+**B-roll and hero imagery depict CONTEMPORARY Australian racing on every episode,
+whatever the source article's date.** The era-appropriate default is **RETIRED** — it
+used to say *"a shot implying that period must not carry modern gear, modern signage
+or modern crowds"*, and it is gone. **Do not restore it.**
+
+**The reasoning, written down so nobody re-opens it:**
+
+1. **Nothing in an episode claims to depict the year the article was written.** Gordon
+   says when it was published and credits the author; the footage is illustration, not
+   reconstruction. A 1992 dateline does not make a modern shot a false claim.
+2. **One library serves all fifty episodes.** Our sources run from the 1980s and 90s,
+   so an era rule would mean a separate period library per decade — clips that could
+   never be reused, and a registry that fragments.
+3. 🔑 **IT REMOVES A GENUINE COLLISION.** The era rule pulled directly against the
+   female-jockey rule below: female riders were far rarer in Australian racing in 1992
+   than now, so "period-accurate" and "realistic rider mix" could not both be
+   satisfied on a historical episode. **The female-jockey rule now applies CLEANLY AND
+   ALWAYS**, with nothing to trade it against.
+
+*Caught on EP14 (July 1992), the first episode to test the era rule in anger. The
+prompts were written era-accurate, the collision was flagged rather than quietly
+resolved, and Jodie ruled. **Nothing had been generated, so the rewrite cost nothing;
+ten minutes later it would have cost credits.***
 
 ---
 
@@ -81,8 +111,10 @@ description: >
 ## 5. Writing the prompt
 1. **State the racing situation first**, in plain terms — *"a field of eight rounding the home turn, all on the inside of the running rail, wet track, overcast Australian afternoon."*
 2. **Name what must be true** rather than what must not: *"all horses travelling the same direction, single running rail on the outside."* Negative prompts are less reliable than positive statements.
-3. **Specify the rider mix** where riders are visible.
-4. **Say the era** if it matters.
+3. **Specify the rider mix** where riders are visible — **including female jockeys**.
+4. ~~**Say the era** if it matters.~~ **RETIRED 29 July 2026 — see §2a.** The imagery is
+   contemporary on every episode, so the era is never a prompt variable. If a prompt
+   says a year, that is a bug.
 5. **Generate more than you need** and discard against §2 — regenerating is cheaper than shipping a wrong image.
 6. **Look at every one.** Do not accept an image you have not viewed. *(A machine that reports "generated 6 images" has told you nothing about whether any of them show racing.)*
 
