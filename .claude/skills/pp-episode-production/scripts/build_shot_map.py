@@ -66,19 +66,81 @@ if HG_SRT:
                 anchors.append((i, end)); break
 print(f"{len(anchors)} silence-verified anchors")
 
-# 3. boundaries: word-proportional between anchors, snapped to pauses
-wc = [len(norm(p)) for p in paras]
-bounds = {}
-pts = [(-1, SPEECH_START)] + anchors + [(len(paras)-1, SPEECH_END)]
-for (i0,t0),(i1,t1) in zip(pts, pts[1:]):
-    span = sum(wc[i0+1:i1+1]); acc = 0
-    for j in range(i0+1, i1):
-        acc += wc[j]
-        est = t0 + (t1-t0)*acc/span
-        near = [ (abs((s+e)/2-est), (s+e)/2) for s,e in sil if abs((s+e)/2-est) <= 3.5 ]
-        bounds[j+1] = min(near)[1] if near else est
-    bounds[i1+1] = t1
-starts_ = [SPEECH_START] + [bounds[i] for i in range(1, len(paras))]
+# 3. boundaries.
+#
+# 🔑 PREFER renders/aligned.srt. THIS IS THE SAME RE-POINT MADE THREE TIMES BEFORE.
+# The alignment work pointed derive_card_timings (A2), self_qc (B5) and the shipped
+# captions (A7) at aligned.srt and NEVER REACHED HERE, so the shot map went on being
+# built by the CONSTRUCTED method below while everything that reads it had moved to
+# the measured one. MEASURED ON EP14: each shot's own first_words, located in the
+# aligned word timeline, sat up to 18.08s later than the start this file gave it —
+# systematically positive, largest in the first half, shrinking after. That is the
+# signature of paragraph interpolation, and it is the same failure mode that put nine
+# of EP13's thirteen cards ahead of their words.
+#
+# WHY THE ALIGNED ROUTE IS EXACT, NOT JUST BETTER: align_to_script.py builds
+# aligned.srt with the TEXT taken from spoken-words.txt, so its words ARE these
+# paragraphs, in order. Walking them and taking the time of each paragraph's FIRST
+# word needs no interpolation and no phrase matching.
+def _aligned_starts(paras, outdir):
+    p = f"{outdir}/aligned.srt"
+    try:
+        raw = open(p, encoding="utf-8-sig").read()
+    except OSError:
+        return None
+    words = []                       # (word, time) across the whole episode
+    for chunk in re.split(r"\r?\n\s*\r?\n", raw.strip()):
+        lines = [x for x in chunk.splitlines() if x.strip()]
+        if len(lines) < 3:
+            continue
+        m = re.search(r"(\d+):(\d+):([\d.,]+)\s*-->\s*(\d+):(\d+):([\d.,]+)", lines[1])
+        if not m:
+            continue
+        g = m.groups()
+        t0 = int(g[0])*3600 + int(g[1])*60 + float(g[2].replace(",", "."))
+        t1 = int(g[3])*3600 + int(g[4])*60 + float(g[5].replace(",", "."))
+        ws = norm(" ".join(lines[2:]))
+        for i, w in enumerate(ws):
+            # the FIRST word of a block gets the block's own start — exact, not
+            # interpolated; only later words in the block are spread across it.
+            words.append((w, t0 if i == 0 else t0 + (i/len(ws))*(t1-t0)))
+    if not words:
+        return None
+    starts, k = [], 0
+    for para in paras:
+        pw = norm(para)
+        if k >= len(words):
+            return None              # ran out of aligned words: refuse, do not guess
+        starts.append(round(words[k][1], 2))
+        k += len(pw)
+    if any(b <= a for a, b in zip(starts, starts[1:])):
+        return None                  # not monotonic: refuse, do not guess
+    return starts
+
+aligned_starts = _aligned_starts(paras, OUTDIR)
+if aligned_starts:
+    starts_ = aligned_starts
+    print(f"boundaries: MEASURED from aligned.srt ({len(starts_)} paragraph starts)")
+else:
+    # LOUD, like A7's caption fallback. A silently-constructed timeline is what this
+    # whole re-point exists to end, so say exactly what it costs.
+    print("!! renders/aligned.srt is MISSING or unusable, so the shot map is being built "
+          "by WORD-PROPORTIONAL INTERPOLATION between silence anchors. On EP14 that method "
+          "drifted up to 18.08s from where the words are actually spoken. Every b-roll "
+          "placement and every camera window derived from this map inherits that error. "
+          "Run align_to_script and rebuild before rendering.")
+    wc = [len(norm(p)) for p in paras]
+    bounds = {}
+    pts = [(-1, SPEECH_START)] + anchors + [(len(paras)-1, SPEECH_END)]
+    for (i0,t0),(i1,t1) in zip(pts, pts[1:]):
+        span = sum(wc[i0+1:i1+1]); acc = 0
+        for j in range(i0+1, i1):
+            acc += wc[j]
+            est = t0 + (t1-t0)*acc/span
+            near = [ (abs((s+e)/2-est), (s+e)/2) for s,e in sil if abs((s+e)/2-est) <= 3.5 ]
+            bounds[j+1] = min(near)[1] if near else est
+        bounds[i1+1] = t1
+    starts_ = [SPEECH_START] + [bounds[i] for i in range(1, len(paras))]
 
 table = []
 for i,p in enumerate(paras):

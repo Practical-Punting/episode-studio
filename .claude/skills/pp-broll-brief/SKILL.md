@@ -84,10 +84,23 @@ or modern crowds"*, and it is gone. **Do not restore it.**
    satisfied on a historical episode. **The female-jockey rule now applies CLEANLY AND
    ALWAYS**, with nothing to trade it against.
 
+### 📅 IN FORCE FROM **EP15** ONWARD. **EP14 KEEPS ITS PERIOD B-ROLL.**
+
+> **Jodie, 1 August 2026: "For this episode I am happy to have period b roll. Let's
+> improve it for next time."**
+
+**EP14's clips depict 1992 and that is a RECORDED EXCEPTION, not a breach** — nobody
+reading them later should think the rule was ignored. The reason is money: **the seven
+clips had already been generated for 52.5 Higgsfield credits before the ruling**, and
+regenerating them would have spent that again on a measurement run.
+
 *Caught on EP14 (July 1992), the first episode to test the era rule in anger. The
 prompts were written era-accurate, the collision was flagged rather than quietly
-resolved, and Jodie ruled. **Nothing had been generated, so the rewrite cost nothing;
-ten minutes later it would have cost credits.***
+resolved, and Jodie ruled.*
+⚠️ **AND THE FIRST VERSION OF THIS NOTE WAS WRONG.** It said *"nothing had been
+generated, so the rewrite cost nothing."* **The rail's `build_state` said otherwise:
+7 clips, 52.5 credits, generated before the rewrite.** *Check the artefact, not your
+memory of the order things happened in.*
 
 ---
 
