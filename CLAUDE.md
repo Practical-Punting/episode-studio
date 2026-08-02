@@ -58,8 +58,32 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   ships client-side (RLS on). Never commit keys.
 - All Supabase access goes through `engine/rail.py` — one client, in the repo
   since 28 Jul 2026 (was `PP Videos/scripts/rail.py`).
+- **THE RAIL IS SELECT / INSERT / UPDATE. NO DELETE.** One exception, ruled
+  3 Aug 2026: the cover A/B pair may be deleted when an episode is published,
+  and it must log what it removed. **The rows themselves are NEVER deleted** —
+  they are the studio's memory, and every structural fix this week came from
+  comparing episodes to each other. Deletions are otherwise Jodie's.
+- **CODE FREEZE WHILE AN EPISODE IS RUNNING.** Editing `engine.py`,
+  `providers.py` or `rail.py` exits the engine via the stale-code guard, and the
+  supervisor restarts it on the new code within five minutes. That IS the deploy
+  path — never kill the engine by hand, and never edit those three mid-build.
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
+
+## 🔍 THE THREE FAULTS THAT KEEP COMING BACK
+*(Named here because each recurred AFTER being written down somewhere weaker.
+Full evidence in the memory files; these three lines are the whole of it.)*
+
+1. **ASSERT THE ARTEFACT, NOT THE THING THAT REPORTS ON IT.** An exit code, a
+   call count, a code path, a cached read and your memory of what happened are
+   all proxies. Ask what a human actually RECEIVES, and check that.
+   *A guard that greps for a string can be satisfied by a comment.*
+2. **ONE SOURCE OF TRUTH, OR IT DRIFTS.** Four times a value lived in two places
+   and the fix reached one reader. When two things must agree, make the shared
+   value DATA that both read — and add the check that compares them.
+3. **ANYTHING THAT WAITS MUST SAY IT IS WAITING.** Silence and death look
+   identical. Emit a heartbeat, `flush=True`, record the START of work and not
+   only its finish, and say who it is waiting on.
 
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
