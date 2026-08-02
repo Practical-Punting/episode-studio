@@ -121,6 +121,15 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .gate input:focus{border-color:var(--orange);}
 .gate .btn:disabled{opacity:.45;cursor:default;}
 
+/* D13 — a STUCK step must not look like a working one, or a legitimate wait.
+   Deliberately louder than the amber "needs a look": that one is an invitation,
+   this one is a fault nobody has noticed. */
+.stuckbox{margin:10px 0 2px;padding:11px 13px;border-radius:10px;
+  background:#fff4f2;border:2px solid #e0603f;}
+.stuck-t{font-weight:800;font-size:13px;color:#b8391c;margin-bottom:4px;}
+.stuck-m{font-size:13px;line-height:1.5;color:#5c2a1c;}
+.stuck-m b{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;}
+
 /* BUNDLE A, 3 Aug 2026 — the three things Hugh could not do from a browser. */
 
 /* stop 5 — the HeyGen project name must be COPYABLE, not just readable. */

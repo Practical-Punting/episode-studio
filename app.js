@@ -185,6 +185,40 @@ function creditsFor(ep) {
   return typeof b === "number" ? b : null;
 }
 
+/* ── THE PER-STEP WATCHDOG (D13, 3 Aug 2026) ──────────────────────────────────
+ *
+ * THE HEARTBEAT PROVES THE ENGINE, NOT THE STEP. EP14 sat on assemble_passB for three
+ * and a half days with a six-second heartbeat, a moving progress bar and a stage line
+ * that said "Assembling" — indistinguishable from an episode that was working. Jodie
+ * noticed. Hugh will not be looking, which is the entire point of this project.
+ *
+ * Three states currently look identical and only ONE is a fault:
+ *   working  — inside its budget, or no budget because it waits on a human by design
+ *   waiting  — a flag is up, or the step waits on a human by design. LEGITIMATE, and
+ *              may last days. Must NEVER alarm.
+ *   stuck    — over budget, no flag, nobody coming. The only fault.
+ *
+ * The budget comes from the engine (STEP_BUDGET_S), so the board never has to guess
+ * what is normal for a step, and a step that waits on a human carries budget_s: null.
+ */
+const DONE_STATUSES = ["published", "ready"];
+
+function stepState(ep) {
+  const cur = (ep.build_state || {}).current;
+  if (!cur || !cur.started_at) return null;          // nothing in flight to judge
+  const ran = Date.now() - new Date(cur.started_at).getTime();
+  const out = { step: cur.step || "this step", ran: ran, budget: cur.budget_s };
+
+  // A finished episode is never stuck, whatever marker was left behind.
+  if (DONE_STATUSES.indexOf(ep.status) !== -1) return { ...out, state: "working" };
+  // A raised flag IS the answer to "who is it waiting on". Days are fine.
+  if (ep.needs_look) return { ...out, state: "waiting", who: "you" };
+  // No budget = the step waits on a human by design (the HeyGen render, a cover pick).
+  if (cur.budget_s == null) return { ...out, state: "waiting", who: "a human step" };
+  if (ran > cur.budget_s * 1000) return { ...out, state: "stuck" };
+  return { ...out, state: "working" };
+}
+
 function needsLook(ep) {
   if (ep.needs_look) {
     return { msg: ep.needs_look_message || "The engine flagged this one — it needs a human.", flagged: true };
@@ -406,6 +440,20 @@ function cardFor(ep) {
   h += '<div class="stage">' +
        esc(ep.progress_step || st.label) + "</div>";
   h += '<div class="elapsed" data-elapsed="' + ep.id + '">' + esc(elapsedLine(ep)) + "</div>";
+
+  // A STUCK STEP SAYS SO, IN WORDS, WITHOUT ANYONE NOTICING FIRST. It names the step,
+  // says how long, and says the thing that separates it from a legitimate wait:
+  // nobody is coming. A flagged episode and a by-design wait never reach here.
+  const ss = stepState(ep);
+  if (ss && ss.state === "stuck") {
+    h += '<div class="stuckbox"><div class="stuck-t">⛔ Stuck — nobody is coming</div>' +
+      '<div class="stuck-m"><b>' + esc(ss.step) + "</b> has been running for " +
+      esc(ago(new Date(Date.now() - ss.ran).toISOString())) +
+      ". Normal for this step is about " + Math.round(ss.budget / 60) + " min." +
+      " Nothing is waiting on you — no flag is up — so it is not going to finish by " +
+      "itself. Restarting the engine picks it up where it left off and loses nothing." +
+      "</div></div>";
+  }
 
   if (nl) {
     h += '<div class="needlook"><div class="nl-t">⚠ Needs a look</div>' +

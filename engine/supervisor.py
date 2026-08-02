@@ -50,6 +50,7 @@ episode, blaming the episode for the machine.
 import argparse
 import datetime as _dt
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -112,7 +113,70 @@ def engine_pid():
         return None
 
 
-def environment_problem():
+def _powercfg():
+    """The raw sleep settings, as Windows reports them."""
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-Command",
+         "powercfg /q SCHEME_CURRENT SUB_SLEEP STANDBYIDLE"],
+        capture_output=True, text=True, timeout=60)
+    return r.stdout or ""
+
+
+def _mins(seconds):
+    if seconds % 60 == 0:
+        m = seconds // 60
+        return f"{m} min" if m else "never"
+    return f"{seconds}s"
+
+
+def standby_problem(query=_powercfg):
+    """Will this machine fall asleep under a running build? CHECKED, not trusted.
+
+    🔴 SLEEP IS THE SINGLE LARGEST COST IN THIS PROJECT'S HISTORY. EP14 lost FOURTEEN
+    HOURS to Modern Standby, and the 2400s ffmpeg timeout — being wall-clock — then
+    fired 13h34m late and destroyed 39 minutes of real compute on waking.
+
+    ⚠️ AND A NOTE WOULD NOT HAVE BEEN ENOUGH. Jodie set the power plan to never sleep,
+    sincerely, and set the WRONG HALF: Windows keeps SEPARATE timers for mains and
+    battery. Measured on her machine immediately afterwards:
+        Current AC Power Setting Index: 0x00000000  ->   0s = never  ✓
+        Current DC Power Setting Index: 0x000000b4  -> 180s = 3 min  ✗
+    and EP14's fourteen hours were lost on battery. A person can do this correctly and
+    still be wrong, so BOTH halves are checked here rather than written down somewhere.
+
+    FAILS OPEN. If powercfg is missing, silent or unparseable this returns None and the
+    engine starts: a guard that cannot read its input must not brick the studio. It says
+    so in the log rather than pretending it checked.
+    """
+    try:
+        out = query()
+    except Exception:                                             # noqa: BLE001
+        return None
+    ac = re.search(r"Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
+    dc = re.search(r"Current DC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
+    if not (ac and dc):
+        return None                                               # cannot tell -> allow
+    bad = []
+    if int(ac.group(1), 16):
+        bad.append(f"on MAINS after {_mins(int(ac.group(1), 16))}")
+    if int(dc.group(1), 16):
+        bad.append(f"on BATTERY after {_mins(int(dc.group(1), 16))}")
+    if not bad:
+        return None
+    return (
+        "THIS MACHINE WILL FALL ASLEEP UNDER A BUILD — it is set to sleep "
+        + " and ".join(bad) + ".\n"
+        "    Sleep cost EP14 fourteen hours: the engine is suspended, the ffmpeg "
+        "timeout is wall-clock so it fires late on waking and kills work that was "
+        "nearly done.\n"
+        "    Windows keeps SEPARATE timers for mains and battery, so setting one and "
+        "not the other looks fixed and is not — which is exactly what happened here.\n"
+        "    Fix BOTH, then this starts by itself within five minutes:\n"
+        "      powercfg /change standby-timeout-ac 0\n"
+        "      powercfg /change standby-timeout-dc 0")
+
+
+def environment_problem(standby=_powercfg):
     """Why the engine must NOT be started right now — or None if it may be."""
     if not PP_VIDEOS.is_dir():
         return (f"{PP_VIDEOS} is not there. Google Drive is probably not mounted yet "
@@ -121,7 +185,9 @@ def environment_problem():
     if not env.is_file():
         return (f"no .env at {env}. The engine cannot reach Supabase without it, and "
                 f"it must NEVER be moved into the repo — the repo is public.")
-    return None
+    # The same gate that refuses a missing Drive refuses a machine that will sleep.
+    # It retries every five minutes, so fixing the setting starts the engine by itself.
+    return standby_problem(standby)
 
 
 def start():

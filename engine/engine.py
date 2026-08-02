@@ -494,6 +494,55 @@ def step_ebook_cover(ctx):
             "from_hero": choice}
 
 
+# ── the per-step watchdog (D13, 3 Aug 2026) ─────────────────────────────────
+#
+# THE HEARTBEAT PROVES THE ENGINE, NOT THE STEP. EP14 sat on assemble_passB for three
+# and a half days with a healthy six-second heartbeat, and nothing anywhere could say
+# so. Jodie noticed. Hugh will not be looking — that is the entire point.
+#
+# Three states currently look identical on the board and only ONE is a fault:
+#     working            — making progress
+#     waiting on a human — a flag is up, legitimate, may last days
+#     stuck              — no flag, no progress, nobody coming
+#
+# The board can already see the second (needs_look). What it could not see was how long
+# THIS step had been running, because build_state records only COMPLETED steps. So the
+# engine now stamps the step in flight before running it.
+#
+# BUDGETS ARE MEASURED, NOT GUESSED, and generous — this is a "nobody is coming" alarm,
+# not a performance target. `None` means the step waits on a human BY DESIGN and must
+# never raise one: heygen_download polls until Jodie has run the render, which can
+# legitimately take days with no flag up.
+STEP_BUDGET_S = {
+    "heygen_download": None,      # waits for Jodie's HeyGen render — no flag, no alarm
+    "cover_pick":      None,      # waits for a human choice
+    "render_gate":     None,      # waits for the render to be started
+    "assemble_passA":  45 * 60,   # EP14 measured ~15 min at 688s of video
+    "assemble_passB":  45 * 60,   # EP13 265s, EP14 ~10 min
+    "cards_render":    30 * 60,   # EP14 ~4 min for 14 pages, plus Chromium start-up
+    "broll_collect":   40 * 60,   # Higgsfield queue, 7 clips
+    "ebook_build":     20 * 60,
+    "self_qc":         20 * 60,
+}
+DEFAULT_STEP_BUDGET_S = 15 * 60
+
+
+def mark_step_started(ctx, name):
+    """Stamp the step in flight, and SAVE IT — a stuck step never gets to save later."""
+    ctx.state["current"] = {
+        "step": name,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "budget_s": STEP_BUDGET_S.get(name, DEFAULT_STEP_BUDGET_S),
+    }
+    ctx.save()
+
+
+def clear_step_started(ctx):
+    """A finished step is not in flight. Left behind, it reads as stuck forever."""
+    if ctx.state.pop("current", None) is not None:
+        ctx.save()
+
+
 def step_cards_render(ctx):
     """Render the cards, then ask for the ONE look that cannot be automated.
 
@@ -658,10 +707,12 @@ def run_step(ctx, name):
         ctx.check_alive()
         attempt += 1
         try:
+            mark_step_started(ctx, name)          # so a stuck step is visible
             meta = STEP_FNS[name](ctx)
             ctx.state["steps"][name] = {
                 "done": True, "at": datetime.now(timezone.utc).isoformat(),
                 "meta": meta or {}}
+            clear_step_started(ctx)
             ctx.save()
             return
         except OwnershipLost:
