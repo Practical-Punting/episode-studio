@@ -120,6 +120,16 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
   border:2px solid #e6e2dd;border-radius:10px;background:#fff;color:var(--ink);outline:none;margin-bottom:10px;}
 .gate input:focus{border-color:var(--orange);}
 .gate .btn:disabled{opacity:.45;cursor:default;}
+
+/* publish card — ONE FIELD AT A TIME (C1, 2 Aug 2026).
+   The card wants the live YouTube URL and the public e-book link. They live in two
+   other places and there is one clipboard, so it cannot be filled without leaving the
+   page. Each link banks on its own, so the row is input + Save + a saved marker. */
+.pubrow{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;}
+.pubrow input[type=url]{flex:1 1 auto;margin-bottom:0;}
+.pubrow .btn.ghost{flex:0 0 auto;padding:11px 14px;}
+.pubrow .saved{flex:0 0 auto;align-self:center;font-size:12px;font-weight:700;
+  color:var(--ok,#2f7d4f);text-transform:uppercase;letter-spacing:.5px;}
 .muted{color:var(--muted);font-size:12.5px;}
 
 /* script gate — the Doc link, the tick, the editable words */

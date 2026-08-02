@@ -69,62 +69,94 @@ class Halt(Exception):
 CHANNEL_LINE = "How to Win at Horse Racing"
 SEP = " | "
 
-# Small words stay lower case unless they are first or last. Jodie's list, 29 Jul
-# 2026, verbatim. `is` is on it, which most style guides would not do — it is her
-# call and it is followed exactly, not "corrected".
-SMALL = {"a", "an", "the", "and", "but", "or", "for", "nor",
-         "at", "by", "in", "of", "on", "to", "up", "as", "if", "is"}
-
-_WORD = re.compile(r"[A-Za-z0-9']+")
-
-
-def _cap(word: str) -> str:
-    """Capitalise, leaving an already-capitalised interior alone (PP, e-book)."""
-    return word[:1].upper() + word[1:]
-
-
-def title_case(s: str) -> str:
-    """Title-case a byline. Hyphenated compounds capitalise each part."""
-    tokens = s.split()
-    out = []
-    for i, tok in enumerate(tokens):
-        first_or_last = i == 0 or i == len(tokens) - 1
-        parts = tok.split("-")
-        done = []
-        for j, part in enumerate(parts):
-            m = _WORD.search(part)
-            if not m:
-                done.append(part)
-                continue
-            word = m.group(0)
-            # A HYPHEN'S LATER PARTS ARE ALWAYS CAPITALISED, small word or not:
-            # EP12 shipped "First-Up", and treating `up` as a small word there gives
-            # "First-up". The hyphen makes one compound word, not two words.
-            small = j == 0 and not first_or_last and word.lower() in SMALL
-            new = word.lower() if small else _cap(word)
-            done.append(part[:m.start()] + new + part[m.end():])
-        out.append("-".join(done))
-    return " ".join(out)
+# 🔒 SUPERSEDED 2 AUGUST 2026 — THE TITLE IS THE EPISODE NAME, NOT THE BYLINE.
+#
+# Jodie's ruling: "YouTube title = the episode / e-book name, then the suffix."
+#     The Meaning of Form — Part 1 | How to Win at Horse Racing
+#
+# THE OLD RULE DERIVED FROM `packaging.byline`, TITLE-CASED. That was measured
+# against EP11-EP13 and it reproduced their hand-set titles — so it was a correct
+# description of what had been done, and still the wrong thing to do. WHY: the title
+# card says "THE MEANING OF FORM / Part 1", the e-book says "The Meaning of Form —
+# Part 1", and the YouTube title said something else entirely. MEASURED ACROSS
+# EP11-EP14, THE EPISODE NAME AND THE YOUTUBE TITLE HAVE NEVER ONCE MATCHED.
+# One name everywhere a viewer looks.
+#
+# `title_case()` and its small-word list are GONE with the byline derivation. The
+# episode name is already cased the way it ships on the cover and the title card, so
+# re-casing it here could only introduce a difference — which is the whole fault.
+#
+# ⚠️ NOT RETROSPECTIVE. EP11, EP12 and EP13 are published under the old form and the
+# kit's standing rule is that already-published videos are NOT retitled. This binds
+# from EP14. A rebuild of an older episode would now halt on it, correctly — that is
+# a conversation, not a silent retitle.
 
 
-def byline_of(epj: dict) -> str:
-    b = ((epj.get("packaging") or {}).get("byline") or "").strip()
-    if not b:
+def title_of(epj: dict) -> str:
+    t = (epj.get("title") or "").strip()
+    if not t:
         raise Halt(
-            "episode.json -> packaging.byline is missing or empty, and the YouTube "
-            "title is DERIVED from it. There is no fallback on purpose: falling back "
-            "to the episode title, or to anything composed here, would produce the one "
-            "string a viewer sees first out of words nobody approved. That is the fault "
-            "this rule exists to close.")
-    return b
+            "episode.json -> title is missing or empty, and the YouTube title IS the "
+            "episode name plus the channel line. There is no fallback on purpose: "
+            "composing one here would put a name on YouTube that appears nowhere else "
+            "the viewer looks, which is exactly the fault this rule closes.")
+    return t
 
 
-def derive(byline: str) -> str:
-    return title_case(byline) + SEP + CHANNEL_LINE
+def derive(name: str) -> str:
+    """The house form: the episode name, then the channel line. Verbatim, no re-casing."""
+    return name.strip() + SEP + CHANNEL_LINE
 
 
 def derive_from(epj: dict) -> str:
-    return derive(byline_of(epj))
+    return derive(title_of(epj))
+
+
+# --- ONE NAME EVERYWHERE A VIEWER LOOKS --------------------------------------
+#
+# THE ASSERTION THAT WAS MISSING, AND ITS ABSENCE IS WHY THIS SHIPPED FOUR TIMES.
+# Nothing in the build had ever compared the three places the episode is NAMED:
+# the title card, the e-book, and YouTube. Each was checked against its own source
+# and all three passed while disagreeing with each other.
+
+def _fold(s: str) -> str:
+    """Compare NAMES, not typography: case, dash flavour and spacing are noise here."""
+    s = re.sub(r"[‐-―−-]+", "-", (s or ""))
+    return re.sub(r"\s+", " ", s).strip(" -").upper()
+
+
+def episode_names(epj: dict) -> dict:
+    """The episode name as each of the three artefacts states it."""
+    cov = epj.get("cover") or {}
+    pack = epj.get("packaging") or {}
+    card = f"{cov.get('title_setup', '')} {cov.get('title_payoff', '')}".strip()
+    if cov.get("part"):
+        card = f"{card} - {cov['part']}"
+    yt = (pack.get("youtube_title") or "")
+    if yt.endswith(SEP + CHANNEL_LINE):
+        yt = yt[: -len(SEP + CHANNEL_LINE)]
+    return {
+        "episode.json -> title": epj.get("title") or "",
+        "the TITLE CARD (cover.title_setup + title_payoff + part)": card,
+        "the E-BOOK (packaging.ebook_title)": pack.get("ebook_title") or "",
+        "YOUTUBE (packaging.youtube_title, suffix removed)": yt,
+    }
+
+
+def check_one_name(epj: dict) -> list[str]:
+    """Halt-worthy problems if the three artefacts do not name the same episode."""
+    names = episode_names(epj)
+    folded = {k: _fold(v) for k, v in names.items()}
+    distinct = set(folded.values())
+    if len(distinct) <= 1:
+        return []
+    return ["THE EPISODE IS CALLED DIFFERENT THINGS IN DIFFERENT PLACES. A viewer "
+            "meets this name on the title card, on the e-book cover and in the "
+            "YouTube listing, and they must be the same name:\n"
+            + "\n".join(f"       {v!r}\n         in {k}" for k, v in names.items())
+            + "\n     Fix the one that is wrong in episode.json. Nothing in the build "
+              "compared these until 2 Aug 2026, which is how four episodes shipped "
+              "with a YouTube title that matched nothing else."]
 
 
 # --- the gate on the shipped file --------------------------------------------
@@ -184,13 +216,15 @@ def main():
         title = derive_from(epj)
         text = open(a.check[1], encoding="utf-8").read()
         problems = check_text(text, title)
+        problems += check_one_name(epj)
         stored = ((epj.get("packaging") or {}).get("youtube_title") or "").strip()
         if stored and stored != title:
             problems.append(
                 f"episode.json -> packaging.youtube_title is {stored!r}, but the title "
-                f"derived from packaging.byline is {title!r}. The stored value is a "
+                f"derived from episode.json -> title is {title!r}. The stored value is a "
                 f"RECORD of the derivation, not a second opinion — if the title should "
-                f"change, the byline is what changes, at the Words Gate.")
+                f"change, the EPISODE NAME is what changes — and it changes in all "
+                f"three places at once, because they are one name.")
         if problems:
             print("YOUTUBE TITLE CHECK FAILED:", file=sys.stderr)
             for p in problems:

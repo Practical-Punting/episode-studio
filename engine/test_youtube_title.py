@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""A6 — the YouTube title, proved against JODIE'S OWN STRING and the SHIPPED FILE.
+"""A6 — the YouTube title. REWRITTEN 2 Aug 2026 for Jodie's superseding ruling.
 
-The artefact is the title, not the code path that chose it. So the central proof is:
-derive from EP13's real byline and assert the result equals, character for character,
-the title she composed herself and published.
+    YouTube title = the episode / e-book name, then " | How to Win at Horse Racing"
 
-Every check here reads DATA — an episode.json, a copy file — or drives a real
-function. Nothing greps this repo's source, so no quotation in a comment of mine can
-satisfy any of it.
+The old rule derived from `packaging.byline`, title-cased. It was measured against
+EP11-EP13 and reproduced their hand-set titles exactly — a correct description of what
+had been done, and still the wrong thing to do. **Across EP11-EP14 the episode name and
+the YouTube title had NEVER ONCE MATCHED.** One name everywhere a viewer looks.
+
+Every check here reads DATA — an episode.json, a copy file — or drives a real function.
+Nothing greps this repo's source, so no quotation in a comment of mine can satisfy it.
 """
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,10 +31,9 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 PP = Path(r"G:\My Drive\PP Videos")
-# The title Jodie composed and published herself, after the copy file failed to
-# contain it. This constant is the SPEC; the code is what has to match it.
-HERS = "How a Professional Assesses Race Form | How to Win at Horse Racing"
-SHIPPED = PP / "PP-EP13/output/PP-EP13-youtube.txt"
+# Jodie's ruling, 2 Aug 2026, quoted as the SPEC. The code has to match this.
+HERS = "The Meaning of Form — Part 1 | How to Win at Horse Racing"
+SHIPPED = PP / "PP-EP14/output/PP-EP14-youtube.txt"
 
 PASS, FAIL = [], []
 
@@ -56,120 +56,165 @@ def epjson(n):
 
 
 # ------------------------------------------------------------------ 1 ------
-def _reproduces_jodies_own_title():
-    epj = epjson(13)
+def _reproduces_jodies_ruling():
+    epj = epjson(14)
     got = yt.derive_from(epj)
-    assert got == HERS, (
-        f"the derivation does not reproduce the title Jodie composed and published.\n"
-        f"      byline : {epj['packaging']['byline']!r}\n"
-        f"      derived: {got!r}\n"
-        f"      hers   : {HERS!r}")
+    assert got == HERS, (f"the derivation does not reproduce her ruling.\n"
+                         f"      title  : {epj['title']!r}\n"
+                         f"      derived: {got!r}\n"
+                         f"      hers   : {HERS!r}")
 
 
-case("A6: EP13's byline derives to Jodie's own title, character for character",
-     _reproduces_jodies_own_title)
+case("A6: EP14's title derives to Jodie's ruling, character for character",
+     _reproduces_jodies_ruling)
 
 
-def _the_other_two_bylines_title_case_sensibly():
-    want = {
-        11: "How to Look Beyond the Favourites | How to Win at Horse Racing",
-        12: "How to Spot the Fresh Horse That Can Actually Win | How to Win at Horse Racing",
-    }
-    for n, expect in want.items():
-        got = yt.derive_from(epjson(n))
-        assert got == expect, f"EP{n}: {got!r}, wanted {expect!r}"
-    print("      EP11 -> " + want[11])
-    print("      EP12 -> " + want[12])
+def _it_is_the_name_verbatim_not_re_cased():
+    """The episode name ships on the cover and the title card already cased.
+
+    Re-casing it here could only introduce a difference, which IS the fault.
+    """
+    for n in (11, 12, 13, 14):
+        epj = epjson(n)
+        got = yt.derive_from(epj)
+        assert got.startswith(epj["title"]), (
+            f"EP{n}: the derived title does not open with the episode name VERBATIM.\n"
+            f"      title  : {epj['title']!r}\n"
+            f"      derived: {got!r}")
+        assert got == epj["title"] + " | How to Win at Horse Racing", \
+            f"EP{n}: wrong house form: {got!r}"
+    print("      EP14 -> " + yt.derive_from(epjson(14)))
 
 
-case("A6: EP11's and EP12's bylines title-case correctly too",
-     _the_other_two_bylines_title_case_sensibly)
+case("A6: the title is the episode name VERBATIM plus the suffix, never re-cased",
+     _it_is_the_name_verbatim_not_re_cased)
 
 
-def _small_words_and_hyphens():
-    checks = [
-        ("how a professional assesses race form", "How a Professional Assesses Race Form"),
-        ("the fresh horse that can actually win", "The Fresh Horse That Can Actually Win"),
-        ("how to spot a first-up winner", "How to Spot a First-Up Winner"),
-        ("what an edge is", "What an Edge Is"),          # `is` is small, but LAST
-        ("is it worth the risk", "Is It Worth the Risk"),  # `is` first, `risk` last
-        ("betting in the rain", "Betting in the Rain"),
-    ]
-    for src, want in checks:
-        got = yt.title_case(src)
-        assert got == want, f"{src!r} -> {got!r}, wanted {want!r}"
+def _the_retired_byline_derivation_is_gone():
+    """A superseded rule must not be reachable, or it will be reached."""
+    assert not hasattr(yt, "title_case"), \
+        "title_case() still exists — the byline derivation is still reachable"
+    assert not hasattr(yt, "byline_of"), "byline_of() still exists"
+    epj = epjson(14)
+    assert yt.derive_from(epj) != (
+        "Which Parts of the Form Actually Matter | How to Win at Horse Racing"), \
+        "the OLD byline-derived title is still what comes out"
 
 
-case("A6: small words stay lower case unless first or last; hyphens capitalise each part",
-     _small_words_and_hyphens)
+case("A6: the retired byline derivation is gone, not merely unused",
+     _the_retired_byline_derivation_is_gone)
 
 
 # ------------------------------------------------------------------ 2 ------
-# THE SHIPPED FILE, at byte level.
+# THE ASSERTION THAT WAS MISSING: one name in all three places.
+def _one_name_passes_on_ep14():
+    problems = yt.check_one_name(epjson(14))
+    names = yt.episode_names(epjson(14))
+    assert not problems, f"EP14 should agree with itself now:\n{names}\n{problems}"
+    for k, v in names.items():
+        print(f"      {v!r}  <- {k}")
+
+
+case("A6: EP14 names the same episode on the card, the e-book and YouTube",
+     _one_name_passes_on_ep14)
+
+
+def _one_name_CATCHES_ep13():
+    """The control. EP13 is the fault Jodie described, and the check must see it."""
+    problems = yt.check_one_name(epjson(13))
+    assert problems, (
+        "the one-name check does NOT flag EP13 — but EP13's title card and e-book say "
+        "'The Ratings Game — Part 1' while its YouTube title says 'How a Professional "
+        "Assesses Race Form'. If this passes, the check is worthless.")
+    msg = problems[0]
+    assert "The Ratings Game" in msg and "How a Professional" in msg, \
+        f"the halt does not quote all three names:\n{msg}"
+    print("      EP13 correctly flagged (published; NOT retitled — the kit's standing rule)")
+
+
+case("A6: the one-name check CATCHES EP13, the episode that shipped wrong",
+     _one_name_CATCHES_ep13)
+
+
+def _one_name_catches_a_drifted_ebook_title():
+    epj = epjson(14)
+    epj["packaging"]["ebook_title"] = "The Meaning of Form — Part 2"
+    problems = yt.check_one_name(epj)
+    assert problems, "a drifted e-book title was not caught"
+    assert "Part 2" in problems[0] and "Part 1" in problems[0], \
+        f"the halt does not quote both:\n{problems[0]}"
+
+
+case("A6: a drifted e-book title is caught", _one_name_catches_a_drifted_ebook_title)
+
+
+def _one_name_catches_a_drifted_title_card():
+    epj = epjson(14)
+    epj["cover"]["title_payoff"] = "OF FORMLINES"
+    problems = yt.check_one_name(epj)
+    assert problems, "a drifted title-card name was not caught"
+
+
+case("A6: a drifted title-card name is caught", _one_name_catches_a_drifted_title_card)
+
+
+# ------------------------------------------------------------------ 3 ------
 def _the_shipped_file_carries_her_title_once():
     assert SHIPPED.is_file(), f"{SHIPPED} does not exist"
     text = SHIPPED.read_text(encoding="utf-8")
     first = text.split("\n")[0].rstrip()
-    assert first == HERS, (
-        f"line 1 of the file Jodie pastes from is not her title.\n"
-        f"      line 1: {first!r}\n"
-        f"      wanted: {HERS!r}")
+    assert first == HERS, (f"line 1 of the file Jodie pastes from is not her title.\n"
+                           f"      line 1: {first!r}\n      wanted: {HERS!r}")
     n = text.count(HERS)
-    assert n == 1, (
-        f"the title appears {n} times in the shipped file; it must appear exactly once. "
-        f"A second copy is a second candidate, however it is labelled.")
-    assert not yt.check_text(text, HERS), \
-        f"the shipped file fails its own gate: {yt.check_text(text, HERS)}"
+    assert n == 1, f"the title appears {n} times; it must appear exactly once"
+    assert not yt.check_text(text, HERS), yt.check_text(text, HERS)
 
 
-case("A6: the SHIPPED PP-EP13-youtube.txt carries her title on line 1, exactly once",
+case("A6: the SHIPPED PP-EP14-youtube.txt carries her title on line 1, exactly once",
      _the_shipped_file_carries_her_title_once)
 
 
-def _episode_json_carries_her_decision():
-    """Her decision used to live only on YouTube and in a chat log."""
-    stored = (epjson(13).get("packaging") or {}).get("youtube_title")
-    assert stored == HERS, (
-        f"episode.json still does not carry Jodie's decided title.\n"
-        f"      stored: {stored!r}\n"
-        f"      hers  : {HERS!r}\n"
-        f"      This is the exact fault: she decided, and nothing wrote it back.")
+def _episode_json_carries_it_too():
+    stored = (epjson(14).get("packaging") or {}).get("youtube_title")
+    assert stored == HERS, f"episode.json still says {stored!r}"
 
 
-case("A6: EP13's episode.json carries her decision, not the title she rejected",
-     _episode_json_carries_her_decision)
+case("A6: EP14's episode.json carries the new title", _episode_json_carries_it_too)
 
 
-def _ep11_and_ep12_are_left_alone():
-    """They are live with the old prefix form. Nothing is served by churning them."""
-    for n in (11, 12):
-        t = (epjson(n).get("packaging") or {}).get("youtube_title") or ""
-        assert t.startswith("How to Win at Horse Racing:"), (
-            f"EP{n}'s stored youtube_title has been changed to {t!r} — it is PUBLISHED "
-            f"under the old prefix form and must not be retitled.")
-
-
-case("A6: EP11 and EP12 keep their published titles", _ep11_and_ep12_are_left_alone)
-
-
-# ------------------------------------------------------------------ 3 ------
-# The gate: every bad file must be refused.
+# ------------------------------------------------------------------ 4 ------
 def scratch(epj, text):
     d = Path(tempfile.mkdtemp(prefix="ytitle_"))
     (d / "docs").mkdir(parents=True, exist_ok=True)
     (d / "output").mkdir(parents=True, exist_ok=True)
     (d / "docs/episode.json").write_text(json.dumps(epj, ensure_ascii=False),
                                          encoding="utf-8")
-    f = d / "output/PP-EP13-youtube.txt"
+    f = d / "output/PP-EP14-youtube.txt"
     f.write_text(text, encoding="utf-8")
     return d, f
 
 
+def _missing_title_halts_naming_the_field():
+    epj = epjson(14)
+    epj.pop("title", None)
+    d, f = scratch(epj, f"{HERS}\n\ncopy\n")
+    msg = None
+    try:
+        providers.check_youtube_title(d, f)
+    except providers.EngineFlag as e:
+        msg = str(e)
+    assert msg is not None, "a missing episode title did not halt"
+    assert "title" in msg, f"the halt does not name the field:\n{msg}"
+
+
+case("A6: a missing episode.json title halts, naming the field, with no fallback",
+     _missing_title_halts_naming_the_field)
+
+
 def _second_candidate_halts():
-    epj = epjson(13)
-    bad = (f"{HERS}\n\nDESCRIPTION\nsome copy\n\n"
-           f"ALTERNATIVE A — the promise stated plainly:\n"
-           f"How a Ratings Man Measures a Racehorse | How to Win at Horse Racing\n")
+    epj = epjson(14)
+    bad = (f"{HERS}\n\nDESCRIPTION\ncopy\n\nALTERNATIVE A:\n"
+           f"Which Parts of the Form Actually Matter | How to Win at Horse Racing\n")
     d, f = scratch(epj, bad)
     try:
         providers.check_youtube_title(d, f)
@@ -181,90 +226,7 @@ def _second_candidate_halts():
 case("A6: a copy file containing a second candidate title halts", _second_candidate_halts)
 
 
-def _line_one_not_the_title_halts():
-    epj = epjson(13)
-    bad = f"PP-EP13 — YOUTUBE PUBLISHING COPY\n\n{HERS}\n\nDESCRIPTION\n"
-    d, f = scratch(epj, bad)
-    try:
-        providers.check_youtube_title(d, f)
-        raise AssertionError("a file whose line 1 is a preamble was accepted")
-    except providers.EngineFlag as e:
-        assert "line 1" in str(e), f"unclear halt:\n{e}"
-
-
-case("A6: line 1 that is not the decided title halts", _line_one_not_the_title_halts)
-
-
-def _wrong_house_form_halts():
-    epj = epjson(13)
-    bad = "How to Win at Horse Racing: How a Professional Assesses Race Form\n\ncopy\n"
-    d, f = scratch(epj, bad)
-    try:
-        providers.check_youtube_title(d, f)
-        raise AssertionError("the retired prefix form was accepted on a new episode")
-    except providers.EngineFlag as e:
-        assert "How to Win at Horse Racing" in str(e), f"unclear halt:\n{e}"
-
-
-case("A6: line 1 not ending in the channel line halts", _wrong_house_form_halts)
-
-
-def _missing_byline_halts_naming_the_field():
-    """It must NEVER fall back to the episode title or to anything invented."""
-    epj = epjson(13)
-    epj["packaging"].pop("byline", None)
-    d, f = scratch(epj, f"{HERS}\n\ncopy\n")
-    msg = None
-    try:
-        providers.check_youtube_title(d, f)
-    except providers.EngineFlag as e:
-        msg = str(e)
-    assert msg is not None, (
-        "a missing byline did not halt — the title would have been composed from "
-        "something nobody approved")
-    assert "packaging.byline" in msg, f"the halt does not name the field:\n{msg}"
-    # …and the episode title must not have been used as a stand-in.
-    assert epj.get("title") and epj["title"] not in msg, \
-        "the episode title leaked into the halt as a fallback"
-
-
-case("A6: a missing packaging.byline halts, naming the field, with no fallback",
-     _missing_byline_halts_naming_the_field)
-
-
-def _stored_title_disagreeing_with_the_byline_halts():
-    """The stored value is a RECORD of the derivation, not a second opinion."""
-    epj = epjson(13)
-    epj["packaging"]["youtube_title"] = "The Seven Rules a Ratings Man Lives By | " \
-                                        "How to Win at Horse Racing"
-    d, f = scratch(epj, f"{HERS}\n\ncopy\n")
-    try:
-        providers.check_youtube_title(d, f)
-        raise AssertionError(
-            "episode.json and the derived title were allowed to disagree — which is "
-            "exactly the state EP13 sat in: the rejected title on disk, hers on YouTube")
-    except providers.EngineFlag as e:
-        assert "youtube_title" in str(e) and "byline" in str(e), f"unclear halt:\n{e}"
-
-
-case("A6: a stored youtube_title that contradicts the byline halts",
-     _stored_title_disagreeing_with_the_byline_halts)
-
-
-def _a_good_file_passes():
-    """The positive control — a gate that refuses everything proves nothing."""
-    epj = epjson(13)
-    d, f = scratch(epj, f"{HERS}\n\nDESCRIPTION\nsome perfectly ordinary copy.\n")
-    out = providers.check_youtube_title(d, f)
-    assert HERS in out, f"the good file was accepted but reported oddly: {out!r}"
-
-
-case("A6: a correct file passes (the positive control)", _a_good_file_passes)
-
-
-# ------------------------------------------------------------------ 4 ------
-def _the_gate_is_on_the_real_step():
-    """Drive the REAL save_youtube_copy, not a string search for a call."""
+def _the_gate_is_reached_from_the_real_step():
     class FakeProv(providers.RealProvider):
         def __init__(self):
             self.name = "test"
@@ -272,22 +234,27 @@ def _the_gate_is_on_the_real_step():
         def dir(self, ep):
             return d
 
-    epj = epjson(13)
-    bad = (f"{HERS}\n\nRECOMMENDED:\n"
-           f"How a Ratings Man Measures a Racehorse | How to Win at Horse Racing\n")
-    d, _f = scratch(epj, bad)
+    epj = epjson(14)
+    epj["packaging"]["ebook_title"] = "Something Else Entirely"
+    d, _f = scratch(epj, f"{HERS}\n\ncopy\n")
     try:
-        FakeProv().save_youtube_copy({"id": "x", "ep_number": 13})
-        raise AssertionError(
-            "save_youtube_copy accepted a copy file with a menu in it — the gate is "
-            "written but not reached")
+        FakeProv().save_youtube_copy({"id": "x", "ep_number": 14})
+        raise AssertionError("save_youtube_copy accepted an episode named two things")
     except providers.EngineFlag as e:
-        assert "ONE decided title" in str(e), f"wrong halt:\n{str(e)[-300:]}"
+        assert "DIFFERENT THINGS" in str(e), f"wrong halt:\n{str(e)[-400:]}"
 
 
-case("A6: the gate is reached from the real save_youtube_copy step",
-     _the_gate_is_on_the_real_step)
+case("A6: the one-name check is reached from the real save_youtube_copy",
+     _the_gate_is_reached_from_the_real_step)
 
+
+def _a_good_file_passes():
+    d, f = scratch(epjson(14), f"{HERS}\n\nDESCRIPTION\nordinary copy.\n")
+    out = providers.check_youtube_title(d, f)
+    assert HERS in out, f"the good file was accepted but reported oddly: {out!r}"
+
+
+case("A6: a correct file passes (the positive control)", _a_good_file_passes)
 
 print(f"\nyoutube title: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

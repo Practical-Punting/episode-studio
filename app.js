@@ -596,10 +596,23 @@ function gatePublish(ep) {
     ? '<p class="g-hint" style="white-space:pre-wrap">' + esc(ep.youtube_copy) + "</p>" : "";
   return '<div class="gate"><h4>Your turn — publish</h4>' +
     '<p class="g-hint">Upload to YouTube, then drop the live link in here to close it off.</p>' + yt +
-    '<input type="url" id="pub-url-' + ep.id + '" placeholder="Live YouTube URL (https://…)" ' +
-    'value="' + esc(ep.published_url || "") + '">' +
-    '<input type="url" id="pub-ebook-' + ep.id + '" placeholder="Public e-book link (optional)" ' +
-    'value="' + esc(ep.ebook_link || "") + '">' +
+    // ONE FIELD AT A TIME. The card asks for two values that live in two other
+    // places, and there is one clipboard — so it CANNOT be filled without leaving
+    // the page. Each link banks on its own: paste the e-book link, Save, go and get
+    // the YouTube URL, come back, paste, Save. Nothing is lost either way, and
+    // "Mark as published" is then just the last click rather than the only one.
+    '<div class="pubrow">' +
+      '<input type="url" id="pub-ebook-' + ep.id + '" placeholder="Public e-book link" ' +
+      'value="' + esc(ep.ebook_link || "") + '">' +
+      '<button class="btn ghost" data-act="save-pub-ebook" data-ep="' + ep.id + '">Save</button>' +
+      (ep.ebook_link ? '<span class="saved">saved</span>' : "") +
+    "</div>" +
+    '<div class="pubrow">' +
+      '<input type="url" id="pub-url-' + ep.id + '" placeholder="Live YouTube URL (https://…)" ' +
+      'value="' + esc(ep.published_url || "") + '">' +
+      '<button class="btn ghost" data-act="save-pub-url" data-ep="' + ep.id + '">Save</button>' +
+      (ep.published_url ? '<span class="saved">saved</span>' : "") +
+    "</div>" +
     '<button class="btn" data-act="publish" data-ep="' + ep.id + '">Mark as published &rarr;</button>' +
     "</div>";
 }
@@ -663,6 +676,12 @@ function threadFor(ep) {
   return h + "</div>";
 }
 
+/* The only inputs that must NOT survive a re-render. `urlin` is the new-article box:
+ * it is cleared deliberately once an episode is created, and re-filling it would
+ * invite a duplicate. `email` is the sign-in box. Everything else is an operator's
+ * work in progress and is protected. */
+const NEVER_HARVEST = new Set(["urlin", "email", "q", "search"]);
+
 /* Keep whatever the operator has typed across a realtime-triggered re-render. */
 function harvestDrafts() {
   document.querySelectorAll("textarea[id^='chat-']").forEach((t) => {
@@ -670,9 +689,27 @@ function harvestDrafts() {
     if (t.value) UI.drafts.set(id, t.value); else UI.drafts.delete(id);
   });
   document.querySelectorAll("select[id^='kind-']").forEach((s) => UI.kinds.set(s.id.slice(5), s.value));
-  // The words boxes are edits-in-progress too — a realtime refresh must not eat
-  // a half-typed hook. Keyed by the full input id.
-  document.querySelectorAll("input[id^='w-']").forEach((i) => UI.words.set(i.id, i.value));
+  // EVERY input on a card is an edit-in-progress. Keyed by the full input id.
+  //
+  // 🔴 C1, 2 Aug 2026 — WHY THIS IS NOW A SKIP-LIST AND NOT AN ALLOW-LIST.
+  // This line used to read `input[id^='w-']`: only the Words Gate boxes. The publish
+  // card's two inputs (`pub-url-…`, `pub-ebook-…`) matched nothing, so they were
+  // never harvested, and `renderBoard()` rebuilt them from the server row every time
+  // the 30-second poll fired. Jodie: "it keeps disappearing if I move away from the
+  // screen to get the youtube link before I have saved it." She was right, and the
+  // card is IMPOSSIBLE to fill without leaving the page — it wants the live YouTube
+  // URL and the public e-book link, which live in two other places, and there is one
+  // clipboard. EP13 was only published because its two values were written straight
+  // to the rail, bypassing the card.
+  //
+  // A HAND-MAINTAINED ALLOW-LIST MEANS EVERY FIELD ADDED LATER IS UNPROTECTED BY
+  // DEFAULT, and nobody finds out until an operator loses work. Inverted: everything
+  // with an id is protected, and the two shell inputs that must NOT persist are named.
+  document.querySelectorAll("input[id], textarea[id]").forEach((i) => {
+    if (NEVER_HARVEST.has(i.id) || i.id.startsWith("chat-")) return;
+    if (i.type === "checkbox" || i.type === "radio" || i.type === "file") return;
+    if (i.value) UI.words.set(i.id, i.value); else UI.words.delete(i.id);
+  });
 }
 /* Once a write lands, the saved row is the truth — drop the in-progress copies
  * for that episode so they can't overwrite what was just stored. */
@@ -827,6 +864,25 @@ $("lanes").addEventListener("click", async (e) => {
   if (act === "clear-look") {
     if (await writeEpisode(id, { needs_look: false, needs_look_message: null }, id + ":look", btn))
       toast("toast", "Cleared.", true);
+    return;
+  }
+
+  // Each link banks on its own, so neither has to be held in the head (or the
+  // clipboard) while the other is fetched. C1, 2 Aug 2026.
+  if (act === "save-pub-ebook" || act === "save-pub-url") {
+    const isEbook = act === "save-pub-ebook";
+    const boxId = (isEbook ? "pub-ebook-" : "pub-url-") + id;
+    const val = ($(boxId).value || "").trim();
+    if (!val) { toast("toast", "Paste the link first.", false); return; }
+    if (!safeUrl(val)) { toast("toast", "That doesn't look like a link (https://…).", false); return; }
+    const patch = {};
+    patch[isEbook ? "ebook_link" : "published_url"] = val;
+    if (await writeEpisode(id, patch, id + ":" + act, btn)) {
+      // The saved row is now the truth for THIS field, so drop its in-progress copy
+      // — otherwise the draft would keep overwriting what was just stored.
+      UI.words.delete(boxId);
+      toast("toast", isEbook ? "E-book link saved." : "YouTube link saved.", true);
+    }
     return;
   }
 
