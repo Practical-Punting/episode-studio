@@ -121,6 +121,17 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .gate input:focus{border-color:var(--orange);}
 .gate .btn:disabled{opacity:.45;cursor:default;}
 
+/* THE TITLE TRAP — she sees what her words become BEFORE she approves them.
+   The preview is quiet and factual; the suggestion is a nudge, not an alarm, because
+   it must never read as a refusal. */
+.ytprev{margin-top:10px;padding:9px 11px;border-radius:9px;background:#f7f5f2;
+  border:1px solid #e6e2dd;display:flex;flex-direction:column;gap:2px;}
+.ytprev .yt-l{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);
+  text-transform:uppercase;}
+.ytprev .yt-v{font-size:14px;font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
+.ytsmell:not(:empty){margin-top:6px;font-size:12.5px;line-height:1.45;color:#8a5a12;}
+.ytsmell i{color:var(--muted);font-style:italic;}
+
 /* D13 — a STUCK step must not look like a working one, or a legitimate wait.
    Deliberately louder than the amber "needs a look": that one is an invitation,
    this one is a fault nobody has noticed. */

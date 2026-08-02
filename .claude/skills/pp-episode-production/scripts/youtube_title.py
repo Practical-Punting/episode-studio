@@ -53,6 +53,7 @@ import argparse
 import json
 import re
 import sys
+from pathlib import Path
 
 for _s in (sys.stdout, sys.stderr):
     try:
@@ -65,9 +66,32 @@ class Halt(Exception):
     """A missing or malformed title is a DATA problem. Say which field, and stop."""
 
 
-# --- THE HOUSE FORM. Change it here; it is used nowhere else. -----------------
-CHANNEL_LINE = "How to Win at Horse Racing"
-SEP = " | "
+# --- THE HOUSE FORM. ONE HOME, READ BY BOTH SIDES. ---------------------------
+#
+# These two strings used to be literals here. They moved into docs/house-form.json on
+# 3 Aug 2026 because THE BOARD HAS TO SHOW HER THE TITLE HER WORDS WILL BECOME, before
+# she approves them — and it must show it using the derivation this file ENFORCES
+# later, not a JavaScript copy of it. A copy is a second source of truth, and a second
+# source of truth has bitten this project three times: the shipped captions (A7), the
+# self_qc cue check (B5) and the shot map's clock (1 Aug). Each time the fix reached
+# one reader and missed another.
+#   scripts/ -> pp-episode-production/ -> skills/ -> .claude/ -> the repo root
+_HOUSE = Path(__file__).resolve().parents[4] / "docs/house-form.json"
+
+
+def _house_form():
+    try:
+        d = json.loads(_HOUSE.read_text(encoding="utf-8"))
+        return d["separator"], d["channel_line"]
+    except Exception as e:                                    # noqa: BLE001
+        raise Halt(
+            f"the house form could not be read from {_HOUSE} ({e}). That file is the "
+            f"ONE home for the YouTube title's separator and channel line — the board "
+            f"reads it too, so the preview it shows and the title this enforces cannot "
+            f"drift apart. Restore it rather than hard-coding the strings back.")
+
+
+SEP, CHANNEL_LINE = _house_form()
 
 # 🔒 SUPERSEDED 2 AUGUST 2026 — THE TITLE IS THE EPISODE NAME, NOT THE BYLINE.
 #

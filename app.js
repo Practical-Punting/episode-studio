@@ -67,6 +67,63 @@ const STALE_MS = 3 * 60 * 1000;   // the engine beats every 30s and renews a 3-m
 function gatePassed(ep) {
   return !!(ep.title_approved && ep.script_read);
 }
+/* ── THE TITLE TRAP (3 Aug 2026) ──────────────────────────────────────────────
+ *
+ * Jodie's 2 Aug ruling made this gate LOAD-BEARING: the title approved here now goes
+ * to YouTube verbatim. The board pre-fills it from the URL slug, and EP14's arrived as
+ * "The Meaning Of Form Part 1" — capital "Of", no em dash. Under the old byline
+ * derivation that was harmless; now it would ship.
+ *
+ * THE HOUSE FORM IS FETCHED, NOT COPIED. docs/house-form.json is the one home for the
+ * separator and the channel line, and scripts/youtube_title.py reads the same file. A
+ * JavaScript copy would be a second source of truth, and a second source of truth has
+ * bitten this project three times — the captions, the self_qc cue check, the shot
+ * map's clock. Each time the fix reached one reader and missed another. */
+let HOUSE = null;
+const HOUSE_READY = (async () => {
+  try {
+    const r = await fetch("docs/house-form.json", { cache: "no-cache" });
+    if (r && r.ok) HOUSE = await r.json();
+  } catch (e) { HOUSE = null; }
+  // The gate may already be on screen by the time this lands, and a preview that
+  // stays blank until she types is the same "find out afterwards" fault in miniature.
+  try { if (typeof renderBoard === "function" && EPISODES.length) renderBoard(); }
+  catch (e) { /* nothing rendered yet — the first render will pick it up */ }
+  return HOUSE;
+})();
+
+/* Exposed as a FUNCTION on purpose: a top-level `const` is a lexical binding and does
+ * not attach to the global object, so a test that awaited it would await `undefined`
+ * and pass by accident. */
+function houseReady() { return HOUSE_READY; }
+
+function ytTitleFrom(title) {
+  const t = (title || "").trim();
+  if (!t || !HOUSE) return "";        // never guess the form; say nothing instead
+  return t + HOUSE.separator + HOUSE.channel_line;
+}
+
+/* Does this look like it came straight off the URL slug? SUGGEST, NEVER BLOCK — she
+ * may legitimately want an odd title one day, and a gate that refuses her judgement
+ * is a worse fault than a title with a capital "Of" in it. */
+const SMALL_WORDS = ["Of", "The", "A", "An", "And", "But", "Or", "For", "Nor", "At",
+                     "By", "In", "On", "To", "Up", "As", "If", "Is"];
+function titleSmell(title) {
+  const t = (title || "").trim();
+  if (!t) return [];
+  const out = [];
+  const caps = t.split(/\s+/).filter((w, i) => i > 0 && SMALL_WORDS.indexOf(w) !== -1);
+  if (caps.length) {
+    out.push("“" + caps.join("”, “") + "” looks like slug capitalisation — a small " +
+             "word mid-title is usually lower case.");
+  }
+  if (/\bPart\s+\d/i.test(t) && !/—\s*Part\s+\d/i.test(t)) {
+    out.push("the part is not set off with an em dash — the house form is " +
+             "“Something — Part 1”, and the cover and title card use that too.");
+  }
+  return out;
+}
+
 function wordsGatePending(ep) {
   return ep.status === "queued" && !gatePassed(ep);
 }
@@ -592,6 +649,19 @@ function gateWords(ep) {
     f("byline", "Byline", bylineOf(ep), "the one-line promise") +
     "</div>";
 
+  // SHE MUST SEE WHAT THE TITLE BECOMES BEFORE SHE APPROVES IT. Live, from the same
+  // house form the engine enforces. Updates as she types (see the input handler).
+  const yt = ytTitleFrom(ep.title);
+  h += '<div class="ytprev" data-ytprev="' + ep.id + '">' +
+    '<span class="yt-l">On YouTube this will be</span>' +
+    '<span class="yt-v">' + esc(yt || "—") + "</span></div>";
+  const smell = titleSmell(ep.title);
+  h += '<div class="ytsmell" data-ytsmell="' + ep.id + '">' +
+    (smell.length
+      ? "⚑ " + esc(smell.join("  ")) + " <i>Only a suggestion — approve it anyway if " +
+        "that is the title you want.</i>"
+      : "") + "</div>";
+
   const ready = read;
   h += '<p style="margin-top:12px">' +
     '<button class="btn" data-act="approve-words" data-ep="' + ep.id + '"' +
@@ -841,6 +911,24 @@ async function writeEpisode(id, patch, key, btn) {
   await loadAll();
   return true;
 }
+
+/* THE PREVIEW UPDATES AS SHE TYPES. Without this she would see the title her words
+ * became only after saving — which is the same "find out afterwards" this fixes. */
+$("lanes").addEventListener("input", (e) => {
+  const box = e.target;
+  if (!box || !box.id || box.id.indexOf("w-title-") !== 0) return;
+  const id = box.id.slice("w-title-".length);
+  const prev = document.querySelector('[data-ytprev="' + id + '"] .yt-v');
+  if (prev) prev.textContent = ytTitleFrom(box.value) || "—";
+  const smellBox = document.querySelector('[data-ytsmell="' + id + '"]');
+  if (smellBox) {
+    const s = titleSmell(box.value);
+    smellBox.innerHTML = s.length
+      ? "⚑ " + esc(s.join("  ")) + " <i>Only a suggestion — approve it anyway if " +
+        "that is the title you want.</i>"
+      : "";
+  }
+});
 
 $("lanes").addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-act]");

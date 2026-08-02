@@ -1,0 +1,23 @@
+{
+  "_": "THE HOUSE FORM FOR THE YOUTUBE TITLE. ONE HOME, READ BY BOTH SIDES.",
+  "__": [
+    "Jodie's ruling, 2 Aug 2026: YouTube title = the episode / e-book name, then the",
+    "suffix. The name is taken VERBATIM — it already ships cased on the cover and the",
+    "title card, so re-casing it here could only introduce a difference.",
+    "",
+    "WHY THIS IS A JSON FILE AND NOT A CONSTANT IN TWO PLACES. The board must show her",
+    "the exact title her words will become, BEFORE she approves them — and it must show",
+    "it using the derivation the engine ENFORCES later, not a JavaScript copy of it.",
+    "A copy is a second source of truth, and this project has been bitten by a second",
+    "source of truth in the captions (A7), the self_qc (B5) and the shot map (1 Aug):",
+    "each time the fix reached one reader and missed another.",
+    "",
+    "So the two strings that ARE the house form live here. scripts/youtube_title.py",
+    "reads this file; app.js fetches it. Change the form here and both sides change",
+    "together, or neither does.",
+    "",
+    "⚠️ If you edit this file you are changing every future episode's YouTube title."
+  ],
+  "separator": " | ",
+  "channel_line": "How to Win at Horse Racing"
+}
