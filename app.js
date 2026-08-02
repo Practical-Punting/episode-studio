@@ -169,6 +169,22 @@ function engineStopped(ep) {
   return { since: beat, age: age };
 }
 
+/* The picture the current flag is asking about, if the engine published one.
+ * build_state is jsonb and already there — no schema change for a preview URL. */
+function previewFor(ep) {
+  const bs = ep.build_state || {};
+  return safeUrl(bs.title_preview_url || "");
+}
+
+/* The Higgsfield balance, as the last credit check measured it. THE RUNWAY MUST NOT
+ * BE INVISIBLE: at ~56 credits an episode a 131-credit balance is barely two more,
+ * and the only place that number existed was a CLI nobody on the board can run. */
+function creditsFor(ep) {
+  const st = ((ep.build_state || {}).steps || {}).credit_check || {};
+  const b = (st.meta || {}).balance;
+  return typeof b === "number" ? b : null;
+}
+
 function needsLook(ep) {
   if (ep.needs_look) {
     return { msg: ep.needs_look_message || "The engine flagged this one — it needs a human.", flagged: true };
@@ -375,8 +391,16 @@ function cardFor(ep) {
        '<span class="pill ' + (nl ? "alert" : st.cls) + '">' +
        (nl ? "Needs a look" : esc(st.label)) + "</span></div>";
 
-  h += ep.heygen_name ? '<p class="heygen">' + esc(ep.heygen_name) + "</p>"
-                      : '<div style="height:6px"></div>';
+  // THE HEYGEN NAME MUST BE COPYABLE, not just readable. It has to be typed into
+  // HeyGen character-for-character — the engine matches on it to find the finished
+  // render, and a mistyped name means the master is never collected and the episode
+  // waits forever with nothing wrong on the board. Re-typing an em dash by hand is
+  // the kind of thing that fails silently. (Stop 5, 3 Aug 2026.)
+  h += ep.heygen_name
+    ? '<p class="heygen"><span class="hg-name">' + esc(ep.heygen_name) + "</span>" +
+      '<button class="mini copy" data-act="copy-heygen" data-ep="' + ep.id +
+      '" title="Copy the exact project name">Copy</button></p>'
+    : '<div style="height:6px"></div>';
 
   h += '<div class="bar' + barCls + '"><i style="width:' + pct + '%"></i></div>';
   h += '<div class="stage">' +
@@ -386,6 +410,17 @@ function cardFor(ep) {
   if (nl) {
     h += '<div class="needlook"><div class="nl-t">⚠ Needs a look</div>' +
          '<div class="nl-m">' + esc(nl.msg) + "</div>";
+    // SHOW THE PICTURE, don't name a file path. A flag that says "have a look at
+    // G:\My Drive\…\title-preview.png" is unanswerable by someone with no Windows
+    // machine and no G: — which is everyone the board is for. The engine publishes
+    // the preview to the public bucket and records the URL in build_state; this
+    // renders it. (3 Aug 2026.)
+    const shot = previewFor(ep);
+    if (shot) {
+      h += '<a class="nl-shot" href="' + esc(shot) + '" target="_blank" rel="noopener">' +
+           '<img src="' + esc(shot) + '" alt="What the engine is asking you to look at" ' +
+           'loading="lazy"></a>';
+    }
     if (nl.flagged) {
       h += '<div class="nl-act"><button class="mini" data-act="clear-look" data-ep="' + ep.id +
            '">It’s sorted — carry on</button></div>';
@@ -641,6 +676,24 @@ function metaFor(ep) {
   if (bits.length) h += '<div><span class="lbl">Cost</span><span class="val">' +
     esc(bits.join(" · ")) + "</span></div>";
 
+  // THE RUNWAY, IN PLAIN SIGHT. At roughly 56 credits an episode, a balance in the
+  // low hundreds is only two or three more — and until now that number lived only in
+  // a CLI nobody on the board can run, so it would have gone from "fine" to "Top up,
+  // then clear this flag" with no warning. Flagged low at two episodes' worth.
+  const bal = creditsFor(ep);
+  if (bal !== null) {
+    // MEASURED, not a round number: EP14 spent 52.5 on b-roll plus 4.0 on the two
+    // cover heroes. Warn while there are fewer than THREE episodes left, so the
+    // conversation happens with two in hand rather than on the morning it stops.
+    const PER_EPISODE = 56.5;
+    const left = Math.floor(bal / PER_EPISODE);
+    const low = bal < 3 * PER_EPISODE;
+    h += '<div><span class="lbl">Higgsfield</span><span class="val' +
+      (low ? " warn" : "") + '">' + esc(bal.toFixed(2)) + " credits" +
+      (low ? " · about " + left + " more episode" + (left === 1 ? "" : "s") : "") +
+      "</span></div>";
+  }
+
   return h + "</div>";
 }
 
@@ -858,6 +911,20 @@ $("lanes").addEventListener("click", async (e) => {
     patch[field] = false;
     if (ep.status === "ready") patch.status = "awaiting_approval";  // pull it back
     if (await writeEpisode(id, patch, id + ":" + field, btn)) toast("toast", "Approval removed.", true);
+    return;
+  }
+
+  if (act === "copy-heygen") {
+    const name = ep.heygen_name || "";
+    if (!name) { toast("toast", "No project name on this one yet.", false); return; }
+    try {
+      await navigator.clipboard.writeText(name);
+      toast("toast", "Project name copied — paste it into HeyGen.", true);
+    } catch (e) {
+      // Clipboard access can be refused (no https, no permission). Say so instead
+      // of failing silently, and leave the name selectable on the card either way.
+      toast("toast", "Couldn't copy automatically — select the name and copy it.", false);
+    }
     return;
   }
 

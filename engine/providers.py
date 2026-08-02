@@ -84,6 +84,14 @@ CARD_DEPS = (                       # what an authored page needs beside it
 STANDING_CARDS = (                  # design §4 Layer 3 — copied, never authored
     ("assets/warranty-slide.html", "warranty-slide.html"),
     ("assets/end-card-template.html", "end-card-template.html"),
+    # THE MIDROLL CHIP, ADDED 3 AUG 2026 — the third standing asset with no stager.
+    # It is byte-identical every episode, exactly like the two above, and nothing
+    # rendered it: EP14 halted at pass B on `build.midroll.clip names
+    # 'midroll-lowerthird.mp4' but that file is not in overlay/clips`. Staged here,
+    # render_cards_batch picks it up with everything else in overlay/export — so this
+    # needs no new render step, only the page put where the batch can see it.
+    # The title-card hero, the thumbnail hero and this were all found by breaking.
+    ("assets/midroll-lowerthird.html", "midroll-lowerthird.html"),
 )
 
 
@@ -383,7 +391,7 @@ def author_missing_title(ep_dir: Path) -> str:
     return (r.stdout or "").strip()
 
 
-def title_placement_review(ep_dir: Path, png: Path):
+def title_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     """The ONE clearable flag the title card is meant to raise.
 
     Everything else on the card is substituted from approved fields and the type
@@ -394,14 +402,22 @@ def title_placement_review(ep_dir: Path, png: Path):
 
     Flags once. The marker records that a human has seen it, so clearing the flag
     lets the step through instead of re-raising it forever.
+
+    ⚠️ `url` IS WHAT MAKES THIS FLAG CLEARABLE BY THE PERSON IT IS FOR (3 Aug 2026).
+    Until now the message carried a Windows path — `G:\\My Drive\\…\\title-preview.png`
+    — and Hugh has no Windows machine with G: mounted. So the one flag in the whole
+    build that was designed to be answered from a browser could only be answered by
+    someone sitting at this machine. The PNG is now published to the same public
+    bucket the cover A/B choices already use, and the board renders it.
     """
     seen = ep_dir / "overlay/export/.title-placement-reviewed"
     if seen.exists():
         return
     seen.parent.mkdir(parents=True, exist_ok=True)
     seen.write_text("a human has looked at the title card placement\n", encoding="utf-8")
+    where = url or str(png)
     raise EngineFlag(
-        f"Have a look at the title card: {png}\n"
+        f"Have a look at the title card: {where}\n"
         "The words are already settled — the headline, the part line and the byline "
         "are the approved packaging, and the type size is measured, not chosen. What "
         "needs your eye is the HERO CROP: whether the horses are framed well in the "
@@ -804,6 +820,15 @@ class MockProvider:
         print(f"    [mock] {title}")
         print(f"    [mock] {fit}")
         return sorted(str(p) for p in (d / "overlay/clips").glob("*.mp4"))
+
+    # The mock has no public bucket and no board to render on, so it publishes
+    # nothing and reviews nothing. Present so `--mock` exercises the same call
+    # shape as the real run rather than dying on a missing attribute.
+    def publish_title_preview(self, ep):
+        return None
+
+    def title_placement_review_for(self, ep, url=None):
+        return None
 
     def run(self, args, cwd, timeout=None, tail=800):
         r = subprocess.run([str(a) for a in args], cwd=str(cwd), capture_output=True,
@@ -1379,13 +1404,43 @@ class RealProvider:
         epj = self.epjson(ep)
         ids = [c["id"] for c in epj["cards"]]
         clips = [str(self._clip(ep, cid)) for cid in ids]    # verifies every card landed
-        # 5. ONE look, at the one value that cannot be measured — the hero crop.
-        #    Raised here, with the picture, while the engine still owns the episode:
-        #    an episode cannot go backwards, so a bad crop found at the four
-        #    approvals is expensive and the same crop found now is a flag.
-        if "TITLE" in ids:
-            title_placement_review(d, title_preview(d, self._clip(ep, "TITLE")))
+        # 5. THE REVIEW IS NO LONGER RAISED HERE. It moved to step_cards_render in
+        #    engine.py (3 Aug 2026) so the preview's public URL can be written into
+        #    build_state BEFORE the flag interrupts the step — a flag raised from
+        #    inside this method returns nothing, so the engine never got the chance
+        #    to record where the picture lives.
         return clips
+
+    def title_placement_review_for(self, ep, url=None):
+        """Raise the placement review for this episode, if it has a title card."""
+        d = self.dir(ep)
+        png = d / "overlay/export/title-preview.png"
+        if not png.is_file():
+            return
+        title_placement_review(d, png, url)
+
+    def publish_title_preview(self, ep) -> str | None:
+        """Put the title-card preview somewhere a BROWSER can open it.
+
+        The review flag used to carry `G:\\My Drive\\…\\title-preview.png`. Hugh has no
+        Windows machine with G: mounted, so the one flag in the build designed to be
+        answered by looking at a picture could only be answered at this desk. This
+        publishes it to the same public episode-assets bucket the cover A/B choices
+        already use — no new mechanism, no schema change, and the URL is VERIFIED
+        reachable by _publish_asset before it is handed back.
+
+        Returns None (rather than raising) when there is no TITLE card or no clip:
+        a missing preview must not become a second failure on top of the first.
+        """
+        d = self.dir(ep)
+        try:
+            epj = self.epjson(ep)
+            if "TITLE" not in [c["id"] for c in epj.get("cards", [])]:
+                return None
+            png = title_preview(d, self._clip(ep, "TITLE"))
+        except (EngineFlag, RuntimeError, OSError, KeyError):
+            return None
+        return self._publish_asset(png, f"{ep_folder(ep)}/title-preview.png")
 
     def poll_heygen(self, ep, polls_so_far):
         """The render is a HUMAN step; we only pick up the finished master via

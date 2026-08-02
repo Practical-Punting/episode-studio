@@ -121,6 +121,21 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .gate input:focus{border-color:var(--orange);}
 .gate .btn:disabled{opacity:.45;cursor:default;}
 
+/* BUNDLE A, 3 Aug 2026 — the three things Hugh could not do from a browser. */
+
+/* stop 5 — the HeyGen project name must be COPYABLE, not just readable. */
+.heygen{display:flex;align-items:center;gap:8px;}
+.heygen .hg-name{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;user-select:all;}
+.mini.copy{flex:0 0 auto;}
+
+/* stop 7 — SHOW THE PICTURE. A path is not a picture to someone with no G: drive. */
+.nl-shot{display:block;margin:10px 0 4px;border-radius:8px;overflow:hidden;
+  border:2px solid #e6e2dd;background:#fff;}
+.nl-shot img{display:block;width:100%;height:auto;}
+
+/* the credit runway, visible before it runs out rather than after. */
+.meta .val.warn{color:var(--orange);font-weight:700;}
+
 /* publish card — ONE FIELD AT A TIME (C1, 2 Aug 2026).
    The card wants the live YouTube URL and the public e-book link. They live in two
    other places and there is one clipboard, so it cannot be filled without leaving the

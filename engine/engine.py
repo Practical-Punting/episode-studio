@@ -56,7 +56,19 @@ LEASE_SECS = 180
 HEARTBEAT_SECS = 20
 MAX_ATTEMPTS = 3
 CREDITS_PER_BROLL = 4                      # conservative planning figure
-CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "60"))  # per episode
+# 65, RAISED FROM 60 ON 3 AUG 2026 — and the number is arithmetic, not a round-up.
+# MEASURED from EP14's own rail row: clip_cost 7.5, cover heroes 4.0. EP13 ran 6 b-roll
+# clips, EP14 ran 7 = 56.5 against a ceiling of 60, i.e. THREE AND A HALF CREDITS OF
+# HEADROOM — less than half a clip. The next episode needing 8 clips costs 64 and would
+# have halted before spending anything, telling a browser operator to set an ENVIRONMENT
+# VARIABLE. That is a stop Hugh cannot clear, and it was coming on arithmetic.
+#
+# WHY 65 AND NOT 75 (Jodie, 3 Aug): the balance is 131.72 credits on the "plus" plan —
+# 2.3 episodes of runway. THE CEILING IS A BUDGET GUARD AS WELL AS A NUISANCE GUARD. At
+# 75 a single episode could take well over half of what is left. 65 clears the stop that
+# is actually coming (8 clips = 64) and still refuses a runaway: 9 clips = 71.5 HALTS,
+# and while the balance is this low it should.
+CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "65"))  # per episode
 
 # --- rail integrity gate (26 Jul 2026; git-backed from 28 Jul 2026) ---------
 # rail.py holds the Script Gate's enforcement — the claim filter that refuses to
@@ -483,7 +495,23 @@ def step_ebook_cover(ctx):
 
 
 def step_cards_render(ctx):
-    return {"cards": ctx.provider.render_cards(ctx.ep)}
+    """Render the cards, then ask for the ONE look that cannot be automated.
+
+    THE ORDER HERE IS THE WHOLE POINT (3 Aug 2026). The review used to be raised from
+    inside `render_cards`, which meant the step never returned and the engine never
+    got to record anything — so the preview's location existed only in the flag's
+    prose. The URL is now published and SAVED INTO build_state BEFORE the flag is
+    raised, so the board has something to render an <img> from. build_state is jsonb
+    and already there: no schema change, which has been a standing rule since the
+    start and is not worth breaking for a preview URL.
+    """
+    cards = ctx.provider.render_cards(ctx.ep)
+    url = ctx.provider.publish_title_preview(ctx.ep)
+    if url:
+        ctx.state["title_preview_url"] = url
+        ctx.save()                       # saved BEFORE the flag, or it is lost
+    ctx.provider.title_placement_review_for(ctx.ep, url)
+    return {"cards": cards, "title_preview": url}
 
 
 def _master_landed(ctx):

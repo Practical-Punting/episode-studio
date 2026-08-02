@@ -437,13 +437,18 @@ def _wired_into_the_real_render_cards():
     bodies = [b.split("\n    def ", 1)[0] for b in region.split("def render_cards")[1:]]
     assert bodies, "could not find RealProvider.render_cards"
     body = bodies[0]
-    for call in ("stage_title_hero(", "author_missing_title(", "title_placement_review(",
-                 "title_preview("):
+    for call in ("stage_title_hero(", "author_missing_title("):
         assert call in body, f"{call}) is not called from the real render_cards"
     assert body.index("author_missing_title(") < body.index("card_check.py"), \
         "the title card is authored AFTER the checker judges it"
-    assert body.index("render_cards_batch.py") < body.index("title_placement_review("), \
-        "the review is raised before the clip exists, so there is no PNG to show"
+    # THE REVIEW MOVED OUT OF HERE ON 3 AUG 2026 and that is deliberate: raised from
+    # inside render_cards it interrupted the step, so the engine never got to record
+    # WHERE the preview lives and the flag could only name a local path. It is now
+    # raised by step_cards_render, which publishes and saves the URL first. That
+    # ordering is proved BEHAVIOURALLY in test_bundle_a.py — driving the real step —
+    # rather than by grepping for a call, because a grep can be satisfied by a comment.
+    assert "title_placement_review(" not in body, \
+        "the review is back inside render_cards, where its URL cannot be recorded"
 
 
 case("A1: the whole step is wired into the real render_cards, in the right order",
