@@ -70,9 +70,9 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🔍 THE THREE FAULTS THAT KEEP COMING BACK
+## 🔍 THE FOUR FAULTS THAT KEEP COMING BACK
 *(Named here because each recurred AFTER being written down somewhere weaker.
-Full evidence in the memory files; these three lines are the whole of it.)*
+Full evidence in the memory files; these four lines are the whole of it.)*
 
 1. **ASSERT THE ARTEFACT, NOT THE THING THAT REPORTS ON IT.** An exit code, a
    call count, a code path, a cached read and your memory of what happened are
@@ -84,6 +84,23 @@ Full evidence in the memory files; these three lines are the whole of it.)*
 3. **ANYTHING THAT WAITS MUST SAY IT IS WAITING.** Silence and death look
    identical. Emit a heartbeat, `flush=True`, record the START of work and not
    only its finish, and say who it is waiting on.
+4. **"ALL GREEN" MEANS NOTHING UNLESS THE SUITE COVERS WHAT YOU CHANGED.**
+   Before reporting a fix as proven, **name the specific case that proves it.**
+   If you cannot name one, **say so** instead of quoting a total.
+   *This is the mechanism by which fault #1 gets past someone who is being careful:
+   the artefact you assert becomes the PASS COUNT, and a pass count is a proxy like
+   any other.* **A green suite that never names the thing you changed is not evidence
+   about it.**
+   **What it cost, 3 Aug 2026:** `step_audit_inputs` was wired to
+   `providers.assert_standing_assets()` while `engine.py` imports only names from
+   `providers` — a guaranteed `NameError` on first real execution. It was reported to
+   Jodie as fix #1 of the round, "9/9 green". **`test_bundle_a.py` never mentioned
+   `assert_standing_assets` at all** — its nine cases were the midroll chip, the credit
+   ceiling, the copy button and the title preview. **EP15 was dead in the water for
+   22 minutes and retried three times**, on a line added that morning and reported as
+   proven. Guarded now by `engine/test_step_call_sites.py` — static unbound-name audit
+   across `engine.py` and `providers.py`, plus the real dispatch actually reaching the
+   call.
 
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
