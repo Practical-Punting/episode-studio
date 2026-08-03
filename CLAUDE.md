@@ -120,6 +120,15 @@ Full evidence in the memory files; these six lines are the whole of it.)*
    **The check is a dependency question, not an equality question:** list what the step
    PRODUCED, not what matches. Same shape as fault #1 — the hash was a proxy for
    "contaminated", and equality is not contamination.
+   > **THE METHOD: take the output list from the CODE THAT WRITES. Never from the places
+   > you can think of.** Read the function, list every path it writes, quarantine those.
+   > **That is the FIRST move, not the recovery.**
+   ⚠️ **AND A RULE YOU WROTE THIS MORNING IS NOT A RULE YOU HAVE.** This rule was
+   written at 08:00 on 4 Aug and **breached twice in one operation the same evening** —
+   paths guessed, not read. `overlay/export/ebook-cover.png`, three megabytes, built
+   from the rejected hero, was found **by accident**. Reading `render_ebook_cover()` and
+   taking its actual three-path output list took under a minute and would have found it
+   first time.
 6. **A WRONG CAUSE IS WORSE THAN NO CAUSE, BECAUSE THE OPERATOR'S NEXT ACTION APPEARS
    TO FIX IT.** **OBSERVE, NEVER SPECULATE.** A halt may say what it saw and what it
    could not do. It may NOT name a cause it has not established — *"this is not a
@@ -137,6 +146,20 @@ Full evidence in the memory files; these six lines are the whole of it.)*
    persists.*
    Also: **no raw stack traces in the operator's box.** Unreadable for Jodie,
    frightening for Hugh, in the one place a person most needs plain English.
+   > **THE TEMPLATE — the right shape, from the same build an hour later:**
+   > *"Card C12 has no clip in overlay/clips: expected exactly one file matching
+   > `*c12*.mp4`, found 0. Most likely C12 is marked `block:"bespoke"` and its page has
+   > not been hand-authored yet — bespoke cards are never generated, by design.
+   > Otherwise the page is named so it does not match, or it failed to render.
+   > **Retrying will not fix any of those.**"*
+   > **SAY WHAT YOU SAW · LIST WHAT IT COULD BE, ASSERTING NONE · SAY PLAINLY WHETHER A
+   > RETRY HELPS.** When board bug 7 is fixed, this message is the model.
+   ⚠️ **AND A SYMPTOM THAT TWO CAUSES SHARE IS NOT EVIDENCE FOR EITHER.** On 4 Aug two
+   different failures produced the same-looking Playwright timeout — a `goto` hanging on
+   the font CDN, and a `wait_for_function` on a `ppDuration` the page never defined —
+   **and I merged them**, blaming the CDN for both. The second was never the fonts:
+   `render_card.py` waits for `ppDuration` FIRST. *Separate the causes before naming
+   one, or you will fix the wrong thing and believe you fixed the right one.*
 
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
