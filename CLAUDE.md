@@ -170,6 +170,17 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    persists.*
    Also: **no raw stack traces in the operator's box.** Unreadable for Jodie,
    frightening for Hugh, in the one place a person most needs plain English.
+   > ## 🔴 A HALT IS ONLY CLEARED WHEN THE PERSON IN FRONT OF IT CAN ACT WITHOUT
+   > ## KNOWING HOW THE MACHINE WORKS.
+   > **THE PICTURE · THE QUESTION · THE BUTTONS. NOTHING ELSE.** No paths, no
+   > filenames, no JSON, no URLs as text, no other episodes, no explanation of the
+   > parts you are NOT asking about. **If a sentence only makes sense to someone who
+   > has read the repo, it belongs in the RUN LOG, not the flag** — different readers,
+   > and the same text cannot serve both. Full rule: `docs/PP-operator-box-rule.md`.
+   > *EP15's title-card flag asked a GOOD question — "are the horses framed well?" —
+   > wrapped in a storage URL, a file path, a JSON fragment, another episode's history
+   > and a paragraph about a decision nobody had queried. **We fixed that card's
+   > PICTURE that morning and never read the WORDS printed beside it.***
    > **THE TEMPLATE — the right shape, from the same build an hour later:**
    > *"Card C12 has no clip in overlay/clips: expected exactly one file matching
    > `*c12*.mp4`, found 0. Most likely C12 is marked `block:"bespoke"` and its page has
