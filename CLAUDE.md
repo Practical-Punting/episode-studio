@@ -77,9 +77,21 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🔍 THE SIX FAULTS THAT KEEP COMING BACK
+## 🔍 THE SEVEN FAULTS THAT KEEP COMING BACK
 *(Named here because each recurred AFTER being written down somewhere weaker.
-Full evidence in the memory files; these six lines are the whole of it.)*
+Full evidence in the memory files; these seven lines are the whole of it.)*
+
+0. **NEVER ASK A PERSON FOR SOMETHING THE RAIL ALREADY KNOWS.** *(Numbered zero because
+   it comes before the others: it is about where you REACH.)*
+   **Three times on 4 Aug alone, all the same shape** — reported "EP15 right now" from
+   memory instead of reading the rail; let Jodie retype a hook and byline that were
+   already written, because they went into a draft and not into the board (B7); asked
+   whether Gordon's render had started when **`render_started_at` is a column**, set
+   twelve hours earlier.
+   **Every time the reach was toward the HUMAN rather than the SOURCE OF TRUTH.**
+   ⚖️ **It is the exact inverse of Bundle F.** That one says *put the question where the
+   person is standing*; this one says *do not ask at all if you can look*. **Same root:
+   the machine holds something and the person is asked for it anyway.**
 
 1. **ASSERT THE ARTEFACT, NOT THE THING THAT REPORTS ON IT.** An exit code, a
    call count, a code path, a cached read and your memory of what happened are
