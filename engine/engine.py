@@ -318,6 +318,11 @@ def step_audit_inputs(ctx):
     # Defence-in-depth: even if a stale or foreign claim path got us here, never
     # build before the gate has passed (the EP09 zombie lesson).
     assert_script_gate(ctx.ep)
+    # THE HEAD OF THE BUILD is where a knowable absence belongs. The standing assets
+    # are identical every episode; a missing one used to surface at Pass B, after the
+    # credits were spent and the render paid for. Three of them were found that way,
+    # on three separate episodes.
+    log(f"   {providers.assert_standing_assets()}")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta

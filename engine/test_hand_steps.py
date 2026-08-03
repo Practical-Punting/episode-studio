@@ -28,6 +28,21 @@ for _s in (sys.stdout, sys.stderr):
 PASS, FAIL = [], []
 
 
+def episode_dir(n):
+    """Find an episode folder by NUMBER, not by exact name.
+
+    ⚠️ These tests hard-coded `PP Videos\\PP-EP13` and broke the moment the stage-8
+    close-out renamed it to PP-EP13-The-Ratings-Game-Part-1 — which is a rename the
+    standard REQUIRES on every published episode. A test that assumes a folder name
+    the process is designed to change is a test with a fuse in it.
+    """
+    pp = Path(r"G:\My Drive\PP Videos")
+    hits = sorted(p for p in pp.glob(f"PP-EP{n}*") if p.is_dir())
+    if not hits:
+        raise AssertionError(f"no PP-EP{n}* folder under {pp}")
+    return hits[0]
+
+
 def case(name, fn):
     try:
         fn()
@@ -134,7 +149,7 @@ case("A5: EP12's phrases are gone and a missing ask fails loudly", _a5_missing_a
 def _a5_halts_on_real_episode_data():
     """Run the real tool against a real episode with `ask` removed."""
     import subprocess
-    ep = Path(r"G:\My Drive\PP Videos\PP-EP13")
+    ep = episode_dir(13)
     if not (ep / "docs/episode.json").is_file():
         raise AssertionError("EP13 not available to test against")
     d = scratch()
@@ -220,7 +235,7 @@ case("A4: a missing midroll clip halts instead of silently dropping the chip",
 
 def _a4_halts_on_real_call():
     """Drive the real assemble_passB with composite set and clip removed."""
-    ep = Path(r"G:\My Drive\PP Videos\PP-EP13")
+    ep = episode_dir(13)
     if not (ep / "docs/episode.json").is_file():
         raise AssertionError("EP13 not available to test against")
     epj = json.loads((ep / "docs/episode.json").read_text(encoding="utf-8"))

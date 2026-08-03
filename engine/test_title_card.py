@@ -31,7 +31,22 @@ for _s in (sys.stdout, sys.stderr):
     except Exception:                                               # noqa: BLE001
         pass
 
-EP13 = Path(r"G:\My Drive\PP Videos\PP-EP13")
+def episode_dir(n):
+    """Resolve an episode folder by NUMBER, never by exact name.
+
+    ⚠️ The stage-8 close-out RENAMES every published episode's folder
+    (PP-EP13 -> PP-EP13-The-Ratings-Game-Part-1). A test that hard-codes the bare name
+    is a test with a fuse in it: it passes until the process does the thing the
+    standard requires of it. Three suites broke this way at once on 3 Aug.
+    """
+    pp = Path(r"G:\My Drive\PP Videos")
+    hits = sorted(p for p in pp.glob(f"PP-EP{n}*") if p.is_dir())
+    if not hits:
+        raise AssertionError(f"no PP-EP{n}* folder under {pp}")
+    return hits[0]
+
+
+EP13 = episode_dir(13)
 SHIPPED = EP13 / "overlay/export/ep13-title.html"
 PASS, FAIL = [], []
 # Where the PNGs land for a human to look at. ON DRIVE, not in the repo: code in

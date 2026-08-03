@@ -276,6 +276,49 @@ function stepState(ep) {
   return { ...out, state: "working" };
 }
 
+/* ── C2 — THE STAGE LINE IS DERIVED, NEVER STORED (3 Aug 2026) ────────────────
+ *
+ * ELEVEN SIGHTINGS. `progress_step` is written to the rail when a flag is raised and
+ * NEVER REWRITTEN, so it goes on describing a moment that has passed. EP08-EP12 are
+ * all PUBLISHED and every one of them still says "Waiting on you — four approvals".
+ * It misled twice in one day: EP13 read "Waiting on Hugh's Mailchimp e-book link" as
+ * it went live, EP14 read "Waiting on you — four approvals" after all four were in.
+ *
+ * So the line is COMPUTED from things that cannot go stale — the status, the flag, and
+ * the step in flight — the same three the watchdog already uses. The stored column is
+ * left alone for compatibility and is no longer read anywhere on the board. */
+const STEP_LABELS = {
+  script_sync: "Reading the script Doc", audit_inputs: "Checking the inputs",
+  render_gate: "Waiting for the HeyGen render to be started",
+  credit_check: "Checking the credit budget", broll_submit: "Ordering the b-roll",
+  broll_collect: "Collecting the b-roll", covers_ab: "Building the two cover options",
+  cover_pick: "Waiting on your cover pick", ebook_cover: "Building the e-book cover",
+  cards_render: "Rendering the motion cards", heygen_download: "Waiting for Gordon's render",
+  shot_map: "Building the shot map", assemble_passA: "Assembling — presenter + b-roll (pass A)",
+  assemble_passB: "Assembling — cards + audio (pass B)", ebook_build: "Building the e-book PDF",
+  self_qc: "Checking the finished episode", thumbnail: "Building the thumbnail",
+  youtube_copy: "Waiting on the YouTube copy",
+};
+
+function stageLine(ep) {
+  const st = STATUS[ep.status] || { label: ep.status || "—" };
+  if (ep.status === "published") return "Published";
+  // A DEAD ENGINE OUTRANKS EVERYTHING BELOW. Missing this reintroduced C2b — the
+  // stage line went back to "Assembling…" on an episode whose engine had stopped,
+  // which is the exact fault C2b was built to end. Caught by its own test.
+  if (engineStopped(ep)) return "ENGINE STOPPED — nothing is building";
+  const ss = stepState(ep);
+  if (ss && ss.state === "stuck") {
+    return "Stuck — " + (STEP_LABELS[ss.step] || ss.step);
+  }
+  if (ep.needs_look) {
+    return "Paused — needs a look" +
+      (ss && STEP_LABELS[ss.step] ? " (" + STEP_LABELS[ss.step] + ")" : "");
+  }
+  if (ss && STEP_LABELS[ss.step]) return STEP_LABELS[ss.step];
+  return st.label;
+}
+
 function needsLook(ep) {
   if (ep.needs_look) {
     return { msg: ep.needs_look_message || "The engine flagged this one — it needs a human.", flagged: true };
@@ -495,7 +538,7 @@ function cardFor(ep) {
 
   h += '<div class="bar' + barCls + '"><i style="width:' + pct + '%"></i></div>';
   h += '<div class="stage">' +
-       esc(ep.progress_step || st.label) + "</div>";
+       esc(stageLine(ep)) + "</div>";
   h += '<div class="elapsed" data-elapsed="' + ep.id + '">' + esc(elapsedLine(ep)) + "</div>";
 
   // A STUCK STEP SAYS SO, IN WORDS, WITHOUT ANYONE NOTICING FIRST. It names the step,
@@ -1093,8 +1136,23 @@ $("lanes").addEventListener("click", async (e) => {
     const url = ($("pub-url-" + id).value || "").trim();
     const ebook = ($("pub-ebook-" + id).value || "").trim();
     if (!safeUrl(url)) { toast("toast", "Paste the live YouTube URL first (https://…).", false); return; }
+    // THE E-BOOK LINK IS THE ONE THING THE STUDIO HAS NEVER CAPTURED. In fourteen
+    // episodes it has been populated ONCE (EP13), and only because it was written by
+    // hand. Seven published episodes have none, and those links now exist only inside
+    // the live YouTube descriptions. It is the link that sells the subscriptions.
+    // WARN, DO NOT BLOCK — and RECORD that the skip was deliberate, so "no link" can
+    // be told apart from "nobody was asked".
+    if (!ebook && !confirm(
+        "No public e-book link.\n\nThat link is how this episode earns its " +
+        "subscriptions, and it is the one field the studio has never reliably " +
+        "captured — seven published episodes have none, recoverable only from their " +
+        "live YouTube descriptions.\n\nPublish without it anyway?")) {
+      return;
+    }
     const patch = { status: "published", published_url: url, finished_at: new Date().toISOString() };
     if (ebook) patch.ebook_link = ebook;
+    else patch.notes = ((ep.notes ? ep.notes + "\n" : "") +
+      "ebook_link skipped deliberately at publish, " + new Date().toISOString().slice(0, 10));
     if (await writeEpisode(id, patch, id + ":publish", btn)) toast("toast", "Published — nice one.", true);
     return;
   }

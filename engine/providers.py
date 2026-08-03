@@ -95,11 +95,47 @@ STANDING_CARDS = (                  # design §4 Layer 3 — copied, never autho
 )
 
 
+def assert_standing_assets() -> str:
+    """EVERY standing asset must EXIST, checked at the head of the build.
+
+    🔴 THE HALF OF BUNDLE A THAT DID NOT LAND, AND IT IS FAULT #1 IN CLAUDE.md:
+    assert the artefact, not the thing that reports on it. `stage_card_furniture`
+    skipped a missing SOURCE silently (`if dst.exists() or not src.is_file(): continue`)
+    and the episode carried on — so a standing asset that was not there was found at
+    PASS B, hundreds of credits and an hour of ffmpeg later. That is exactly how EP14
+    lost its midroll chip.
+
+    THE TITLE-CARD HERO, THE THUMBNAIL HERO AND THE MIDROLL CHIP WERE EACH FOUND BY
+    BREAKING, ON THREE SEPARATE EPISODES. They are identical on every episode and their
+    absence is knowable before a single credit is spent, so it is checked here, once,
+    up front — not discovered one at a time in anger.
+
+    Raises EngineFlag naming every missing file. Returns a one-line all-clear.
+    """
+    missing = []
+    for src_rel, _dst_rel in (*CARD_DEPS, *STANDING_CARDS):
+        if not (SKILL_DIR / src_rel).is_file():
+            missing.append(str(SKILL_DIR / src_rel))
+    if missing:
+        raise EngineFlag(
+            "A STANDING ASSET IS MISSING FROM THE SKILL, so this build would fail later "
+            "and further along than it needs to. These files are identical on every "
+            "episode and are copied, never authored:\n"
+            + "\n".join(f"      {m}" for m in missing)
+            + "\n    Restore them from git — the skill lives in the repo — then clear "
+              "this flag. Checked here rather than at Pass B because that is where the "
+              "midroll chip was found on EP14, after the whole render had been paid for.")
+    return f"standing assets: {len(CARD_DEPS) + len(STANDING_CARDS)} present"
+
+
 def stage_card_furniture(export: Path) -> list[str]:
     """Copy the standing pages and the assets an authored card needs.
 
     Returns what it added. Existing files are left exactly as they are — this is
     the same find-or-build policy the rest of RealProvider uses.
+
+    A missing SOURCE is still skipped here, but it can no longer be a surprise:
+    assert_standing_assets() has already halted the build if one is absent.
     """
     added = []
     for src_rel, dst_rel in (*CARD_DEPS, *STANDING_CARDS):

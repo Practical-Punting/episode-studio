@@ -33,7 +33,22 @@ for _s in (sys.stdout, sys.stderr):
 PP = Path(r"G:\My Drive\PP Videos")
 # Jodie's ruling, 2 Aug 2026, quoted as the SPEC. The code has to match this.
 HERS = "The Meaning of Form — Part 1 | How to Win at Horse Racing"
-SHIPPED = PP / "PP-EP14/output/PP-EP14-youtube.txt"
+
+def episode_dir(n):
+    """Resolve an episode folder by NUMBER, never by exact name.
+
+    ⚠️ The stage-8 close-out RENAMES every published episode's folder
+    (PP-EP13 -> PP-EP13-The-Ratings-Game-Part-1). A test that hard-codes the bare name
+    is a test with a fuse in it: it passes until the process does the thing the
+    standard requires of it. Three suites broke this way at once on 3 Aug.
+    """
+    hits = sorted(p for p in PP.glob(f"PP-EP{n}*") if p.is_dir())
+    if not hits:
+        raise AssertionError(f"no PP-EP{n}* folder under {PP}")
+    return hits[0]
+
+
+SHIPPED = episode_dir(14) / "output/PP-EP14-youtube.txt"
 
 PASS, FAIL = [], []
 
@@ -49,7 +64,7 @@ def case(name, fn):
 
 
 def epjson(n):
-    p = PP / f"PP-EP{n}/docs/episode.json"
+    p = episode_dir(n) / "docs/episode.json"
     if not p.is_file():
         raise AssertionError(f"EP{n} is not available to test against")
     return json.loads(p.read_text(encoding="utf-8"))
