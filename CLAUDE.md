@@ -141,6 +141,18 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    from the rejected hero, was found **by accident**. Reading `render_ebook_cover()` and
    taking its actual three-path output list took under a minute and would have found it
    first time.
+   > ### 🔴 THE OTHER HALF: QUARANTINING A CONTAMINATED ARTEFACT LEAVES A HOLE, AND THE
+   > ### HOLE MUST BE REFILLED, NOT JUST LEFT.
+   > **Everything you removed was there because something NEEDED it.**
+   > *EP15:* nine files were quarantined **correctly** — and nothing re-staged
+   > `overlay/export/title-hero.png` from the new pick, so `ep15-title.html` re-rendered
+   > **onto flat black** and the board asked Jodie to judge the hero crop of a card with
+   > no hero on it. **A clean-up is only finished when every consumer has been given
+   > back what it needs.** List the consumers, then refill, then look.
+   ⚠️ **AND THE STRUCTURAL GAP IT EXPOSED:** `assert_standing_assets()` covers the
+   STANDING pages — warranty, end card, midroll chip. It does **not** cover the
+   episode's own **staged inputs** (title hero, thumbnail hero), which is exactly why
+   this reached a render. Same class as the midroll chip, which A2b existed to stop.
 6. **A WRONG CAUSE IS WORSE THAN NO CAUSE, BECAUSE THE OPERATOR'S NEXT ACTION APPEARS
    TO FIX IT.** **OBSERVE, NEVER SPECULATE.** A halt may say what it saw and what it
    could not do. It may NOT name a cause it has not established — *"this is not a
