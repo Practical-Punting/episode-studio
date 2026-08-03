@@ -92,7 +92,8 @@ RAIL_SHA = assert_committed(
 
 import rail  # the one shared Supabase client (RAIL-INTEGRATION.md)
 
-from providers import EngineFlag, MockProvider, RealProvider, ep_folder
+from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
+                       assert_standing_assets)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -322,7 +323,13 @@ def step_audit_inputs(ctx):
     # are identical every episode; a missing one used to surface at Pass B, after the
     # credits were spent and the render paid for. Three of them were found that way,
     # on three separate episodes.
-    log(f"   {providers.assert_standing_assets()}")
+    # ⚠️ THIS LINE READ `providers.assert_standing_assets()` AND KILLED EP15's BUILD.
+    # engine.py imports NAMES from providers, never the module, so `providers` was
+    # never bound — a guaranteed NameError the first time this step ran for real.
+    # test_bundle_a.py was green throughout: it imported providers itself and called
+    # the function directly, proving the function worked and never once proving the
+    # ENGINE could call it. See test_step_call_sites.py.
+    log(f"   {assert_standing_assets()}")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
