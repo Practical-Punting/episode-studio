@@ -1,6 +1,18 @@
 # Never commit secrets or local cruft
 .env
 *.env
+
+# THE STUDIO'S OWN GOOGLE IDENTITY — service-account keys (3 Aug 2026).
+# Written BEFORE any key existed, on purpose: a secret that arrives before its ignore
+# rule is a secret that gets committed. The real key lives OUTSIDE this repo, beside
+# .env in PP Videos; these patterns exist so a stray copy dropped in here cannot be
+# committed by accident. THE RULE IS "never COMMIT a secret", not "never have one".
+.secrets/
+*service-account*.json
+*-sa.json
+*-sa-key.json
+pp-studio-sa*.json
+gcp-key*.json
 __pycache__/
 *.pyc
 .DS_Store
