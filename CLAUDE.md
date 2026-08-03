@@ -77,9 +77,9 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🔍 THE FOUR FAULTS THAT KEEP COMING BACK
+## 🔍 THE FIVE FAULTS THAT KEEP COMING BACK
 *(Named here because each recurred AFTER being written down somewhere weaker.
-Full evidence in the memory files; these four lines are the whole of it.)*
+Full evidence in the memory files; these five lines are the whole of it.)*
 
 1. **ASSERT THE ARTEFACT, NOT THE THING THAT REPORTS ON IT.** An exit code, a
    call count, a code path, a cached read and your memory of what happened are
@@ -108,6 +108,18 @@ Full evidence in the memory files; these four lines are the whole of it.)*
    proven. Guarded now by `engine/test_step_call_sites.py` — static unbound-name audit
    across `engine.py` and `providers.py`, plus the real dispatch actually reaching the
    call.
+5. **A DERIVED ARTEFACT INHERITS THE FAULT WITHOUT INHERITING THE BYTES.**
+   When you quarantine a bad artefact, ask **what was BUILT from it**, not only what
+   EQUALS it. **Chasing copies finds copies; it does not find children.**
+   *EP15, 4 Aug 2026:* two cover heroes were rejected and every byte-identical copy was
+   hunted down by hashing the whole episode folder — **nine found, all quarantined,
+   scan clean.** But `ebook/cover.png` had been **composed** from the rejected hero with
+   the title set over it, so **it hashed differently and the copy-scan could not see
+   it.** It would have shipped as the e-book cover. Found only by asking separately
+   which downstream artefacts had *consumed* the bad one.
+   **The check is a dependency question, not an equality question:** list what the step
+   PRODUCED, not what matches. Same shape as fault #1 — the hash was a proxy for
+   "contaminated", and equality is not contamination.
 
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
