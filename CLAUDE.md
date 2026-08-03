@@ -63,10 +63,17 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   and it must log what it removed. **The rows themselves are NEVER deleted** —
   they are the studio's memory, and every structural fix this week came from
   comparing episodes to each other. Deletions are otherwise Jodie's.
-- **CODE FREEZE WHILE AN EPISODE IS RUNNING.** Editing `engine.py`,
-  `providers.py` or `rail.py` exits the engine via the stale-code guard, and the
-  supervisor restarts it on the new code within five minutes. That IS the deploy
-  path — never kill the engine by hand, and never edit those three mid-build.
+- **CODE FREEZE WHILE AN EPISODE IS RUNNING.** Never edit `engine.py`,
+  `providers.py` or `rail.py` mid-build.
+  ⚠️ **THIS BULLET USED TO SAY the stale-code guard exits the engine and the
+  supervisor restarts it, and that "IS the deploy path". IT IS NOT — corrected
+  3 Aug 2026 after it cost an hour.** `_code_changed()` is checked ONLY at the top
+  of the outer acquire loop, so **a claimed episode never reaches it** — building or
+  flagged. A fix landed at 09:10; the process kept the broken code in memory until a
+  manual restart at 10:08, and clearing the flag just re-ran the bug.
+  **Until E11 lands: a mid-episode fix needs a MANUAL restart**, and the safe window
+  is while the episode is FLAGGED — nothing is in flight then. Confirm the new
+  process from the LOG (`engine up — … pid=`), never from having issued a start.
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
