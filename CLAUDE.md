@@ -77,9 +77,9 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🔍 THE FIVE FAULTS THAT KEEP COMING BACK
+## 🔍 THE SIX FAULTS THAT KEEP COMING BACK
 *(Named here because each recurred AFTER being written down somewhere weaker.
-Full evidence in the memory files; these five lines are the whole of it.)*
+Full evidence in the memory files; these six lines are the whole of it.)*
 
 1. **ASSERT THE ARTEFACT, NOT THE THING THAT REPORTS ON IT.** An exit code, a
    call count, a code path, a cached read and your memory of what happened are
@@ -120,6 +120,23 @@ Full evidence in the memory files; these five lines are the whole of it.)*
    **The check is a dependency question, not an equality question:** list what the step
    PRODUCED, not what matches. Same shape as fault #1 — the hash was a proxy for
    "contaminated", and equality is not contamination.
+6. **A WRONG CAUSE IS WORSE THAN NO CAUSE, BECAUSE THE OPERATOR'S NEXT ACTION APPEARS
+   TO FIX IT.** **OBSERVE, NEVER SPECULATE.** A halt may say what it saw and what it
+   could not do. It may NOT name a cause it has not established — *"this is not a
+   missing file, not a stale template, the content is simply too long"* — and it must
+   never ask a human to decide something on that basis.
+   *EP15, 4 Aug 2026:* `cards_render` flagged with exactly that wording and **printed
+   its own disproof underneath** — `Page.goto: Timeout 30000ms exceeded`. **The page
+   never opened, so nothing was ever measured.** The real cause was the Google Fonts
+   CDN hanging. *(Proved after: the stylesheet fetches in 0.4s, the page loads in 5.8s,
+   and a deliberately BLOCKED CDN fails in 0.0s — only a HANGING one burns 30s.)*
+   **Why it is worse than silence:** had Jodie shortened those words, the retry would
+   have succeeded — **because the CDN came back, not because of anything she did** — and
+   she would have learned a superstition. *A flag that guesses does not mislead once; it
+   manufactures false evidence that the operator's action worked, and that lesson
+   persists.*
+   Also: **no raw stack traces in the operator's box.** Unreadable for Jodie,
+   frightening for Hugh, in the one place a person most needs plain English.
 
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
