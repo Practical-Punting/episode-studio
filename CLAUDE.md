@@ -1,5 +1,15 @@
 # Episode Studio — repo guide
 
+> # 🔴 READ THE CHECKPOINT FIRST — BEFORE ANYTHING ELSE IN THIS FILE.
+> `C:\Users\jlral\.claude\projects\C--Users-jlral-repos-episode-studio\memory\session-checkpoint.md`
+> **It is the ONLY record of what is in flight, what is waiting on a human, and what the
+> agreed next order is. This file loads automatically; the checkpoint does not.**
+> **CHECK ITS DATE BEFORE TRUSTING A WORD OF IT** — a stale snapshot acted on confidently
+> is worse than none. Then read the memory files in the same folder that bear on the work
+> in front of you (`MEMORY.md` is the index).
+> *Here because relying on a person to remember to ask is the "a rule nothing enforces is
+> a hope" problem, and it bites the first morning nobody thinks of it. (Jodie, 5 Aug 2026.)*
+
 **Before working, read `G:\My Drive\Jodie-Cowork\context\claude.md` and the three
 files it points to** (how-i-talk / how-you-work / who-i-am) — Jodie's context set.
 
