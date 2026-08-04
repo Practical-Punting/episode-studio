@@ -8,6 +8,13 @@ build — the rulings are in `CLAUDE.md`, the findings in the session checkpoint
 
 ## 1. WHERE EP15 IS
 
+> ### ⏳ THIS SECTION IS A MID-BUILD SNAPSHOT OF 4 AUG ~20:00 AND IS HISTORICAL. DO NOT
+> ### READ IT AS CURRENT STATE.
+> The rebuild it describes **finished**: `output/PP-EP15-FINAL.mp4`, 196,581,107 bytes,
+> 817.02s, written **20:12:35**, with `self_qc` **PASS** written after it at 20:15:02.
+> **For where EP15 is now, read the session checkpoint and the rail — never this.**
+> Kept because the proof test below is the reusable part.
+
 **Rebuilding `assemble_passB` a SECOND time — for the end card, not for C10.**
 
 **Done:** C10 rebuilt from four cells to three (four was illegible once the panel-push
@@ -109,6 +116,13 @@ unrendered template slots, query strings, subfolders). Clean on EP15 (17 pages) 
 ⚠️ **NOT YET WIRED INTO THE ENGINE — code freeze, EP15 is mid-build.** The call belongs
 in `render_cards()` immediately after `stage_card_furniture()` and **before** the batch
 render. **Land it with the rest of the landing queue, in one controlled restart.**
+
+> ✅ **LANDED — that paragraph is now history.** `RealProvider.render_cards()` calls
+> `assert_page_images(export)` at **`providers.py:1516`**, step 2c: after the pages are
+> authored and autofitted, **before** `card_check` and before `render_cards_batch`.
+> Verified by reading the function on **5 Aug 2026**, not by reading a status line.
+> ⚠️ `MockProvider.render_cards()` does **not** call it, so `run --mock` cannot
+> demonstrate it.
 
 ---
 
