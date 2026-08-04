@@ -279,6 +279,30 @@ batch starts or the cover pick lands after the master. See `episode-studio/engin
   **THE QC CHECK:** for every on-screen card window, assert the shot is WIDE for the **WHOLE
   window, entry to exit** — not merely at the in-point. Report the pair count checked, the way
   the four overlap classes are reported.
+
+- **🎥 A HIGH PROPORTION OF WIDE BEATS IS NOT A FAULT (Jodie, 4 Aug 2026 — SETTLED, having
+  watched EP15 end to end).**
+  **A card beat is framed WIDE when its card is panel-push, because Gordon needs somewhere to
+  go.** That is the whole of the rule above, stated forwards.
+  **So the WIDE count is an OUTPUT of the layout mix, not an input to be managed.** EP15 ran
+  **14 WIDE of 24 beats** — the widest episode made — against EP14's **8 of 25**, and was
+  approved: *"watched it end to end and loves it."*
+  **The extra WIDE beats are the panel-push ones — the busiest shots in the episode, not the
+  emptiest.** That is why the ratio does not read as flat, and it is why counting WIDE beats
+  on their own tells you nothing.
+  ⚠️ **DO NOT DERIVE A TARGET RATIO FROM ANY EPISODE, INCLUDING THIS ONE.** *The MCU/WIDE
+  ratio spent four episodes as an unwritten convention that existed only as a feel, and the
+  temptation was always to reverse-engineer a number out of EP14. A number inferred from one
+  approved episode is not a rule — it is that episode's arithmetic.* **The constraint is the
+  MIX (above); the count follows from it.**
+
+  > **HER STANDING PREFERENCE — NOT A RULING, and NOT for EP16 unless she says so.**
+  > *"I would be happy with more motion graphics, but am happy with where we are."*
+  > EP15 runs **thirteen cards across thirteen and a half minutes.** Whether "more" means
+  > MORE CARDS or MORE MOVEMENT WITHIN THEM is open.
+  > **And it is the SAME DECISION as the framing:** more cards → more panel-push → more WIDE.
+  > **It should be made deliberately, once, and written here — never drifted into** an episode
+  > at a time by whoever is authoring.
 - **⚠️ THE GENERAL LESSON — WHEN A TIMING CHANGES, ASK WHAT WAS CALCULATED FROM IT.**
   This is the same failure four times over in one day: a value derived from something else,
   still pointing at where that something else used to be. `midroll.at = 235.0` was a word-count

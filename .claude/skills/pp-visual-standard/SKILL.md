@@ -126,5 +126,15 @@ Each says whether a machine enforces it. **A rule with no mechanism is a hope.**
 - **Tightening a gate needs no permission. Loosening one needs Jodie's ruling.**
 - **One design, two uses** — every card renders twice, dark for the video and light for the e-book figure. Judge both.
 
+## 6a. Framing — SETTLED, and it lives in the standard, not here
+
+**A card beat is framed WIDE when its card is panel-push.** The WIDE count is therefore an
+**output of your layout mix, not a budget to spend.** EP15 ran **14 WIDE of 24** — the widest
+episode made — and was approved after Jodie watched it end to end.
+
+**Do not shift a card to full-screen to lower a WIDE count, and do not derive a target ratio
+from any episode.** The rule, its reason and Jodie's standing preference on card *density* are
+in **`docs/PP-STANDARDS.md`** beside the layout-mix rule — **one home; read it there.**
+
 ## 7. What this skill cannot tell you
 It cannot say whether something is beautiful, or whether a diagram lands emotionally. **Look at the cards.** When Jodie finds something wrong in a finished episode, that is not a re-render — **it is a finding that changes this file**, so it is wrong once rather than every time.
