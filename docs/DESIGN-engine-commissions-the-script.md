@@ -442,6 +442,54 @@ conversation is had and approved, and cost is not an argument.*
 
 ---
 
+## 13a. 🔴 §4's CASE APPEARED ON THE VERY NEXT EPISODE, BEFORE THE THING WAS BUILT
+
+**EP16's source article, read 5 August 2026 — one day after this document was written.**
+*Logged here because a design's first real test arriving early is the most useful evidence
+it will ever get, and it arrived by accident.*
+
+**Both halves of the `unread_sources` argument fired at once, on a normal article:**
+
+| what happened | which half |
+|---|---|
+| **`WebFetch` REFUSED to reproduce the article at all**, on copyright grounds — *"reproducing it verbatim would violate copyright"* — and offered a summary instead. **It is Practical Punting's own article, which the studio exists to republish.** | a summary is not the article; §0a needs the author's own SENTENCES and a summary cannot supply them |
+| **The article's two data tables exist ONLY as JPEGs** (`19880310a.jpg`, `19880310b.jpg`). The page has **zero `<table>` elements.** `WebFetch` returns text; **it cannot see a picture.** | `unread_sources` — the writer cannot read the source and must not be able to say `ok` |
+
+> ### AND THE ARTICLE'S PROSE IS UNINTELLIGIBLE WITHOUT THE PICTURES.
+> The web text carries a paragraph beginning *"The straight-out price in **column 3** has
+> been rounded up, so that any given combination in **columns 2 and 3**…"* — **which is the
+> caption printed inside the image.** The transcription lifted the caption into the body and
+> left the table behind. **A reader of the text gets a paragraph about three columns and no
+> columns.**
+> Worse, the article's central worked example — *"in fact **6-4 ON** is a reasonable price
+> to accept for the place"*, and *"the best you can see eachway is **4-1**"* — **is one row
+> of the other table**: `S = 5 · F = Evens · fair place odds 6–4 on · minimum acceptable
+> each-way 4`. **Both quoted numbers come from a picture.**
+
+**WHAT A HEADLESS RUN WOULD HAVE DONE, and it is exactly the fault §4 exists to stop:**
+the prose reads smoothly without the tables. A writer that could not see them **would not
+necessarily stop** — it would write around them, and the result is a §0a breach invisible
+in the output and invisible to every checker we own. **That is the quiet paraphrase, not
+the wall.**
+
+✅ **WHAT AN INTERACTIVE SESSION DID INSTEAD, and it is the benchmark to beat:** noticed the
+orphaned caption, fetched the raw HTML directly when `WebFetch` refused, **downloaded both
+JPEGs and looked at them**, matched the article's numbers to a table row, and found six OCR
+corruptions in PP's own transcription — `l/s` for `1/5`, `Vs` for `3/5` — each provable from
+the article's own arithmetic. **None of that is in the skill. All of it is judgement.**
+
+📋 **THREE THINGS THIS ADDS TO THE DESIGN, none of them costed here:**
+1. **`WebFetch` is not sufficient to read a source article.** The commission needs a raw
+   fetch it can hold verbatim, or the fidelity rule cannot be met.
+2. **`unread_sources` must include IMAGES the page carries**, not only pages that failed to
+   load. *An image the writer cannot open is an unread source even though the fetch
+   succeeded.*
+3. **A halt here is CORRECT and CHEAP** — it costs a flag before a credit is spent. The
+   alternative is a script that reads beautifully and has quietly dropped the table the
+   argument rests on.
+
+---
+
 ## 14. THE OPEN QUESTIONS, NAMED RATHER THAN SMOOTHED
 
 1. **Which `--add-dir` hardening (§6)?** Jodie's call, with the trade-off in front of her.

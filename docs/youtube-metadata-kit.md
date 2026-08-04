@@ -4,11 +4,26 @@
 ## Title formula
 
 > ## ⭐ THE TITLE IS DERIVED, NOT INVENTED, AND THE FILE CARRIES ONE OF THEM
-> ### `youtube_title = TitleCase(packaging.byline) + " | How to Win at Horse Racing"`
+> ### `youtube_title = episode.json -> title + " | How to Win at Horse Racing"`
+> **VERBATIM. No re-casing.** The episode name is already cased the way it ships on the
+> cover and the title card, so re-casing here could only introduce a difference.
 > **ONE decided title, on line 1, alone. No recommendation. No alternatives. No menu.**
 > Enforced by `scripts/youtube_title.py`, which is the ONLY place the house form exists
 > — the kit describes it, that file *is* it. The engine refuses a copy file that carries
 > a second candidate.
+
+> ### 🔴 THIS LINE USED TO READ `TitleCase(packaging.byline)`. CORRECTED 5 Aug 2026.
+> **The code stopped deriving from the byline on 2 Aug 2026 and this document did not.**
+> `youtube_title.py` now calls `derive(title_of(epj))` and **`title_case()` was deleted**;
+> its own comment records why — *"measured across EP11-EP14, THE EPISODE NAME AND THE
+> YOUTUBE TITLE HAVE NEVER ONCE MATCHED. One name everywhere a viewer looks."*
+> **The drift was invisible for three days because the byline and the title were
+> near-identical on every episode.** EP16 is the first where they are DIFFERENT STRINGS
+> (title `Squeeze Those Odds! — Part 2`, byline `Each Way Betting Forever`, per the series
+> amendment in `PP-STANDARDS.md` §1a) — **so following this page as written would have
+> produced `Each Way Betting Forever | How to Win at Horse Racing` and HALTED
+> `check_one_name`.** *A rule that agrees with the code only while two values happen to
+> match is not agreement.*
 
 **WHY IT IS DERIVED (Jodie, 29 July 2026).** The YouTube title used to be composed at
 **~86%, long after the last approval gate** — `title_approved` was already true on EP13
