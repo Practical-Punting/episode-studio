@@ -111,6 +111,21 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    call count, a code path, a cached read and your memory of what happened are
    all proxies. Ask what a human actually RECEIVES, and check that.
    *A guard that greps for a string can be satisfied by a comment.*
+   > ### 🔴 A FILE THAT IS THE RIGHT LENGTH IS NOT THE RIGHT FILE.
+   > **Duration is METADATA. Byte count is the truth — and the server gives it to you.**
+   > *EP15, 4 Aug 2026:* HeyGen reported **114,395,315 bytes**; **78,947,138** landed.
+   > `ffprobe` reported the right duration anyway, because an mp4 written with
+   > `faststart` carries `moov` at the FRONT — **the container announces the full
+   > intended length even when the tail never arrived.** Gordon stopped mid-word at 9:10
+   > of a "13:31" file. Every other check passed.
+   > ⚠️ **AND THE 35 MB GAP HAD ALREADY BEEN SEEN AND TALKED AWAY.** I noticed it, said
+   > it worried me, then explained it as re-encoding *because the duration matched* —
+   > a plausible cause, accepted without evidence, which is fault #6 pointed at a size
+   > discrepancy. **An observation you explain away is worse than one you never made:
+   > it leaves you confident.** *(Two hours and a near-miss re-render of a video that
+   > was already complete and paid for.)*
+   > **Verify a download against the byte count the server stated. Exactly. Not "about
+   > right", not "the duration matches".**
 2. **ONE SOURCE OF TRUTH, OR IT DRIFTS.** Four times a value lived in two places
    and the fix reached one reader. When two things must agree, make the shared
    value DATA that both read — and add the check that compares them.
