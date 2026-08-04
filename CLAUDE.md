@@ -126,6 +126,17 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > was already complete and paid for.)*
    > **Verify a download against the byte count the server stated. Exactly. Not "about
    > right", not "the duration matches".**
+   > ### 🔴 AND: A REAL PASS ON THE WRONG ARTEFACT IS A FALSE PASS.
+   > **Twice on 4 Aug 2026, and both times every check was honest:**
+   > · the master had the **right duration** and the **wrong audio** — `ffprobe` read
+   >   metadata from a truncated file;
+   > · `self_qc` returned a **genuine PASS** on a video that had **already been
+   >   superseded** by a re-rendered card, thirty-four minutes older than the clip it
+   >   was supposed to contain.
+   > **A check must name WHICH artefact it examined and WHEN that artefact was written.**
+   > Otherwise "PASS" is a claim about a file nobody identified.
+   > *Corollary: when you change an input, the proof is a NEW OUTPUT FILE whose mtime is
+   > later than the input's. Not a status field. Not a re-read of the rail.*
 2. **ONE SOURCE OF TRUTH, OR IT DRIFTS.** Four times a value lived in two places
    and the fix reached one reader. When two things must agree, make the shared
    value DATA that both read — and add the check that compares them.
