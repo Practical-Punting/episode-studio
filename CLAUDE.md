@@ -77,7 +77,7 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - Build principles: `G:\My Drive\Planning\Principles.md` (simple, small, real,
   one-source-of-truth, well-documented).
 
-## 🔍 THE SEVEN FAULTS THAT KEEP COMING BACK
+## 🔍 THE FAULTS THAT KEEP COMING BACK
 *(Named here because each recurred AFTER being written down somewhere weaker.
 Full evidence in the memory files; these seven lines are the whole of it.)*
 
@@ -126,6 +126,11 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > was already complete and paid for.)*
    > **Verify a download against the byte count the server stated. Exactly. Not "about
    > right", not "the duration matches".**
+   > ✅ **NOW ENFORCED (4 Aug 2026): `RealProvider._download_exact()`** — reads the
+   > stated size, compares after, **refuses to promote a short file**, names both
+   > numbers in plain English. **Used by the HeyGen master AND the paid Higgsfield clips
+   > and heroes** — the sibling was fixed by asking whether the fault had one, rather
+   > than waiting for it to bite a second time.
    > ### 🔴 AND: A REAL PASS ON THE WRONG ARTEFACT IS A FALSE PASS.
    > **Twice on 4 Aug 2026, and both times every check was honest:**
    > · the master had the **right duration** and the **wrong audio** — `ffprobe` read
@@ -175,6 +180,13 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > **THE METHOD: take the output list from the CODE THAT WRITES. Never from the places
    > you can think of.** Read the function, list every path it writes, quarantine those.
    > **That is the FIRST move, not the recovery.**
+   ✅ **NOW PARTLY ENFORCED (4 Aug 2026): `engine/check_page_images.py`**, called from
+   `render_cards()` before the batch render. *For every page, does every image it
+   references exist?* **No list to maintain, so it cannot go stale as pages are added** —
+   which is precisely why the list-based guards missed it (`assert_standing_assets()`
+   names the standing pages, `stage_title_hero()` names the title hero; the e-book cover
+   was on neither). It closes the `<img>` half. **An input nothing references from a
+   page — a clip, a music file — is still only caught by the method above.**
    ⚠️ **AND A RULE YOU WROTE THIS MORNING IS NOT A RULE YOU HAVE.** This rule was
    written at 08:00 on 4 Aug and **breached twice in one operation the same evening** —
    paths guessed, not read. `overlay/export/ebook-cover.png`, three megabytes, built
@@ -235,6 +247,44 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    **and I merged them**, blaming the CDN for both. The second was never the fonts:
    `render_card.py` waits for `ppDuration` FIRST. *Separate the causes before naming
    one, or you will fix the wrong thing and believe you fixed the right one.*
+
+## 📋 8. A LIST OF EVERYTHING NOTICED IS NOT A PLAN
+**(Jodie, 4 Aug 2026: "We had it working!")**
+
+I turned the findings list into a **12–14 working-day** programme before EP16. She cut it
+to **~3.5 days** with one question: **WHICH OF THESE ACTUALLY CAUSED A FAULT?**
+
+> ### EP15 halted NINE times. THREE causes.
+> seven halts → one unvalidated `episode.json` · one → a truncated download ·
+> one → a blank end card. **Three fixes, not fifteen.**
+
+**Everything cut was real, and every cut was right.** Clocks, the operator's box, card
+measurement, fonts — none of them makes a wrong video. **They matter the day HUGH
+operates, and that day is not this month.**
+- **Take an item off the list against a REAL FAULT in a REAL EPISODE**, never because
+  the list is long or the item is cheap.
+- **Say which of your own items does not earn its place.** Cutting is the deliverable.
+  *Of the four she kept, I still cut half of one (E16's board label) and the ceremony
+  around another (E11's proof) — and she took both cuts.*
+- ⚠️ **The estimate must come from READING THE CODE.** Mine was right when I read
+  `card_check.py` and found E27 was a day, not three; Cowork's guesses were wrong twice.
+
+## 🧱 9. WRITTEN AND REVIEWED IS NOT LANDED
+**(4 Aug 2026 — the landing queue's own worked example.)**
+
+E11's patch sat in `docs/landing-queue/` for a day, written, reasoned and reviewed. **It
+was wrong about which loop.** There are TWO `needs_look` waits; the patch covered the
+outer one, and **EP15 had actually sat for an hour in the other** (`flag_and_wait`,
+entered when a step *raises*). It also had to be changed from returning a flag to
+**raising**, because in `flag_and_wait` a bare `return` means *"retry the step"* — on
+exactly the stale code being escaped.
+
+> **Neither error was visible in the diff. Both appeared the moment it was built.**
+
+**And the guard's proof is OBSERVING it, not reading it.** E11's behaviour had been
+described for a day and **never once seen**. Watching a flagged engine exit eight seconds
+after a file was touched is the only thing that made it true. *Same family as fault #1: a
+patch you have read is a proxy for a patch that works.*
 
 ## ⚖️ A GUARD PREVENTS RECURRENCE — IT DOES NOT OBLIGE US TO GO BACK
 **(Jodie, 4 Aug 2026.)** *"Jodie is not actually going to go back and change any of the
