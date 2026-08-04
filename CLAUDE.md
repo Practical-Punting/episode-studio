@@ -81,6 +81,20 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 *(Named here because each recurred AFTER being written down somewhere weaker.
 Full evidence in the memory files; these seven lines are the whole of it.)*
 
+0a. **AN ID IS A PROMISE. A NAME IS A GUESS.**
+   **And a name that is unique today is not unique at 300 episodes.** When a system
+   hands you an id, STORE IT AT THE MOMENT IT EXISTS — never rediscover the thing later
+   by matching its name.
+   **Three symptoms of the one habit, all found in a week:**
+   - **E18** — `episode_dir()` globs `PP-EP{n}*`, so **`PP-EP1*` also matches `PP-EP10`**
+     and `PP-EP9*` matches `PP-EP98`. It made two outro audits confidently wrong.
+   - **E20** — a **paid** HeyGen render was found by matching its *title*, because the
+     rail never recorded the `video_id` of the thing it bought.
+   - **board bug 5** — an episode cannot go backwards, the same shape.
+   ⚠️ **"Part 1 / Part 2 / Part 3" of the same article are already coming.** Titles are
+   about to stop being unique, and the failure will look like a wrong episode rather
+   than a missing one.
+
 0. **NEVER ASK A PERSON FOR SOMETHING THE RAIL ALREADY KNOWS.** *(Numbered zero because
    it comes before the others: it is about where you REACH.)*
    **Three times on 4 Aug alone, all the same shape** — reported "EP15 right now" from
