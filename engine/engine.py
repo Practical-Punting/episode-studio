@@ -32,6 +32,7 @@ credits — see providers.py for the fault-injection switches.
 from __future__ import annotations
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import socket
@@ -92,6 +93,9 @@ RAIL_SHA = assert_committed(
 
 import rail  # the one shared Supabase client (RAIL-INTEGRATION.md)
 
+import preflight_episode_json                  # E26 — the config pre-flight (module,
+                                               # because engine.py imports NAMES from
+                                               # providers and that is what bit EP15)
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets)
 
@@ -315,6 +319,50 @@ def step_script_sync(ctx):
     return {"words": words, "sha256": sha, "source": source}
 
 
+def _preflight_config(ctx) -> list[str]:
+    """Diff this episode's episode.json against the last two that built cleanly.
+
+    Returns log lines. Raises EngineFlag on anything that will certainly cost a halt.
+
+    ⚠️ IT MUST NEVER BE THE REASON A BUILD CANNOT START. If there are not two usable
+    reference episodes — a fresh machine, an early episode, a mock run — it says so and
+    stands aside. A pre-flight that blocks take-off because it cannot find its own
+    paperwork is worse than no pre-flight.
+    """
+    nn = ctx.ep.get("ep_number")
+    if ctx.mock or not nn:
+        return ["config pre-flight: skipped (mock)"]
+    target = ctx.provider.dir(ctx.ep) / "docs/episode.json"
+    if not target.is_file():
+        return ["config pre-flight: no episode.json yet — nothing to compare"]
+
+    refs, names = [], []
+    for n in range(int(nn) - 1, 0, -1):          # the most recent episodes, newest first
+        if len(refs) == 2:
+            break
+        try:
+            p = preflight_episode_json.ep_dir(n) / "docs/episode.json"
+            refs.append(json.loads(p.read_text(encoding="utf-8")))
+            names.append(f"EP{n:02d}")
+        except Exception:                                             # noqa: BLE001
+            continue
+    if len(refs) < 2:
+        return ["config pre-flight: fewer than two reference episodes — standing aside"]
+
+    j = json.loads(target.read_text(encoding="utf-8"))
+    res = preflight_episode_json.preflight(j, refs)
+    if res["must"]:
+        raise EngineFlag(
+            "This episode's settings differ from the last two episodes in ways that "
+            "will stop the build later on:\n"
+            + "\n".join(f"      • {m}" for m in res["must"])
+            + "\n    Every one of these has cost a build before. They are cheaper to "
+              "fix now than eighteen steps in, which is why I look before I start.")
+    out = [f"config pre-flight: clean against {' + '.join(names)}"]
+    out += [f"   note — {w}" for w in res["worth"]]
+    return out
+
+
 def step_audit_inputs(ctx):
     # Defence-in-depth: even if a stale or foreign claim path got us here, never
     # build before the gate has passed (the EP09 zombie lesson).
@@ -330,6 +378,14 @@ def step_audit_inputs(ctx):
     # the function directly, proving the function worked and never once proving the
     # ENGINE could call it. See test_step_call_sites.py.
     log(f"   {assert_standing_assets()}")
+    # E26 — THE CONFIG PRE-FLIGHT. Seven of EP15's nine halts were one unvalidated
+    # file, each found by running into it hours apart, each a convention EP11-EP14 all
+    # followed that nothing anywhere states. Diffed here, at the head of the build,
+    # against the last two episodes that built cleanly — TWO references, never one,
+    # because a rule inferred from a single sample was wrong on all three axes when it
+    # was tried. Blocks on what will certainly cost a halt; merely NAMES the rest.
+    for line in _preflight_config(ctx):
+        log(f"   {line}")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
@@ -760,6 +816,17 @@ def flag_and_wait(ctx, name, message):
     poll = 3 if ctx.mock else 15
     while True:
         ctx.check_alive()
+        # E11 part 1 — THE STALE-CODE GUARD, WHERE IT IS ACTUALLY NEEDED.
+        # `_code_changed()` is otherwise checked only at the top of the OUTER acquire
+        # loop, which a claimed episode never returns to. This wait is where a flagged
+        # engine spends all its time, and it is the safest possible moment to exit:
+        # the step has already raised, so no ffmpeg, no HeyGen call and no Higgsfield
+        # job is in flight.
+        # ⚠️ THIS LOOP, NOT ONLY THE OUTER ONE. EP15, 3 Aug 2026: `audit_inputs` flagged
+        # on a NameError, the fix landed at 09:10, and the process sat HERE running the
+        # broken code until a manual restart at 10:08 — Jodie cleared the flag at 10:03
+        # and it walked straight back into the same bug.
+        _code_changed_exit(ctx, "while this episode was flagged")
         time.sleep(poll)
         ep = ctx.refresh()
         if not ep.get("needs_look"):
@@ -906,6 +973,42 @@ def _code_changed():
     return None
 
 
+def _code_changed_exit(ctx, when: str) -> None:
+    """Exit cleanly if the code changed under us. RAISES SystemExit; never returns True.
+
+    E11 part 1. Call this from anywhere the engine WAITS while holding an episode.
+
+    ⚠️ IT RAISES RATHER THAN RETURNING A FLAG, and that is not a style choice. The two
+    call sites want opposite things from a bare `return`: in the outer acquire loop it
+    ends the run, but in `flag_and_wait` it means "the flag cleared, RETRY THE STEP" —
+    which would retry it on exactly the stale code we are trying to escape. One
+    behaviour, decided here, so no call site can get it subtly wrong.
+    SystemExit derives from BaseException, so the `except Exception` handlers around
+    the phase driver do not swallow it.
+
+    ⚠️ `rail.release()` MATTERS: exiting while still holding the lease leaves the
+    episode claimed by a worker that no longer exists, and `reclaim_stale()` cannot
+    take it back until the lease expires. Worse, releasing WITHOUT clearing ownership
+    is how an episode reaches a working status with `claimed_by: NULL` — the dead zone,
+    which nothing can pick up, ever.
+
+    THIS IS NOT A DEPLOY PATH ON ITS OWN. The board still cannot say "this engine is
+    running code older than the repo", which is E11 part 2 and the half Hugh needs,
+    because for him that state is undiagnosable.
+    """
+    changed = _code_changed()
+    if not changed:
+        return
+    log(f"{changed} changed on disk {when} — exiting so fresh code loads "
+        "(the supervisor restarts me; nothing is in flight, nothing is lost)")
+    try:
+        ctx.hb.active.clear()
+        rail.release(ctx.id, WORKER)
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not release the lease cleanly: {e} — it will expire)")
+    raise SystemExit(0)
+
+
 def _stage8_watch():
     """Stage-8 rename watchdog (EP10 lesson, 25 Jul 2026): a PUBLISHED episode
     whose local folder still carries the bare PP-EP<NN> name missed its
@@ -984,6 +1087,7 @@ def cmd_run(mock, watch):
                     poll = 3 if mock else 15
                     while ctx.refresh().get("needs_look"):
                         ctx.check_alive()
+                        _code_changed_exit(ctx, "while this episode was flagged")
                         time.sleep(poll)
                     log("flag cleared — carrying on")
                     continue

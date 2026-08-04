@@ -34,6 +34,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import check_page_images                       # the general "does every <img> resolve"
+
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -126,6 +128,39 @@ def assert_standing_assets() -> str:
               "this flag. Checked here rather than at Pass B because that is where the "
               "midroll chip was found on EP14, after the whole render had been paid for.")
     return f"standing assets: {len(CARD_DEPS) + len(STANDING_CARDS)} present"
+
+
+def assert_page_images(export: Path) -> str:
+    """EVERY IMAGE EVERY PAGE ASKS FOR MUST EXIST — checked before anything renders.
+
+    The complement of assert_standing_assets(): that one knows a LIST of files and
+    checks they are present; this one knows NOTHING and asks each page what it needs.
+    A list only ever covers what somebody thought of, which is why EP15's end card got
+    through — `ebook-cover.png` was on no list.
+
+    *EP15, 4 Aug 2026:* a correct quarantine removed nine artefacts composed from a
+    rejected cover hero, two were never put back, and the end card rendered a grey
+    rectangle carrying the browser's ALT TEXT — "The Practical Punting Guide — Killer
+    Strategies for the Trifecta", not even that episode's title. The e-book's cover
+    page came out blank white from the same hole. `card_check` measures collisions,
+    not whether an <img> resolves; `self_qc` returned an honest PASS and reported the
+    end card "visible (luma 33)", **because a grey box has a luma.**
+    """
+    broken = check_page_images.scan_dir(export)
+    if broken:
+        lines = []
+        for page, bad in broken.items():
+            for ref, _resolved in bad:
+                lines.append(f"      {page.name}  wants  {ref}")
+        raise EngineFlag(
+            f"{len(lines)} image(s) that pages need are not in the export folder:\n"
+            + "\n".join(lines)
+            + "\n    A page that cannot find its image does not fail — it draws a grey "
+              "box with the image's description written across it, and every later "
+              "check still passes because the box has a size and a brightness. Put the "
+              "files back, then clear this flag. Retrying without them will not help.")
+    n = len(list(export.glob("*.html")))
+    return f"page images: {n} page(s), every image they reference is present"
 
 
 def stage_card_furniture(export: Path) -> list[str]:
@@ -1163,6 +1198,16 @@ class RealProvider:
                              "--resolution", self.cover_res)["credits"])
         return per * len(missing)
 
+    @staticmethod
+    def _prompt_key(slot: str, prompt: str) -> str:
+        """The ledger key: the SLOT and a hash of the PROMPT that made the image.
+
+        The ledger answers "have I already paid for this?" — and the real question is
+        "have I already paid for THIS PROMPT?". A guard that can never be cleared
+        becomes a trap. (E16)
+        """
+        return f"{slot}:{hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]}"
+
     def _generate_heroes(self, ep, want):
         """Fire the missing heroes, checkpointing each job id into
         docs/hero-jobs.json the instant it exists (same double-spend guard as
@@ -1179,7 +1224,22 @@ class RealProvider:
         book = json.loads(ledger.read_text(encoding="utf-8")) if ledger.is_file() else {}
 
         per = 0.0
-        todo = [(k, p) for k, p in want if not book.get(k, {}).get("job_id")]
+        # E16 — THE LEDGER KEY IS THE SLOT *AND* THE PROMPT.
+        # It used to be the slot alone ("hero_A"), so once a job id existed the create
+        # was never reached again and `_hf_download` simply re-fetched that job's
+        # output. DELETING THE PNGs CANNOT INVALIDATE A STORED JOB ID.
+        # EP15, 3-4 Aug 2026: both heroes were looked at and REJECTED — one carried a
+        # competitor's brand, the other had a line of the prompt rendered across the
+        # sky. The prompts were corrected and the files moved aside; the engine
+        # re-downloaded the same two pictures, the board offered them again with
+        # nothing to say they had been rejected, and Jodie picked one in good faith.
+        # She made a decision on bad information and had no way to know.
+        # Same prompt -> same key -> the double-spend guard works exactly as before.
+        # Changed prompt -> different key -> a genuine create. Nobody has to remember
+        # to clear a file, which is the only kind of fix that holds: the version that
+        # relied on remembering failed the first time it mattered.
+        lk = {k: self._prompt_key(k, prompts[k]) for k, _ in want}
+        todo = [(k, p) for k, p in want if not book.get(lk[k], {}).get("job_id")]
         if todo:
             per = float(self._hf("generate", "cost", self.cover_model,
                                  "--prompt", prompts[todo[0][0]],
@@ -1193,7 +1253,7 @@ class RealProvider:
                     "ENGINE_COVER_CEILING or change ENGINE_COVER_MODEL, then clear "
                     "this flag.")
         for key, path in want:
-            rec = book.setdefault(key, {})
+            rec = book.setdefault(lk[key], {})
             if not rec.get("job_id"):
                 job = self._hf("generate", "create", self.cover_model,
                                "--prompt", prompts[key],
@@ -1202,6 +1262,8 @@ class RealProvider:
                 rec["job_id"] = job[0] if isinstance(job, list) else job["id"]
                 rec["model"] = self.cover_model
                 rec["credits"] = per
+                rec["slot"] = key
+                rec["prompt_sha"] = lk[key].split(":", 1)[1]
                 rec["note"] = f"engine gens-first batch -> {path.name}"
                 ledger.parent.mkdir(parents=True, exist_ok=True)
                 ledger.write_text(json.dumps(book, indent=1), encoding="utf-8")
@@ -1220,10 +1282,10 @@ class RealProvider:
                 if not url:
                     raise RuntimeError(f"job for {label} completed but has no result_url")
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                tmp = dest.with_suffix(".part")
-                with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
-                    shutil.copyfileobj(r, f)
-                tmp.replace(dest)
+                # E22 applies here too: these are PAID clips and heroes, and a short
+                # one plays. Same guard, same reason — found by asking whether the
+                # HeyGen fault had siblings rather than fixing only where it bit.
+                self._download_exact(url, dest)
                 return str(dest)
             time.sleep(10)
         raise RuntimeError(f"Higgsfield job for {label} never completed ({job_id})")
@@ -1278,6 +1340,22 @@ class RealProvider:
                 "the Doc so anyone with the link can VIEW it, then clear this flag. "
                 "I will not guess at the script or use an old copy.")
         text = raw.decode("utf-8-sig", errors="replace").replace("\r\n", "\n").strip()
+        # THE SCRIPT COMES FROM THE EXPORT URL'S RAW BYTES, NEVER FROM A DOCUMENT API'S
+        # "text representation" — and this asserts it, because the difference is
+        # invisible until somebody reads it aloud.
+        # Measured 4 Aug 2026 on EP15's real Doc: read through the Drive API the same
+        # script comes back MARKDOWN-ESCAPED — `\#` on every comment line and
+        # `Squeeze Those Odds\!` in the title. Read through this URL it is clean.
+        # A backslash before every # and ! would be frozen into script_snapshot as the
+        # record of what was approved, and spoken by Gordon.
+        if re.search(r"\\[#!*_\[\]()]", text):
+            raise EngineFlag(
+                "The script came back with backslashes in front of ordinary "
+                "punctuation (things like \\! or \\#). That is not what is in the "
+                "Doc — it is what happens when a script is read through the wrong "
+                "channel, and those backslashes would be read out loud. Nothing has "
+                "been saved. This is a fault in me, not in your script: tell whoever "
+                "looks after the engine, and do not retype anything.")
         if len(text.split()) < 50:
             raise EngineFlag(
                 f"The script Doc reads as only {len(text.split())} words — that's not "
@@ -1425,6 +1503,17 @@ class RealProvider:
         #     size is a measurement, not a judgement (design §11), so it should never
         #     be a halt. Hand-authored pages are left alone here too.
         print(f"    {autofit_cards(d)}")
+        # 2c. EVERY IMAGE A PAGE ASKS FOR MUST EXIST — checked HERE, before a single
+        #     clip is rendered, because a page that cannot find its image renders ALT
+        #     TEXT on a grey box and nothing downstream notices. EP15 shipped the end
+        #     card that way: `self_qc` PASSED it and even reported "end card visible
+        #     (luma 33)", because a grey box has a luma. The e-book's cover page came
+        #     out blank white from the same missing file.
+        #     Deliberately GENERAL — no list of expected files, so it cannot go stale
+        #     as pages are added. That is why the list-based guards missed it:
+        #     assert_standing_assets() names the standing pages, stage_title_hero()
+        #     names the title hero, and this file was on neither.
+        print(f"    {assert_page_images(export)}")
         # 3. HARD GATE before we spend Chromium on clips: a card with a collision
         #    would ship into the video AND the matching e-book figure (design §12).
         try:
@@ -1522,10 +1611,54 @@ class RealProvider:
             url = json.load(r).get("data", {}).get("video_url")
         if not url:
             raise RuntimeError("HeyGen render found but no video_url yet")
-        tmp = master.with_suffix(".part")
-        with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
-            shutil.copyfileobj(r, f)
-        tmp.rename(master)
+        self._download_exact(url, master)
+
+    @staticmethod
+    def _download_exact(url: str, dest: Path):
+        """Download, and refuse to promote a short file to THE MASTER. (E22)
+
+        ⚠️ THIS USED TO BE `copyfileobj` STRAIGHT INTO `.part`, THEN `rename`, WITH NO
+        LENGTH CHECK — and a connection that drops mid-transfer ends the copy WITHOUT
+        RAISING, so the short file became `presenter-master.mp4`.
+
+        EP15, 4 Aug 2026: HeyGen stated **114,395,315 bytes**; **78,947,138** landed.
+        Gordon stopped mid-word at 9:10 of a "13:31" file. **Every other check passed**,
+        because an mp4 written with `faststart` carries `moov` at the FRONT, so ffprobe
+        reads the full intended duration out of a file whose tail never arrived.
+        > A FILE THAT IS THE RIGHT LENGTH IS NOT THE RIGHT FILE.
+        > Duration is METADATA. The byte count is the truth — and the server states it.
+
+        And the 35 MB gap had already been SEEN and explained away as re-encoding,
+        *because the duration matched*. An observation you explain away is worse than
+        one you never made: it leaves you confident. Hence a machine check, not care.
+        """
+        tmp = dest.with_suffix(".part")
+        with urllib.request.urlopen(url, timeout=600) as r:
+            stated = r.headers.get("Content-Length")
+            stated = int(stated) if stated and stated.isdigit() else None
+            with open(tmp, "wb") as f:
+                shutil.copyfileobj(r, f)
+        got = tmp.stat().st_size
+
+        if stated is not None and got != stated:
+            short = stated - got
+            tmp.unlink(missing_ok=True)
+            raise EngineFlag(
+                f"The download stopped early, so I have not kept it. The server said "
+                f"the file is {stated:,} bytes and only {got:,} arrived — "
+                f"{short:,} bytes short ({short / stated:.0%} of it missing).\n\n"
+                "This matters more than it looks: a part-downloaded video still PLAYS, "
+                "and still reports its full length, so it can look completely normal "
+                "while the end of it is silent. Retrying is the right move and usually "
+                "works — the connection dropped, nothing is wrong with the render "
+                "itself, and nothing has been charged again.")
+        if stated is None and got == 0:
+            tmp.unlink(missing_ok=True)
+            raise EngineFlag(
+                "The download produced an empty file and the server did not say how "
+                "big it should have been. Nothing has been kept. Retrying is the "
+                "right move.")
+        tmp.replace(dest)
 
     def _env(self, name):
         env = self.pp / ".env"

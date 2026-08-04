@@ -92,6 +92,30 @@ including the title-card flag waiting for her all morning.**
 
 ---
 
+## The worst one yet — `shot_map`, 4 Aug 2026
+
+Nine lines, seven of them identical:
+
+> *"C2: hold 8.0s is below min_card_hold 10.0s. Shift the window, never shorten the
+> card — Jodie's call."* ×7
+> *"midroll: ask phrase not found in the SRT ('I' -> ok, 'f' -> MISSING). Not guessing
+> midroll.at."*
+> *"B-ROLL-CARD overlap broll-ring-boards-scan/C1: 5.00"*
+
+**No picture. No buttons. Nine engine terms in nine lines** — `min_card_hold`, `SRT`,
+`midroll.at`, `B-ROLL-CARD overlap`, `hold`, `window`. **Hugh could not begin to act on
+it**, and it asks for **seven rulings where there is one wrong constant**.
+
+**And it calls them DECISIONS.** *"Every problem below is a DECISION… the tool refuses
+to guess."* Refusing to guess is right. **Calling a contradiction between two of your
+own defaults a decision is not** — it recruits the operator into a fault they did not
+cause and cannot see.
+
+> **A halt that repeats itself seven times is reporting one fault seven times. Say it
+> once, and say what it is.**
+
+---
+
 ## The principle behind it
 
 **A halt is only cleared when the person standing in front of it can act without knowing

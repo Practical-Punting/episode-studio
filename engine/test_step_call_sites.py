@@ -208,6 +208,13 @@ def _audit_inputs_really_reaches_the_assertion():
                        "script_read": True}
             self.state = {}
             self.provider = self
+            # ⚠️ THE REAL Ctx CARRIES THIS AND THE STUB DID NOT, so the E26 config
+            # pre-flight added on 4 Aug 2026 hit an AttributeError the first time it
+            # ran through real dispatch — caught HERE, by this case, before it reached
+            # an episode. The stub must look like the real thing, not like the minimum
+            # that made yesterday's step pass; the alternative was a `getattr` default
+            # in engine.py, which hides the contract instead of stating it.
+            self.mock = True                    # skips the pre-flight's Drive lookups
 
         def audit_inputs(self, ep):
             return {"folder": "test"}
