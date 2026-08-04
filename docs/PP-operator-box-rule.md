@@ -66,6 +66,32 @@ type size was decided — goes to the run log.
 
 ---
 
+---
+
+## The same rule applied to CLOCKS (added 4 Aug 2026)
+
+EP15's card, while Jodie was looking at it:
+
+> **"Working for 15 hr 6 min · render cooking 12 hr 38 min"**
+
+**The HeyGen render took about twenty minutes.** The board was counting wall-clock since
+the episode was created at 18:04 the previous evening — **including Jodie asleep, and
+including the title-card flag waiting for her all morning.**
+
+**Two faults in one line:**
+
+1. **It counts the wrong thing.** *Time spent waiting for a person is not time spent
+   working.* A step that is flagged (`needs_look` true) is a human wait **whatever its
+   budget says**, and so is a step whose budget is `None`. **Both must stop the clock.**
+   *(Logged as E19. My own build watcher had the identical bug and raised a budget alarm
+   on a step that was waiting for Jodie — one fault, two symptoms.)*
+2. **"render cooking" is engine vocabulary.** **Hugh reads twelve hours of cooking and
+   reasonably concludes something is broken.** Whatever the line becomes once it counts
+   the right thing, it must say the plain version: **what is happening now, and roughly
+   how long it has actually been doing it.**
+
+---
+
 ## The principle behind it
 
 **A halt is only cleared when the person standing in front of it can act without knowing
