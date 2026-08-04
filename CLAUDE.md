@@ -225,6 +225,23 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    `render_card.py` waits for `ppDuration` FIRST. *Separate the causes before naming
    one, or you will fix the wrong thing and believe you fixed the right one.*
 
+## ⚖️ A GUARD PREVENTS RECURRENCE — IT DOES NOT OBLIGE US TO GO BACK
+**(Jodie, 4 Aug 2026.)** *"Jodie is not actually going to go back and change any of the
+previous videos or e-books as Hugh has approved them."*
+
+> ### FOUND RETROSPECTIVELY DOES NOT MEAN FIXED RETROSPECTIVELY.
+
+When a new check finds an old fault in published work, the check's job is **the next
+episode**. Published episodes are approved, live, and closed. **Log the finding, name it
+plainly, and move on** — do not propose a re-render, a re-cut or a backfill.
+
+⚠️ **THE RISK THIS GUARDS AGAINST IS REAL AND IT IS US.** Eight checks were added in a
+single day. *A machine that spends more effort proving itself correct than making
+episodes has stopped being a studio.* Every guard must earn its place against the next
+episode, never against the archive.
+
+*Same family as the closed e-book-link ruling: fix it FORWARD.*
+
 ## 🚫 COMMAND HYGIENE — THE ONE RULE
 **(Jodie, 28 Jul 2026. A HARD RULE, not a preference. Replaces the earlier
 version, which was a growing LIST of banned shapes — see "why one rule" below.)**
