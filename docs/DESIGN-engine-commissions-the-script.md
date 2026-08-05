@@ -194,6 +194,56 @@ halt, never a pass. *(Fault #1: the exit code is a proxy; the verdict is the art
 
 ---
 
+## 4a. 🔴 THE ENGINE CAPTURES THE SOURCE. THE WRITER READS LOCAL FILES ONLY.
+**(6 Aug 2026. §4 is the safety argument; this is what makes §4 true rather than hopeful.)**
+
+> ### `unread_sources` AS DESIGNED IS SELF-REPORTED, SO THE SCHEMA BINDS THE **REPORT**
+> ### AND NOT THE **REALITY**.
+
+*"`unread_sources` non-empty ⇒ `status` must be `halt`"* is airtight **given a writer that
+noticed.** A writer that never realises the page carried two JPEGs returns
+`unread_sources: []` **honestly**, `status: ok`, and the schema is satisfied. **That is
+fault #1 sitting inside the thing this design calls its whole safety argument** — the
+verdict is a proxy for fidelity, and we would be asserting the proxy.
+
+**§13a is the proof case and it is not hypothetical:** `WebFetch` refused EP16's article
+outright, and the two tables the argument rests on exist **only as JPEGs**, on a page with
+**zero `<table>` elements**. Nothing in the returned text says a picture was missed.
+
+### THE DESIGN
+**The ENGINE captures the source before it commissions anything** — raw HTML, plus **every
+image the page references**, downloaded into the episode folder — and **writes a manifest of
+exactly what it handed over.** The writer then reads **local files only**, and
+**`WebFetch` comes OFF the tool list in §5.** The commission has no network at all.
+
+> ## `unread_sources` STOPS BEING AN OPEN-ENDED SELF-REPORT AND BECOMES A
+> ## **RECONCILIATION AGAINST A KNOWN LIST.**
+> **Every manifest entry must be accounted for — read, or named as unread. Silence about an
+> item the engine knows it handed over is a HALT, not a pass.**
+
+**Same move as `check_page_images`: ask the artefact what it needs, rather than keeping a
+list somebody maintains.** The coverage is derived from the page itself, so a source that
+arrives with three tables next year cannot be silently skipped. **Fault #7's fix, applied
+before the fault instead of after it.**
+
+### WHAT ELSE IT FIXES, none of it the reason it exists
+- **`WebFetch`'s copyright refusal stops mattering** — §0a needs the author's own sentences,
+  and a summary cannot supply them. A local file is just a file.
+- **The images become openable.** A picture in the episode folder can be looked at; a
+  picture behind a fetch cannot.
+- **The sandbox loses its network dependency**, which removes a silent-failure mode rather
+  than adding a flag to describe one.
+
+### ⚠️ WHAT IT DOES **NOT** FIX — named, not glossed
+**The manifest proves HANDOVER, not COMPREHENSION.** A writer can open a scanned table,
+fail to read a single figure off it, and still not list it as unread. **This closes the gap
+where a source was never seen. It does not close the gap where a source was seen and
+misunderstood** — that is the fidelity checker §13 puts out of scope, and it stays out of
+scope. *The honest claim is that the invisible failure becomes a visible one, not that it
+becomes impossible.*
+
+---
+
 ## 5. PERMISSIONS — A PLACE AND A TIME, AND IT WAS MEASURED
 
 > **Jodie's standing rule: a permission scoped to a PLACE and a TIME is safe. One scoped
@@ -218,7 +268,7 @@ plainly and did not attempt to route around it via a shell.
 |---|---|
 | **PLACE** | `cwd` = the episode's Drive folder; `--add-dir` the repo's `.claude/skills` and `docs` |
 | **TIME** | one process per commission, spawned and dead — **no standing grant** |
-| **TOOLS** | `--tools "Read,Write,Edit,Glob,Grep,WebFetch"` — **no Bash at all** |
+| **TOOLS** | `--tools "Read,Write,Edit,Glob,Grep"` — **no Bash at all, and NO `WebFetch`** *(removed 6 Aug by §4a — the engine captures the source; the writer has no network)* |
 | **CEILING** | `--max-budget-usd` — a hard currency cap per run |
 | **MODE** | `--permission-mode dontAsk` (deny-by-default, no prompt) |
 | **NEVER** | `--dangerously-skip-permissions` · `--permission-mode bypassPermissions` |

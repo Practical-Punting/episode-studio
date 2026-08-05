@@ -48,7 +48,29 @@ def episode_dir(n):
     return hits[0]
 
 
-SHIPPED = episode_dir(14) / "output/PP-EP14-youtube.txt"
+def shipped_copy(n):
+    """The published YouTube copy file, found the way the ENGINE finds it.
+
+    🔴 THE SECOND HALF OF THE FUSE ABOVE, AND IT WENT OFF ON 6 Aug 2026.
+    `episode_dir()` was fixed on 3 Aug so the FOLDER rename could not break this
+    suite — and this line went on hard-coding the FILE name, which the very same
+    stage-8 close-out RESTEMS: EP14's copy is now
+    `PP-EP14-The-Meaning-of-Form-Part-1-youtube.txt`.
+    So the fix reached the folder and not the file, and the test failed the day
+    EP14 was published — doing exactly what the docstring above describes.
+
+    `save_youtube_copy` has always globbed `*youtube*.txt`. Deriving it the same
+    way means there is no name here to go stale: the rename cannot break a lookup
+    that never knew the name. (CLAUDE.md fault #7 — ask the folder, don't keep a
+    list.)
+    """
+    hits = sorted((episode_dir(n) / "output").glob("*youtube*.txt"))
+    if not hits:
+        raise AssertionError(f"no *youtube*.txt in PP-EP{n}'s output folder")
+    return hits[0]
+
+
+SHIPPED = shipped_copy(14)
 
 PASS, FAIL = [], []
 

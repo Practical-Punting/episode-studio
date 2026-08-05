@@ -1950,14 +1950,95 @@ class RealProvider:
         thumbnail_placement_review(d, out)      # look at the picture, then clear
         return str(out)
 
+    # -- the commission: the machine needs an AUTHOR, not an operator ---------
+    #
+    # `youtube_copy` halts EVERY episode with "Claude Code writes the copy".
+    # Hugh cannot clear it: no amount of fixing checks removes a halt that needs
+    # PROSE WRITTEN rather than a button pressed. It is one of exactly two such
+    # halts (the other is the script itself), and it is the cheapest place to
+    # prove the relay — small artefact, an acceptance test that already exists,
+    # and it sits at the END of the build, so a bad output costs a retry rather
+    # than a render. See docs/DESIGN-engine-commissions-the-script.md.
+    #
+    # ⚖️ OFF BY DEFAULT, AND THAT IS A DECISION, NOT AN OVERSIGHT.
+    # A commission spends real money, and "stop at the cost boundary and report;
+    # she decides before money moves" is Jodie's standing rule. With the switch
+    # off the behaviour is EXACTLY what it is today — the same halt, unchanged —
+    # so nothing about the next episode changes until she says a number.
+    # Set ENGINE_COMMISSION=1 to enable, ENGINE_COMMISSION_BUDGET_USD to cap it.
+    def _commission_youtube_copy(self, ep, d: Path):
+        import commission as com
+
+        def find():
+            hits = sorted((d / "output").glob("*youtube*.txt"))
+            return hits[0] if hits else None
+
+        want = f"{ep_folder(ep)}-youtube.txt"
+        # A BRIEF THAT POINTS, NEVER A BRIEF THAT RESTATES. The standards are
+        # read from the files themselves via --add-dir, so one edit to the kit
+        # reaches this writer and a working session at the same time. Copying
+        # the rules in here would be fault #2 with extra steps.
+        prompt = (
+            "You are writing the YouTube title and description for a Practical "
+            "Punting episode. You are running inside this episode's folder.\n\n"
+            "READ FIRST, and follow them exactly:\n"
+            "  - docs/youtube-metadata-kit.md in the repo docs folder you have "
+            "been given — this is the format and the house rules\n"
+            "  - PP-STANDARDS.md in that same folder, the YouTube title rule\n"
+            "  - docs/episode.json here in this folder — the decided packaging\n"
+            "  - docs/spoken-words.txt here — what the episode actually says\n\n"
+            f"WRITE the copy to output/{want}\n\n"
+            "ONE decided title on line 1. Do NOT offer alternatives: a file that "
+            "asks a question is a halt wearing a text file's clothes, and the "
+            "title is derived, not chosen.\n"
+            "Leave the e-book link as the placeholder the kit specifies — a human "
+            "pastes the real one at upload.\n\n"
+            "Then return the verdict object. If anything you needed would not "
+            "open or could not be read, list it in unread_sources and set status "
+            "to halt — never write around a source you could not read. Keep "
+            "what_i_saw in plain English for someone who has never seen this "
+            "code: no file names, no paths, no code."
+        )
+        return com.commission(
+            prompt=prompt,
+            place=d,
+            what="the YouTube words",
+            find_artefact=find,
+            add_dirs=[REPO_DIR / "docs"],
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
+            model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
+        )
+
     def save_youtube_copy(self, ep) -> str:
+        import commission as com
+
         d = self.dir(ep)
         hits = list((d / "output").glob("*youtube*.txt"))
+        if not hits and os.environ.get("ENGINE_COMMISSION") == "1":
+            try:
+                v = self._commission_youtube_copy(ep, d)
+            except com.CommissionHalt as h:
+                # The writer's halt is ALREADY operator-shaped. The maintainer's
+                # half goes to the run log — different readers, same event.
+                if h.detail:
+                    print(f"    (commission detail, for the log: {h.detail})", flush=True)
+                raise EngineFlag(h.message)
+            print(f"    commissioned copy cost ${v.get('_cost_usd', 0):.2f} "
+                  "— record it against the design's $10-30 guess", flush=True)
+            hits = list((d / "output").glob("*youtube*.txt"))
         if not hits:
+            extra = ("" if os.environ.get("ENGINE_COMMISSION") == "1" else
+                     "\n\n(The studio can write this itself, but that is switched "
+                     "off until Jodie has approved what a commission may spend.)")
             raise EngineFlag(
                 "The YouTube title/description file is missing. Claude Code writes the "
                 "copy per docs/youtube-metadata-kit.md (Jodie's ruling, 26 Jul 2026 — "
                 "ownership moved from Cowork to the build side; Jodie uploads). Save it "
-                f"as {d.name}/output/{ep_folder(ep)}-youtube.txt, then clear this flag.")
+                f"as {d.name}/output/{ep_folder(ep)}-youtube.txt, then clear this flag."
+                + extra)
+        # THE ACCEPTANCE TEST RUNS WHOEVER WROTE THE FILE. A commissioned draft
+        # gets no easier a ride than a hand-written one — that is the whole
+        # reason this is the cheapest place to prove the mechanism.
         check_youtube_title(d, hits[0])
         return str(hits[0])
