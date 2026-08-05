@@ -50,11 +50,32 @@ class R:
         self.stdout, self.stderr, self.returncode = stdout, stderr, returncode
 
 
-def runner_returning(stdout, stderr="", returncode=0):
+AUTH_OK = json.dumps({"loggedIn": True, "authMethod": "claude.ai",
+                      "apiProvider": "firstParty", "subscriptionType": "max"})
+
+
+def runner_returning(stdout, stderr="", returncode=0, auth=AUTH_OK, auth_raises=None):
+    """A stand-in that serves BOTH calls: the wallet probe, then the run.
+
+    It dispatches on the argv the way the real CLI does, so a test cannot
+    accidentally feed the auth probe a commission envelope and call it a pass.
+    """
     def run(argv, **kw):
+        run.calls.append(argv)
+        if "auth" in argv:
+            run.auth_env = kw.get("env")
+            if auth_raises:
+                raise auth_raises
+            return R(auth, "", 0)
         run.argv, run.kw = argv, kw
         return R(stdout, stderr, returncode)
+    run.calls, run.argv, run.kw, run.auth_env = [], None, {}, None
     return run
+
+
+def commissioned(run) -> bool:
+    """Did the actual commission ever get spawned, or did we stop first?"""
+    return run.argv is not None
 
 
 def quiet(*a, **k):
@@ -72,6 +93,14 @@ def run_commission(tmp, stdout, *, find=None, returncode=0, runner=None, **kw):
         find_artefact=find or default_find,
         runner=runner or runner_returning(stdout, returncode=returncode),
         log=quiet, **kw)
+
+
+def _encodable(s, enc="cp1252") -> bool:
+    try:
+        str(s).encode(enc)
+        return True
+    except UnicodeEncodeError:
+        return False
 
 
 def halts(fn) -> C.CommissionHalt | None:
@@ -142,7 +171,14 @@ def main():
         check(f"{label} -> halt", e is not None)
 
     print("\n-- a timeout says so, and says nothing was saved --")
+    # The wallet probe must SUCCEED here, or this tests the wallet refusal
+    # instead of the timeout. (It did, on the first run — the fake timed out
+    # every spawn including the probe, and "nothing was saved" failed against a
+    # wallet message. A fake that is wrong in the same direction as the code is
+    # how a suite passes without testing anything.)
     def timing_out(argv, **kw):
+        if "auth" in argv:
+            return R(AUTH_OK, "", 0)
         raise subprocess.TimeoutExpired(argv, kw.get("timeout", 1))
     e = halts(lambda: run_commission(tmp, "", runner=timing_out))
     check("a timeout is a halt", e is not None)
@@ -212,6 +248,14 @@ def main():
     check("--dangerously-skip-permissions appears NOWHERE",
           "dangerously" not in " ".join(argv))
     tools = argv[argv.index("--tools") + 1]
+    # AVAILABILITY AND PERMISSION ARE DIFFERENT QUESTIONS, and the first live run
+    # answered only one of them: the writer could read its sources and was
+    # DECLINED when it tried to write the artefact.
+    allowed = argv[argv.index("--allowedTools") + 1]
+    check("the tools are also ALLOWED, not merely available",
+          "Write" in allowed and "Read" in allowed)
+    check("Bash is in NEITHER list",
+          "Bash" not in tools and "Bash" not in allowed)
     check("Bash is NOT in the tool list", "Bash" not in tools)
     check("WebFetch is NOT in the tool list (design 4a: no network)", "WebFetch" not in tools)
     check("Read and Write ARE in the tool list", "Read" in tools and "Write" in tools)
@@ -226,6 +270,88 @@ def main():
     check("the schema allows only ok or halt",
           schema["properties"]["status"]["enum"] == ["ok", "halt"])
     check("add_dirs are passed through", "--add-dir" in argv)
+
+    print("\n-- THE WALLET ASSERTION: proved by making it REFUSE --")
+    art.write_text("fresh\n", encoding="utf-8")
+
+    def try_wallet(**kw):
+        run = runner_returning(envelope(verdict()), **kw)
+        e = halts(lambda: C.commission(
+            prompt="p", place=tmp, what="the YouTube words",
+            find_artefact=lambda: art, runner=run, log=quiet))
+        return e, run
+
+    for label, kw in [
+        ("an API key account", dict(auth=json.dumps(
+            {"loggedIn": True, "authMethod": "apiKey", "apiProvider": "firstParty"}))),
+        ("a third-party provider (Bedrock/Vertex)", dict(auth=json.dumps(
+            {"loggedIn": True, "authMethod": "claude.ai", "apiProvider": "bedrock"}))),
+        ("nobody signed in", dict(auth=json.dumps({"loggedIn": False}))),
+        ("auth status unreadable", dict(auth="not json at all")),
+        ("the probe itself failing", dict(auth_raises=OSError("cli gone"))),
+    ]:
+        e, run = try_wallet(**kw)
+        check(f"refuses to commission on {label}", e is not None)
+        check("  and NOTHING was spawned — it stopped BEFORE the spend",
+              not commissioned(run))
+
+    # The env-var route, which is the HeyGen trap's exact mechanism.
+    os.environ["ANTHROPIC_API_KEY"] = "sk-not-a-real-key"
+    try:
+        e, run = try_wallet()
+        check("refuses when a paid-account key is visible to the child", e is not None)
+        check("  and it never even asks the CLI — the env alone is disqualifying",
+              not commissioned(run))
+        check("  the key's NAME reaches the log", e and "ANTHROPIC_API_KEY" in e.detail)
+        check("  the key's VALUE appears nowhere at all",
+              e and "sk-not-a-real-key" not in (e.message + e.detail))
+    finally:
+        del os.environ["ANTHROPIC_API_KEY"]
+
+    e, _ = try_wallet(auth=json.dumps({"loggedIn": True, "authMethod": "apiKey",
+                                       "apiProvider": "firstParty"}))
+    print("     the refusal, as Hugh would read it:")
+    for ln in (e.message.splitlines() if e else []):
+        print("       | " + ln)
+    check("the refusal says a paid account was about to be used",
+          e and "paid account" in e.message and "subscription" in e.message)
+    check("  and that it stopped BEFORE doing anything",
+          e and "stopped before doing anything" in e.message)
+    check("  and that nothing was spent", e and "nothing was spent" in e.message)
+    check("  and that a retry will not fix it", e and "Retrying will not change it" in e.message)
+    for banned in ["ANTHROPIC", "API_KEY", "--bare", "authMethod", "apiProvider",
+                   "env", "flag", "variable"]:
+        check(f"  the refusal never mentions {banned!r}", banned not in (e.message if e else "?"))
+
+    print("\n-- the writer's own words cannot kill the step on a cp1252 log --")
+    # THE FIRST LIVE DRY RUN DIED ON THIS, with 74 green tests behind it.
+    # UnicodeEncodeError on '→' — an ARROW, in text the writer returned.
+    # The engine's stdout is a redirected cp1252 file on this machine, so any
+    # log line or halt carrying the writer's prose could kill the step.
+    arrows = "the table maps S=5 → 6-4 on → minimum 4 – unreadable"
+    e = halts(lambda: run_commission(tmp, envelope(verdict(
+        status="halt", saw=arrows, could=[arrows], retry=False))))
+    check("a writer halt full of arrows still produces a halt", e is not None)
+    for label, s in [("message", e.message if e else ""), ("detail", e.detail if e else "")]:
+        try:
+            s.encode("cp1252")
+            ok = True
+        except UnicodeEncodeError:
+            ok = False
+        check(f"  the {label} survives a cp1252 log stream", ok)
+    e2 = halts(lambda: run_commission(tmp, envelope("→ not an object →")))
+    check("an unparseable answer full of arrows is cp1252-safe too",
+          e2 is not None and _encodable(e2.detail))
+
+    print("\n-- the probe measures the SAME environment the run will use --")
+    run = runner_returning(envelope(verdict()))
+    C.commission(prompt="p", place=tmp, what="the YouTube words",
+                 find_artefact=lambda: art, runner=run, log=quiet)
+    check("the wallet probe is the FIRST thing spawned", "auth" in run.calls[0])
+    check("the probe and the run share one environment object",
+          run.auth_env is not None and run.auth_env == run.kw.get("env"))
+    check("--bare is NEVER passed (it would switch the wallet silently)",
+          "--bare" not in run.argv)
 
     print("\n-- there is no way to ask for a weaker permission mode --")
     import inspect

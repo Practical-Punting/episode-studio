@@ -52,8 +52,34 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+
+def _safe(s) -> str:
+    """Flatten text that the engine's log stream cannot encode.
+
+    🔴 FOUND BY RUNNING IT, NOT BY READING IT (6 Aug 2026, first real dry run).
+    The relay had 74 green tests and died on its first live commission with
+    `UnicodeEncodeError: 'charmap' codec can't encode '\\u2192'` — an ARROW, in
+    text that came back from the writer.
+
+    The engine's stdout is redirected to a log file, and on this machine that
+    stream is cp1252. MODEL-DERIVED TEXT IS NOT ASCII: arrows, em dashes, curly
+    quotes are all normal in prose. So any log line or halt message carrying the
+    writer's own words could kill the step — at two in the morning, on EP17,
+    with the cause looking nothing like the fault.
+
+    Applied ONLY to text that came from the writer. Our own English is ASCII and
+    stays exactly as written.
+    """
+    s = str(s)
+    try:
+        s.encode(sys.stdout.encoding or "utf-8")
+        return s
+    except (UnicodeEncodeError, LookupError, AttributeError, TypeError):
+        return s.encode("ascii", "replace").decode("ascii")
 
 # The five fields are CLAUDE.md fault #6's template made mandatory: say what you
 # saw · list what it could be, ASSERTING NONE · say plainly whether a retry helps.
@@ -109,6 +135,47 @@ DEFAULT_TOOLS = ("Read", "Write", "Edit", "Glob", "Grep")
 FRESH_TOLERANCE_SECS = 5.0
 
 
+# 🔴 THE WALLET ASSERTION — the guard that actually matters.
+#
+# ESTABLISHED 6 Aug 2026 by reading `claude auth status` from a spawn with every
+# CLAUDE_CODE_* variable scrubbed: a commission runs on Jodie's Claude MAX
+# SUBSCRIPTION (authMethod claude.ai, apiProvider firstParty). It is NOT a
+# pay-as-you-go API balance. So what a commission costs is RATE LIMITS — Jodie's
+# ability to work with Claude at nine o'clock at night — and not a bill.
+#
+#     ⚠️ AND THAT IS ONE SETTING AWAY FROM BEING FALSE.
+#
+# If ANTHROPIC_API_KEY is ever visible to the engine, or if anybody adds --bare
+# (whose own help says "Anthropic auth is strictly ANTHROPIC_API_KEY or
+# apiKeyHelper; OAuth and keychain are never read"), the CLI switches to API
+# billing SILENTLY. --bare is documented as a SPEED flag: skip hooks, skip
+# CLAUDE.md discovery. The person who reaches for it will be trying to make this
+# faster and cheaper, in good faith, and will move it onto new money instead.
+#
+# THAT IS THE HEYGEN TRAP EXACTLY — exporting a key silently moved billing from
+# plan credits at ~$6.60 an episode to a USD wallet at ~$21.48, invisibly. We are
+# not repeating it in a mechanism designed to run unattended, three hundred times.
+#
+# A DOLLAR CAP WOULD NOT CATCH THIS. It caps the same notional number either way.
+# Only asking WHICH WALLET catches it, so that is what this does — and it asks the
+# CLI itself, every single time, because a check that ran this morning proves
+# nothing about this afternoon.
+WALLET_OK_METHODS = ("claude.ai",)
+WALLET_OK_PROVIDERS = ("firstParty",)
+
+# Names only. A value never appears in a log, a flag or an exception.
+_BILLING_ENV_MARKERS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+
+_WALLET_REFUSAL = (
+    "The studio was about to write part of this episode using a paid account "
+    "instead of the subscription it normally uses, so it stopped before doing "
+    "anything.\n"
+    "Nothing was written and nothing was spent.\n"
+    "This is a setting on the machine rather than anything to do with the "
+    "episode. Retrying will not change it until someone has looked at the machine."
+)
+
+
 class CommissionHalt(Exception):
     """A commission that did not produce a trustworthy artefact.
 
@@ -150,6 +217,14 @@ def build_argv(cli: Path, prompt: str, add_dirs, tools, budget_usd, model) -> li
             "--output-format", "json",
             "--json-schema", json.dumps(VERDICT_SCHEMA),
             "--tools", ",".join(tools),
+            # 🔴 --tools MAKES A TOOL AVAILABLE. IT DOES NOT GRANT PERMISSION.
+            # Found on the first live dry run, 6 Aug 2026: the writer came back
+            # saying "Write to output/ was declined, so here it is in full" and
+            # dumped the copy into its answer as prose. Under `dontAsk` every
+            # action is denied unless something allows it, so the commission
+            # could READ its sources and could not WRITE its artefact.
+            # The two flags are different questions and both must be answered.
+            "--allowedTools", " ".join(tools),
             "--permission-mode", "dontAsk",     # hard-coded, see the docstring
             "--strict-mcp-config",              # no MCP servers, so no side doors
             "--max-budget-usd", str(budget_usd)]
@@ -158,6 +233,54 @@ def build_argv(cli: Path, prompt: str, add_dirs, tools, budget_usd, model) -> li
     if model:
         argv += ["--model", model]
     return argv
+
+
+def assert_subscription_wallet(cli: Path, child_env: dict, *, runner, log=print) -> dict:
+    """Refuse to commission unless this spawn resolves to the SUBSCRIPTION.
+
+    Derived from `claude auth status`, which is machine-readable JSON and a
+    LOCAL read — no API call, so the assertion is free and can run every time.
+    Deriving it means a new authentication route cannot sneak past a list
+    somebody maintains (CLAUDE.md fault #7): whatever the CLI says it resolved
+    to is what gets checked.
+
+    `child_env` is the EXACT environment the commission itself will run with, so
+    the probe cannot measure one thing while the run uses another.
+
+    Refuses and HALTS. It never warns and proceeds — a billing switch that
+    reports itself and carries on is how the HeyGen one stayed invisible.
+    """
+    present = [k for k in _BILLING_ENV_MARKERS if child_env.get(k)]
+    if present:
+        raise CommissionHalt(
+            _WALLET_REFUSAL,
+            detail=("billing env var(s) visible to the child, so the CLI would "
+                    f"bypass the subscription: {', '.join(present)} "
+                    "(names only; values are never read or logged)"))
+    try:
+        r = runner([str(cli), "auth", "status"], capture_output=True, text=True,
+                   encoding="utf-8", errors="replace", timeout=60, env=child_env)
+        status = json.loads((r.stdout or "").strip())
+    except Exception as e:
+        raise CommissionHalt(
+            _WALLET_REFUSAL,
+            detail=("could not establish which account this spawn would use "
+                    f"({type(e).__name__}). Refusing rather than assuming — an "
+                    "unknown wallet is treated exactly like a paid one."))
+    if not isinstance(status, dict) or not status.get("loggedIn"):
+        raise CommissionHalt(
+            _WALLET_REFUSAL,
+            detail=_safe(f"auth status did not report a signed-in account: {str(status)[:300]}"))
+    method, provider = status.get("authMethod"), status.get("apiProvider")
+    if method not in WALLET_OK_METHODS or provider not in WALLET_OK_PROVIDERS:
+        raise CommissionHalt(
+            _WALLET_REFUSAL,
+            detail=(f"wallet is authMethod={method!r} apiProvider={provider!r}; "
+                    f"only {WALLET_OK_METHODS}/{WALLET_OK_PROVIDERS} is the "
+                    "subscription. Anything else is new money."))
+    log(f"    wallet checked: {status.get('subscriptionType') or '?'} "
+        "subscription — this costs rate limits, not money")
+    return status
 
 
 def _envelope_or_halt(r, what: str) -> dict:
@@ -181,7 +304,7 @@ def _envelope_or_halt(r, what: str) -> dict:
             "It could be that the assistant returned a message instead of an "
             "answer, or that its version has changed.\n"
             "Retrying is worth one attempt.",
-            detail=f"unparseable envelope: {(r.stdout or '')[:800]}")
+            detail=_safe(f"unparseable envelope: {(r.stdout or '')[:800]}"))
     if not isinstance(env, dict):
         raise CommissionHalt(
             f"The studio asked its writing assistant to draft {what} and got an "
@@ -196,7 +319,7 @@ def _envelope_or_halt(r, what: str) -> dict:
             "It could be that it ran out of its allowance for this job, or that "
             "it hit a problem partway through.\n"
             "Retrying is worth one attempt.",
-            detail=f"is_error=true result={str(env.get('result'))[:800]}")
+            detail=_safe(f"is_error=true result={str(env.get('result'))[:800]}"))
     return env
 
 
@@ -215,7 +338,7 @@ def _verdict_or_halt(env: dict, what: str) -> dict:
             "the studio cannot check is not an answer.\n"
             "It could be a change in the assistant, or a run that was cut short.\n"
             "Retrying is worth one attempt.",
-            detail=f"verdict not an object: {str(env.get('result'))[:800]}")
+            detail=_safe(f"verdict not an object: {str(env.get('result'))[:800]}"))
 
     missing = [k for k in VERDICT_SCHEMA["required"] if k not in raw]
     if missing:
@@ -240,13 +363,15 @@ def _verdict_or_halt(env: dict, what: str) -> dict:
             "It could be that part of the article is a picture rather than words, "
             "or that something it was given would not open.\n"
             "Retrying will not help. The source material needs a look.",
-            detail=f"schema constraint breached: status=ok with "
-                   f"unread_sources={unread!r}")
+            detail=_safe("schema constraint breached: status=ok with "
+                         f"unread_sources={unread!r}"))
 
     if status != "ok":
-        saw = str(raw.get("what_i_saw") or "").strip() or \
+        # _safe() on the writer's own words: they reach BOTH the run log and the
+        # operator's box, and an arrow in them must never be able to kill a step.
+        saw = _safe(str(raw.get("what_i_saw") or "").strip()) or \
             "It did not say what it saw."
-        could = [str(c).strip() for c in (raw.get("what_it_could_be") or []) if str(c).strip()]
+        could = [_safe(str(c).strip()) for c in (raw.get("what_it_could_be") or []) if str(c).strip()]
         retry = bool(raw.get("does_retry_help"))
         lines = [f"The studio's writing assistant stopped rather than finish "
                  f"{what}, and this is what it said:", "", saw]
@@ -258,7 +383,7 @@ def _verdict_or_halt(env: dict, what: str) -> dict:
         lines += ["", "Retrying is worth one attempt." if retry
                   else "Retrying will not fix this."]
         raise CommissionHalt("\n".join(lines),
-                             detail=f"writer halted: unread={unread!r}")
+                             detail=_safe(f"writer halted: unread={unread!r}"))
     return raw
 
 
@@ -324,6 +449,12 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
             "Retrying will not fix it until someone has looked at the machine.",
             detail="claude CLI not found (CLAUDE_CLI, PATH, npm fallback)")
 
+    # ONE environment, computed once and used for BOTH the wallet probe and the
+    # run itself — so the check cannot measure one thing while the commission
+    # uses another. (One source of truth, or it drifts.)
+    child_env = dict(os.environ)
+    assert_subscription_wallet(cli, child_env, runner=runner, log=log)
+
     argv = build_argv(cli, prompt, add_dirs, tools, budget_usd, model)
     started = time.time()
     # ANYTHING THAT WAITS MUST SAY IT IS WAITING (CLAUDE.md fault #3): the START
@@ -333,7 +464,8 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
 
     try:
         r = runner(argv, capture_output=True, text=True, encoding="utf-8",
-                   errors="replace", timeout=timeout, cwd=str(place))
+                   errors="replace", timeout=timeout, cwd=str(place),
+                   env=child_env)
     except subprocess.TimeoutExpired:
         raise CommissionHalt(
             f"The studio's writing assistant was asked to draft {what} and did "
@@ -350,9 +482,9 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
     # The run log gets the machine-readable facts. The operator's box never does.
     denials = env.get("permission_denials") or []
     if denials:
-        names = sorted({d.get("tool_name", "?") for d in denials if isinstance(d, dict)})
+        names = sorted({_safe(d.get("tool_name", "?")) for d in denials if isinstance(d, dict)})
         log(f"    (the writer was refused {len(denials)} action(s): "
-            f"{', '.join(names)} — place scoping held)")
+            f"{', '.join(names)} - place scoping held)")
     log(f"    {what} written in {time.time() - started:.0f}s, "
         f"${float(env.get('total_cost_usd') or 0):.2f}, "
         f"{env.get('num_turns', '?')} turn(s)")

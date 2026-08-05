@@ -218,11 +218,38 @@ reason is written down; it is not removed.
 it can be re-authored is a build step, not a deletion of record. *(EP16 needed exactly that,
 and the near-miss it caused is in `CLAUDE.md`.)*
 
-## A14 · STANDING — THE THREE THINGS THAT ARE NEVER DONE
+## A14 · STANDING — THE THINGS THAT ARE NEVER DONE
 1. **Never export `HEYGEN_API_KEY`.** ⚠️ Exporting it **silently switches billing from plan
    credits to the USD wallet** — the failure is financial, immediate and invisible.
+   *Measured: ~$6.60 an episode on plan credits became ~$21.48 on the wallet.*
 2. **Never commit `.env`.**
 3. **Never link-share a Drive folder.**
+4. 🆕 **Never set `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`) anywhere the engine can
+   see it** — not in the environment, not in `.env`, not in a settings file.
+5. 🆕 **Never pass `--bare` to a commissioned run.**
+
+### 🔴 WHY 4 AND 5 ARE THE HEYGEN TRAP WEARING DIFFERENT CLOTHES (6 Aug 2026)
+**Established, not reasoned:** a commission runs on **Jodie's Claude Max subscription**
+(`authMethod: claude.ai`, `apiProvider: firstParty`), read from `claude auth status` in a
+spawn with every inherited Claude variable scrubbed. **It is not a pay-as-you-go balance.**
+
+> ### BOTH OF THESE SWITCH IT TO NEW MONEY, SILENTLY.
+> **`--bare`'s own help says it:** *"Anthropic auth is strictly `ANTHROPIC_API_KEY` or
+> `apiKeyHelper`; OAuth and keychain are never read."*
+
+⚠️ **AND THIS IS WHY IT NEEDED A RULING AND NOT JUST A GUARD.** `--bare` is documented as a
+**performance flag** — skip hooks, skip plugin sync, skip `CLAUDE.md` discovery. **Every
+commission pays about 7,700 cache-creation tokens before it does any work**, and at 300
+episodes somebody WILL find that overhead and go looking for a way to cut it. **They will be
+acting in good faith, trying to make the studio faster and cheaper, and they will move it
+onto a bill instead.** *That is exactly how the HeyGen key went.*
+> ## WE ARE NOT TAKING THAT TRADE. THE OVERHEAD STAYS.
+
+✅ **ENFORCED, not merely written:** `commission.assert_subscription_wallet()` runs **before
+every single commission**, derives the answer from `claude auth status`, and **refuses and
+halts** — it never warns and proceeds. **A dollar cap would not have caught this**, because
+it caps the same notional number whichever wallet is paying. *Only asking WHICH WALLET
+catches it.* Proved by mutation: breaking the guard three different ways turns the suite red.
 
 *Named as keys and settings only. No value of any of these appears in this repo, and none
 ever should.*

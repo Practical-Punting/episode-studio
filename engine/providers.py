@@ -1960,12 +1960,32 @@ class RealProvider:
     # and it sits at the END of the build, so a bad output costs a retry rather
     # than a render. See docs/DESIGN-engine-commissions-the-script.md.
     #
-    # ⚖️ OFF BY DEFAULT, AND THAT IS A DECISION, NOT AN OVERSIGHT.
-    # A commission spends real money, and "stop at the cost boundary and report;
-    # she decides before money moves" is Jodie's standing rule. With the switch
-    # off the behaviour is EXACTLY what it is today — the same halt, unchanged —
-    # so nothing about the next episode changes until she says a number.
-    # Set ENGINE_COMMISSION=1 to enable, ENGINE_COMMISSION_BUDGET_USD to cap it.
+    # ⏸ STILL OFF — and this is the honest state, not a forgotten switch.
+    #
+    # Jodie approved switching it on 6 Aug 2026 "once the assertion is in and
+    # proved". The WALLET ASSERTION is in and proved. THE COMMISSION ITSELF IS
+    # NOT: five real dry runs against EP16's own inputs, and not one of them
+    # produced the artefact through this code path. The writer keeps returning
+    # PROSE instead of the typed verdict and reporting that its write was
+    # declined — while the identical argv, built by build_argv() itself and run
+    # with a SHORT prompt, writes the file and returns a conforming verdict every
+    # time. THE CAUSE IS NOT ESTABLISHED, so it is not named here.
+    #
+    #     WRITTEN AND REVIEWED IS NOT LANDED, AND NEITHER IS "IT ALMOST WORKED".
+    #
+    # Turning it on now would put a step that cannot finish in front of an
+    # episode, and the person who met it could not clear it — which is the exact
+    # thing this whole job exists to remove.
+    #
+    # ENGINE_COMMISSION=1 enables it for a controlled test. The default flips to
+    # ON in code — never in an environment variable — the day a dry run produces
+    # the file end to end. A capability that depends on somebody remembering to
+    # export something disappears the first time the supervisor restarts from a
+    # different terminal (CLAUDE.md fault #7 in a feature flag).
+    #
+    # WHAT IT COSTS: rate limits, not money — commissions run on Jodie's Max
+    # SUBSCRIPTION (established 6 Aug). ENGINE_COMMISSION_BUDGET_USD is a
+    # RUNAWAY-TURN bound, not a spend limit; the number it caps is notional.
     def _commission_youtube_copy(self, ep, d: Path):
         import commission as com
 
@@ -1978,15 +1998,27 @@ class RealProvider:
         # read from the files themselves via --add-dir, so one edit to the kit
         # reaches this writer and a working session at the same time. Copying
         # the rules in here would be fault #2 with extra steps.
+        # 🔴 ABSOLUTE PATHS FOR THE STANDARDS, AND IT IS NOT A STYLE CHOICE.
+        # The first live dry run came back saying the repo reads were "refused by
+        # the sandbox". They were not: this prompt said `docs/youtube-metadata-kit.md`,
+        # the writer resolved it against its cwd — THE EPISODE FOLDER, WHICH HAS
+        # ITS OWN docs/ — found nothing, and went looking outside the sandbox,
+        # where place scoping correctly refused it. The scoping worked perfectly;
+        # the PATH WAS A GUESS. (An id is a promise, a name is a guess — fault #0a,
+        # wearing a relative path.) Named absolutely, a probe read it first time.
+        docs = REPO_DIR / "docs"
         prompt = (
             "You are writing the YouTube title and description for a Practical "
             "Punting episode. You are running inside this episode's folder.\n\n"
-            "READ FIRST, and follow them exactly:\n"
-            "  - docs/youtube-metadata-kit.md in the repo docs folder you have "
-            "been given — this is the format and the house rules\n"
-            "  - PP-STANDARDS.md in that same folder, the YouTube title rule\n"
-            "  - docs/episode.json here in this folder — the decided packaging\n"
-            "  - docs/spoken-words.txt here — what the episode actually says\n\n"
+            "READ FIRST, and follow them exactly. These two are ABSOLUTE paths "
+            "outside this folder — do not look for them relative to where you "
+            "are, and note that this episode has a docs/ folder of its own that "
+            "is a DIFFERENT place:\n"
+            f"  - {docs / 'youtube-metadata-kit.md'} — the format and house rules\n"
+            f"  - {docs / 'PP-STANDARDS.md'} — the YouTube title rule\n"
+            "Then, relative to this episode folder:\n"
+            "  - docs/episode.json — the decided packaging\n"
+            "  - docs/spoken-words.txt — what the episode actually says\n\n"
             f"WRITE the copy to output/{want}\n\n"
             "ONE decided title on line 1. Do NOT offer alternatives: a file that "
             "asks a question is a halt wearing a text file's clothes, and the "
@@ -2015,22 +2047,24 @@ class RealProvider:
 
         d = self.dir(ep)
         hits = list((d / "output").glob("*youtube*.txt"))
-        if not hits and os.environ.get("ENGINE_COMMISSION") == "1":
+        enabled = os.environ.get("ENGINE_COMMISSION") == "1"
+        if not hits and enabled:
             try:
                 v = self._commission_youtube_copy(ep, d)
             except com.CommissionHalt as h:
                 # The writer's halt is ALREADY operator-shaped. The maintainer's
                 # half goes to the run log — different readers, same event.
                 if h.detail:
-                    print(f"    (commission detail, for the log: {h.detail})", flush=True)
+                    print(f"    (commission detail, for the log: "
+                          f"{com._safe(h.detail)})", flush=True)
                 raise EngineFlag(h.message)
             print(f"    commissioned copy cost ${v.get('_cost_usd', 0):.2f} "
                   "— record it against the design's $10-30 guess", flush=True)
             hits = list((d / "output").glob("*youtube*.txt"))
         if not hits:
-            extra = ("" if os.environ.get("ENGINE_COMMISSION") == "1" else
-                     "\n\n(The studio can write this itself, but that is switched "
-                     "off until Jodie has approved what a commission may spend.)")
+            extra = ("" if enabled else
+                     "\n\n(The studio can write this itself, but that has been "
+                     "switched off for this run.)")
             raise EngineFlag(
                 "The YouTube title/description file is missing. Claude Code writes the "
                 "copy per docs/youtube-metadata-kit.md (Jodie's ruling, 26 Jul 2026 — "
