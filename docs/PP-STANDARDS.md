@@ -177,6 +177,33 @@ it takes effect. Clearing the red flag alone will NOT rebuild anything.**
    any time a script is about to be pasted into HeyGen. A render is never wasted on a script
    that will glitch.
 
+## 🔒 CARD ENTRY — THE PHRASE ANCHOR (Jodie, 5 August 2026). NOT TO BE RE-ASKED.
+> ### A CARD ENTERS ABOUT 3 SECONDS AFTER GORDON ACTUALLY SPEAKS THE CUE.
+> ### IT MUST NEVER APPEAR BEFORE HE HAS SAID THE WORDS.
+
+**This is the house standard for every episode from EP16. EP11's cue-block behaviour is
+SUPERSEDED and is not to be restored.**
+
+**Her reasoning, kept because the reasoning is the rule:** *a card that appears before the
+phrase pre-empts the presenter, and the few seconds of extra delay cost nothing.*
+
+**The two anchors, and why the choice was real:**
+| | |
+|---|---|
+| **PHRASE anchor** *(the rule)* | 3.0s after the cue phrase is **actually spoken** |
+| **CUE-BLOCK anchor** *(retired)* | 3.0s after the SRT block **containing** it begins |
+They are not the same. A phrase can sit deep inside a block that starts up to 3.5s
+earlier, so the cue-block anchor puts cards up **before** their words. *EP11 shipped the
+cue-block anchor and Jodie twice found its cards "still early" (0.4 → 2.6 → 3.0) — that
+correction was this ruling arriving three episodes ahead of its name.*
+**Measured on EP16:** the two anchors differ on all 13 cards, by up to **6.41s** (C4).
+`derive_card_timings.py` already defaults to the phrase anchor and reports the gap per
+card; this ruling makes that default the standard rather than a tool's opinion.
+
+⚠️ **AND THE CONSEQUENCE THAT FOLLOWS FROM IT** — a later card needs more room, so a beat
+must be long enough to hold `3.0s + the card's hold` **after** its cue is spoken.
+EP16 found three beats that are not. See the authoring-time check on the EP17 list.
+
 ## Definition of Done — EVERY episode ships ALL of these (nothing optional)
 An episode is NOT finished until every one of these exists and is approved:
 1. **Final video** — `PP-EPxx-FINAL.mp4` (QC-passed).

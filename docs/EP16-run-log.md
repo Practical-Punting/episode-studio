@@ -127,6 +127,30 @@ expected path, and the honest next move was to go and look for it rather than to
 
 ---
 
+# 3a-i. 🔊 THE 124 kbps DECISION — a documented one-off, and the floor did NOT move
+
+**The master that shipped is 124.4 kbps audio. The standard is 180 and it stays 180.**
+
+| | audio | video |
+|---|---|---|
+| **EP16** (web export) | **124.4 kbps** | **2522.8 kbps** |
+| EP15 (shipped) | 189.4 kbps | 2134.9 kbps |
+| EP14 (shipped) | 189.4 kbps | 2268.0 kbps |
+
+> **The web export is a DIFFERENT ENCODE, not a degraded copy: its VIDEO is BETTER
+> (2522 against ~2200) and its audio is worse.** There was no third option — the API
+> rendition was truncated and the button's rendition is quiet.
+
+**JODIE DECIDED BY LISTENING, NOT BY NUMBER.** She played the middle of the file and
+ruled: *"It sounds fine in the middle."* **5 August 2026.**
+
+**The mechanism: `build.audio_kbps_floor` + a MANDATORY `build._audio_kbps_floor_why` in
+`episode.json`.** The `_why` is genuinely required — the guard **refuses to apply the
+override** without one, because *an exception that can exist without a written reason
+becomes a silent normal: the next author copies the key, nobody remembers, and the
+standard has quietly moved.* **A used exception also prints itself into the run log**, so
+this can never look like a clean pass.
+
 # 3a. WHAT THE DOWNLOAD STEP STILL DOES NOT RECORD
 
 **None of EP12–EP15 recorded a single byte count for the master, and EP16's `build_state`

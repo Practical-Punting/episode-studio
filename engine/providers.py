@@ -1582,12 +1582,41 @@ class RealProvider:
         # the standing midroll chip: take what works and make it standing.
         print(f"    {align_to_script(d)}")
         kbps = self._audio_kbps(master)
-        if kbps and kbps < 180:
+        # THE FLOOR IS 180 AND IT STAYS 180. An episode may raise a documented
+        # exception in its OWN file — never by moving this number (Jodie, 5 Aug 2026,
+        # EP16). Measured for reference: EP14 and EP15 masters are both 189.4 kbps.
+        floor, why = 180.0, ""
+        build = (self.epjson(ep).get("build") or {})
+        if "audio_kbps_floor" in build:
+            why = str(build.get("_audio_kbps_floor_why") or "").strip()
+            if not why:
+                # ⚠️ THE REASON IS NOT OPTIONAL. An exception that can exist without a
+                # written reason becomes a silent normal — the next author copies the
+                # key, nobody remembers why, and the standard has quietly moved.
+                raise EngineFlag(
+                    "episode.json sets build.audio_kbps_floor but gives no reason, so "
+                    "I have not applied it. Lowering the audio standard for one episode "
+                    "is allowed; doing it without writing down WHY is not, because the "
+                    "next episode copies the key and nobody remembers. Add "
+                    "build._audio_kbps_floor_why explaining why THIS episode's master "
+                    "is allowed below the standard, then clear this flag.")
+            floor = float(build["audio_kbps_floor"])
+        if kbps and kbps < floor:
             raise EngineFlag(
-                f"The presenter master's audio is {kbps:.0f} kbps — below the locked "
-                "~189 kbps API standard (sounds compressed). It was probably saved via "
-                "the web-app Download button. Re-pull it via the API video_url, then "
-                "clear this flag.")
+                f"The presenter master's audio is {kbps:.0f} kbps — below the "
+                f"{floor:.0f} kbps floor (the locked API standard is ~189). It was "
+                "probably saved via the web-app Download button. Re-pull it via the "
+                "API video_url, then clear this flag. If the API copy is unusable and "
+                "this episode has to ship on a lower-bitrate master, that is a decision "
+                "for Jodie: it needs build.audio_kbps_floor AND "
+                "build._audio_kbps_floor_why in docs/episode.json, written down.")
+        if kbps and floor < 180:
+            # A USED EXCEPTION MUST BE VISIBLE IN THE RECORD, not only in the input
+            # file — otherwise the run log shows a clean pass and the standard looks
+            # intact when it was deliberately set aside.
+            print(f"    ⚠️ AUDIO BELOW THE STANDARD, ALLOWED BY A WRITTEN EXCEPTION: "
+                  f"{kbps:.0f} kbps against the locked 180 floor; this episode sets "
+                  f"{floor:.0f}. Reason: {why[:400]}")
         return str(master)
 
     def _heygen_fetch(self, ep, master: Path):
