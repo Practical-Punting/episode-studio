@@ -125,6 +125,15 @@ def main():
         ("envelope is not an object", json.dumps([1, 2, 3]), 0),
         ("CLI errored with no output", "", 1),
         ("is_error envelope", envelope("boom", is_error=True), 0),
+        # THE REAL SHAPE, captured from a live run on 6 Aug 2026 with the cap set
+        # below one turn's cost: exit code 1 AND a full JSON envelope on stdout.
+        # The first version of _envelope_or_halt was written for "exit 1 means no
+        # output" and would have taken the other branch. Observed, then fixtured —
+        # a guess about a subprocess's shape is not evidence about it.
+        ("budget exceeded (exit 1 WITH json)",
+         json.dumps({"is_error": True, "subtype": "error_max_budget_usd",
+                     "stop_reason": "end_turn", "total_cost_usd": 0.6766,
+                     "num_turns": 1, "permission_denials": []}), 1),
         ("verdict is not an object", envelope("just some prose"), 0),
         ("verdict missing a required key",
          envelope(json.dumps({"status": "ok", "what_i_saw": "x"})), 0),
