@@ -61,7 +61,86 @@ approvals.
 
 ---
 
-# 3. 🔴 THE NEXT STEP IS E22's FIRST LIVE TEST — WATCH IT AND WRITE DOWN WHAT IT SAYS
+# 3. 🔴 E22 FIRED IN ANGER — AND IT WAS RIGHT. THE MASTER WAS FETCHED BY HAND.
+
+**Halt #5, `heygen_download`, 5 Aug 2026.** `_download_exact()` refused the file **twice**
+and it was correct to.
+
+| | |
+|---|---|
+| server `Content-Length` | **127,387,672** |
+| arrived, both attempts | **126,877,696** — short by **509,976** |
+| **and that is** | **exactly 121.0 MiB, to the byte, TWICE** |
+
+> ### A DROPPED CONNECTION STOPS AT A RANDOM POINT. TWO ATTEMPTS STOPPING AT THE
+> ### IDENTICAL BYTE IS NOT A TRANSFER FAILURE.
+> **The object on HeyGen's side is short against its own stated length.**
+
+**Jodie then used HeyGen's own download button, same wi-fi, and got a complete 1080p
+export first go — 228,202,876 bytes.** So the network was never the problem, and **the API
+`video_url` the engine follows points at a DIFFERENT AND SHORTER RENDITION than the
+download button serves** — 121 MB against 218 MiB, a factor of 1.79.
+
+*E22 was built after EP15 shipped a 35 MB-short master that reported the right duration
+and passed every check. **It has now paid for itself: it refused a bad file, twice,
+without being told what "bad" looked like.*** ⚠️ **And the 109 MiB boundary from EP15 did
+NOT recur — this one stopped at 121 MiB. Two different round numbers, still unexplained,
+still recorded rather than theorised about.**
+
+### THE MASTER THAT IS ACTUALLY BEING BUILT FROM — verified before it was accepted
+| | EP16 | EP15 (shipped, for reference) |
+|---|---|---|
+| bytes | **228,202,876** (217.63 MiB) | 234,587,338 |
+| duration | **621.01s — 10m 21s** | 804.86s |
+| video | h264 **1920×1080** 25 fps yuv420p | identical profile |
+| audio | **aac 48 000 Hz stereo** | identical profile |
+| A/V drift | −0.015s | −0.021s |
+
+**Against the script:** 1,876 words below the paste marker; EP15's measured 193.7 wpm
+predicts **581s**; actual **621s, +6.9%**.
+
+> ### ⚠️ AND +40s IS WHY IT GOT ONE MORE CHECK, NOT A TICK.
+> **Longer-than-predicted is exactly what EP15's truncation looked like** — 811s against a
+> predicted 813s, right duration, **4m18s of silence on the end**. Duration cannot tell
+> them apart. **Audio level can, and it is free:**
+> ```
+> middle (280s)  mean -27.3 dBFS      last 20s  mean -27.7 dBFS
+> last 60s       mean -27.9 dBFS      final 8s  mean -29.3 dBFS
+> ```
+> **Gordon is still talking at 10m 20s at the same level as the middle of the episode.**
+> *(A LEVEL check, not a WORDS check — `align_to_script` at `shot_map` still has to
+> confirm the script matches, and it refuses below 85%.)*
+
+### 🪤 AND A REAL TRAP FOR HUGH — THE FILE ARRIVED AS `presenter-master.mp4.mp4`
+**Windows hides known extensions.** A human told *"rename it to `presenter-master.mp4`"*
+sees `PP-EP16 … _1080p` in Explorer, types the full name including `.mp4`, and Windows
+appends the real extension — producing **`presenter-master.mp4.mp4`**, which
+`poll_heygen` cannot find.
+
+> **The instruction is correct, the human follows it correctly, and the result is wrong.**
+> **THIS BELONGS IN THE OPERATOR GUIDE**, and the instruction should be *"rename it to
+> `presenter-master`, without typing `.mp4`"* — or better, the step should accept any
+> single mp4 dropped into `renders/`.
+
+**It also cost the first verification pass:** the file was reported as missing at the
+expected path, and the honest next move was to go and look for it rather than to ask.
+
+---
+
+# 3a. WHAT THE DOWNLOAD STEP STILL DOES NOT RECORD
+
+**None of EP12–EP15 recorded a single byte count for the master, and EP16's `build_state`
+will not either** — `step_heygen_download` returns `{"file": path}` and nothing more.
+
+⚠️ **The numbers above are in THIS FILE and not on the rail, deliberately.** The engine
+holds a live lease and its `ctx.state` is in memory, so a manual `build_state` edit is
+**overwritten by the next `ctx.save()`** — that is E28, observed on EP15. **Recording the
+master's bytes/duration/resolution has to be an ENGINE change, not a hand-edit.**
+*(EP17 list.)*
+
+---
+
+# 3b. E21 IS STILL OWED — the master must contain the LAST WORDS of the script
 
 `heygen_download` is next. **E22 has never fired in anger.**
 
