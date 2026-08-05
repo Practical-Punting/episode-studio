@@ -372,6 +372,78 @@ batch starts or the cover pick lands after the master. See `episode-studio/engin
   **Where the line falls — the EP11 worked example:** card C7 displayed "2nd Juggler" and "3rd
   Brave Warrior". Alan listed four beaten horses and gave no placings. **Deleting those
   placings RESTORES the article; it does not edit it.** Adding them was the edit.
+
+  ### 🔬 §0a-i — SCAN DAMAGE IS NOT THE AUTHOR'S TEXT. THREE CATEGORIES, ONE TEST.
+  **(Jodie, 5 Aug 2026 — an AMENDMENT to EP15's ruling, which covered only the first
+  category. Written down because it is otherwise the ninth unwritten convention.)**
+  > ### THE SCAN'S ODDITIES SURVIVE WHERE THEY ARE LEGIBLE.
+  > ### DAMAGE THAT HAS DESTROYED MEANING IS REPAIRED — and ONLY where the repair is
+  > ### FORCED by the article's own arithmetic or by its own sentences.
+  > ### ANYTHING UNPROVABLE STANDS EXACTLY AS PRINTED.
+
+  **These 1988–1995 articles reach us as a web transcription of a printed page. Some of
+  what looks like an error is the AUTHOR'S, and stands. Some is the SCANNER'S.** The rule
+  above separates them, and the three categories have worked examples on either side of
+  the line:
+
+  | category | test | worked example | what happens |
+  |---|---|---|---|
+  | **1. Legible oddity** | a reader recovers the meaning unaided | EP15: `12-1but the principle`, `disparagingly-I don't blame them` | **STANDS.** Reproduced everywhere, video and e-book. |
+  | **2. Meaning destroyed, repair FORCED** | nobody recovers it, AND the article's own words force one answer | EP16: `a probability of winning of l/s` → **1/5**, because the same sentence says *"quoted at 4-1"*. `his chance of running a place is Vs` → **3/5**, because the same sentence says *"odds of 6-4 ON"* | **REPAIRED**, in the spoken track AND the e-book, and disclosed three times (below). |
+  | **3. Unprovable** | it looks wrong and nothing forces an answer | EP16: *"the place tote will be offering an average return of only 83 cents (rounded down to 80 cents)"* — a three-way pool over five 4-1 chances gives ~$1.67, the SAME as the bookie's 6-4 ON, not less; and $1.83 would be MORE, contradicting the *"Despite this"* that follows. **Neither reading works.** | **STANDS EXACTLY AS PRINTED.** Not repaired, and **not spoken** — see the selection rule below. |
+
+  ⚠️ **CATEGORY 2 IS THE NARROW ONE AND MUST STAY NARROW.** *"It is odd, not wrong, and
+  odd is not enough."* A repair is only category 2 if you can write down the sentence in
+  the article that forces it. **If you are reasoning from what would be sensible, it is
+  category 3.**
+
+  ### 📣 A CATEGORY-2 REPAIR IS DISCLOSED IN THREE PLACES, AND THE THIRD IS NEW
+  1. **The build report** — every repair listed, with the proof. *(This is where WE see it.)*
+  2. **The source-article capture** (`docs/<EP>-source-article-*.md`) — a header block
+     naming each repair and the sentence that forces it. **This is the file both
+     `author_ebook.py` and `author_cards.py` check against, so the repair lives at the
+     point of capture and needs NO new departure in the code.**
+  3. 🆕 **THE E-BOOK ITSELF, for the person holding it** — ONE sentence, `<p class="note">`
+     (already "editorial" in the class vocabulary, so no new mechanism):
+     > *"This 1988 article is reproduced as printed. Six typographic errors introduced
+     > when the page was scanned have been repaired; nothing else has been changed."*
+     **Jodie's reason: if anyone compares the e-book with the website they find an
+     EXPLANATION rather than a DISCREPANCY.** The build report makes us honest with
+     ourselves; this makes us honest with the reader.
+
+  ⚠️ **AND THE LIMITATION, NAMED RATHER THAN GLOSSED:** `author_ebook.py`'s fidelity gate
+  compares the body against the CAPTURE FILE, and the capture is written by hand. **So the
+  gate is exactly as strong as the capture, and a repair made silently there would pass.**
+  That is why disclosure 2 is mandatory and not a courtesy. *(Not a new weakness — it is
+  how EP11–EP15 all worked — but it is the reason the header block is a rule.)*
+
+  ### 🎬 AND THE SELECTION RULE THE SAME RULING SETTLED
+  > ## THE VIDEO SELECTS. THE E-BOOK REPRODUCES.
+  **§0a governs what may be SAID — every figure traced, nothing corrected. It does not
+  oblige Gordon to recite every clause.** An episode always leaves things out; **omission
+  is not alteration.** The e-book reproduces the article paragraph by paragraph, so nothing
+  is hidden from anyone.
+  **Two conditions on dropping a clause from the spoken track (Jodie, 5 Aug 2026):**
+  - **it must appear verbatim in `ebook/body.html`** — confirm it, do not assume it; and
+  - **the remaining sentence must still read honestly.** Dropping a clause must never leave
+    what remains implying something the article did not say. **If it would, keep the whole
+    thing as printed and let it be odd.**
+  *EP15's "lady punters" aside and EP16's "83 cents" clause are the two worked examples.*
+
+  ### 📊 A SCANNED TABLE IS REPRODUCED AS THE SCAN. RULED 5 Aug 2026.
+  > **THE SCAN IS THE ARTICLE. Embedding it is the most faithful reproduction available,
+  > not the least.**
+  **Do NOT hand-transcribe a source table into HTML to "reproduce" it.** EP16's two tables
+  carry roughly **five hundred cells** between them — thirty-nine rows of four-figure
+  probabilities and about ninety rows of odds. **Transcribing them by eye invents a new way
+  to publish a wrong number and buys nothing**, against a standing rule that says never
+  animate a wrong number.
+  - **The e-book embeds the scan**, with alt text naming what it is and where it came from.
+  - **Only the row that actually reaches a CARD is transcribed** — and it is arithmetically
+    checked against the article's own prose. *EP16: the worked example IS the row
+    `S = 5, F = Evens → fair place odds 6-4 on, minimum acceptable each-way 4`.*
+  - **That is where the care belongs**: on the handful of figures a viewer will see six feet
+    tall, not on five hundred cells nobody will read off a page.
 - **🚫 NEVER FABRICATE RACING DATA (Jodie, 26 Jul 2026 — standing rule).** Every figure, form
   line, price, margin, date, horse name and race name on a motion card, in an e-book figure or
   on a thumbnail must come from **the source article**. Do not invent a plausible-looking form
