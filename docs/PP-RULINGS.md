@@ -98,21 +98,60 @@ catch it.** 🚫 No approval gate, no review step, no preview card, no contact-s
 **DOES NOT COVER:** the HARD-FAIL list — riderless horses, fused limbs, a runner on the
 wrong side of the running rail. Those are still rejected on sight. **It forbids a STEP, not
 a glance.**
+*The crowd's make-up is one of the prompt rules this ruling routes everything through — see
+**A15**.*
 
-## A5 · 4 Aug 2026 — THE SCRIPT LIVES ON THE RAIL
-The script is **a field, not a document**. **The Google service account is cancelled.**
+## A5 · 4 Aug 2026, REINSTATED 5 Aug 2026 — THE SCRIPT LIVES ON THE RAIL
+> ### "Do not build the service account. Do not automate the Google Doc.
+> ### Put the script on the rail and edit it on the board."
+**— Jodie.** Her challenge, which is what produced it:
+> *"Are you 100% sure that this is the best way for this document to be managed? Surely
+> there are a million applications where documents are managed better than this."*
+
+**IT IS NOT A NEW DECISION.** It was already written on **4 August** in
+`PP-script-editor-BUILD-PLAN.md`, in capitals — **"NO GOOGLE DOC. AT ALL."** — **quietly
+reversed on the morning of 5 August**, and hereby reinstated.
+
+### 🔴 THE REASONING, WHICH IS THE PART THAT STOPS IT BEING RE-LITIGATED
+> ## THE SCRIPT IS NOT A DOCUMENT. IT IS A FIELD IN A RECORD.
+> **One author, one editor, one reader, one moment where it freezes.**
+
+**We treat it as a document only because it started life as one** — and a document drags in
+**sharing, permissions, formats and corruption** that a text field simply does not have.
+**The connector cannot set permissions at all: the machine can create a Doc and physically
+cannot share it.**
+
+### CONSEQUENCES
+- **The service account is CANCELLED.** Its only job was to read a Doc that will not exist.
+- **The "Doc leg" in `DESIGN-engine-commissions-the-script.md` — slice C, 1.0 day — is
+  DELETED, NOT ABSORBED.** That makes the commissioning work **SIMPLER rather than harder.**
+- **The first job after EP16 is THE BOX:** a text area on the board reading and writing the
+  rail. **Not a credential.**
+- **The fifteen existing public script Docs remain Jodie's call**, and **stop growing at
+  EP17.**
 
 **SUPERSEDES:** the Script Gate's *"the Doc is the script's ONE HOME"* (26 Jul 2026) and
 everything built on it — the Doc-URL field, the anonymous-read gate, the drift check, the
 link-this-Doc button, and a human relaying a URL between two machines.
 
-**DOES NOT COVER:** `docs/spoken-words.txt`, which must still be written as a derived cache
-— `render_ready` runs against that file at `audit_inputs`, and it currently exists only as a
-side effect of `fetch_script`.
+**DOES NOT COVER — and this is a real exclusion, not a formality: EP16 ran on a Doc
+DELIBERATELY.** Changing the script's home mid-episode is changing two things when one of
+them is a test. **This applies from EP17.**
+**Nor does it cover** `docs/spoken-words.txt`, which must still be written as a derived
+cache — `render_ready` runs against that file at `audit_inputs`, and it currently exists
+only as a side effect of `fetch_script`.
 
-⚠️ *The ruling document itself, `PP-RULING-the-script-lives-on-the-rail.md`, is a Cowork
-document and is not readable from here. This entry is written from Cowork's statement of it,
-not from the source.*
+> ### WHY THE DOCUMENT EXISTS AT ALL, in her words:
+> ### "Please record this so we do not go through all this again."
+**A decision made, reversed and remade within thirty-six hours is exactly the kind that gets
+re-litigated by whoever next sees the cheaper option. THE CHEAPER OPTION IS THE DOC. IT IS
+STILL THE WRONG ONE.**
+
+✅ *Recorded 6 Aug 2026 from Jodie's verbatim statement. **This entry previously carried a
+paraphrase**, flagged on its face as second-hand because
+`PP-RULING-the-script-lives-on-the-rail.md` is a Cowork document and unreadable from here.
+The paraphrase carried the decision and lost every word of the reasoning above — which is
+the half that stops it being reversed a second time.*
 
 ## A6 · 4 Aug 2026 — THE SCALE: 300 EPISODES, ABOUT TEN MINUTES EACH
 The target the whole studio is built against.
@@ -192,6 +231,33 @@ ever should.*
 required — that was a document setting, not a folder one, and A5 removes the need for it
 entirely.
 
+## A15 · STANDING — THE CROWD LOOKS LIKE AUSTRALIA
+> ### "I requested the diversity in the audience because everyone in the videos was white,
+> ### and Australia does not look like that. Not even at the races."
+**— Jodie.**
+
+The mix — **roughly 75% white, 9% Asian, 9% Middle-Eastern, 5% Black, and about half the
+crowd in hats including Akubras** — is **a deliberate correction of a real defect in the
+generator, which defaults to all-white crowds.**
+
+> ## IT IS AN EDITORIAL STANDARD ABOUT HOW OUR AUDIENCE SEES ITSELF.
+> ## IT IS NOT A PROMPT DETAIL.
+
+**WHY THE REASON IS RECORDED AND NOT JUST THE NUMBERS:** without it this reads as an
+arbitrary set of percentages, and **a future author tidies it away as clutter** — which is
+precisely how it has survived so far, by being copied forward from the previous episode's
+file. *The words were in the standards (§B-roll) and the script skill; the reason was
+nowhere, and a rule whose reason is missing is a rule waiting to be deleted by someone
+being helpful.*
+
+**HOW IT IS ENFORCED: through the PROMPTS, per A4.** No approval step, no review gate. A
+crowd that comes back uniform is regenerated on sight — the standards already say *"reject
+uniform crowds at QC"*, and that is a glance, not a step.
+
+**DOES NOT COVER:** the HARD-FAIL list, which is about pictures that are racing-wrong or
+anatomically broken. **This one is about a picture that is technically perfect and still
+does not look like this country.** *Nothing automated can see either.*
+
 ---
 
 # B. ⚠️ SUSPECTED MISSING — the size of the hole
@@ -214,11 +280,15 @@ find.** Listed, never reconstructed.
 | **40%** assertion-block cap | `author_cards.ASSERTION_BLOCKS` + the visual standard's R3 | the standard states it; no ruling records who set it |
 
 ### B2 · Decisions I can see were made, with no record of the making
-- **The crowd-diversity mix** — *"roughly 75 percent white, 9 percent Asian, 9 percent
-  Middle-Eastern, 5 percent Black"* appears verbatim in **every** b-roll prompt we have ever
-  written and **nowhere in the standards or the registry.** It is being copied episode to
-  episode from the previous episode's file.
-- **"About half in hats including Akubras"** — same shape, same absence.
+- ✅ ~~**The crowd-diversity mix** and **"about half in hats including Akubras"**~~ —
+  **CLOSED 6 Aug 2026 BY RULING A15**, in Jodie's own words and with her reason attached.
+  ⚠️ **AND THIS ENTRY WAS FACTUALLY WRONG, which is worth more than the closure.** It said
+  the mix appears *"nowhere in the standards or the registry"*. **It is in
+  `PP-STANDARDS.md:513-514`** (§B-roll, with *"reject uniform crowds at QC"*) **and in
+  `.claude/skills/pp-episode-script/SKILL.md:432`.** *The NUMBERS were written down in two
+  places. Only the REASON was missing — and I recorded that as the words being missing,
+  which would have sent the next reader looking for the wrong thing.*
+  > **A gap list is only useful if its claims are checked the way a ruling's are.**
 - **The midroll pool of ten**, *"approved as a batch, never rewritten"* — the pool is in
   `midroll-line-pool.md`; **the approval is not.**
 - **The standing outro wording.** `PP-episode-outro-standard.md` says it *"must be approved
@@ -228,8 +298,12 @@ find.** Listed, never reconstructed.
   whom, and when, is not stated.
 
 ### B3 · Rulings known to exist and known to be unreadable from here
-- **`PP-RULING-the-script-lives-on-the-rail.md`** — a Cowork document. A5 is written from
-  Cowork's statement, not the source.
+- ✅ ~~**`PP-RULING-the-script-lives-on-the-rail.md`**~~ — **CLOSED 6 Aug 2026.** The Cowork
+  document is still unreadable from here, but **Jodie gave the ruling verbatim** and A5 is
+  now written from her words, not from a statement of them.
+  ⚠️ **`PP-script-editor-BUILD-PLAN.md`, which A5 cites as the 4 Aug original, is STILL a
+  document I cannot read** — the repo has only `PP-script-editor-REVIEW-4Aug.md`. The
+  quoted line *"NO GOOGLE DOC. AT ALL."* is Jodie's report of it, not a read.
 - **Who may clear a flag** — exists only as a memory file in a machine-local silo, never as
   a repo document. It governs an action taken several times a day.
 - **The retention ruling** — cover A/B deleted on publish and logged, rail rows never. Same:
@@ -250,9 +324,12 @@ find.** Listed, never reconstructed.
 
 ---
 
-> ### THE SIZE OF IT: **14 rulings recorded. At least 20 gaps.**
+> ### THE SIZE OF IT: **16 rulings recorded. At least 17 gaps.**
 > **Eight of them are numbers that stop or pass a build, and not one of them has a name
 > against it.**
+> *(Was 14 and 20. Two closed on 6 Aug 2026 — A5 sourced verbatim, A15 recorded with its
+> reason. **Both were closed by Jodie speaking, not by anyone finding a document**, which
+> is the only route several of the remaining ones have either.)*
 >
 > ## ASSUME ANYTHING NOT IN THIS FILE IS INVISIBLE TO CLAUDE CODE, AND THEREFORE GOVERNS
 > ## NOTHING.

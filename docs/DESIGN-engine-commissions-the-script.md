@@ -7,6 +7,16 @@ written.**
 > **Jodie, 5 Aug 2026:** *"Could we fix that first step? That when I paste the url and hit
 > the button 'Build episode' it takes the article and builds the script?"*
 
+> # ⚠️ 6 Aug 2026 — **RULING A5 DELETES SLICE C. READ `PP-RULINGS.md` A5 BEFORE THIS FILE.**
+> **The script is a field on the rail, not a Google Doc.** So **slice C — "the Doc leg,
+> service account, create AND share at creation", 1.0 day — is DELETED, not absorbed**, and
+> **§10 ("the Doc flow merges into this") is void.** The commission WRITES THE SCRIPT TO THE
+> RAIL; the board edits it in a text box.
+> **PHASE 1 IS THEREFORE ~2.0 DAYS, NOT 3.0** — this ruling made the work **smaller.**
+> ⚠️ **Everything else in this document still stands**, and §4 (the typed verdict), §11 (the
+> two missing skills) and §13a (the unreadable tables) are unaffected. **The service account
+> is cancelled; do not build it.**
+
 > ### 🔒 THE SEQUENCE IS DECIDED. **EP16 RUNS FIRST, UNCHANGED. THIS LANDS AFTER.**
 > **PHASE 1 ONLY, THEN STOP.** `episode.json` is a different and harder job, and it now
 > has a real acceptance test in E26's pre-flight — which is an argument for doing it
