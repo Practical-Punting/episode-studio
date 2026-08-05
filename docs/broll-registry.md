@@ -31,6 +31,102 @@ thing standing between this fault and a shipped episode. Prompt wording helps an
 writing ("the field on the inside of the running rail"), but the generator is not obliged to
 obey it, so the wording is not the control — **the look is.**
 
+## 🔒 THERE IS NO B-ROLL REVIEW STEP, AND THERE NEVER WILL BE (Jodie, 5 August 2026)
+
+> ### "We do not want a step to approve the b-roll. We know that this will mean there is
+> ### the odd bit of b-roll that is weird. But do not add another step to our process
+> ### around this. We will just add a few more rules over time."
+
+**She has KNOWINGLY ACCEPTED the occasional odd clip as cheaper than the process that
+would catch it.** That is a trade she has made with the facts in front of her, not an
+oversight to be helpfully corrected.
+
+🚫 **DO NOT PROPOSE — now or later — a b-roll approval gate, a review step, a preview card,
+a contact-sheet sign-off, or a "just one look before it renders".** They have all been
+considered and declined.
+
+> ## THE ONLY ROUTE IS THE PROMPTS. **A fault found in a clip becomes a RULE HERE, not a
+> ## checkpoint in the pipeline.**
+
+*(The 6-up `broll-contact.png` still exists and is still worth a glance at the render gate
+— but glancing is not a step, and nothing waits on it.)*
+
+---
+
+## 🐎 THE STANDING SHOT TEMPLATE — three things EVERY prompt must state
+**(Jodie and Hugh, 5 August 2026, from two faults in EP16's finished film.)**
+
+> ### ⚠️ PHRASE EVERY ONE OF THESE POSITIVELY. **Negations are unreliable in these models**
+> ### — "not synchronised" invites synchronised. Describe the thing you want to SEE.
+
+### 1. HORSES OUT OF STEP WITH ONE ANOTHER
+**Say it, every clip with more than one horse in motion:**
+> *"each horse at a different point of its stride, staggered strides, hooves landing at
+> different moments, legs out of phase across the field"*
+
+**EP16 at 1:25 (`broll-nine-runners-turn`):** a rear view of the field with **every horse
+in identical rhythm, hooves landing together.** Jodie: *"they land and run at slightly
+different times."*
+**THE GAP BETWEEN THE PROMPT AND THE CLIP, which is the useful part:** the prompt asked for
+*"a closely bunched field … no horse clearly in front"* — it specified uniformity of
+**POSITION**, and the model delivered uniformity of **GAIT** as well. Nothing in it said a
+word about legs. *It did what it was told; it was told the wrong thing.*
+
+### 2. AUSTRALIAN RACING ATTIRE, ON EVERY RIDER, EVERY TIME
+**Say it, every clip containing a mounted rider — not only the racing ones:**
+> *"jockeys in bright Australian racing silks and matching caps, white or cream breeches,
+> black riding boots, safety helmets with the silk cover on"*
+
+**EP16 at 8:11 (`broll-provincial-meeting-small-field`):** riders in **tweed jackets, flat
+caps, waistcoats and cream jumpers** — English point-to-point clothing, on an Australian
+provincial race day. Jodie: *"very strange."*
+**THE GAP:** the prompt said *"a modest field of mounted racehorses"* and then described the
+**CROWD'S** clothes in detail — *"present-day dress, about half in hats including Akubras"*
+— **and never once described the RIDERS.** The model dressed the only people it had been
+told about and improvised the rest.
+⚠️ **"MOUNTED" IS NOT A COSTUME INSTRUCTION.** Two of EP16's three horse clips named silks;
+the one that did not is the one that went wrong.
+
+### 3. STATE THE MOTION EXPLICITLY — what moves, and how
+**Every clip is a MOTION clip. A motion clip whose subjects are static is a FAULT.**
+> *"the horses are galloping / walking forward / the boards are changing / the crowd is
+> moving through frame"* — a verb, attached to the SUBJECT, in every prompt.
+
+**EP16's `broll-provincial-meeting-small-field` was the only one of seven prompts with no
+motion verb of any kind**, and it is the only one that came back static. **That is not a
+coincidence and the audit proves it:**
+
+| clip | motion words in the prompt |
+|---|---|
+| eachway-sign-ring | passing |
+| nine-runners-turn | rounding, motion blur |
+| oncourse-punter-boards | moving |
+| shopping-the-ring | moving, tracking, walking |
+| bookmaker-board-shorter | changing, mid-transition, reaching |
+| **provincial-meeting-small-field** | **NONE** |
+| placegetters-past-post | driving, motion blur |
+
+⚠️ **AND "motion blur on the background" IS NOT A MOTION INSTRUCTION FOR THE SUBJECT** —
+`nine-runners-turn` had it and still produced a field moving as one body. **Blur describes
+the camera; a verb describes the horse.**
+
+---
+
+## 📋 STILL UNSPECIFIED — found by auditing all seven EP16 prompts, not yet gone wrong
+*Recorded so the next fault is one we have not already seen coming.*
+
+- **HELMETS.** No prompt has ever named one. Australian rules require them; *"silks"* alone
+  does not imply a helmet, and EP16's riders wore flat caps.
+- **THE CAMERA.** *"Cinematic wide shot"* says nothing about whether the camera holds,
+  pans or tracks — so the generator decides, and a held camera on a slow subject reads as
+  a still.
+- **THE ACTION LASTING THE WHOLE CLIP.** Clips are trimmed to 5s. Nothing asks for the
+  movement to continue across all of it, so a clip can start moving and settle.
+- **THE COUNT.** `nine-runners-turn` illustrates *nine* evenly matched runners and the
+  prompt says only *"a closely bunched field"*. The number in the article is not in the
+  prompt.
+- **THE RUNNING RAIL** is covered above and remains the one fault only a human eye catches.
+
 ## ⚠️ What went wrong on EP03 (the reason for this file)
 EP03's b-roll folder carried over **5 identical clips from EP02** (same bytes):
 `empty-track-golden`, `finish-rail-surge`, `grandstand-crowd`, `odds-board`,
