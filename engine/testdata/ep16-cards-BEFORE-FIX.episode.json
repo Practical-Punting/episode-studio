@@ -1,0 +1,812 @@
+{
+  "episode": "EP16",
+  "title": "Squeeze Those Odds! — Part 2",
+  "_title_note": "SERIES AMENDMENT, ruled by Jodie 5 Aug 2026 and written into PP-STANDARDS §1a: when an episode belongs to a series we have named, the SERIES NAME carries the title and the ARTICLE'S OWN HEADLINE becomes the byline. So this is 'Squeeze Those Odds! — Part 2', not 'Each-Way Betting Forever!'. Her reason: it makes the two episodes visibly a pair, which is worth more than fidelity to a headline nobody searches for. The source agrees — PP runs both 1988 Dedman articles under different headlines and this one links back to 'squeeze-those-odds-part-1-19880206', which is EP15's source exactly. The bang still sits on the NAME, then the em dash, then the part (2 Aug rule, unchanged).",
+  "shape": "numbered-method",
+  "_shape_note": "TWO MOVEMENTS, and the article's own hinge sentence divides them. (1) WHAT A PLACE BET IS WORTH — the theory, from 'three chances but a quarter of the odds' to the five-live-chances case. (2) WHAT TO DO ABOUT IT — the split, and the professionals' favourite bet. The hinge is Roger's own 'Let's consider a race (with eight or more runners) in which the favourite (F) is quoted at evens', which is where he stops deriving and starts advising. The midroll sits ON that seam, at beat 15.",
+  "video_id": null,
+  "spoken_words_file": "docs/spoken-words.txt",
+  "source": "'EACH-WAY BETTING FOREVER! (Part 2)', sub-head 'How to win big money backing win and place', Practical Punting, MARCH 1988 (PP-owned). Author: Roger Dedman, named in the article's own byline at head and foot, adapted from his book Commonsense Punting. PART 2 OF TWO — part one is EP15, 'SQUEEZE THOSE ODDS! (Part 1)', PPM February 1988, and this article links to it by its own 'Click here to read Part 1'. Verbatim source: docs/EP16-source-article-each-way-betting-forever-part-2.md",
+  "_source_note": "The page's URL carries 20111006, which is the CMS re-publication date and NOT the article date — the foot of the article says MARCH 1988 and its two scans are named 19880310a/b, i.e. 10 March 1988. THE CAPTURE FILE CARRIES A DISCLOSED HEADER LISTING SIX CATEGORY-2 REPAIRS (PP-STANDARDS §0a-i): 'l/s'->1/5 and 'Vs'->3/5, each FORCED by the odds stated in its own sentence; a stray '*' between two clauses; 'profitability'->'profitably', which is what the caption printed inside 19880310b.jpg actually says; and two hyphen-for-dash manglings. '83 cents (rounded down to 80 cents)' is category 3 — unprovable — and STANDS AS PRINTED, reproduced in the e-book and NOT spoken. The repairs live at the point of CAPTURE, so ebook.departures stays empty and no departure had to be invented.",
+  "packaging": {
+    "hook": "SQUEEZE THOSE ODDS!",
+    "byline": "Each Way Betting Forever",
+    "youtube_title": "Squeeze Those Odds! — Part 2 | How to Win at Horse Racing",
+    "ebook_title": "Squeeze Those Odds! — Part 2"
+  },
+  "_packaging_note": "HOOK IS UNCHANGED FROM EP15 BY RULE, NOT BY LAZINESS: the EP13 series-hook ruling says a series hook must work for EVERY part, so it is taken from the SERIES and the part-specific concept goes in the YouTube title. Jodie confirmed 5 Aug 2026 and answered the counter herself — the thumbnails carry PART 1 and PART 2 under the hook, so a channel page reads as a series rather than a re-upload. BYLINE is the article's own headline, set as a LABEL: no hyphen and no bang, chosen by Jodie and recorded as chosen, not drifted. youtube_title is the derivation of `title` (youtube_title.py -> derive(title_of(epj)), verbatim, no re-casing) — a record of the derivation, never a second opinion. ⚠️ docs/youtube-metadata-kit.md described the OLD byline derivation until 5 Aug 2026; following it here would have produced 'Each Way Betting Forever | How to Win at Horse Racing' and halted check_one_name, because this is the first episode where byline and title are DIFFERENT STRINGS.",
+  "beats": [
+    {
+      "n": 1,
+      "framing": "MCU",
+      "card": "C1",
+      "broll": null,
+      "line": "OPEN (original framing — the only invented prose besides the seams). An each-way bet is not one bet with a safety net; it is TWO bets sold in one transaction, and once you price them separately you can see which half is the value. Roger Dedman credited, nineteen eighty-eight."
+    },
+    {
+      "n": 2,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-eachway-sign-ring",
+      "line": "Many people refuse ever to bet each-way, arguing that in the long run you are further ahead sticking to straight-out bets."
+    },
+    {
+      "n": 3,
+      "framing": "WIDE",
+      "card": "C2",
+      "broll": null,
+      "line": "The main argument: it is poor value. Three chances of collecting instead of one, but only a QUARTER of the odds. Under eight starters, a third — first or second only."
+    },
+    {
+      "n": 4,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "It may SEEM you should get a third with eight or more runners. In fact the correct odds lie somewhere between a third and a quarter."
+    },
+    {
+      "n": 5,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-nine-runners-turn",
+      "line": "The hypothetical: nine evenly matched runners. Probability of winning one in nine — odds of eight to one."
+    },
+    {
+      "n": 6,
+      "framing": "WIDE",
+      "card": "C3",
+      "broll": null,
+      "line": "Place chance is three times that: one in three, or two to one. So a quarter of the odds is theoretically CORRECT. Roger's own arithmetic, and it is the pivot of the whole piece."
+    },
+    {
+      "n": 7,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "For eight, slightly less than a quarter. As the field grows, increasingly MORE than a quarter — but never as high as a third."
+    },
+    {
+      "n": 8,
+      "framing": "WIDE",
+      "card": "C4",
+      "broll": null,
+      "line": "Twenty-four starters at Flemington: win odds twenty-three to one should give place odds of seven to one. Very nearly one third."
+    },
+    {
+      "n": 9,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-oncourse-punter-boards",
+      "line": "But evenly matched fields do not occur, and we are concerned with practical punting. The theory can be modified — ON-COURSE, where the punter's advantage over the T A B punter is greatest."
+    },
+    {
+      "n": 10,
+      "framing": "WIDE",
+      "card": "C5",
+      "broll": null,
+      "line": "The realistic case: FIVE horses with a winning chance, the rest at long odds. Each one in five, quoted four to one. The outsiders are the bookie's margin."
+    },
+    {
+      "n": 11,
+      "framing": "WIDE",
+      "card": "C6",
+      "broll": null,
+      "line": "THE VALUE BEAT. Ignore the outsiders and the place chance is three in five — six to four ON. But backing him each way at four to one gets you EVEN MONEY for the place. The place portion is better value than the win portion."
+    },
+    {
+      "n": 12,
+      "framing": "WIDE",
+      "card": "C7",
+      "broll": null,
+      "line": "So why not just back the place? Because you won't be offered evens. Five horses at evens brings a place bookie two hundred and fifty when he needs three hundred. He can only afford six to four on."
+    },
+    {
+      "n": 13,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-shopping-the-ring",
+      "line": "Despite that, four to one each way is usually obtainable if you shop around — four to one the field is an open race, and plenty of bookmakers will be operating each way."
+    },
+    {
+      "n": 14,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "Win-only signs go up when the favourite is odds-on. An each-way sign means cramped odds about everything else — but in the circumstances that can still beat a straight-out bet. The further the favourite is into the red, the more pronounced the advantage."
+    },
+    {
+      "n": 15,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "MIDROLL — pool line L6, copied verbatim from docs/midroll-line-pool.md (16 mod 10 = 6). Never written, never paraphrased. Sits ON the article's own hinge, between the theory and the advice."
+    },
+    {
+      "n": 16,
+      "framing": "WIDE",
+      "card": "C8",
+      "broll": null,
+      "line": "The setup. Favourite at evens; your selection better value at five to one; best each way is four to one; place bookies have it at two to one on. What SHOULD the place odds be? Six to four on."
+    },
+    {
+      "n": 17,
+      "framing": "WIDE",
+      "card": null,
+      "broll": null,
+      "line": "Which is better — five to one straight-out, or four to one each way? Eight dollars at fives gives forty. Instead: ten dollars each way at fours. And you can think of that as TWO SEPARATE BETS."
+    },
+    {
+      "n": 18,
+      "framing": "WIDE",
+      "card": "C9",
+      "broll": null,
+      "line": "THE SPLIT, and the centre of the episode. Twenty dollars re-read as eight for the win — still five to one — and twelve for the place to win ten, which is six to five ON when the correct odds are six to four on. So four to one each way beats five to one straight-out."
+    },
+    {
+      "n": 19,
+      "framing": "WIDE",
+      "card": "C10",
+      "broll": null,
+      "line": "Even seven to two each way is a fair bet. The extra twenty-six dollars invested, for a place profit of seventeen fifty, is almost exactly six to four on."
+    },
+    {
+      "n": 20,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-bookmaker-board-shorter",
+      "line": "Each-way under four to one: most punters won't. A winning bet at three to one each way LOSES money if the horse runs second or third. Others go further — six to one or longer, or eight to one or longer."
+    },
+    {
+      "n": 21,
+      "framing": "WIDE",
+      "card": "C11",
+      "broll": null,
+      "line": "Short-sighted, says Roger. Several professionals go to the OPPOSITE extreme — making a speciality of backing selected favourites each way at two to one and even shorter."
+    },
+    {
+      "n": 22,
+      "framing": "WIDE",
+      "card": null,
+      "broll": "broll-provincial-meeting-small-field",
+      "line": "The situation: the favourite can win, and there is ONE logical danger, or at most two. Usually restricted class at provincial meetings, occasionally in the city."
+    },
+    {
+      "n": 23,
+      "framing": "WIDE",
+      "card": "C12",
+      "broll": null,
+      "line": "The dangers around four to one, everything else double figures. The favourite at two to one each way is two to one ON for the place, when you think it a near certainty to place. So: four hundred to two hundred each way. Places only — loses a hundred. Wins — five hundred profit."
+    },
+    {
+      "n": 24,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "Occasionally it runs out of a place and that is four hundred gone — but the extra profits more than compensate in the long run. And the same reasoning applies to a ten dollar bet, or less."
+    },
+    {
+      "n": 25,
+      "framing": "WIDE",
+      "card": "C13",
+      "broll": null,
+      "line": "Getting set is not the problem. Each-way bookmakers may have the dangers at seven to two — but so few punters want the favourite each way that it is unlikely to be shorter with the win-and-place than the win-only bookies."
+    },
+    {
+      "n": 26,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "OUTRO wind-down (original prose, within the approved shape). It was never one bet with a safety net; the only question is whether each half is worth its share. The half everybody ignores is quite often the half that is paying."
+    },
+    {
+      "n": 27,
+      "framing": "MCU",
+      "card": null,
+      "broll": null,
+      "line": "OUTRO standing: free e-book with Roger's tables, link below the video; the LOCKED responsible-gambling line, word for word; warm sign-off, re-voiced per the pattern and never repeated verbatim from a previous episode."
+    }
+  ],
+  "_beats_note": "TWENTY-SEVEN BEATS. The count is the ARTICLE'S, not a target: its argument is a chain of short arithmetic steps and each one needs its own breath. Four paragraph pairs were MERGED back after a first pass ran to thirty-one, because that pass was splitting more finely than Roger does — the merge changed paragraph breaks only, and render_ready reports the identical 1,876 words either side of it. Beats 1, 26 and 27 are the seams (opening, wind-down, standing outro) and beat 15 is the midroll; every other beat is Roger's own sentences, lightly tidied for the ear.",
+  "_framing_note": "FOURTEEN WIDE OF TWENTY-SEVEN. Every panel-push card beat is WIDE, without exception — a panel-push card needs WIDE for its WHOLE window so Gordon can glide aside into the freed third; on an MCU the card lands on his face, which is the EP11 failure. MCU is kept for the seams (1, 26, 27), the midroll (15, per the standard: Gordon on camera), and the four beats that are Roger reasoning rather than Roger demonstrating (4, 7, 14, 24). ⚠️ EP15 ran 14 WIDE of 24 and Jodie has NOT yet given a framing ruling on the finished cut — see the run log. This episode was framed by the same rule EP15 was corrected INTO, not by copying its ratio.",
+  "cards": [
+    {
+      "id": "C1",
+      "beat": 1,
+      "cue": "it is TWO bets sold in one transaction",
+      "page": "ep16-c01-two-bets-not-one.html",
+      "layout": "fullscreen",
+      "block": "steps",
+      "job": "orient",
+      "_job_why": "R5: the advance organiser, and for this episode it is also the THESIS. Jodie's ruling 5 Aug 2026: lead with the SPLIT, not the conclusion — 'if the script leads with each-way is good at short prices, it is EP07 with better tables'. This card is that ruling made visible in the first thirty seconds.",
+      "eyebrow": "The Whole Idea",
+      "headline": "ONE TICKET, TWO BETS",
+      "headline_display": "One Ticket,<br>Two Bets",
+      "detail": "Two rungs building in as Gordon names them. No figures — this card is structure, not data.",
+      "hero": true,
+      "content": {
+        "steps": [
+          {
+            "k": "The win half",
+            "v": "Priced at the odds on the board"
+          },
+          {
+            "k": "The place half",
+            "v": "Priced at a quarter of them"
+          }
+        ],
+        "note": "Price them separately and one of the two is usually the value."
+      },
+      "trace": {}
+    },
+    {
+      "id": "C2",
+      "beat": 3,
+      "cue": "three chances of collecting instead of only one",
+      "page": "ep16-c02-the-case-against.html",
+      "layout": "panel-push",
+      "block": "compare",
+      "job": "relate",
+      "eyebrow": "The Case Against",
+      "headline": "THREE CHANCES, A QUARTER OF THE ODDS",
+      "headline_display": "Three Chances,<br>A Quarter of the Odds",
+      "detail": "Two columns wipe in together. R9: neither side is mocked — this is the objection stated fairly, because the episode goes on to answer it.",
+      "hero": false,
+      "content": {
+        "cols": [
+          {
+            "tone": "yes",
+            "k": "What you gain",
+            "v": "Three chances to collect"
+          },
+          {
+            "tone": "no",
+            "k": "What you give up",
+            "v": "Three quarters of the odds"
+          }
+        ]
+      },
+      "trace": {
+        "Three chances": "You have three chances of collecting instead of only one, but you get only one quarter of the odds."
+      }
+    },
+    {
+      "id": "C3",
+      "beat": 6,
+      "cue": "a quarter of the odds is theoretically correct",
+      "page": "ep16-c03-nine-runners.html",
+      "layout": "fullscreen",
+      "block": "ratio",
+      "job": "prove",
+      "_job_why": "The pivot of the article: the quarter is not a bookmaker's convenience, it is arithmetically right for a nine-horse field. Everything after this is a departure FROM this baseline, so it has to land.",
+      "eyebrow": "Two · The Baseline",
+      "headline": "WHY A QUARTER IS FAIR",
+      "headline_display": "Why a Quarter<br>Is Fair",
+      "detail": "The two odds resolve side by side, then the quarter relationship draws between them.",
+      "hero": true,
+      "content": {
+        "left": {
+          "k": "Chance of winning",
+          "v": "1 in 9",
+          "sub": "odds of 8-1"
+        },
+        "right": {
+          "k": "Chance of a place",
+          "v": "1 in 3",
+          "sub": "odds of 2-1"
+        },
+        "ratio": "2-1 is exactly a quarter of 8-1"
+      },
+      "trace": {
+        "1 in 9": "The theoretical probability of any given horse's winning is 1/9, i.e. odds of 8-1.",
+        "1 in 3": "The probability that that horse runs a place is three times 1/9, i.e. 1/3, or odds of 2-1."
+      }
+    },
+    {
+      "id": "C4",
+      "beat": 8,
+      "cue": "hypothetical win odds of twenty-three to one",
+      "page": "ep16-c04-big-field.html",
+      "layout": "panel-push",
+      "block": "stat",
+      "job": "prove",
+      "eyebrow": "Two · The Baseline",
+      "headline": "IN A BIG FIELD IT DRIFTS",
+      "headline_display": "In a Big Field<br>It Drifts",
+      "detail": "The payoff figure is the hero: nearly a third, not a quarter.",
+      "hero": false,
+      "content": {
+        "stat": "7-1",
+        "label": "the fair place price about a 23-1 chance",
+        "sub": "24 starters — very nearly one third of the win odds, never as high as one third"
+      },
+      "trace": {
+        "7-1": "hypothetical win odds of 23-1 should give rise to place odds of 7-1 — very nearly one third."
+      }
+    },
+    {
+      "id": "C5",
+      "beat": 10,
+      "cue": "five horses can be conceded a winning chance",
+      "page": "ep16-c05-five-live-chances.html",
+      "layout": "panel-push",
+      "block": "slate",
+      "job": "orient",
+      "eyebrow": "Three · The Real Race",
+      "headline": "FIVE THAT CAN WIN",
+      "headline_display": "Five That<br>Can Win",
+      "detail": "Three cells, not four. ⚠️ EP15's C10 shipped FOUR cells and was illegible once the panel-push composite scaled it to 810 wide — the cells were about 155px and the body text about 9px, and it passed card_check 17/17 and self_qc because both measure the page at 1920. THREE CELLS at this layout, until E27 measures the real thing.",
+      "hero": false,
+      "content": {
+        "cells": [
+          {
+            "k": "Five live chances",
+            "v": "1 in 5 each"
+          },
+          {
+            "k": "Quoted at",
+            "v": "4-1"
+          },
+          {
+            "k": "The rest",
+            "v": "The bookie's margin"
+          }
+        ]
+      },
+      "trace": {
+        "1 in 5": "each of these five may have a probability of winning of 1/5, and be quoted at 4-1"
+      }
+    },
+    {
+      "id": "C6",
+      "beat": 11,
+      "cue": "you are getting even money for your place bet",
+      "page": "ep16-c06-the-place-is-the-value.html",
+      "layout": "fullscreen",
+      "block": "compare",
+      "job": "relate",
+      "_job_why": "THE VALUE CARD. It is the first time the episode shows a gap between what a thing is WORTH and what you are PAID for it, which is the mechanism the whole second half runs on.",
+      "eyebrow": "Three · The Real Race",
+      "headline": "PAID MORE THAN IT IS WORTH",
+      "headline_display": "Paid More<br>Than It Is Worth",
+      "detail": "The fair price resolves first, then the offered price lands beside it and the gap is held.",
+      "hero": true,
+      "content": {
+        "cols": [
+          {
+            "tone": "no",
+            "k": "What the place is worth",
+            "v": "6-4 ON",
+            "sub": "a 3 in 5 chance"
+          },
+          {
+            "tone": "yes",
+            "k": "What you are offered",
+            "v": "EVENS",
+            "sub": "a quarter of 4-1"
+          }
+        ],
+        "note": "The place half is the better value — not the win half."
+      },
+      "trace": {
+        "6-4 ON": "his chance of running a place is 3/5, equivalent to odds of 6-4 ON",
+        "EVENS": "by backing him each way at 4-1 you are getting even money for your place bet"
+      }
+    },
+    {
+      "id": "C7",
+      "beat": 12,
+      "cue": "instead of the three hundred he needs to balance his book",
+      "page": "ep16-c07-the-place-bookies-book.html",
+      "layout": "panel-push",
+      "block": "steps",
+      "job": "prove",
+      "eyebrow": "Three · The Real Race",
+      "headline": "WHY HE CANNOT OFFER EVENS",
+      "headline_display": "Why He Cannot<br>Offer Evens",
+      "detail": "Three rungs, arriving in order. The last one is the answer, so it lands alone.",
+      "hero": false,
+      "content": {
+        "steps": [
+          {
+            "k": "He must pay",
+            "v": "300 — three placegetters"
+          },
+          {
+            "k": "At evens he takes",
+            "v": "250 — five horses"
+          },
+          {
+            "k": "So he offers",
+            "v": "6-4 ON"
+          }
+        ]
+      },
+      "trace": {
+        "250": "the same five horses at evens the place will bring in only 250 for a place bookie instead of the 300 he needs to balance his book"
+      }
+    },
+    {
+      "id": "C8",
+      "beat": 16,
+      "cue": "six to four on is a reasonable price to accept",
+      "page": "ep16-c08-the-fair-place-price.html",
+      "layout": "panel-push",
+      "block": "price",
+      "job": "prove",
+      "_job_why": "This is the one row of Roger's Table 1 that reaches the screen. Per PP-STANDARDS §0a-i the TABLE itself is reproduced as its scan in the e-book; only the row the video uses is transcribed, and it is arithmetically checked.",
+      "eyebrow": "Four · What To Do",
+      "headline": "THE ROW THAT ANSWERS IT",
+      "headline_display": "The Row<br>That Answers It",
+      "detail": "Reproduced from Roger's Table 1, one row, unrounded. The e-book carries the whole table as the 1988 scan.",
+      "hero": false,
+      "content": {
+        "rows": [
+          {
+            "k": "Favourite (F)",
+            "v": "Evens"
+          },
+          {
+            "k": "Your selection (S)",
+            "v": "5-1"
+          },
+          {
+            "k": "Fair place odds about S",
+            "v": "6-4 ON"
+          },
+          {
+            "k": "Minimum acceptable each-way price",
+            "v": "4-1"
+          }
+        ]
+      },
+      "trace": {
+        "6-4 ON": "The arithmetic gets a bit complicated, but in fact 6-4 ON is a reasonable price to accept for the place."
+      }
+    },
+    {
+      "id": "C9",
+      "beat": 18,
+      "cue": "eight for the win, to give a profit of forty dollars",
+      "page": "ep16-c09-the-split.html",
+      "layout": "fullscreen",
+      "block": "compare",
+      "job": "prove",
+      "_job_why": "THE CENTRE OF THE EPISODE and the thing EP07 never says. C1 promises the split; this card performs it. If a viewer remembers one card, it is this one.",
+      "eyebrow": "Four · What To Do",
+      "headline": "TWENTY DOLLARS, READ TWO WAYS",
+      "headline_display": "Twenty Dollars,<br>Read Two Ways",
+      "detail": "The single $20 bet holds, then splits into two stacks that carry their own prices. The 6-5 ON / 6-4 ON gap is the payoff and is revealed last.",
+      "hero": true,
+      "content": {
+        "cols": [
+          {
+            "tone": "yes",
+            "k": "$8 on the win",
+            "v": "still 5-1",
+            "sub": "profit $40 — the same as the straight-out bet"
+          },
+          {
+            "tone": "yes",
+            "k": "$12 on the place",
+            "v": "6-5 ON",
+            "sub": "profit $10 — when 6-4 ON is the fair price"
+          }
+        ],
+        "note": "You are getting a better price than the bet is worth. That is the whole trick."
+      },
+      "trace": {
+        "$8": "your $20 investment can be considered as $8 for the win, to give a profit of $40; and $12 for the place, to give a profit of $10",
+        "6-5 ON": "taking a place bet of $12 to $10 ON (odds of 6 to 5 ON), when the correct odds are 6-4 ON"
+      }
+    },
+    {
+      "id": "C10",
+      "beat": 19,
+      "cue": "represents odds of almost exactly six to four on",
+      "page": "ep16-c10-even-at-seven-to-two.html",
+      "layout": "panel-push",
+      "block": "price",
+      "job": "prove",
+      "eyebrow": "Four · What To Do",
+      "headline": "IT STILL WORKS AT 7-2",
+      "headline_display": "It Still Works<br>at 7-2",
+      "detail": "Three rows. The last is the payoff and holds alone.",
+      "hero": false,
+      "content": {
+        "rows": [
+          {
+            "k": "Extra staked over the win bet",
+            "v": "$26"
+          },
+          {
+            "k": "Place profit",
+            "v": "$17.50"
+          },
+          {
+            "k": "Which is",
+            "v": "almost exactly 6-4 ON"
+          }
+        ]
+      },
+      "trace": {
+        "$26": "The extra $26 invested for a place profit of $17.50 represents odds of almost exactly 6-4 ON."
+      }
+    },
+    {
+      "id": "C11",
+      "beat": 21,
+      "cue": "making something of a speciality of backing selected favourites",
+      "page": "ep16-c11-the-opposite-extreme.html",
+      "layout": "fullscreen",
+      "block": "statement",
+      "job": "relate",
+      "eyebrow": "Five · The Professionals",
+      "headline": "THE OPPOSITE EXTREME",
+      "headline_display": "The Opposite<br>Extreme",
+      "detail": "One line, held. The turn in the argument, so it gets air rather than a table.",
+      "hero": false,
+      "content": {
+        "statement": "Most punters won't bet each-way under 4-1. Several professionals specialise in favourites at 2-1 and shorter.",
+        "attribution": "Roger Dedman, Practical Punting, March 1988"
+      },
+      "trace": {
+        "2-1": "backing selected favourites each-way at prices of 2-1 and even shorter"
+      }
+    },
+    {
+      "id": "C12",
+      "beat": 23,
+      "cue": "four hundred to two hundred each way",
+      "page": "ep16-c12-the-professionals-bet.html",
+      "layout": "panel-push",
+      "block": "slate",
+      "job": "prove",
+      "eyebrow": "Five · The Professionals",
+      "headline": "THREE WAYS IT ENDS",
+      "headline_display": "Three Ways<br>It Ends",
+      "detail": "Three cells, staggered. THREE, not four — the EP15 C10 lesson (see C5). The outcomes arrive worst-to-best so the profit lands last.",
+      "hero": false,
+      "content": {
+        "cells": [
+          {
+            "k": "Unplaced",
+            "v": "-$400"
+          },
+          {
+            "k": "Runs a place",
+            "v": "-$100"
+          },
+          {
+            "k": "Wins",
+            "v": "+$500"
+          }
+        ]
+      },
+      "trace": {
+        "-$100": "If the horse is beaten, but runs a place, he still loses $100 ($300 return for a $400 outlay).",
+        "+$500": "But if it wins, he makes a profit of $500."
+      }
+    },
+    {
+      "id": "C13",
+      "beat": 25,
+      "cue": "so few punters will want to back the favourite each-way",
+      "page": "ep16-c13-what-to-carry.html",
+      "layout": "fullscreen",
+      "block": "checklist",
+      "job": "consolidate",
+      "_job_why": "R5's closing card: the method as something Dave can carry to the ring. Every line is a thing to DO, and every one is Roger's, not ours.",
+      "eyebrow": "What To Carry",
+      "headline": "BEFORE YOU BET EACH-WAY",
+      "headline_display": "Before You<br>Bet Each-Way",
+      "detail": "Three ticks arriving in order, then holding together.",
+      "hero": true,
+      "content": {
+        "items": [
+          "Split the bet in two and price each half",
+          "The shorter the favourite, the better the place half",
+          "You will usually get set — few punters want it"
+        ]
+      },
+      "trace": {
+        "few punters": "so few punters will want to back the favourite each-way that it is unlikely to be shorter with the 'win-and-place' than with the 'win-only' bookies"
+      }
+    },
+    {
+      "id": "TITLE",
+      "beat": 1,
+      "cue": null,
+      "page": "title-card.html",
+      "layout": "fullscreen",
+      "block": "bespoke",
+      "job": "orient",
+      "eyebrow": null,
+      "headline": null,
+      "headline_display": null,
+      "detail": "Standing furniture, authored from episode.json by author_title_card.py. Carries the hook, the byline and Part 2 over the staged title hero.",
+      "hero": true,
+      "content": {},
+      "trace": {}
+    },
+    {
+      "id": "END",
+      "beat": 27,
+      "cue": null,
+      "page": "end-card-template.html",
+      "layout": "fullscreen",
+      "block": "bespoke",
+      "job": "orient",
+      "eyebrow": null,
+      "headline": null,
+      "headline_display": null,
+      "detail": "Standing furniture. ⚠️ It renders overlay/export/ebook-cover.png; if that file is absent the card draws a GREY BOX CARRYING ALT TEXT and every downstream check still passes, because a grey box has a luma. That shipped on EP15. check_page_images now catches it before the batch render.",
+      "hero": false,
+      "content": {},
+      "trace": {}
+    },
+    {
+      "id": "WARRANTY",
+      "beat": 27,
+      "cue": null,
+      "page": "warranty-slide.html",
+      "layout": "fullscreen",
+      "block": "bespoke",
+      "job": "orient",
+      "eyebrow": null,
+      "headline": null,
+      "headline_display": null,
+      "detail": "Standing furniture, verbatim every episode, soft music bed, ~3s tail.",
+      "hero": false,
+      "content": {},
+      "trace": {}
+    }
+  ],
+  "_cards_note": "THIRTEEN CONTENT CARDS, same count as EP15. R3 measured ON THE BLOCK: assertion blocks are C4 (stat), C8 (price), C10 (price), C11 (statement) = 4 of 13 = 31%, under the 40% cap. R7 (shape must change): no block repeats twice in a row anywhere, so the longest same-block run is one. LAYOUT MIX: 6 fullscreen, 7 panel-push. FIVE HERO CARDS — C1, C3, C6, C9, C13 — and they are the spine of the argument: the thesis, the baseline, the value gap, the split, the takeaway. ⚠️ EVERY PANEL-PUSH CARD USES THREE CELLS OR FEWER, deliberately: EP15's C10 used four, measured about 9px of body text at the composited 810 width, and passed card_check 17/17 and self_qc because both measure at 1920. E27 is not built yet, so the constraint is held by hand here.",
+  "broll": [
+    {
+      "target": "broll-eachway-sign-ring",
+      "beat": 2,
+      "line": "Many people refuse ever to bet eachway",
+      "flags": [
+        "non-turf"
+      ],
+      "prompt": "Photoreal cinematic medium shot of a modern Australian on-course bookmaker's stand, an illuminated EACH WAY sign clear on the board, punters passing in front without stopping, present-day clothing, about half in hats including Akubras, Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black, natural daylight, shallow depth of field. No dirt track, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-nine-runners-turn",
+      "beat": 5,
+      "line": "a race in which there are nine evenly matched runners",
+      "flags": [
+        "turf"
+      ],
+      "prompt": "Photoreal cinematic wide shot of a closely bunched field of racehorses rounding a turn on lush green Australian turf, mounted jockeys in bright silks, no horse clearly in front, present day, bright natural daylight, motion blur on the background, cinematic depth. Turf only, no dirt or sand, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-oncourse-punter-boards",
+      "beat": 9,
+      "line": "the on-course punter enjoys the greatest advantage",
+      "flags": [
+        "non-turf",
+        "crowd-diverse"
+      ],
+      "prompt": "Photoreal cinematic medium shot of a punter in present-day Australian race-day clothing standing in the betting ring, looking up and along a line of illuminated bookmakers' boards, form guide folded under one arm, crowd moving around him, about half in hats including Akubras and fedoras, Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black, natural daylight, shallow depth of field. No dirt track, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-shopping-the-ring",
+      "beat": 13,
+      "line": "you probably won't have much difficulty in obtaining 4-1 eachway if you shop around",
+      "flags": [
+        "non-turf",
+        "crowd-diverse"
+      ],
+      "prompt": "Photoreal cinematic tracking shot moving past three consecutive modern Australian bookmakers' stands, each board showing different prices, a punter walking through frame comparing them, present-day dress, about half the crowd in hats, Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black, natural daylight, shallow depth of field. No dirt track, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-bookmaker-board-shorter",
+      "beat": 20,
+      "line": "a 'winning' bet at 3-1 each-way will result in your losing money",
+      "flags": [
+        "non-turf"
+      ],
+      "prompt": "Photoreal tight cinematic shot of a modern Australian bookmaker reaching up and changing a price on an illuminated odds board, the numerals mid-transition, punters blurred in the foreground, present-day clothing and equipment, natural daylight with screen glow, very shallow depth of field. No dirt track, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-provincial-meeting-small-field",
+      "beat": 22,
+      "line": "restricted class races at provincial meetings",
+      "flags": [
+        "turf",
+        "crowd-diverse"
+      ],
+      "prompt": "Photoreal cinematic wide shot of a small Australian provincial racecourse on a quiet weekday, a modest field of mounted racehorses on lush green turf, low timber grandstand and a thin crowd beyond, present-day dress, about half in hats including Akubras, Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black, soft natural daylight, cinematic depth. Turf only, no dirt or sand, no US signage, no repeated framing."
+    },
+    {
+      "target": "broll-placegetters-past-post",
+      "beat": 24,
+      "line": "the favourite will run out of a place",
+      "flags": [
+        "turf"
+      ],
+      "prompt": "Photoreal cinematic shot from side-on as three racehorses pass the winning post close together on lush green Australian turf, mounted jockeys driving, a fourth horse just behind and losing ground, present day, bright natural daylight, motion blur on the background rail, cinematic depth. Turf only, no dirt or sand, no US signage, no repeated framing."
+    }
+  ],
+  "_broll_note": "SEVEN CLIPS, MODERN — Jodie's standing ruling from EP15 onward: 'I would prefer the b roll looks modern from now please.' No period dressing anywhere, despite the 1988 source. Seven clips at 7.5 credits = 52.5, plus 4 for the two cover heroes = 56.5, inside the ceiling of 65 — the same shape as EP15, which came in at exactly that. No clip repeats within the episode; check docs/broll-registry.md before generation and log all seven after. ⚠️ EP14's clips were never logged (E10) — log these.",
+  "cover": {
+    "hero_a_prompt": "Photoreal portrait 2:3 composition. A punter's hand holding a single betting ticket in the foreground, sharply lit, an Australian bookmaker's illuminated odds board glowing softly out of focus behind, lush green turf racecourse and crowd suggested beyond. Present day, natural daylight, warm late-afternoon tone, strong vertical composition with clear empty sky in the upper third for a title. About half the visible crowd in hats including Akubras. Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black. Turf only, no dirt or sand, no US signage. NO TEXT, NO WORDS, NO LETTERING, NO LOGOS, NO BRAND NAMES and NO SPONSOR SIGNAGE anywhere in the image; keep every board and screen unreadable and out of focus.",
+    "hero_b_prompt": "Photoreal portrait 2:3 composition. Three racehorses passing the winning post close together, shot from side-on and low, mounted jockeys in bright silks driving hard, lush green Australian turf in the foreground and a packed grandstand soft behind. Present day, bright natural daylight, cool green tone, empty sky across the top of the frame for a title. About half the visible crowd in hats including Akubras and fedoras. Australian crowd mix roughly 75 percent white 9 percent Asian 9 percent Middle-Eastern 5 percent Black. Turf only, no dirt or sand, no US signage. NO TEXT, NO WORDS, NO LETTERING, NO LOGOS, NO BRAND NAMES and NO SPONSOR SIGNAGE anywhere in the image.",
+    "_hero_prompts_why": "Both prompts describe the PICTURE ONLY and never address the generator or refer to each other — EP15's hero B opened 'DELIBERATELY DIFFERENT from A:' and the model rendered that phrase into the sky as a white headline (E13). Any note about the relationship between A and B belongs in a _why field like this one, never in a prompt string. The explicit NO TEXT / NO LOGOS negatives are also from EP15: hero A came back carrying a real bookmaker's brand, legible twice, and every automated check passed it — only looking caught it. B deliberately shows the PLACE (three horses together at the post), which is what this episode is actually about.",
+    "title_setup": "SQUEEZE THOSE",
+    "title_payoff": "ODDS!",
+    "part": "Part 2",
+    "part_inline": false,
+    "byline": "The bet that is really two bets — and how to price each half · from the Practical Punting archives · with Gordon"
+  },
+  "_cover_note": "title_setup + title_payoff + part must FOLD to the same name as packaging.ebook_title, packaging.youtube_title (suffix removed) and `title`, or check_one_name halts. THE BANG LIVES ON title_payoff — 'ODDS!' — which is what puts it on the NAME rather than after the part. Identical construction to EP15 with 'Part 2' in place of 'Part 1', which is the series amendment working as intended.",
+  "thumbnail": {
+    "l1": "SQUEEZE THOSE",
+    "l2": "ODDS!",
+    "part": "Part 2",
+    "strap_break_after": "Betting",
+    "hero_focus": "center"
+  },
+  "_thumbnail_note": "Shape matched to EP13, EP14 and EP15, not invented. l1+l2 SPLIT THE HOOK across two lines exactly as they do. strap_break_after names the byline word to break after: 'Each Way Betting / Forever'. ⚠️ THE 'Part 2' IS LOAD-BEARING THIS TIME: Jodie's answer to the re-used-hook counter-argument is that the part line is what makes a channel page read as a series rather than a re-upload. It is not decoration.",
+  "figures": [
+    {
+      "n": 1,
+      "card": "C3"
+    },
+    {
+      "n": 2,
+      "card": "C6"
+    },
+    {
+      "n": 3,
+      "card": "C9"
+    },
+    {
+      "n": 4,
+      "card": "C12"
+    }
+  ],
+  "_figures_note": "FOUR FIGURES, following the ARTICLE's order. They are the four moments the argument turns on: the baseline (C3), the value gap (C6), the split (C9) and the professionals' bet (C12). ⚠️ THE TWO SOURCE TABLES ARE NOT FIGURES — they are Roger's own 1988 scans, reproduced in ebook/body.html as table-1.jpg and table-2.jpg under PP-STANDARDS §0a-i ('the scan IS the article'). Between them they carry about five hundred cells; hand-transcribing them would invent a new way to publish a wrong number and buy nothing. Only the ONE row that reaches a card — Table 1, S=5, F=Evens — is transcribed, and it is arithmetically checked against Roger's own prose.",
+  "ebook": {
+    "departures": [],
+    "omit_paragraphs": [
+      "How to win big money backing win and place",
+      "EACH-WAY BETTING FOREVER! (Part 2)",
+      "By Roger Dedman",
+      "PRACTICAL PUNTING — MARCH 1988"
+    ]
+  },
+  "_ebook_note": "departures is EMPTY, and that is the WHOLE POINT of where the repairs live. author_ebook.py hard-fails any body paragraph that is not character-for-character the source, and its departure vocabulary is fixed in code with one member ('adding a name is a code change'). The six category-2 repairs are therefore made at the point of CAPTURE, in docs/EP16-source-article-...md, under a disclosed header that names each one and the sentence forcing it — so the body matches the capture exactly and the fidelity gate still does its full job. No departure had to be invented mid-EP16, which would have been changing two things when one of them is a test. ⚠️ THE LIMITATION, per PP-STANDARDS §0a-i: the gate is exactly as strong as a hand-written capture file. That is why the header block is a rule and not a courtesy. ALSO IN THE BOOK AND NOT IN THE VIDEO: 'the place tote will be offering an average return of only 83 cents (rounded down to 80 cents)' — category 3, unprovable, reproduced as printed and not spoken. And a one-sentence <p class='note'> tells the READER six scan errors were repaired, so anyone comparing with the website finds an explanation rather than a discrepancy.",
+  "build": {
+    "default_hold": 10.0,
+    "hero_hold": 12.0,
+    "min_card_hold": 10.0,
+    "_holds_why": "⚠️ WITHOUT default_hold THE BUILD CANNOT PASS ITS OWN CHECK. derive_card_timings.py defaults default_hold to 8.0 and min_card_hold to 10.0, three lines apart, and 8.0 can never satisfy 10.0 — every non-hero card then fails and the halt asks a human to settle it once per card. EP15 produced seven identical 'Jodie's call' lines to the decimal. E24 is the code fix; setting it here unblocks the build and fixes nothing.",
+    "midroll": {
+      "line_id": "L6",
+      "beat": 15,
+      "ask": [
+        "a like tells the thing to show it",
+        "Right you are. Where were we."
+      ],
+      "_ask_why": "TWO ANCHOR PHRASES, NOT ONE STRING — the START and END of the spoken ask, so the tool can find the span in the SRT. EP15 had a STRING here, so ask[0] and ask[1] were the CHARACTERS 'I' and 'f' and the halt reported the ask phrase missing; the guard is `len(ask) < 2`, which any two-character string passes (E25). Both phrases are lifted verbatim from pool line L6.",
+      "clip": "midroll-lowerthird.mp4",
+      "composite": true,
+      "at": null,
+      "dur": 16.0,
+      "fade": 0.4,
+      "_dur_why": "⚠️ WITHOUT dur THE CHIP DEFAULTS TO 5.0s AND FAILS QC. §4E requires >= 6s of FULL visibility and the fades sit ON TOP of that: 5.0s with 2x0.4s fades leaves 4.2s fully visible, which is the EP09 failure the standard was written against. EP11-EP15 all carry dur 16.0 / fade 0.4 identically. `at` is null until the SRT exists — it is measured from the aligned SRT at shot_map, never estimated from a word count, which is how EP15's 235.0 went stale."
+    },
+    "music": "music.mp3",
+    "standing": {
+      "title": "TITLE",
+      "endcard": "END",
+      "warranty": "WARRANTY"
+    },
+    "endcard_beat": 27,
+    "_standing_why": "⚠️ WITHOUT build.standing THE ASSEMBLER CRASHES. assemble_episode.py reads STAND = B.get('standing', {}) and takes TITLE_ID/END_ID/WAR_ID from it; with the key absent all three are None and cards[None] raises KeyError: None, printed to the operator as a raw Python traceback. EP11-EP15 all carry this map with identical values, which is the only reason the missing-key path was never exercised."
+  },
+  "_fixture_note": "EP16's docs/episode.json AS FIRST WRITTEN, 5 Aug 2026 — the real failure, kept. It halted cards_render TWICE: once on schema/job faults and again on trace gaps, eight steps into a build, AFTER the render gate, the credit check, seven paid b-roll clips, two paid cover heroes and Jodie's cover pick. THE ACCEPTANCE TEST FOR EP17 ITEM 1: a pre-flight that calls author_cards' own validate() and check_trace() at audit_inputs must name every one of these BEFORE a credit moves. E26 as it stands reports ZERO problems on this file, because it compares keys and TYPES against reference episodes and every fault here is an EXTRA key or a closed-vocabulary value no reference happens to use."
+}

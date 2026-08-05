@@ -183,6 +183,51 @@ sentence by sentence, to the article. If you cannot point to the source sentence
 Then run the **QC checklist** in §5. Then read the whole spoken track **aloud** in Gordon's voice —
 every stumble, every unnatural pause, every line that sounds like a different narrator gets fixed.
 
+### 🔴 Step 9a — VALIDATE `episode.json`'s CARDS THE MOMENT YOU FINISH WRITING IT
+**(Jodie, 5 Aug 2026. Not optional, and not a thing to remember — it is a step.)**
+
+> **Run `author_cards.validate()` and `author_cards.check_trace()` over every authored
+> card BEFORE the ticket goes to the Words Gate — before anything is approved, before a
+> single credit moves.**
+
+```python
+import author_cards as ac                     # skills/pp-episode-production/scripts
+blk = {}
+article = ac.norm(open(CAPTURE, encoding="utf-8").read())
+for c in epj["cards"]:
+    if c.get("block") == "bespoke":
+        continue
+    blk.setdefault(c["block"], ac.load_block(c["block"]))
+    ac.validate(c, blk[c["block"]])           # schema: keys, lists, enums
+    print(ac.check_trace(c, article))         # every figure -> its source sentence
+    # and by hand: job in ac.JOBS, block in ac.JOB_BLOCKS[job],
+    # and relates_to present when job == "relate" on a list block
+```
+
+**WHY IT IS A STEP AND NOT ADVICE — EP16, 5 Aug 2026.** The card definitions were written
+from memory of the vocabulary and carried **twenty schema and job faults**, with
+**twenty-six trace gaps behind them**. `author_cards.py` caught every one, precisely,
+naming card, key and allowed values — **at `cards_render`, eight steps in**: after the
+render gate opened, after the credit check, after seven b-roll clips and two cover heroes
+were generated and paid for, and after Jodie had picked a cover.
+
+**The validator already existed. It simply ran too late.** One command at authoring time
+would have caught all of it, for nothing.
+
+⚠️ **AND WHAT TWENTY FAULTS IN A FILE THE AUTHOR JUST WROTE ACTUALLY MEANS:** the card
+vocabulary is **large, closed, and easy to get wrong from memory** — four jobs, a
+job→block map, per-block required/optional/list schemas, enum fields, and "every declared
+key must be PRESENT, `null` if empty". **That is not an argument for trying harder. It is
+the argument for the check running early.**
+
+📌 **Fix against the CODE, never against the flag text.** `validate()` raises on the FIRST
+fault in a card and the job checks only run for cards that get past it, so a halt names
+what it happened to reach. On EP16 the flag named eight cards; twelve were wrong.
+
+*(EP17 item 1 moves this into `preflight_episode_json` so the engine does it at
+`audit_inputs`. Until then it is yours to run, and the fixture that proves it is
+`engine/testdata/ep16-cards-BEFORE-FIX.episode.json`.)*
+
 ---
 
 ## 4. THE CRAFT (reference)

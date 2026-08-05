@@ -929,10 +929,42 @@ def acquire():
     return None
 
 
-_CODE_FILES = [Path(__file__).resolve(),
-               Path(__file__).resolve().parent / "providers.py",
-               ENGINE_DIR / "rail.py"]
-_CODE_MTIMES = {p: p.stat().st_mtime for p in _CODE_FILES if p.exists()}
+# --- the stale-code watch list: DERIVED, NEVER ENUMERATED --------------------
+#
+# 🔴 THIS WAS A HAND-WRITTEN LIST OF THREE — engine.py, providers.py, rail.py —
+# AND IT WENT STALE THE DAY THE ENGINE GREW A FOURTH MODULE.
+#
+# EP16, 5 Aug 2026: `preflight_episode_json.py` was fixed at 10:43 and the running
+# engine went on using the broken copy for six hours, flagging EP16 on a false
+# positive that no longer existed on disk. The guard was working perfectly — it ran
+# roughly a thousand times that day — and saw nothing, because the file that changed
+# was not one of its three. `check_page_images.py` and `gitgate.py` were equally
+# invisible.
+#
+# THE FIX IS THE ONE THAT KEEPS WORKING: ask the INTERPRETER what it loaded, rather
+# than asking a human to remember. A new module cannot be forgotten, because
+# IMPORTING IT IS WHAT PUTS IT ON THE LIST.
+#
+# Same shape as check_page_images (ask the PAGE what images it needs) and
+# test_preflight_build_written (grep the CODE for what the build writes).
+# See CLAUDE.md fault #7.
+def _watched_files() -> set[Path]:
+    """Every .py the engine has actually imported from ENGINE_DIR, plus itself."""
+    files = {Path(__file__).resolve()}
+    for mod in list(sys.modules.values()):
+        f = getattr(mod, "__file__", None)
+        if not f:
+            continue
+        try:
+            p = Path(f).resolve()
+        except (OSError, ValueError):
+            continue
+        if p.suffix == ".py" and p.parent == ENGINE_DIR:
+            files.add(p)
+    return files
+
+
+_CODE_MTIMES = {p: p.stat().st_mtime for p in _watched_files() if p.exists()}
 LOCK = ENGINE_DIR / "engine.lock"
 
 
@@ -962,14 +994,23 @@ def _acquire_lock():
 
 def _code_changed():
     """Stale-code guard: a long-lived watch engine must not keep months-old
-    logic in memory. If any core file changed since start, exit so the next
-    start loads fresh code."""
-    for p, m in _CODE_MTIMES.items():
+    logic in memory. If any file it IMPORTED changed since start, exit so the
+    next start loads fresh code.
+
+    Re-derives the watch set each call, so a module imported lazily after start
+    is BASELINED rather than reported as changed — otherwise the first sight of
+    a late import would look like an edit and exit the engine for nothing.
+    """
+    for p in _watched_files():
         try:
-            if p.stat().st_mtime != m:
-                return p.name
+            m = p.stat().st_mtime
         except OSError:
-            pass
+            continue
+        if p not in _CODE_MTIMES:
+            _CODE_MTIMES[p] = m          # newly imported — baseline, do not fire
+            continue
+        if m != _CODE_MTIMES[p]:
+            return p.name
     return None
 
 

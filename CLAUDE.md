@@ -284,6 +284,55 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    `render_card.py` waits for `ppDuration` FIRST. *Separate the causes before naming
    one, or you will fix the wrong thing and believe you fixed the right one.*
 
+## 🔴 7. IF A GUARD'S COVERAGE IS A LIST SOMEBODY MAINTAINS, IT IS ALREADY BROKEN
+### YOU HAVE SIMPLY NOT MET THE MISSING ITEM YET.
+**(Jodie, 5 Aug 2026, after the FIFTH instance in one week. Not five patches — one
+habit.)**
+
+| # | the guard | it knew a list of… | the item that was not on it |
+|---|---|---|---|
+| 1 | `assert_standing_assets()` | the standing pages | **`ebook-cover.png`** — the end card shipped ALT TEXT |
+| 2 | `restoreDrafts()` (board) | the fields worth protecting | **`script_doc_url`** — the refresh wiped it mid-paste |
+| 3 | `_CODE_FILES` | three engine files | **`preflight_episode_json.py`** — six hours of stale code |
+| 4 | E26's own test fixtures | finished `episode.json` files | **the script-time case** — see 4a |
+| 5 | `card_check` | one render size | **the composited size** — EP15's C10 shipped illegible |
+
+> ## THE FIX IS ALWAYS THE SAME SHAPE: **DERIVE THE COVERAGE FROM THE THING ITSELF.**
+> **Ask the PAGE what images it needs** (`check_page_images`). **Ask `sys.modules` what
+> the engine imported** (`_watched_files`). **Grep the CODE for what the build writes**
+> (`test_preflight_build_written`). **Call the AUTHORING code's own validator** (EP17 #1).
+> **A derived list cannot go stale, because the act of adding the thing is what adds it
+> to the list.**
+
+⚠️ **THE TELL, so you can catch the sixth before it bites:** a guard whose coverage is a
+literal — a tuple of filenames, a set of field names, a hand-built fixture — is a guard
+whose coverage was correct on the day it was written and has been decaying since. **Ask
+of every check: if someone adds a new one of these tomorrow, does the check find it by
+itself?** If the answer is "someone will remember", it is not a rule, it is a hope.
+
+> ### 🔴 AND THE COROLLARY THAT MADE IT WORTH NUMBERING — EP16, 5 Aug 2026.
+> **A PASS IS A STATEMENT ABOUT WHAT WAS MEASURED, NOT ABOUT WHAT IS TRUE.**
+> E26's pre-flight reported **0 blockers** on EP16's `episode.json` at `audit_inputs`,
+> correctly, on a file that was already guaranteed to halt at step ten:
+> > *"E26 found nothing because there was nothing of its kind to find, while faults of a
+> > different kind sat in the same file untouched."*
+> **Twenty schema and job faults, then twenty-six trace gaps behind them** — and E26 could
+> not see one of them **by construction**: it compares keys and TYPES against two
+> reference episodes, so a **missing** key or a **changed** type is visible and an
+> **EXTRA** key that no reference has is invisible. Every fault was an extra key or a
+> closed-vocabulary value.
+> **Proved, not argued: `engine/testdata/ep16-cards-BEFORE-FIX.episode.json` is the real
+> file, and E26 returns zero on it.**
+> **This is fault #4 one more turn, and it generalises past this pipeline.** When a check
+> is quiet, the question is never "is it working?" — it is **"was it looking at the thing
+> that is wrong?"**
+
+📏 **AND THE NUMBERS MUST BE MEASURED, NOT REMEMBERED.** I reported "38 faults" twice from
+memory during that build. Rebuilding the file as a fixture and running the checks gave
+**20 in the first pass**, with **11 cards whose schema fault hid their trace state
+entirely**, and 48 across three rounds. *The estimate was wrong in both directions at
+once, which is what estimates from memory do.*
+
 ## 📋 8. A LIST OF EVERYTHING NOTICED IS NOT A PLAN
 **(Jodie, 4 Aug 2026: "We had it working!")**
 
