@@ -262,6 +262,37 @@ def check_shape(j: dict, refs: list[dict]) -> list[str]:
     return problems
 
 
+# ------------------------------------------------------- keys the BUILD writes
+#
+# 🔴 THE PRE-FLIGHT RUNS AT `audit_inputs`, AT THE START OF A BUILD. Its reference
+# episodes are FINISHED. So every key the build WRITES INTO episode.json later in
+# the run is present in both references and absent from the file being judged —
+# and was reported as a missing convention, as a BLOCKER, on every episode.
+#
+# FOUND ON EP16, 5 Aug 2026, the first time this was ever run on a genuinely
+# script-time file. Until then it had only been measured against EP14 and EP15
+# AS SHIPPED, both of which already carried these keys — written hours earlier by
+# the very build stage that comes after this check. 16/16 green, and every
+# fixture came from a lifecycle stage the guard will never encounter.
+#
+# ⚠️ THIS IS NOT A LIST SOMEBODY MUST REMEMBER TO UPDATE. `test_preflight_build_
+# written.py` greps the engine and the skill for `build[...] = ` assignments and
+# FAILS if any key it finds is missing here. That is the difference between a
+# convention and a guard: assert_standing_assets() knew a list too, and the
+# e-book cover was not on it.
+BUILD_WRITTEN_KEYS = {
+    # derive_card_timings.py: "Derive card leads + midroll.at FROM the WhisperX
+    # SRT — never from estimates." Neither can exist before heygen_download.
+    "build.leads",
+    "build.midroll.at",
+}
+
+
+def _is_build_written(key: str) -> bool:
+    """True if this key (or its parent block) is written BY the build, not authored."""
+    return any(key == k or key.startswith(k + ".") for k in BUILD_WRITTEN_KEYS)
+
+
 # -------------------------------------------------------------------------- report
 def preflight(j: dict, refs: list[dict]) -> dict:
     """Returns {'must': [...], 'worth': [...], 'ok': bool}. `must` is halt-worthy."""
@@ -272,7 +303,12 @@ def preflight(j: dict, refs: list[dict]) -> dict:
     must += check_shape(j, refs)
 
     if len(refs) >= 2:
-        conv = conventions(refs[0], refs[1])
+        # Drop the build-written keys from the CONVENTION side: they are present in
+        # every finished episode and absent from every episode this check will ever
+        # actually see. Judging an author for not having them is judging them for
+        # not having run the build yet.
+        conv = {k: v for k, v in conventions(refs[0], refs[1]).items()
+                if not _is_build_written(k)}
         mine = key_types(j)
 
         wrong = sorted(k for k in set(conv) & set(mine)

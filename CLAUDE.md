@@ -175,6 +175,32 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    proven. Guarded now by `engine/test_step_call_sites.py` — static unbound-name audit
    across `engine.py` and `providers.py`, plus the real dispatch actually reaching the
    call.
+   > ## 🔴 4a. A CHECK THAT RUNS AT TIME T MUST BE TESTED AGAINST INPUTS AS THEY EXIST AT TIME T.
+   > **(EP16, 5 Aug 2026. Fault #4 in a new costume — and the sharpest version of it yet,
+   > because the suite covered the right FILE at the wrong MOMENT.)**
+   > **E26's pre-flight runs at `audit_inputs`, at the START of a build.** Its sixteen
+   > tests were **all** built from **FINISHED** `episode.json` files — EP15-as-shipped,
+   > EP14-judged-by-the-others. **16/16 green, and every fixture came from a lifecycle
+   > stage the guard will never encounter.**
+   > **What that hid:** `build.leads` and `build.midroll.at` are **written BY THE BUILD**
+   > from the WhisperX SRT (`derive_card_timings.py`: *"never from estimates"*), long
+   > after this check runs. So they are in every reference and in no file the check will
+   > ever actually see — reported as a missing convention, **as a BLOCKER**.
+   > **It would have halted EP16 at the first step, and every episode after it.**
+   > *The guard built to remove seven halts would have added one — and **a guard that
+   > halts every build is the version somebody switches off.***
+   > ✅ **FIXED (`BUILD_WRITTEN_KEYS` + `engine/test_preflight_build_written.py`).**
+   > ⚠️ **AND THE FIX IS GRADE 2, NOT GRADE 1, ON PURPOSE.** A hard-coded list of two
+   > keys is *"a list somebody must remember to update — the exact shape that let the
+   > e-book cover through"* (Jodie). `assert_standing_assets()` knew a list too, and
+   > `ebook-cover.png` was not on it. **So the test GREPS the engine and the skill for
+   > `build[...] = ` assignments and FAILS if any key it finds is not exempt.** The next
+   > build-written key cannot silently start blocking episodes.
+   > **How to apply this everywhere else:** before writing a check, ask *what does its
+   > input look like at the moment it runs* — not *what does a good example look like*.
+   > A finished artefact is the easiest fixture to reach for and it is very often the
+   > wrong one.
+
 5. **A DERIVED ARTEFACT INHERITS THE FAULT WITHOUT INHERITING THE BYTES.**
    When you quarantine a bad artefact, ask **what was BUILT from it**, not only what
    EQUALS it. **Chasing copies finds copies; it does not find children.**
