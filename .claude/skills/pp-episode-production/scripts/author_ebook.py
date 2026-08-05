@@ -266,14 +266,58 @@ def strip_comments(s: str) -> str:
     return re.sub(r"<!--.*?-->", " ", s, flags=re.S)
 
 
-def parse_body(body: str):
+def declared_source_figures(ebook: dict) -> dict:
+    """`ebook.source_figures[]` — images that reproduce the SOURCE, not a card.
+
+    THE RULE THIS EXISTS BESIDE, WHICH IS UNCHANGED: every figure in the book is a
+    print render of a motion card, so the book cannot drift from the video.
+
+    THE CASE IT DOES NOT COVER (PP-STANDARDS §0a-i, ratified 4 Aug 2026): a source
+    table that exists only as a SCAN on the original page. "The scan IS the article.
+    Embedding it is the most faithful reproduction available, not the least." EP16's
+    two Dedman tables carry ~500 cells between them and hand-transcribing them would
+    invent a new way to publish a wrong number.
+
+    ⚠️ IT NAMES FILES, IT DOES NOT OPEN A CLASS. Only the exact filenames declared
+    here may appear, each with a written reason. A new class must never become a way
+    round the fidelity check.
+    """
+    out = {}
+    for i, entry in enumerate(ebook.get("source_figures") or [], 1):
+        if not isinstance(entry, dict):
+            raise Halt(f"episode.json -> ebook.source_figures[{i}] must be an object "
+                       f'like {{"src": "table-1.jpg", "why": "..."}}.')
+        src = str(entry.get("src") or "").strip()
+        why = str(entry.get("why") or "").strip()
+        if not src:
+            raise Halt(f"episode.json -> ebook.source_figures[{i}] has no 'src'.")
+        if not why:
+            # THE REASON IS NOT OPTIONAL — same discipline as build.audio_kbps_floor.
+            # An exception that can exist without a written reason becomes a silent
+            # normal: the next episode copies the key and nobody remembers why the
+            # book stopped being a render of the video.
+            raise Halt(
+                f"episode.json -> ebook.source_figures[{i}] declares {src!r} but gives "
+                f"no reason, so I have not applied it. Reproducing a SOURCE image "
+                f"instead of a card render is allowed; doing it without writing down "
+                f"WHY is not, because the next episode copies the key and the book "
+                f"quietly stops being a render of the video. Add 'why'.")
+        out[src] = why
+    return out
+
+
+def parse_body(body: str, source_figures: dict | None = None):
     """Pull the body apart into what must be checked and what must not.
 
     Returns (prose, quoted, figures). `prose` is the plain `<p>` text in order —
     the article's own sentences. `quoted` is blockquote/pullquote text, which must
     be traceable into the article but need not be a whole paragraph. `figures` is
     the figure numbers referenced, in order.
+
+    `source_figures` is {filename: why} from ebook.source_figures[] — the ONLY
+    non-figure-N.png images permitted, and only by exact name.
     """
+    source_figures = source_figures or {}
     body = strip_comments(body)
     for bad in ("<script", "<style", "<link", "<meta", "<iframe", "<html", "<body"):
         if bad in body.lower():
@@ -312,9 +356,22 @@ def parse_body(body: str):
             raise Halt(f"ebook/{BODY_FILE}: a figure must be "
                        f'class="illus" (or "illus portrait"). Found: {m.group(0)[:120]}')
         if not src or not re.fullmatch(r"figure-(\d+)\.png", src.group(1)):
-            raise Halt(f"ebook/{BODY_FILE}: a figure's src must be figure-N.png — the print "
-                       f"render build_figures.py makes from the motion card, so the book "
-                       f"cannot drift from the video. Found: {m.group(0)[:120]}")
+            name = src.group(1) if src else ""
+            if name in source_figures:
+                # A DECLARED SOURCE FIGURE — announce it, so a reproduction of the
+                # original page can never be mistaken for a render of a card.
+                print(f"    ⚠️ SOURCE FIGURE, NOT A CARD RENDER: {name} — "
+                      f"{source_figures[name][:300]}", file=sys.stderr)
+            else:
+                raise Halt(
+                    f"ebook/{BODY_FILE}: a figure's src must be figure-N.png — the print "
+                    f"render build_figures.py makes from the motion card, so the book "
+                    f"cannot drift from the video. Found: {m.group(0)[:120]}\n"
+                    f"    If this image reproduces the SOURCE ARTICLE rather than a card "
+                    f"(PP-STANDARDS §0a-i — a scanned table is reproduced as the scan), "
+                    f"declare it by name in episode.json -> ebook.source_figures[] with a "
+                    f"'why'. It must be declared file by file; there is no class or "
+                    f"pattern that lets one through.")
         if 'alt="' not in m.group(0):
             raise Halt(f"ebook/{BODY_FILE}: every figure needs alt text. Found: "
                        f"{m.group(0)[:120]}")
@@ -570,7 +627,33 @@ def main():
     body = open(body_path, encoding="utf-8").read().strip()
 
     article = article_paragraphs(source_article_path(ep, ep_dir))
-    prose, quoted, figures = parse_body(body)
+
+    # DECLARED SOURCE FIGURES: each must EXIST, and must be NAMED IN THE CAPTURE FILE.
+    # The second check is the provenance one — it ties the image to the studio's own
+    # record of the article, so a stray picture cannot be waved through by adding a
+    # line to episode.json. A declaration is not a passport.
+    src_figs = declared_source_figures(ep.get("ebook") or {})
+    if src_figs:
+        cap_path = source_article_path(ep, ep_dir)
+        cap = open(cap_path, encoding="utf-8", errors="replace").read()
+        for name, why in sorted(src_figs.items()):
+            on_disk = os.path.join(a.out_dir, name)
+            if not os.path.exists(on_disk):
+                raise Halt(
+                    f"episode.json declares source figure {name!r} but it is not in "
+                    f"{a.out_dir}. A declared exception still has to point at a real "
+                    f"file.")
+            if name not in cap:
+                raise Halt(
+                    f"episode.json declares source figure {name!r}, but the capture "
+                    f"file {os.path.basename(cap_path)} never mentions it. A source "
+                    f"figure must come FROM THE ARTICLE and the capture is where that "
+                    f"is recorded — otherwise 'source figure' is just a way to put any "
+                    f"picture in the book. Name it in the capture, or do not declare it.")
+            print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
+                  f"named in {os.path.basename(cap_path)}", file=sys.stderr)
+
+    prose, quoted, figures = parse_body(body, src_figs)
     report = [check_fidelity(prose, quoted, ep, article), check_figures(figures, ep)]
 
     if a.check_only:

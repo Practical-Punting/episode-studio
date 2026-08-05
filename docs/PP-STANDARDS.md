@@ -99,54 +99,44 @@ it takes effect. Clearing the red flag alone will NOT rebuild anything.**
    on the hook and the byline; the YouTube txt carries the locked YouTube title; the cover
    carries the locked e-book title. `qc_episode.py --episode` **HARD-FAILS any asset showing
    a STALE value** (the EP08 rework bug) with a plain-English flag naming the mismatch.
-1a. **🔒 A SERIES NAME CARRIES THE TITLE; THE ARTICLE'S OWN NAME BECOMES THE BYLINE.**
-   **(Jodie, 5 Aug 2026 — an AMENDMENT to the 2 Aug "the name is the article's own,
-   punctuation included" rule. Both stand; this one governs when a series exists.)**
-   > ### WHEN AN EPISODE BELONGS TO A SERIES WE HAVE NAMED, THE SERIES NAME IS THE
-   > ### EPISODE TITLE, AND THE ARTICLE'S OWN HEADLINE BECOMES THE BYLINE.
-   **Her reason, kept verbatim because the reason is the rule:** *it makes the two episodes
-   visibly a pair, which is worth more than fidelity to a headline nobody searches for.*
+1a. **🔒 THE EPISODE TAKES THE SOURCE PAGE'S OWN HEADLINE. A SERIES IS EXPRESSED ONLY
+   BY THE PART LINE.** *(Jodie, 5 August 2026, evening — with Hugh.)*
+   > ### "As a general rule we do need to stick with the article headlines.
+   > ### Go with the article headlines more than anything else."
 
-   **The worked example that produced it — EP15 and EP16:**
+   | slot | comes from |
+   |---|---|
+   | **TITLE / HOOK** | the source page's own **headline, verbatim** — punctuation and all. **The bang stays where the page puts it.** |
+   | **PART LINE** | **the ONLY place a series is expressed.** `PART 2`, beneath the name, as EP15's card does. |
+   | **BYLINE** | the source page's own **standfirst**. |
 
-   | | EP15 | EP16 |
-   |---|---|---|
-   | the article's own headline | *SQUEEZE THOSE ODDS! (Part 1)* | *EACH-WAY BETTING FOREVER! (Part 2)* |
-   | **episode title** | **Squeeze Those Odds! — Part 1** | **Squeeze Those Odds! — Part 2** |
-   | **byline** | — | **Each Way Betting Forever** |
+   ### ⚰️ THIS REPLACES A RULE THAT LASTED ONE DAY, AND THE COST IS THE POINT
+   **A "series name carries the title" provision was added here on the MORNING of
+   5 August 2026 and reversed the SAME NIGHT.** It produced exactly one wrong episode —
+   **EP16 was written, rendered, assembled and QC-passed under "Squeeze Those Odds! —
+   Part 2"**, a name taken from EP15's framing rather than from its own page, which reads
+   *EACH-WAY BETTING FOREVER! (Part 2)*.
+   **It was caught only because Jodie showed Hugh a thumbnail at nine o'clock at night.**
 
-   ✅ **AND THE SOURCE WAS ALREADY DOING THIS.** Checked on the page, 5 Aug 2026: PP runs
-   these two 1988 Dedman articles under **different headlines** and links them as a pair —
-   EP16's body ends *"Click here to read Part 1"* pointing at
-   `squeeze-those-odds-part-1-19880206`, **which is EP15's source exactly.**
-   **The amendment describes what the material already does; it does not impose a shape on
-   it.** *A series is the only thing that makes two differently-headlined articles findable
-   as a pair.*
+   > ### 🔴 JODIE'S OWN ACCOUNT OF THE MISTAKE, WHICH IS THE USEFUL PART:
+   > ### "I was trying to make the part 1 and part 2 fit together — but that is not a thing."
 
-   - **The bang still stays** (2 Aug rule, unchanged): `Squeeze Those Odds! — Part 2`, the
-     bang on the NAME, then the em dash, then the part. `check_one_name` must see that
-     identical string on the title card, in the e-book and in the YouTube title.
-   - ⚠️ **THE BYLINE IS A LABEL, NOT A TITLE, so the article's punctuation does NOT govern
-     it.** The article prints *EACH-WAY BETTING FOREVER!* — hyphen and bang. The byline is
-     **`Each Way Betting Forever`**, neither. **Chosen by Jodie, 5 Aug 2026, not drifted**
-     — recorded here so nobody "restores" it later. **The byline's exact form is hers to
-     set, every time.**
-   - **This does NOT loosen §0a.** The article's SENTENCES are still never rewritten. A
-     title and a byline are packaging slots, and packaging has always been ours to choose.
+   ⚠️ **AND IT REACHES BACKWARDS: "Hidden Aces — Part 1 / Part 2" (EP11/EP12) was the same
+   habit.** The instinct to make the pair *look* like a pair is the fault, and it predates
+   the rule that briefly blessed it. **Published episodes stay exactly as they are** — *a
+   guard prevents recurrence; it does not oblige us to go back.*
 
-   ### ⚠️ THE INTERACTION THAT MUST NOT BE GOT WRONG — checked in the code, 5 Aug 2026
-   **The YouTube title is derived from the EPISODE NAME (`episode.json -> title`), NOT from
-   the byline.** `youtube_title.py` → `derive(title_of(epj))`, and `title_case()` was
-   deleted with the byline derivation on 2 Aug. **So this amendment is safe: a byline that
-   differs from the title cannot break the YouTube title**, and `check_one_name` does not
-   look at the byline at all — it compares `title`, the title card, the e-book title and
-   the YouTube title.
-   🔴 **BUT `docs/youtube-metadata-kit.md` STILL DESCRIBED THE OLD BYLINE DERIVATION, and
-   this amendment is what exposed it (corrected 5 Aug 2026).** Following the stale kit on
-   EP16 would have produced *"Each Way Betting Forever | How to Win at Horse Racing"* and
-   **halted `check_one_name`**, because the byline and the title are DIFFERENT STRINGS for
-   the first time in the studio's history. *Before this rule they were near-identical, so
-   the drift was invisible.* [[one-source-of-truth-or-it-drifts]]
+   🚫 **NO "UNLESS" CLAUSE. NO NARROWING. The series-name provision is DELETED, not
+   qualified** — an exception is how it comes back.
+
+   ### THE INTERACTION, still true and still worth knowing
+   **The YouTube title is derived from the EPISODE NAME (`episode.json -> title`), not from
+   the byline** — `youtube_title.py` → `derive(title_of(epj))`, `title_case()` deleted
+   2 Aug. `check_one_name` compares `title`, the title card, the e-book title and the
+   YouTube title; **it does not look at the byline.**
+   ⚠️ **AND `check_one_name` IS NOT ENOUGH TO ENFORCE THE RULE ABOVE. It passed EP16
+   perfectly: all three artefacts agreed — on the wrong name. A consistency check proves
+   SAMENESS, never CORRECTNESS. Only the source page can do that.** See the EP17 item.
 
 2a. **🔒 EVERY FIGURE MUST BE TRACED TO A SOURCE SENTENCE — AUTOMATICALLY, AND IT HALTS THE
    BUILD (Jodie, 27 Jul 2026; pre-EP12 improvement).**
