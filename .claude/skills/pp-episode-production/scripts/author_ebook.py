@@ -99,6 +99,67 @@ MARKER = (f"<!-- {GEN} by author_ebook.py — DO NOT HAND-EDIT. The shell comes 
 
 BODY_FILE = "body.html"
 
+# ══ THE ROGUE QUESTION MARK (Jodie, 7 Aug 2026, after Hugh read EP17) ═════════
+# A stray "?" — one starting a paragraph, or sitting mid-word where nobody asks
+# anything — is scan damage, and it is stripped from the e-book.
+#
+# 🔴 SCOPED TO GENERATED FURNITURE ONLY, AND THAT IS THE WHOLE OF THE CARE HERE.
+# The fidelity gate requires every BARE <p> to reproduce a source paragraph
+# character for character, folding nothing. A rule that edited article prose
+# would not "clean the book" — it would BREAK THE GATE on the very next run and
+# take the fidelity guarantee with it. So this touches classed paragraphs
+# (.lead/.byline/.note/.pullquote), .kicker, headings and figure alt text, and it
+# CANNOT see a bare <p>.
+#
+# ⚠️ CONSEQUENCE, NAMED RATHER THAN LEFT TO BE DISCOVERED: EP17's three stray "?"
+# are inside BARE <p> — they are the article's own bytes, reproduced deliberately
+# under §0a-i as category 1. THIS RULE DOES NOT REACH THEM AND MUST NOT. Removing
+# those is an omission decision about the article of record, not a render-time
+# tidy; the place for it is the CAPTURE file, disclosed, where §0a-i puts every
+# other repair.
+_ROGUE_Q = re.compile(
+    r"(?:(?<=^)|(?<=>)|(?<=\s))\?(?=[A-Za-z])"      # ?Word — opens or mid-flow
+)
+
+
+def strip_rogue_question_marks(fragment: str) -> str:
+    """Remove stray '?' glyphs from a piece of GENERATED FURNITURE.
+
+    A real question mark FOLLOWS a word and precedes a space or end of text
+    ("Number seven? Forget about it!"). A rogue one PRECEDES a letter with
+    nothing sensible before it. Only the second shape matches.
+    """
+    return _ROGUE_Q.sub("", fragment)
+
+
+# Everything the rule may touch. Bare <p> is deliberately absent.
+_FURNITURE = re.compile(
+    r"(<p\s+class=\"[^\"]+\"[^>]*>)(.*?)(</p>)"
+    r"|(<div\s+class=\"kicker\"[^>]*>)(.*?)(</div>)"
+    r"|(<h[12][^>]*>)(.*?)(</h[12]>)",
+    re.S)
+
+
+def clean_furniture(body: str) -> tuple[str, int]:
+    """Apply the rogue-'?' rule to furniture only. Returns (body, how many)."""
+    removed = [0]
+
+    def one(m):
+        groups = [g for g in m.groups() if g is not None]
+        open_t, inner, close_t = groups[0], groups[1], groups[2]
+        cleaned = strip_rogue_question_marks(inner)
+        removed[0] += inner.count("?") - cleaned.count("?")
+        return open_t + cleaned + close_t
+
+    out = _FURNITURE.sub(one, body)
+    # figure alt text is furniture too, and it is written by the studio
+    def alt(m):
+        cleaned = strip_rogue_question_marks(m.group(2))
+        removed[0] += m.group(2).count("?") - cleaned.count("?")
+        return m.group(1) + cleaned + m.group(3)
+    out = re.sub(r'(alt=")([^"]*)(")', alt, out)
+    return out, removed[0]
+
 # The ONE slot, as an exact literal from the standing template. It must occur
 # exactly once — see the template header for the 26 Jul 2026 bug where a script
 # matched an example inside a comment and rewrote the comment.
@@ -319,6 +380,15 @@ def parse_body(body: str, source_figures: dict | None = None):
     """
     source_figures = source_figures or {}
     body = strip_comments(body)
+    # THE ROGUE-'?' RULE, applied BEFORE the fidelity comparison so that anything
+    # it changes is visible to the gate rather than slipped past it. It cannot
+    # touch a bare <p>, so the comparison is unaffected by construction — and if
+    # that ever stopped being true, the gate would fail loudly on the next run
+    # rather than quietly shipping edited prose.
+    body, _rogues = clean_furniture(body)
+    if _rogues:
+        print(f"rogue '?' removed from furniture: {_rogues} "
+              f"(article prose is never touched — see the note by _ROGUE_Q)")
     for bad in ("<script", "<style", "<link", "<meta", "<iframe", "<html", "<body"):
         if bad in body.lower():
             raise Halt(f"ebook/{BODY_FILE} contains {bad!r}. The body is the ARTICLE BODY "
