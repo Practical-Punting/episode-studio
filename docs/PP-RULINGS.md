@@ -205,6 +205,30 @@ anything and it never blocks.
 **DOES NOT COVER:** what happens after the script moves to the rail (A5), where "drift"
 between a Doc and a snapshot stops existing as a concept.
 
+### ⚠️ SUSPENDED FOR EXACTLY ONE EPISODE — EP17, 6 Aug 2026. **NAMED, NOT WAIVED.**
+> ## TODAY SHE GETS **NO** SHOT AT EDITING. She can read the script and cannot change a
+> ## word of it.
+
+**A5 was executed mid-episode and half the box landed:** the script lives on the rail and
+is shown on the board **read-only**. The `<textarea>` that lets her edit it there is slice
+4, and it is **deliberately not built yet** — a textarea is an INPUT, so it lands inside
+the refresh-pause reasoning whose last unproven piece is the ctrl+Z observation **at this
+very gate, on a change already live on her board.** Building it now would mean that
+observation happens against a surface that changed underneath it. *It also keeps EP17 a
+clean test of Job A, which is the whole reason this episode ran before the box.*
+
+**THE ROUTE WHILE IT IS SUSPENDED:** she says what she wants changed, **Claude Code writes
+it to the rail.** One round trip. Not a blocker.
+
+> ### 🔴 IT IS STILL A STEP BACKWARDS FROM WHAT SHE WAS PROMISED, AND IT IS RECORDED AS ONE.
+> **Jodie's own words on 3 August were *"I get one shot at editing and then approving"*.**
+> Writing this down as a cost rather than a detail is the point: **a promise quietly
+> unfulfilled for "one episode" is how one episode becomes five.**
+
+**SLICE 4 IS THE NEXT THING AFTER EP17 SHIPS — not "in the gaps while renders cook".**
+*(Jodie, 6 Aug 2026.)* **DOES NOT COVER** any further suspension: this expires when EP17
+ships, and extending it needs a new ruling.
+
 ## A9 · 2 Aug 2026 — THE YOUTUBE TITLE IS THE EPISODE NAME
 `youtube_title = <episode name> + " | How to Win at Horse Racing"`, verbatim, **no
 re-casing**. Enforced in `scripts/youtube_title.py`, the only place the house form exists.

@@ -417,7 +417,7 @@ rule is now about what a command may BE, not about what it may not contain.
 under build momentum. A memory surfaces when something makes it relevant;
 CLAUDE.md loads every session before anything else, and momentum cannot skip it.
 
-### The six classes that broke it today — all of these go in a file
+### The seven classes — all of these go in a file
 | # | Shape | Example of what NOT to type |
 |---|---|---|
 | 1 | **Multi-line `python -c`** | `python -c "` … newline … `"` |
@@ -426,6 +426,25 @@ CLAUDE.md loads every session before anything else, and momentum cannot skip it.
 | 4 | **Chaining** | `cd repo && rm -rf "$D" && mkdir -p "$D" && python x.py` |
 | 5 | **Loops** | `for t in test_*.py; do python $t; done` |
 | 6 | **Quoting / expansion tricks** | quotes inside quotes inside quotes · `echo "exit=$?"` · `$(…)` round a quoted block |
+| 7 | **`git commit -m` with real prose in it** | `git commit -m "… \"the script box\" … EP17's …"` |
+
+> ## 🔴 7 IS ITS OWN ROW BECAUSE IT BROKE TWICE IN ONE DAY. **(Jodie, 6 Aug 2026.)**
+> ## EVERY COMMIT MESSAGE GOES IN A FILE: `git commit -F <literal absolute path>`.
+> ### Never `-m`, however short the message looks.
+
+**A good commit message here is PROSE, and this studio's prose is made of exactly the two
+things that break shell quoting: apostrophes, and quoted phrases.** A `-m "…"` containing
+*"the script box on the board"* closed its own quoting early; `EP17's` then opened a
+single-quote context, and **git reported eleven `pathspec` errors made of the words of my
+own message.** The `git add` had already succeeded, so the tree was staged and the commit
+was not — **a half-done state that reads like a failure of the CHANGE rather than of the
+COMMAND.**
+
+⚠️ **AND THE DIAGNOSIS MATTERS MORE THAN THE FIX: the apostrophe made the wreckage, the
+NESTED QUOTES caused it.** Blaming the apostrophe sends the next person off to escape
+apostrophes and leaves the real fault sitting there — **fault #6, on my own command line.**
+**`-F` deletes the whole class**, which is why it is a rule and not a preference: *the
+shapes that "work" today are the ones that eventually mangle something quietly.*
 
 **The replacement for every one of them is the same:** write the logic to a `.py`
 file in the session scratchpad, then run `python <literal absolute path>`. That
