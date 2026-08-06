@@ -73,7 +73,8 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | **cover_a_url / cover_b_url** | text | engine | the two cover-hero options (Drive links) |
 | cover_choice | text | human | 'A' or 'B' |
 | drive_folder | text | engine | `PP-EPnn` (artifacts live here on Drive) |
-| video_url / ebook_url / thumbnail_url | text | engine | Drive links to the finished artifacts |
+| **thumbnail_url / ebook_url** | text | engine | **https:// ONLY — locked by trigger (005).** NULL or a web address; a `G:\` path is refused. Written by `publish_artefact()` |
+| **video_url** | text | engine | **EXEMPT from 005 by decision** — stays a Drive path (~159 MB; Hugh gets it from Drive, its link is a separate job) |
 | **video_approved / ebook_approved / thumbnail_approved / title_approved** | bool | human | the 4 separate gates |
 | **hook / byline** | text | human (board, editable) | the words, promoted out of `notes` (004) |
 | **script_doc_url** | text | create step / human | the script's Google Doc — single source of truth (004) |
@@ -81,7 +82,7 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | **script_snapshot / script_sha256** | text | engine | the exact text approved + rendered (004) |
 | **script_approved_at / script_locked_at** | timestamptz | engine | when the gate passed (004) |
 | **script_changed_since_approval** | bool | engine | Doc edited after approval — flags, never blocks (004) |
-| youtube_copy | text | engine | recommended title + pointer to youtube.txt |
+| **youtube_copy** | text | engine | **the DESCRIPTION ITSELF — locked by trigger (005), min 1000 chars.** Rendered straight onto the publish card, so a pointer-note is refused. Written by `pasteable_description()` |
 | **ebook_link** | text | human | public e-book URL (pasted into the YT copy at publish) |
 | **published_url** | text | human | the live YouTube URL |
 | notes | text | any | free notes |
