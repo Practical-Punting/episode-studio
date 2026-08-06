@@ -174,6 +174,40 @@ def main():
     author(src, out, "--force")
     check("  not even with --force", page.read_text(encoding="utf-8") == hand)
 
+    # ---- THE TRAP HAD FOUR SIBLINGS, AND A HALF-CLOSED TRAP IS WORSE THAN AN
+    # ---- OPEN ONE: somebody reads "the --force trap is fixed", trusts a cover
+    # ---- rebuild, and gets a stale PNG. The fix creates the belief.
+    #
+    # This is a STATIC audit rather than five more end-to-end runs: each script
+    # needs its own valid episode fixture and staged assets, and the thing that
+    # actually went wrong is a single, identifiable code shape. So assert the
+    # shape, in every authoring script, DERIVED by globbing author_*.py — no list
+    # for anyone to maintain, so a sixth authoring script cannot be forgotten.
+    print()
+    scripts = sorted((REPO / ".claude/skills/pp-episode-production/scripts")
+                     .glob("author_*.py"))
+    check("there are authoring scripts to audit at all", len(scripts) >= 4,
+          f"found {len(scripts)}")
+    for s in scripts:
+        src = s.read_text(encoding="utf-8")
+        if "--force" not in src:
+            continue
+        # Ignore comments. The first version of this check matched the phrase
+        # anywhere in the file and failed on the COMMENTS EXPLAINING THE FIX —
+        # the same shape as the path lint tripping on a comment about the
+        # literal it forbids. What matters is whether the script still TELLS a
+        # human to pass --force, so look only at executable lines.
+        code = "\n".join(ln for ln in src.splitlines()
+                         if not ln.strip().startswith("#"))
+        check(f"{s.name}: no longer tells anyone to pass --force",
+              "pass --force to redo" not in code,
+              "the skip message survives in executable code")
+        check(f"{s.name}: decides by COMPARING the rendered page",
+              re.search(r"==\s*page\b|page\s*==", src) is not None,
+              "nothing compares the render against what is on disk")
+        check(f"{s.name}: still protects a hand-authored page",
+              "hand-authored" in src)
+
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"\nforce trap: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0

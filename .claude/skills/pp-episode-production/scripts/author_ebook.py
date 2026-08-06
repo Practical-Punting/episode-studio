@@ -689,11 +689,19 @@ def main():
             print("\n".join(report))
             print(f"· {os.path.basename(out)} left alone: hand-authored (no generated marker)")
             return
-        if not a.force:
+        # THE --force TRAP, closed as author_cards.py closes it: the rendered page
+        # is already in hand, so COMPARE it rather than skipping on existence.
+        # The engine never passes --force, so a change to the body, the title or
+        # a declared departure could never reach the e-book source — and on EP16
+        # the workaround was deleting this file by hand before anything would
+        # rebuild.
+        if existing == page and not a.force:
             print("\n".join(report))
-            print(f"· {os.path.basename(out)} left alone: already generated — "
-                  f"pass --force to redo")
+            print(f"· {os.path.basename(out)} left alone: unchanged — "
+                  "episode.json still says the same thing")
             return
+        if not a.force:
+            print("~ e-book source re-authored — its definition changed")
     open(out, "w", encoding="utf-8", newline="\n").write(page)
     print("\n".join(report))
     if added:

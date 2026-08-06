@@ -213,10 +213,16 @@ def main():
                                errors="replace").read():
                 print(f"· {f} left alone: hand-authored (no generated marker)")
                 return
-    if os.path.exists(out) and not a.force:
-        print("· title card left alone: already generated — pass --force to redo")
-        return
-
+    # 🔴 THE --force TRAP. The "already generated" skip USED TO SIT HERE, before
+    # the page was built — and the engine never passes --force, so a renamed
+    # episode kept its OLD title card while every step reported success. On EP16
+    # that was worked around by DELETING the page and the clip by hand, and it
+    # only worked because somebody knew to do it.
+    #
+    # Everything between here and the write is pure composition: it reads the
+    # template and substitutes, and touches nothing on disk. So the check MOVES
+    # DOWN to the write, where the rendered page can be compared. A reordering,
+    # not a restructure.
     size, w100 = measure_size(head)
     part = cov.get("part")
     part_line = (f'  <div id="pt" class="anton pt">{esc(part)}</div>\n' if part else "")
@@ -253,6 +259,17 @@ def main():
     if "%%" in page:
         raise Halt(f"unfilled slots left in the title card: "
                    f"{sorted(set(re.findall('%%[A-Z_]+%%', page)))}")
+
+    # Compare the rendered page against what is there. Identical means there was
+    # nothing to do; different means the cover or packaging changed and the card
+    # must be re-authored. The comparison IS the definition, so nothing can go
+    # stale — see author_cards.py for the full reasoning.
+    if os.path.exists(out) and not a.force:
+        if open(out, encoding="utf-8").read() == page:
+            print("· title card left alone: unchanged — episode.json still says "
+                  "the same thing")
+            return
+        print("~ title card re-authored — its definition changed")
 
     open(out, "w", encoding="utf-8", newline="\n").write(page)
     print(f"authored {out} ({W}x{H}, headline {size}px, part "

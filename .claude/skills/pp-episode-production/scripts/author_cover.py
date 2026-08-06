@@ -177,9 +177,17 @@ def main():
         if GEN not in existing:
             print(f"· cover.html left alone: hand-authored (no generated marker)")
             return
-        if not a.force:
-            print("· cover.html left alone: already generated — pass --force to redo")
+        # THE --force TRAP, closed as author_cards.py closes it: the rendered page
+        # is already in hand, so COMPARE it rather than skipping on existence.
+        # The engine never passes --force, so an e-book title or byline change
+        # could never reach the cover — and on EP16 the workaround was deleting
+        # the page and the PNG by hand.
+        if existing == page and not a.force:
+            print("· cover.html left alone: unchanged — episode.json still says "
+                  "the same thing")
             return
+        if not a.force:
+            print("~ cover.html re-authored — its definition changed")
     open(out, "w", encoding="utf-8", newline="\n").write(page)
 
     # the logo the template's chip draws; hero.png is activated by the engine
