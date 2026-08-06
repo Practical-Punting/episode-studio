@@ -134,9 +134,35 @@ cannot share it.**
 everything built on it — the Doc-URL field, the anonymous-read gate, the drift check, the
 link-this-Doc button, and a human relaying a URL between two machines.
 
+### ⏳ WHEN IT APPLIES — AMENDED 6 Aug 2026. **A SCOPE CORRECTION, NOT A REVERSAL.**
+> ## THE DOC LEG STANDS UNTIL **THE BOX EXISTS**.
+> ### The first episode after the box is built is the first without a Doc.
+
+**This entry said "This applies from EP17."** That was written on 5 August, when the box
+was expected to land before the next episode. **It did not: the box is not built, so EP17
+runs on a Doc** — and a ruling that says otherwise is a ruling the next reader will trust
+and act on.
+
+⚠️ **NOTHING ELSE MOVES.** The service account is **still cancelled**. The Doc is **still
+being deleted**. The fifteen public script Docs **still stop growing** — at the first
+episode after the box, rather than at EP17.
+
+> ### 🔴 THIS IS THE SAME CLASS OF FAULT AS §1a: a rule that was RIGHT WHEN WRITTEN and
+> ### became WRONG WHEN THE WORLD MOVED, with nothing linking the two.
+> §1a produced an entire episode under a name nobody had chosen. **A date written into a
+> ruling is a dependency on a plan, and plans move.** Bind the rule to the THING
+> (*"until the box exists"*), never to the DATE you expect the thing by.
+
+**AND WHY EP17 RUNS ON A DOC IS NOT ONLY THAT THE BOX IS LATE:** EP17 is the first real
+test of what landed on 6 August — the card and cue checks moved to `audit_inputs`, and the
+`--force` trap closed in all five authoring scripts. **Five of EP16's eight halts should
+simply not occur, and that claim is worth nothing until an episode runs.** Building the box
+into the same episode would make the run test two things and prove neither. *Don't change
+two things when one of them is a test — this studio's own rule, and the reason EP16 ran on
+a Doc as well.*
+
 **DOES NOT COVER — and this is a real exclusion, not a formality: EP16 ran on a Doc
-DELIBERATELY.** Changing the script's home mid-episode is changing two things when one of
-them is a test. **This applies from EP17.**
+DELIBERATELY**, for the same reason.
 **Nor does it cover** `docs/spoken-words.txt`, which must still be written as a derived
 cache — `render_ready` runs against that file at `audit_inputs`, and it currently exists
 only as a side effect of `fetch_script`.
