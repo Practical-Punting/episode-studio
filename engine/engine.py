@@ -97,7 +97,7 @@ import preflight_episode_json                  # E26 — the config pre-flight (
                                                # because engine.py imports NAMES from
                                                # providers and that is what bit EP15)
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
-                       assert_standing_assets)
+                       assert_standing_assets, pasteable_description)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -760,21 +760,41 @@ def step_self_qc(ctx):
     return {"qc": ctx.provider.self_qc(ctx.ep, final)}
 
 
+# ═══ EVERY ARTEFACT GETS A WEB ADDRESS ══════════════════════════════════════
+# These three columns held `G:\My Drive\...` paths — a drive letter on ONE laptop,
+# written into a link the board renders for a person who may not be sitting at it.
+# Hugh has nothing but the browser, so "here is your e-book" pointed at a place he
+# cannot reach.
+#
+# The VIDEO is deliberately NOT here. It is ~159 MB and Hugh gets it from Drive;
+# its link is handled separately.
+# ═════════════════════════════════════════════════════════════════════════════
 def step_ebook_pdf(ctx):
     out = ctx.provider.build_ebook(ctx.ep)
-    ctx.ep_set({"ebook_url": out})
+    ctx.ep_set({"ebook_url": ctx.provider.publish_artefact(ctx.ep, out)})
     return {"ebook": out}
 
 
 def step_thumbnail(ctx):
     out = ctx.provider.build_thumbnail(ctx.ep)
-    ctx.ep_set({"thumbnail_url": out})
+    ctx.ep_set({"thumbnail_url": ctx.provider.publish_artefact(ctx.ep, out)})
     return {"thumbnail": out}
 
 
 def step_youtube_copy(ctx):
+    """The copy needs no web address — it needs to BE on the card.
+
+    It used to write "see G:\\...\\PP-EP16-youtube.txt", which is an instruction
+    to go and open a file on a machine the reader may not have. The column is
+    rendered straight onto the publish card, so the words themselves belong in
+    it. The file stays on disk as the record, with its notes block.
+    """
     out = ctx.provider.save_youtube_copy(ctx.ep)
-    ctx.ep_set({"youtube_copy": f"see {out}"})
+    try:
+        copy = pasteable_description(Path(out).read_text(encoding="utf-8"))
+    except OSError:
+        copy = f"see {out}"          # never lose the pointer if the file moved
+    ctx.ep_set({"youtube_copy": copy})
     return {"file": out}
 
 

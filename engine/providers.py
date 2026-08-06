@@ -712,6 +712,43 @@ def ep_folder(ep) -> str:
 
 
 # ==========================================================================
+
+def pasteable_description(text: str) -> str:
+    """The part of a -youtube.txt file a human actually pastes.
+
+    The file carries THREE things: the derived title on line 1, the
+    description under a "DESCRIPTION — paste from here" banner, and a NOTES
+    block the file itself labels "for the record, not for pasting". Only the
+    middle one belongs in the rail column: `youtube_copy` is rendered
+    straight onto the publish card, and putting the notes there would show
+    Jodie two thousand words of hashtag reasoning where the description
+    should be.
+
+    ⚠️ IF THE BANNERS ARE NOT THERE, RETURN THE WHOLE FILE. An older episode,
+    or a hand-written one, may not have them — and showing everything is a
+    visible oddity a person can fix, where showing nothing looks like the
+    step failed.
+    """
+    lines = text.replace("\r\n", "\n").split("\n")
+    start = end = None
+    for i, ln in enumerate(lines):
+        u = ln.upper()
+        if start is None and u.startswith("DESCRIPTION"):
+            start = i + 1
+        elif start is not None and u.startswith("NOTES"):
+            end = i
+            break
+    if start is None:
+        return text.strip()
+    body = lines[start:end if end is not None else len(lines)]
+    # drop the ==== rules that fence the banners, top and bottom
+    while body and set(body[0].strip()) <= {"="} :
+        body.pop(0)
+    while body and (not body[-1].strip() or set(body[-1].strip()) <= {"="}):
+        body.pop()
+    return "\n".join(body).strip() or text.strip()
+
+
 class MockProvider:
     """Pretend externals. Artifacts are small text files under .mock/ so every
     step has a real, checkable output path — same shape as a real run."""
@@ -921,6 +958,14 @@ class MockProvider:
         self.maybe_fail("shot_map")
         self._work()
         return self._artifact(ep_folder(ep), "renders/shot-map.json", "shot map + SRT")
+
+    def publish_artefact(self, ep, local) -> str:
+        """Mock: a plausible https URL, nothing uploaded. Present so a step that
+        publishes cannot NameError on the mock path — the exact fault
+        test_step_call_sites.py exists to catch."""
+        self._work()
+        return (f"https://mock.invalid/episode-assets/{ep_folder(ep)}/"
+                f"{Path(local).name}")
 
     def make_covers_ab(self, ep):
         self.maybe_fail("covers_ab")
@@ -1837,26 +1882,74 @@ class RealProvider:
         return (self._publish_asset(a, f"{folder}/cover-A.png"),
                 self._publish_asset(b, f"{folder}/cover-B.png"))
 
+    # WHAT EACH KIND OF FILE IS, ASKED OF THE FILE ITSELF. A caller-supplied MIME
+    # would be a list somebody maintains, and the one that mattered would be the
+    # one nobody updated — fault #7. The suffix already knows.
+    #
+    # 🔴 IT IS NOT DECORATION. Sent as image/png (which is what this did for every
+    # upload until 7 Aug 2026), a PDF DOWNLOADS instead of OPENING, and the e-book
+    # link Hugh is given behaves differently from the one he was promised. The
+    # upload succeeds either way, which is why it needs asserting rather than
+    # assuming.
+    CONTENT_TYPES = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".pdf": "application/pdf",
+        ".txt": "text/plain; charset=utf-8",
+        ".srt": "text/plain; charset=utf-8",
+    }
+
     def _publish_asset(self, local: Path, obj: str) -> str:
         """Upload to the public episode-assets bucket and return the https URL —
-        VERIFIED reachable, so a cover that wouldn't show on the board flags
-        instead of silently displaying 'No cover yet'."""
+        VERIFIED reachable AND verified to be SERVED AS THE RIGHT KIND OF THING,
+        so a cover that wouldn't show on the board, or an e-book that downloads
+        instead of opening, flags instead of passing quietly."""
+        ctype = self.CONTENT_TYPES.get(local.suffix.lower())
+        if ctype is None:
+            raise EngineFlag(
+                f"I don't know how to publish a {local.suffix or 'file with no'} "
+                f"extension to the web, so {local.name} was NOT uploaded. Nothing "
+                "is broken and nothing was lost — the file is still on the drive. "
+                "Tell whoever looks after the engine which kind of file this is.")
         base = self._env("SUPABASE_URL").rstrip("/")
         key = self._env("SUPABASE_SERVICE_ROLE_KEY")
         req = urllib.request.Request(
             f"{base}/storage/v1/object/episode-assets/{obj}",
             data=local.read_bytes(), method="POST",
             headers={"Authorization": f"Bearer {key}", "apikey": key,
-                     "Content-Type": "image/png", "x-upsert": "true"})
-        with urllib.request.urlopen(req, timeout=120) as r:
+                     "Content-Type": ctype, "x-upsert": "true"})
+        with urllib.request.urlopen(req, timeout=300) as r:
             r.read()
         pub = f"{base}/storage/v1/object/public/episode-assets/{obj}"
-        with urllib.request.urlopen(pub, timeout=30) as r:      # visibility check
+        with urllib.request.urlopen(pub, timeout=60) as r:      # visibility check
+            served = (r.headers.get("Content-Type") or "").split(";")[0].strip()
             if r.status != 200 or not r.read(64):
                 raise EngineFlag(
                     f"Published {obj} but the public URL doesn't resolve — the board "
                     "can't show it. Check the episode-assets bucket, then clear this flag.")
+        # ASSERT WHAT A PERSON RECEIVES, NOT WHAT WE SENT. The upload reports
+        # success whatever it stored, and a PDF served as image/png still returns
+        # 200 with bytes — it simply refuses to open in the browser.
+        if served != ctype.split(";")[0]:
+            raise EngineFlag(
+                f"{local.name} is on the web but it is being served as {served!r} "
+                f"instead of {ctype.split(';')[0]!r}. A browser would do the wrong "
+                "thing with it — most likely download it rather than open it. "
+                "Nothing else is affected; the file itself is fine.")
         return pub
+
+    def publish_artefact(self, ep, local: Path | str) -> str:
+        """Put a finished artefact on the web and return its https URL.
+
+        The object name is DERIVED from the episode folder and the file's own
+        name, so nothing has to be kept in step by hand and two episodes can
+        never collide.
+        """
+        local = Path(local)
+        return self._publish_asset(local, f"{ep_folder(ep)}/{local.name}")
+
+
 
     # ---- assembly: emit the graph, then run the documented ffmpeg command ---
     def _emit_graph(self, ep, which: str) -> Path:

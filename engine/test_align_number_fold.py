@@ -28,6 +28,26 @@ for _s in (sys.stdout, sys.stderr):
     except Exception:                                              # noqa: BLE001
         pass
 
+PP_VIDEOS = Path(r"G:\My Drive\PP Videos")
+
+
+def episode_dir(n: int) -> Path:
+    """Resolve an episode folder BY NUMBER, anchored — never by a written-out name.
+
+    Required of any suite that reaches into a real episode folder
+    (`test_no_hardcoded_episode_paths.py`), and it caught this file: it globbed
+    `PP-EP*` and filtered with a regex, which resolves nothing and would have
+    silently skipped a renamed folder. Published episodes ARE renamed
+    (`PP-EP13-The-Ratings-Game-Part-1`), so a bare stem is not there to find.
+    """
+    pat = re.compile(rf"^PP-EP{int(n):02d}(?:$|[-_])")
+    hits = sorted(d for d in PP_VIDEOS.iterdir() if d.is_dir() and pat.match(d.name))
+    if len(hits) != 1:
+        raise LookupError(f"episode {n}: expected one PP-EP{int(n):02d}* folder, "
+                          f"found {[h.name for h in hits] or 'none'}")
+    return hits[0]
+
+
 PASS, FAIL = [], []
 
 
@@ -69,9 +89,13 @@ def main():
     # On our side it must be a NO-OP: render_ready hard-fails a bare numeral in
     # the spoken track, so there is nothing to convert. Applied and asserted
     # anyway — a symmetry you rely on and never exercise is not a symmetry.
-    for d in sorted(Path(r"G:\My Drive\PP Videos").glob("PP-EP*")):
+    for n in range(6, 18):
+        try:
+            d = episode_dir(n)
+        except LookupError:
+            continue
         sw = d / "docs/spoken-words.txt"
-        if not sw.is_file() or not re.search(r"PP-EP(0[6-9]|1[0-7])", d.name):
+        if not sw.is_file():
             continue
         # THE PARAGRAPHS, not the raw file. align_to_script folds what
         # paragraphs() returns, and EP13-EP16 carry a `#` production-notes header
