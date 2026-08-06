@@ -447,6 +447,47 @@ batch starts or the cover pick lands after the master. See `episode-studio/engin
     thing as printed and let it be odd.**
   *EP15's "lady punters" aside and EP16's "83 cents" clause are the two worked examples.*
 
+  ### 🔴 §0a-ii — A FIGURE THE SOURCE'S OWN ARITHMETIC CONTRADICTS IS **REPRODUCED, NOT
+  ### VOICED.** **(Jodie, 6 Aug 2026 — a refinement of the selection rule above.)**
+  > ## IT STANDS VERBATIM IN THE E-BOOK, WITH THE DISCREPANCY DISCLOSED.
+  > ## IT DOES NOT GO IN GORDON'S MOUTH.
+
+  **THE REASON, which is what makes it a rule and not a one-off: DAVE CAN CHECK IT.**
+  This channel's entire promise is arithmetic he can trust — *"ten dollars at twelve to one
+  should win you a hundred and twenty-four, not a hundred and twenty"* is exactly the kind
+  of thing that makes him believe us. **Put a number in Gordon's mouth that does not survive
+  a calculator and the author's error becomes OUR error on delivery.**
+  **§0a keeps the source intact; it does not oblige us to voice a figure we cannot defend.**
+
+  > ### ⚠️ BUT OMISSION MUST NOT CHANGE THE FINDING. THIS IS THE HARD PART.
+  > **If the passage ENUMERATES — "only two of the numbers were profitable, six and four" —
+  > and you simply drop the bad one, the video makes a DIFFERENT CLAIM than the article,
+  > SILENTLY. That is worse than speaking the bad figure.**
+
+  **SO THERE ARE EXACTLY TWO LAWFUL MOVES, AND NEVER A THIRD:**
+  1. **Do not enumerate at all** — give the takeaway, name no members of the set, and point
+     to the e-book for the full figures; or
+  2. **Speak it as printed.**
+
+  🚫 **NEVER PRODUCE A LIST WITH A HOLE IN IT.** Say which you chose and why, in the run log.
+
+  #### THE TWO WORKED EXAMPLES
+  | | the figure | why it fails | what happened |
+  |---|---|---|---|
+  | **EP16** | *"the place tote will be offering an average return of only **83 cents**"* | a three-way pool over five 4-1 chances gives ~$1.67; **neither reading works** | clause dropped — it was the LAST sentence of its paragraph and introduced a parallel case, so removing it implied nothing |
+  | **EP17** | *"The better one was six showing a profit of **$32.80 or 12.5 per cent**"* | its own published strike (28), rate (12%) and dividend ($7.20) give a **LOSS of $31.73** — same size, opposite sign | **move 1**: the beat names NO winners and points to the e-book. Naming four and dropping six would have been the hole |
+
+  ⚖️ **AND A NOTE ON EVIDENCE vs PERMISSION.** EP17's article **drops number six from its
+  own summing-up**, naming only number four. **That is EVIDENCE the author did not rely on
+  it either, and it supports leaving the figure off the soundtrack. IT DOES NOT LICENSE
+  CHANGING IT.** *A source contradicting itself is a reason to be careful about what we
+  say, never a reason to decide which half was meant.*
+
+  **DISCLOSURE:** the e-book carries the discrepancy in a `<p class="note">`, the same
+  mechanism §0a-i's repairs use — *so anyone comparing the e-book with the website finds an
+  EXPLANATION rather than a DISCREPANCY.* **Nothing is repaired and `ebook.departures` stays
+  empty:** not voicing a figure is a SELECTION, never a departure.
+
   ### 📊 A SCANNED TABLE IS REPRODUCED AS THE SCAN. RULED 5 Aug 2026.
   > **THE SCAN IS THE ARTICLE. Embedding it is the most faithful reproduction available,
   > not the least.**

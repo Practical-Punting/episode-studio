@@ -14,21 +14,65 @@
 **EP17 is at the words gate.** Nothing has been claimed, nothing spent. Halts get counted
 here from the LOG as they happen, individually, never from memory.
 
-### ⚠️ THE EP16 BASELINE IS QUOTED AS EIGHT AND THREE DOCUMENTS DISAGREE
-| source | says |
-|---|---|
-| `docs/EP16-run-log.md` §1 | **FOUR** — "counted from the log, not from memory", written mid-build; a fifth (`heygen_download`) appears later in the same file |
-| the session checkpoint | **EIGHT** |
-| `docs/HANDOVER.md` §1 | **NINE** — 7 machine faults, 2 human gates |
+## 🔴 THE EP16 BASELINE — SETTLED 6 Aug 2026. **IT IS SIXTEEN.**
 
-**Eight is the number in use, because that is the baseline Jodie set.** It is recorded
-here with its disagreement rather than silently adopted: *the numbers must be measured,
-not remembered*, and a baseline three documents dispute is worth one line. **Settling it
-means recounting EP16's log, which nothing today needs.**
+**Four, eight and nine were all in circulation.** Jodie's account of where they came
+from: *"I counted eight partway through EP16's evening and kept saying eight while more
+halts happened."* **None of the three was picked. They were counted.**
 
-**What EP17 is actually testing:** the card and cue checks moved to `audit_inputs`
-(`8771a65`) and the `--force` trap closed (`696d303`). **Five of EP16's halts should
-simply not occur.** That claim is worth nothing until an episode runs.
+> ### THE CRITERION, STATED SO THE NUMBER MEANS SOMETHING
+> **An `EngineFlag` that STOPPED THE BUILD and REQUIRED A HUMAN TO CLEAR IT** — which in
+> the log is exactly the `!! NEEDS A LOOK [step]:` line.
+> **NOT counted:** stale-code engine exits (2 on 5 Aug) and dead-zone recoveries.
+> *Nothing waited on a human, so they cost time, not a gate.*
+> **Every RAISE counted separately, including a second raise of the same step**, because
+> each one separately stopped the build and separately needed a human.
+
+**Counted from `engine/logs/engine-2026-08-05.log`. EP16's whole build was that one day —
+the 4 Aug log holds only PP-EP99, the 6 Aug log holds no flags at all.**
+
+| # | time | step | what | kind |
+|---|---|---|---|---|
+| 1 | 07:07:11 | `audit_inputs` | E26: *"the whole `build.leads` block is absent"* — **false positive; the fix was on disk and the running engine held stale code** | machine |
+| 2 | 07:27:31 | `cards_render` | card **schema + job** faults | machine |
+| 3 | 07:38:08 | `cards_render` | **trace gaps** — figures with no source sentence | machine |
+| 4 | 07:41:52 | `cards_render` | **layout collision** (C8, C10) | machine |
+| 5 | 08:14:20 | `cards_render` | *"Have a look at the title card"* | **human gate, by design** |
+| 6 | 08:30:51 | `heygen_download` | download stopped early — server said 127,387,672 bytes | machine/external |
+| 7 | 08:57:26 | `heygen_download` | **same short object, second time** | machine/external |
+| 8 | 09:28:42 | `heygen_download` | audio **124 kbps** vs the 180 floor → **ruling A3** | machine/external |
+| 9 | 09:44:16 | `shot_map` | **2 cues not in the SRT** (C1, C9) **+ 3 b-roll/card overlaps** | machine |
+| 10 | 10:32:33 | `ebook_pdf` | capture has **no `ARTICLE TEXT` markers** | machine |
+| 11 | 10:38:36 | `ebook_pdf` | a figure `src` was `table-1.jpg`, must be `figure-N.png` | machine |
+| 12 | 10:47:31 | `thumbnail` | *"Have a look at the thumbnail"* | **human gate, by design** |
+| 13 | 11:02:36 | `thumbnail` | `thumbnail.part 'Part 2'` not in the approved `ebook_title` | machine |
+| 14 | 11:22:59 | `cards_render` | *"Have a look at the title card"* — **again, after the rename re-render** | **human gate, by design** |
+| 15 | 11:53:01 | `youtube_copy` | the machine needs an **AUTHOR**, not an operator | author gap |
+| 16 | 11:54:04 | `youtube_copy` | same, second raise | author gap |
+
+> ## **16 = 11 MACHINE FAULTS · 3 DESIGNED HUMAN GATES · 2 AUTHOR GAP.**
+
+### 🔴 AND THE CLAIM EP17 IS TESTING GETS SMALLER WHEN THE DENOMINATOR IS REAL
+**"Five of EP16's eight halts should simply not occur"** was carried into today. Checked
+against the sixteen, against what actually landed on 6 August:
+
+| halt | prevented by | verdict |
+|---|---|---|
+| **#2** schema/job | `preflight_cards` → `author_cards.validate()` | ✅ **fully** |
+| **#3** trace gaps | `preflight_cards` → `check_trace()` | ✅ **fully** |
+| **#10** missing markers | `preflight_cards.capture_faults()` | ✅ **fully** |
+| **#9** shot_map | the **cue** half yes; the **three overlaps** no — that check needs the SRT and only WARNS | ⚠️ **half** |
+
+**Everything else is untouched**: #4's layout still runs at `cards_render`
+(`layout_is_not_here()`), the three downloads, the thumbnail, both human gates, both
+author-gap halts, and #1's stale code.
+
+> ### SO THE HONEST CLAIM IS **THREE OF SIXTEEN FULLY, PLUS HALF OF A FOURTH** —
+> ### not five of eight.
+> **The "five" was roughly right and the denominator was twice as big as anyone said.**
+> ⚠️ **And the `--force` fix (`696d303`) prevents NO halt at all.** It stops a correct fix
+> from looking like a failed one — **which cost time BETWEEN halts, not a halt.** *Counting
+> it as one would have been the same error in the other direction.*
 
 ---
 
