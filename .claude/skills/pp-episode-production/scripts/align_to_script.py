@@ -65,6 +65,102 @@ def toks(s):
     return re.findall(r"[a-z0-9']+", s.lower())
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# WE SPELL FIGURES AS WORDS. WHISPER WRITES THEM AS DIGITS. THAT IS NOT A
+# MISMATCH BETWEEN THE MASTER AND THE SCRIPT — IT IS A MISMATCH BETWEEN TWO WAYS
+# OF WRITING THE SAME SOUND, AND IT WAS BEING COUNTED AS THE FORMER.
+#
+# EP17, 6 Aug 2026: refused at 79.8% against an 85% floor on a master that was
+# complete, correctly trimmed and measured at 189,366 bps. The halt said "the
+# master is not reading this script — wrong take, wrong episode, or the words
+# changed after the render." All three were false.
+#
+# MEASURED ACROSS EVERY EPISODE, because one data point is an anecdote:
+#     EP07-EP14   1.9-5.8% number-words    comfortable
+#     EP15        5.2%                     fine
+#     EP16        9.2%                     87.8%  <- "narrowest pass on record"
+#     EP17       13.9% (17.2% with units)  79.8%  <- REFUSED
+# The miss rate tracks the number-word share. It always did; nobody had looked.
+#
+# ⚰️ AND IT CLOSES THE "DOES A LOW-BITRATE MASTER DEPRESS THE ANCHOR RATE?"
+# QUESTION THE OPPOSITE WAY ROUND. EP16 scraped through on 124 kbps; EP17 scored
+# SEVEN POINTS WORSE on 189 kbps. Bitrate is not the driver. Density is.
+#
+# 🔒 THE FLOOR IS NOT TOUCHED. 85% still means what it meant, and still catches
+# EP15's truncated master at 62.9%. The floor was never wrong — the MEASUREMENT
+# was, and lowering a threshold because a build failed it is how a floor stops
+# meaning anything.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_ONES = ("zero one two three four five six seven eight nine ten eleven twelve "
+         "thirteen fourteen fifteen sixteen seventeen eighteen nineteen").split()
+_TENS = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+         "eighty", "ninety")
+
+
+def _under_100(n):
+    if n < 20:
+        return _ONES[n]
+    return _TENS[n // 10] + ("" if n % 10 == 0 else " " + _ONES[n % 10])
+
+
+def _under_1000(n):
+    if n < 100:
+        return _under_100(n)
+    head = _ONES[n // 100] + " hundred"
+    return head if n % 100 == 0 else head + " and " + _under_100(n % 100)
+
+
+def int_words(n: int) -> str:
+    """The way this studio says a whole number out loud (PP-STANDARDS §4B)."""
+    if n < 0:
+        return "minus " + int_words(-n)
+    if n < 1000:
+        return _under_1000(n)
+    if n < 1_000_000:
+        head = _under_1000(n // 1000) + " thousand"
+        return head if n % 1000 == 0 else head + " " + _under_1000(n % 1000)
+    head = _under_1000(n // 1_000_000) + " million"
+    return head if n % 1_000_000 == 0 else head + " " + int_words(n % 1_000_000)
+
+
+def spoken_form(text: str) -> str:
+    """Rewrite figures and symbols AS THE WORDS WE SPEAK THEM.
+
+    🔴 ONE DEFINITION OF "THE SAME NUMBER", APPLIED TO BOTH SIDES. Two
+    implementations of what a number is would be fault #2 with extra steps: the
+    transcript would drift away from the script one release at a time and the
+    anchor rate would sag with nobody able to say why.
+
+    On OUR side it is provably a NO-OP — `render_ready` hard-fails a bare numeral
+    in the spoken track, so there is nothing here to convert. It is applied there
+    anyway, and asserted, because a symmetry you rely on and do not exercise is a
+    symmetry you do not have.
+
+    §4B is the source of the forms: `$3.40` -> "three dollars forty",
+    `43%` -> "forty-three per cent", `1200` -> "twelve hundred" is NOT used —
+    we write the plain reading, which is what Gordon is given.
+    """
+    s = text
+    # money first: $224.60 -> "two hundred and twenty four dollars sixty".
+    # The cents are read as a bare number after "dollars", which is the house
+    # form and what the spoken track carries.
+    def _money(m):
+        whole = int(m.group(1).replace(",", ""))
+        cents = m.group(2)
+        out = int_words(whole) + " dollars"
+        if cents and int(cents) != 0:
+            out += " " + int_words(int(cents))
+        return out
+    s = re.sub(r"\$\s*([\d,]+)(?:\.(\d{2}))?", _money, s)
+    # per cent, however it was written
+    s = re.sub(r"(\d)\s*%", lambda m: m.group(1) + " per cent", s)
+    s = re.sub(r"\bpercent\b", "per cent", s, flags=re.I)
+    # then any remaining whole number, commas and all
+    s = re.sub(r"\b\d[\d,]*\b", lambda m: int_words(int(m.group(0).replace(",", ""))), s)
+    return s
+
+
 def parse_srt(path):
     raw = Path(path).read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
     out = []
@@ -84,11 +180,20 @@ def parse_srt(path):
     return out
 
 
-def word_timeline(cues):
-    """[(word, start)] — position inside a cue interpolated by CHARACTER offset."""
+def word_timeline(cues, fold=True):
+    """[(word, start)] — position inside a cue interpolated by CHARACTER offset.
+
+    `fold` rewrites the transcript's figures into the words we speak, so "660"
+    can anchor "six hundred and sixty". The expansion happens BEFORE the offset
+    interpolation, so a figure's four words are spread across the span the figure
+    itself occupied rather than all landing on its first character.
+
+    ⚠️ `fold=False` is used by the write-back verification, which must read the
+    file EXACTLY as written and must not be re-folding anything.
+    """
     tl = []
     for s, e, text in cues:
-        flat = " ".join(text.split())
+        flat = " ".join((spoken_form(text) if fold else text).split())
         if not flat:
             continue
         span = e - s
@@ -108,6 +213,58 @@ def paragraphs(spoken_path):
                      or paras[0].lstrip().startswith("[")):
         paras.pop(0)
     return paras
+
+
+def observed_miss_report(rate, ours, matched_at, index, sents) -> str:
+    """SAY WHAT WAS SEEN. NAME A CAUSE ONLY WHERE THERE IS ONE.
+
+    🔴 THE WORDING THIS REPLACES NEARLY COST A RE-RENDER (EP17, 6 Aug 2026). It
+    read: "the master is not reading this script — wrong take, wrong episode, or
+    the words changed after the render." Three causes, none established, and all
+    three false: the master was complete, correctly trimmed and 189,366 bps. The
+    third is an INSTRUCTION to re-render a good master, and it would have looked
+    like the fix when the retry happened to pass.
+
+    That is CLAUDE.md fault #6 doing its most expensive damage. So this reports
+    the OBSERVATION — how much missed, and WHERE it clusters — and offers causes
+    only as possibilities, saying plainly which the evidence points at.
+    """
+    missed = [i for i, v in enumerate(matched_at) if v is None]
+    lines = [f"align_to_script: {rate*100:.1f}% of the script anchored to the audio "
+             f"(floor {MIN_MATCH*100:.0f}%). {len(missed)} of {len(ours)} words did not "
+             f"match. Nothing downstream may use guessed timings, so the file was removed."]
+
+    # WHERE do the misses fall? A run at one end reads very differently from a
+    # scatter through the middle, and the operator cannot see either.
+    if missed:
+        first, last = missed[0] / len(ours), missed[-1] / len(ours)
+        tail = sum(1 for i in missed if i > 0.75 * len(ours)) / len(missed)
+        lines.append(f"The misses run from {first*100:.0f}% to {last*100:.0f}% of the way "
+                     f"through, with {tail*100:.0f}% of them in the last quarter.")
+        if tail > 0.6:
+            lines.append("THAT CLUSTERING AT THE END is what a master that stops early "
+                         "looks like — check the recording actually reaches the sign-off.")
+
+    # Is it the figures? This is an OBSERVATION about our own words, not a guess
+    # about the audio: we spell figures out and a transcriber writes them as
+    # digits, so a number-dense script loses anchor rate for a reason that has
+    # nothing to do with whether the master is correct.
+    numish = set("zero one two three four five six seven eight nine ten eleven twelve "
+                 "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty "
+                 "thirty forty fifty sixty seventy eighty ninety hundred thousand million "
+                 "per cent dollars dollar cents".split())
+    if missed:
+        share = sum(1 for i in missed if ours[i] in numish) / len(missed)
+        if share > 0.4:
+            lines.append(f"{share*100:.0f}% of the words that missed are number words. "
+                         "This episode is figure-heavy, and figures are the words most "
+                         "likely to be transcribed differently from how they are spoken.")
+
+    lines.append("WHAT THIS COULD BE, and the check does not know which: the master may be "
+                 "a different take or a different episode; the script may have changed "
+                 "after the render; or the words may simply be unusually hard to "
+                 "transcribe. RETRYING ON ITS OWN WILL NOT CHANGE ANY OF THEM.")
+    return "\n".join(lines)
 
 
 def fmt(t):
@@ -152,7 +309,19 @@ def build(ep_dir, model="base"):
     for pi, p in enumerate(paras):
         for s in [x.strip() for x in re.split(r"(?<=[.!?])\s+", p) if x.strip()]:
             sents.append((pi, s))
-            for w in toks(s):
+            # BOTH SIDES, ONE DEFINITION. On our side this is a no-op — a bare
+            # numeral cannot reach the spoken track (render_ready hard-fails it)
+            # — and it is applied and asserted anyway, because a symmetry you
+            # rely on and never exercise is a symmetry you do not have. If a
+            # numeral ever DOES get through, the two sides still agree instead
+            # of quietly costing anchor rate.
+            plain, folded = toks(s), toks(spoken_form(s))
+            if plain != folded:
+                print(f"    note: the script carries a figure as digits "
+                      f"({' '.join(w for w in plain if any(c.isdigit() for c in w))}) "
+                      f"— folded to words for matching, as the transcript is",
+                      flush=True)
+            for w in folded:
                 ours.append(w)
                 index.append(len(sents) - 1)
     if not ours:
@@ -195,7 +364,10 @@ def build(ep_dir, model="base"):
 
     # ---- VERIFY WHAT WAS WRITTEN, not what was intended --------------------
     back = parse_srt(out)
-    back_words = [w for w, _ in word_timeline(back)]
+    # fold=False: this reads the file EXACTLY as written. Folding here would let
+    # a written figure and a spoken one look identical and defeat the check.
+    back_words = [w for w, _ in word_timeline(back, fold=False)]
+    back_words = toks(spoken_form(" ".join(back_words)))
     if back_words != ours:
         out.unlink(missing_ok=True)
         raise Halt(f"align_to_script: the file written back does not carry our script's words "
@@ -207,10 +379,7 @@ def build(ep_dir, model="base"):
         raise Halt("align_to_script: written cue times are not monotonic. Removed the file.")
     if rate < MIN_MATCH:
         out.unlink(missing_ok=True)
-        raise Halt(f"align_to_script: only {rate*100:.1f}% of the script matched the audio "
-                   f"(floor {MIN_MATCH*100:.0f}%). That means the master is not reading this "
-                   f"script — wrong take, wrong episode, or the words changed after the render. "
-                   f"Removed the file; nothing downstream may use it.")
+        raise Halt(observed_miss_report(rate, ours, at, index, sents))
     return (f"aligned.srt: {len(back)} cues, {len(ours)} words, "
             f"{rate*100:.1f}% anchored to the audio (rest interpolated), "
             f"monotonic and text-identical to spoken-words.txt — verified after writing")
