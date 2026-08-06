@@ -9,6 +9,59 @@
 
 ---
 
+# 00. 🏁 THE FIRST LIVE COMMISSION. IT WORKED.
+**`youtube_copy`, 12:18–12:22, 6 Aug 2026 — the first time this studio has ever had a
+machine write one of its artefacts in a real build.**
+
+```
+wallet checked: max subscription — this costs rate limits, not money
+commissioning the YouTube words — a writer is working, up to 900s, capped at $10.00
+(the writer was refused 1 action(s): Edit - place scoping held)
+the YouTube words written in 258s, $1.81, 19 turn(s)
+```
+
+| | live | the sandbox run | |
+|---|---|---|---|
+| time | **258s** | 123s | ~2× |
+| cost | **$1.81** | $1.06 | ~1.7× |
+| turns | **19** | 9 | ~2× |
+
+> ### 📌 THE CAP NOW HAS EVIDENCE UNDER IT INSTEAD OF A GUESS.
+> The design priced a run at **$10–30**. The real number is **$1.81** — an order of
+> magnitude out. **The $10 cap is roughly 5× the observed cost**, which is the right shape
+> for a runaway-turn bound. *And it is rate limits, not money: the wallet assertion ran
+> first and said so.*
+
+✅ **`check_youtube_title` PASSES** on what it produced: *"youtube title ok: Testing the
+Numbers | How to Win at Horse Racing"* — the corrected lower-case "the", derived and not
+re-cased. **10,008 bytes.**
+
+✅ **PLACE SCOPING HELD IN A LIVE RUN, FOR THE FIRST TIME.** *"the writer was refused 1
+action(s): Edit - place scoping held"* — proved on 5 Aug in a sandbox, observed here in a
+real build.
+
+### WHAT IT ACTUALLY WROTE — read before Jodie saw it
+**Correct title verbatim. E-book placeholder left for the human. Responsible-gambling line
+and Gambling Help Online present. Author credited as Mr Money.** Every figure traced, and
+its notes name the trace source for each.
+> 🔴 **AND IT HELD §0a-ii WITHOUT BEING TOLD TO.** The description names **number four
+> only** for the short-favourite cut — *"which is what the ARTICLE'S OWN summing-up names…
+> never a list with a hole in it"* — and keeps both category-3 figures out entirely. That
+> rule was written this afternoon and lives in `PP-STANDARDS`, which it read.
+> It also declined to headline the 50-per-cent payoff angle, on the grounds that *"a
+> dollar price sitting in a description reads as an implied prospect"* — a brand-guardrail
+> judgement nobody asked it for.
+
+⚠️ **ONE HONEST GAP, AND IT IS THE ONE §4a EXISTS TO CLOSE.** Its notes say the verbatim
+capture named in `episode.json -> source` **is not in the episode folder**, so it traced
+against `episode.json`'s trace blocks and `spoken-words.txt` instead — **and it said so in
+prose while returning `unread_sources: []`.** It was not wrong to proceed (both sources it
+used are valid and in-place), but **the typed verdict did not carry what the prose knew.**
+*That is exactly the reconciliation-against-a-manifest §4a describes, and it is still not
+built.*
+
+---
+
 # 0a. 🖼 THE THUMBNAIL "DRIFT" — MEASURED, AND IT IS NOT DRIFT
 > ### "The font sizes and location of the logo are very different. Why is the
 > ### thumbnail not in line with the previous ones?" — **Jodie, 6 Aug 2026**, holding
