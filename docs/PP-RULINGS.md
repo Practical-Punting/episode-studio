@@ -565,6 +565,13 @@ find.** Listed, never reconstructed.
   memory only.
 - **`thumbnail-standard.md`** and **`thumbnail-hero-registry.md`** — real files, **on Drive,
   not in the repo**, so the build cannot read them.
+  ⚠️ **CHECKED 6 Aug 2026, AND THE RISK IS THE INVERSE OF THIS ENTRY.** `author_thumbnail.py`
+  **does not read either file and never did** — every number is hard-coded in
+  `assets/youtube-thumbnail-template.html`, which IS in the repo (`logo left:56px
+  bottom:40px`, `l1 96px`, `l2 150px`, `part 75px`). **Measured across EP11–EP17: all seven
+  thumbnails are 1280×720 with the logo at exactly 56px/41px.** The build cannot drift from
+  a standard it never opens; **the STANDARD can drift from the build, and nobody would
+  know, because the document has no reader.** *The gap is real and it points the other way.*
 - **Anything ruled before 23 July 2026** — the studio predates the repo.
 
 ### B4 · Outstanding, not yet ruled *(listed so they are not mistaken for settled)*

@@ -9,6 +9,54 @@
 
 ---
 
+# 0a. 🖼 THE THUMBNAIL "DRIFT" — MEASURED, AND IT IS NOT DRIFT
+> ### "The font sizes and location of the logo are very different. Why is the
+> ### thumbnail not in line with the previous ones?" — **Jodie, 6 Aug 2026**, holding
+> ### EP17's thumbnail flag after putting two pictures side by side.
+
+**She is right that the two images differ. They are two DIFFERENT ARTEFACTS.**
+
+| what she compared | actually | logo |
+|---|---|---|
+| the image she called EP15 | **EP15's THUMBNAIL** — part line, byline, 1280×720 | bottom-**LEFT** |
+| the image she called EP17 | **EP17's TITLE CARD** (`title-preview.png`), 1920×1080 | bottom-**RIGHT** |
+
+**EP15's TITLE CARD has the logo bottom-RIGHT too** — one-line headline with the
+white/orange split inline, eyebrow with an orange rule to its left, byline in the lighter
+face. **The two title cards match each other. The two thumbnails match each other.**
+*The differences she saw are the differences BETWEEN the templates, and they are meant to
+exist.*
+
+### THE THUMBNAILS, MEASURED FROM THE PIXELS — EP11 to EP17
+| ep | size | logo from left | logo from bottom |
+|---|---|---|---|
+| 11–17 | **1280×720, every one** | **56 px, every one** | **41 px, every one** |
+
+**Seven episodes, identical.** `youtube-thumbnail-template.html` hard-codes
+`.logo{left:56px; bottom:40px; width:210px}`, `.l1{96px}`, `.l2{150px}`, `.part{75px}`,
+`.eyebrow{29px}`, `.strap{29px}` — one template, fixed numbers, in the repo.
+*EP17's `NUMBERS` LOOKS bigger than EP15's `ODDS!` because it is a longer word at the
+same 150px, and its strap sits higher because there is no part line to push it down.*
+
+### ✅ AND IT ANSWERS A §B3 GAP — THE OPPOSITE WAY ROUND
+`thumbnail-standard.md` and `thumbnail-hero-registry.md` are on Drive and not in the repo,
+listed as *"real files the build cannot read"*. **Checked: `author_thumbnail.py` does not
+read them, and never did.** Every number lives in the template in the repo.
+> **So the risk is the INVERSE of the one recorded.** The build cannot drift from a
+> standard it never opens. **The STANDARD can drift from the build** — and nobody would
+> know, because the document has no reader.
+
+### 📌 THE REAL FINDING, WHICH OUTLIVES TONIGHT
+**NO CHECK IN THIS STUDIO COMPARES AN ARTEFACT WITH ITS PREDECESSORS.** Every guard asks
+*"is this internally consistent?"* — `check_one_name`, `card_check`, `autofit`,
+`self_qc`, the pre-flights. **A house style drifts by being internally consistent every
+single time.** She found this by putting two pictures side by side, which is a thing
+nothing automated does.
+⚠️ **This time the answer was "no drift". That does not make the gap smaller** — it makes
+it a gap we got a free look at.
+
+---
+
 # 0. 🔴 THE ALIGNMENT HALT — **79.8% AGAINST AN 85% FLOOR, AND THE FLAG NAMES THREE
 # CAUSES THAT ARE ALL WRONG**
 
