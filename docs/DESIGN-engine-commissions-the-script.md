@@ -244,6 +244,47 @@ becomes impossible.*
 
 ---
 
+## 4b. ⏸ PARKED 6 Aug 2026 — WHERE IT STOPPED, AND THE ONE LEAD NOT YET TESTED
+
+**The relay is built, tested (80 cases) and OFF.** Five real dry runs against EP16's own
+inputs; **none produced the artefact.** The writer returns PROSE instead of the typed
+verdict and reports its write declined.
+
+### ✅ WHAT IS ESTABLISHED (each one proved by a probe, not reasoned)
+| | |
+|---|---|
+| the wallet | **Max subscription**, `claude.ai` / `firstParty`. Costs rate limits, not money |
+| `--tools` vs `--allowedTools` | **different questions.** Without the second, the writer can READ and cannot WRITE |
+| `--json-schema` | **works** — returns an object with exactly the five required keys |
+| `--add-dir` reads | **work**, when named ABSOLUTELY |
+| writing to a subdirectory | **works** |
+| the exact argv from `build_argv()` | **writes the file and conforms** — with a SHORT prompt |
+| the words themselves | **good.** Correct title with the bang, placeholder left, grounded in the article |
+
+### 🔬 THE ONE LEAD, AND IT IS AN UNTESTED GUESS — DO NOT BUILD ON IT
+> **The long multi-line brief is passed as an ARGV ELEMENT to `claude.CMD`, which is a
+> BATCH SHIM, so `cmd.exe` re-parses it.**
+> **Every short prompt works. Every long one does not.** That is the whole of the
+> correlation, and a correlation is not a cause.
+
+**Two cheap probes, in this order. Ten minutes. Neither has been run:**
+1. **Pass the prompt on STDIN** instead of as an argument.
+2. **Invoke the underlying script directly**, not through the `.CMD` shim.
+
+⚠️ **A STDIN PROBE EXISTS IN THE SCRATCHPAD AND IT PROVES NOTHING.** It fed the prompt
+through stdin and the file was written — **but the prompt it used had been truncated to 128
+characters** by an argv capture that joined on newlines and split the multi-line brief into
+separate elements. **It tested a short prompt through a second channel.** *Recorded because
+a session reading "stdin probe: wrote the file" would take the lead as closed when it has
+not been opened.*
+
+🚫 **AND FOUR HYPOTHESES ARE ALREADY DEAD** — permission flags, `--json-schema`,
+`--add-dir`, and the subdirectory write. **Do not re-derive them.** Parked at exactly this
+point because disproving a fifth guess costs more than it returns; the next move is fresh
+eyes, not more probes tonight.
+
+---
+
 ## 5. PERMISSIONS — A PLACE AND A TIME, AND IT WAS MEASURED
 
 > **Jodie's standing rule: a permission scoped to a PLACE and a TIME is safe. One scoped
