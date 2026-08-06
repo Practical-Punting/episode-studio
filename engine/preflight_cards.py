@@ -26,10 +26,9 @@ EXIST at `audit_inputs`:
     NOT YET   anything measured from the master — WhisperX timings, aligned.srt,
               the real duration of a beat. There is no audio at this point.
 
-So the beat-length check is an ESTIMATE and it WARNS; it never halts. Estimating
-a duration and then halting on it would be exactly what `derive_card_timings`
-forbids ("never from estimates"), and a guard that halts a build on a guess is
-the version somebody switches off.
+So there is NO beat-length check here. One was built, measured against EP16, and
+REMOVED — see the note beside ENTRY_DELAY. The exactness lives in
+`derive_card_timings`, which has the measured SRT.
 
 The LAYOUT half (`autofit_cards`, `card_check`) is deliberately NOT here — see
 `layout_is_not_here()`.
@@ -47,9 +46,24 @@ SKILL_SCRIPTS = (Path(__file__).resolve().parent.parent
 # Entry delay is the PHRASE ANCHOR ruling (PP-RULINGS A2): a card enters about
 # three seconds after Gordon actually speaks the cue.
 ENTRY_DELAY = 3.0
-# Measured on EP15: a 2,466-word script rendered to 811s = ~182 wpm. Used ONLY
-# to estimate a beat's length for a WARNING, never for a halt.
-WORDS_PER_MIN = 182.0
+# 🚫 THERE IS NO BEAT-LENGTH CHECK HERE, AND THAT IS A DECISION.
+# (Jodie, 6 Aug 2026, removing one this module briefly carried.)
+#
+# A beat's real duration DOES NOT EXIST until the audio does, so anything at
+# audit_inputs is a guess. The version that was here found ONE of EP16's three
+# real short beats, plus one that was not real.
+#
+#     A WARNING THAT IS WRONG ABOUT HALF THE TIME TRAINS PEOPLE TO STOP
+#     READING WARNINGS. And a guess that stays in gets acted on eventually.
+#
+# The economics agree. The card and cue faults HAD to move early because they
+# halted after fifty-eight credits were spent. The beat fault is caught at
+# shot_map and fixed with DATA — on EP16 it was three numbers in a file, no
+# re-render and no re-spend. Moving it earlier buys nothing and costs noise.
+#
+# The exactness belongs where the numbers already are: derive_card_timings has
+# the measured SRT and reports the overlaps to the centisecond. What it was
+# missing was the WHY, and that is where the work went instead.
 MARKER_BEGIN = "---- ARTICLE TEXT BEGINS ----"
 MARKER_END = "---- ARTICLE TEXT ENDS ----"
 
@@ -190,61 +204,6 @@ def cue_faults(epj: dict, script_text: str) -> list[str]:
     return out
 
 
-# ----------------------------------------------------------------- the beats
-def beat_warnings(epj: dict, script_text: str = "") -> list[str]:
-    """A beat must hold `entry delay + the card's hold` AFTER its cue is spoken.
-
-    ⚠️ A WARNING, NEVER A HALT, AND THE REASON IS THE POINT (fault #4a).
-    At `audit_inputs` there is no master, no WhisperX and no aligned.srt, so a
-    beat's real duration DOES NOT EXIST YET. This estimates it from the beat's
-    own word count. `derive_card_timings` says timings come "never from
-    estimates" — so this may tell a human where to look, and may not stop a
-    build on arithmetic it cannot actually perform.
-    """
-    # 🔴 MEASURE THE SPOKEN WORDS, NOT `beats[].line`.
-    # The first version estimated from `beats[].line` and warned on TWELVE of
-    # thirteen cards on an episode that has THREE short beats. `line` is an
-    # EDITORIAL SUMMARY of the beat — EP16's beat 1 line opens "OPEN (original
-    # framing — the only invented prose besides the seams)" — and the 27 lines
-    # total about five minutes against a thirteen-minute episode. It is not what
-    # Gordon says, so a duration derived from it is not a duration at all.
-    #
-    # The spoken track is ONE PARAGRAPH PER BEAT (PP-STANDARDS, HeyGen section).
-    # So use it — and ONLY when the paragraph count matches the beat count, so a
-    # mismatched mapping stays silent instead of inventing numbers. A guard that
-    # cannot measure says nothing; it does not guess.
-    beats_list = epj.get("beats") or []
-    # Drop the script's `#` header block. It sits above the paste marker, is not
-    # spoken, and counted as one extra paragraph — 28 against 27 beats, which
-    # silenced this check entirely on the very episode it was built for.
-    body = "\n".join(ln for ln in script_text.splitlines()
-                     if not ln.lstrip().startswith("#"))
-    paras = [p for p in re.split(r"\n\s*\n", body.strip()) if p.strip()]
-    if not script_text or len(paras) != len(beats_list):
-        return []
-    spoken = {b.get("n"): paras[i] for i, b in enumerate(beats_list)}
-
-    build = epj.get("build") or {}
-    default_hold = float(build.get("default_hold", 10.0))
-    hero_hold = float(build.get("hero_hold", default_hold))
-    out = []
-    for c in epj.get("cards", []):
-        line = spoken.get(c.get("beat"))
-        if not line:
-            continue
-        hold = float(c.get("hold") or (hero_hold if c.get("hero") else default_hold))
-        need = ENTRY_DELAY + hold
-        est = len(str(line).split()) / WORDS_PER_MIN * 60.0
-        if est < need:
-            out.append(
-                f"{c.get('id', '?')} sits on beat {c.get('beat')}, which sounds like "
-                f"about {est:.0f}s of speech. The card needs {need:.0f}s after its cue "
-                f"({ENTRY_DELAY:.0f}s before it enters, then {hold:.0f}s on screen). "
-                f"ESTIMATED from the word count — the real length is only known once "
-                f"Gordon has recorded it.")
-    return out
-
-
 # --------------------------------------------------------------- the capture
 def capture_faults(capture_text: str | None) -> list[str]:
     """The capture file must carry its ARTICLE TEXT markers.
@@ -336,7 +295,7 @@ def preflight_cards(epj: dict, *, script_text: str = "",
         blockers += cue_faults(epj, script_text)
     blockers += capture_faults(capture_text)
     blockers += name_faults(epj, capture_text)
-    return {"blockers": blockers, "warnings": beat_warnings(epj, script_text)}
+    return {"blockers": blockers, "warnings": []}
 
 
 def format_report(res: dict) -> str:

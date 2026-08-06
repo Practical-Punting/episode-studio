@@ -134,22 +134,21 @@ def main():
           "EACH-WAY BETTING FOREVER" in " ".join(
               pc.name_faults({"title": "Squeeze Those Odds! — Part 2"}, cap)))
 
-    print("\n-- the beat estimate WARNS and never blocks (fault #4a) --")
-    epj_beats = {"beats": [{"n": 1}, {"n": 2}],
-                 "cards": [{"id": "CA", "beat": 1}, {"id": "CB", "beat": 2}],
-                 "build": {"default_hold": 10.0}}
-    short, long_ = "one two three.", " ".join(["word"] * 200)
-    w = pc.beat_warnings(epj_beats, f"{short}\n\n{long_}")
-    check("a beat too short for its card is named", any(x.startswith("CA") for x in w))
-    check("a long beat is not", not any(x.startswith("CB") for x in w))
-    check("  and it says plainly that it is an estimate",
-          all("ESTIMATED" in x for x in w))
-    check("beat warnings are never blockers",
-          not any("sits on beat" in x for x in pc.preflight_cards(epj_beats)["blockers"]))
-    check("with no script it stays SILENT rather than guessing",
-          pc.beat_warnings(epj_beats, "") == [])
-    check("with a mismatched paragraph count it stays SILENT",
-          pc.beat_warnings(epj_beats, "only one paragraph") == [])
+    print("\n-- there is NO beat estimate here, and that is the test --")
+    # Ruled out 6 Aug 2026. A beat's real duration does not exist until the audio
+    # does; the version that lived here found ONE of EP16's three real short
+    # beats plus one that was not real, and a warning wrong about half the time
+    # trains people to stop reading warnings. The exactness went to
+    # derive_card_timings, which has the measured SRT.
+    check("no beat estimate survives in the module",
+          not hasattr(pc, "beat_warnings"),
+          "a guess that stays in gets acted on eventually")
+    check("the pre-flight emits no warnings at all now",
+          pc.preflight_cards(epj)["warnings"] == [])
+    check("and nothing left behind estimates a duration",
+          "WORDS_PER_MIN" not in
+          (HERE / "preflight_cards.py").read_text(encoding="utf-8")
+          .split("def capture_faults")[0].replace("# ", ""))
 
     print("\n-- IT MUST BE SILENT ON A FINISHED EPISODE --")
     # THE CASE THAT NEARLY SHIPPED A GUARD THAT HALTS EVERY BUILD.

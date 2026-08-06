@@ -367,6 +367,77 @@ def main():
         o = float(offs.get(b["target"], 1.0))
         bwin[b["target"]] = (round(bs + o, 2), round(bs + o + broll_dur, 2))
 
+    bbeat = {b["target"]: b["beat"] for b in epj.get("broll", []) if b.get("target")}
+
+    def why_broll_card(target, cid, ov):
+        """Say WHY the clip and the card collide, and name the remedy ONLY if it
+        has been confirmed available.
+
+        🔴 THE LESSON THIS ENCODES (EP16, 5 Aug 2026, and it was humbling):
+        `build.broll_offsets{target: sec}` ALREADY EXISTED, per-clip, defaulting
+        to 1.0s — and nobody reached for it through FOUR ROUNDS of proposals.
+        What we proposed first, in order, was all wrong or worse: shorten the
+        holds (forbidden by the standard), set the beats WIDE (they already
+        were — the overlap is about TIME, not framing), move the cues earlier
+        (puts each card in front of its own punchline), move the clips to other
+        beats (editorial, and Jodie's).
+        The answer was to DELAY THE CLIP INSIDE THE BEAT IT WAS ALREADY IN.
+        Slack left over: 14.95s / 3.88s / 8.97s, against 0.01s for a cue move.
+
+        So: ASK WHETHER THE SLACK IS ALREADY THERE, BEFORE ANYONE PROPOSES
+        TOUCHING HOLDS, WIDTHS, CUES OR BEATS. The lever was there the whole
+        time; this is not "we lacked a mechanism", it is "we designed four
+        before looking for one".
+        """
+        n = bbeat.get(target)
+        bs, be = beat_start.get(n), beat_end.get(n)
+        if bs is None or be is None:
+            return ""
+        cur = float(offs.get(target, 1.0))
+        # How much later could this clip start and still finish inside its beat?
+        slack = round((be - bs) - (cur + broll_dur), 2)
+        need = round(ov, 2)
+        if slack >= need:
+            return (f" — the clip starts {cur:.2f}s into beat {n} and there is "
+                    f"{slack:.2f}s of unused room at the BACK of that same beat, "
+                    f"so delaying it by {need:.2f}s clears this without touching "
+                    f"the card, the cue, the hold or the framing. Set "
+                    f"build.broll_offsets[{target!r}] to {cur + need:.2f}.")
+        return (f" — the clip starts {cur:.2f}s into beat {n} and that beat has "
+                f"only {max(slack, 0):.2f}s of room left at the back, which is "
+                f"less than the {need:.2f}s needed. Delaying the clip inside its "
+                f"own beat CANNOT clear this one, so it is a decision rather than "
+                f"an adjustment.")
+
+    def why_card_beat(cid):
+        """A card that cannot fit its beat AT ANY CUE POSITION is not a cue
+        problem. EP16's C4: the beat is 13.85s and the card needs 13.0s."""
+        c = next((x for x in epj.get("cards", []) if x.get("id") == cid), None)
+        if not c:
+            return ""
+        n = c.get("beat")
+        bs, be = beat_start.get(n), beat_end.get(n)
+        if bs is None or be is None:
+            return ""
+        w = windows.get(cid)
+        if not w:
+            return ""
+        # Read the hold off the WINDOW THIS TOOL ALREADY COMPUTED rather than
+        # re-deriving it from episode.json — one source of truth, and it cannot
+        # disagree with the number in the overlap line beside it.
+        hold = round(w[1] - w[0], 2)
+        need = round(ENTRY_DELAY + hold, 2)
+        length = round(be - bs, 2)
+        if need > length:
+            return (f" — beat {n} is {length:.2f}s long and this card needs "
+                    f"{need:.2f}s ({ENTRY_DELAY:.1f}s before it enters, then "
+                    f"{hold:.2f}s on screen), so IT DOES NOT FIT AT ANY CUE "
+                    f"POSITION. That is a card that is too big for its beat, not "
+                    f"a cue placed badly.")
+        latest = round(bs + (length - need), 2)
+        return (f" — beat {n} is {length:.2f}s and the card needs {need:.2f}s, so "
+                f"the latest cue that still fits starts at {latest:.2f}s.")
+
     cards_only = {k: v for k, v in windows.items() if k not in ("MIDROLL",)}
     pairs = 0
     print(f"\nOVERLAP CHECK — all four classes")
@@ -376,7 +447,8 @@ def main():
             pairs += 1
             ov = overlaps(cards_only[ids[i]], cards_only[ids[j]])
             if ov > 0.01:
-                problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s")
+                problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
+                                + why_card_beat(ids[j]))
     print(f"  card-card       : {pairs} pairs checked")
     if "MIDROLL" in windows:
         n = 0
@@ -393,7 +465,8 @@ def main():
             ov = overlaps(w, cw)
             if ov > 0.01:
                 problems.append(f"B-ROLL-CARD overlap {t}/{cid}: {ov:.2f}s — a card writing "
-                                f"over a clip means one of them wasn't seen")
+                                f"over a clip means one of them wasn't seen"
+                                + why_broll_card(t, cid, ov) + why_card_beat(cid))
     print(f"  b-roll-card     : {n} pairs checked")
     if "MIDROLL" in windows:
         for t, w in bwin.items():
