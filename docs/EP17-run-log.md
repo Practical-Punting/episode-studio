@@ -129,10 +129,23 @@ strike (28), rate (12%) and dividend ($7.20) give a **LOSS of $31.73, 13.6 per c
 same magnitude, opposite sign. **And the article's own summing-up agrees with the
 arithmetic rather than with itself** — paragraph 19 names only number four for this
 filter and drops number six, which paragraph 10 had called "the better one".
-**Gordon speaks it as printed** (§0a: reproduce, do not improve) **and the video's
-summing-up uses the article's own summing-up.**
+> ### 🔒 RULED BY JODIE, 6 Aug 2026 — NOT SPOKEN. **Now `PP-STANDARDS` §0a-ii.**
+> **A figure the source's own arithmetic contradicts is REPRODUCED, NOT VOICED**, because
+> *Dave can check it* and a number that does not survive a calculator turns Mr Money's
+> error into ours on delivery. It stands verbatim in the e-book with the discrepancy
+> disclosed.
+> ⚠️ **AND THE CONSTRAINT THAT DECIDED THE WORDING: omission must not change the finding.**
+> Paragraph 10 ENUMERATES — *"only two of the numbers were profitable"*, then names six and
+> four. **Naming four and quietly dropping six would make the video claim something
+> different from the article, silently.** That is worse than speaking the bad figure.
+> **SO BEAT 10 NAMES NO WINNERS AT ALL** — *"I'm going to leave that cut's figures on the
+> page rather than read them at you. They are all in the e-book, set out in full."* — and
+> keeps number seven's loss, which computes to 49.6% against the published 50%.
+> **The later summing-up beat is the ARTICLE'S OWN summing-up**, which names only number
+> four; four's figure survives a calculator (+8.0% computed against +5% published).
 
 ⚖️ **NEITHER IS A DEPARTURE. `ebook.departures` is `[]`** — nothing was repaired.
+**Not voicing a figure is a SELECTION, never a departure.**
 
 ## THREE STRAY `?` GLYPHS — CATEGORY 1, REPRODUCED
 Literal `0x3f` bytes in the source at `?In the following figures`, `?Next, we'll take`,
@@ -143,15 +156,15 @@ closing joke. **Never tidy it.**
 
 ---
 
-# 4. THE SCRIPT — WRITTEN, PROVED, AND IN A DOC
+# 4. THE SCRIPT — WRITTEN, PROVED, AND ON THE RAIL
 
 | | |
 |---|---|
 | capture | `PP Videos/docs/EP17-source-article-testing-the-numbers.md`, 12,759 bytes |
-| script | **22 beats · 1,508 spoken words · ~10 min at 150 wpm** |
+| script | **22 beats · ~1,500 spoken words · ~10 min at 150 wpm** |
 | `render_ready` | **✓ RENDER-READY** — no bare numerals, no odd characters |
-| midroll | **L7** (17 mod 10), verbatim, **54.9% in** (target 45–55%), fresh vs EP08–EP16 |
-| Doc | `1N6RM2gmDh23OxMV4jGHOVDdp6tD5YBJPGOGXqKVojQk` |
+| midroll | **L7** (17 mod 10), verbatim, **~55% in** (target 45–55%), fresh vs EP08–EP16 |
+| home | **`script_snapshot` on the rail** — 10,837 chars, sha `c40f2155a17b`. **No Doc.** |
 
 **THE EDITORIAL DECISION THAT SHAPES THIS EPISODE: Gordon never reads a list of ten
 numbers aloud** (§4I). This article is *mostly* lists — six of them — so the spoken track
@@ -167,30 +180,66 @@ paragraphs are almost entirely digits**, so what remains to lift is a handful of
 
 ---
 
-# 5. ⏸ WAITING ON A HUMAN — TWO THINGS, AND ONE OF THEM IS A REAL LIMITATION
+# 5. 🏁 THERE IS NO DOC. EP17 IS THE FIRST EPISODE WHOSE SCRIPT LIVES ON THE RAIL.
 
-## 5a. 🔴 THE DOC IS NOT SHARED, AND THE MACHINE CANNOT SHARE IT
-**Measured, not assumed:** the export URL the engine reads returns **HTTP 401**, and
-`get_file_permissions` shows only `jlralph` (owner) and `hugh` (writer, inherited from the
-folder). **There is no "anyone with the link" permission.**
+**Ruling A5 executed, mid-episode, commit `4780e42`.** The script is
+`script_snapshot` on the rail — **10,837 chars, sha `c40f2155a17b`**, seated and read
+back byte-identical, and `fetch_script` on the real EP17 row returns it from
+*"the script box on the board"*.
 
-> **The Drive connector has `get_file_permissions` and NO tool that SETS them.** This is
-> exactly what ruling A5 records: *"the machine can create a Doc and physically cannot
-> share it."* **It is a worked example of A5's own argument for moving the script onto the
-> rail**, met on the first episode after the ruling.
+### WHY IT MOVED TODAY RATHER THAN AFTER EP17
+**Jodie had just done the manual share for the third episode running — and that share was
+already stale.** Beat 10 changed when she ruled on number six, and **the Drive connector
+has `create` but no `update`, `delete` or `rename`.** So the only alternative was a
+**second Doc and a fourth manual share on the same episode**.
 
-⚠️ **SO THE DOC'S CONTENT IS NOT YET VERIFIED THROUGH THE ENGINE'S CHANNEL, AND IS NOT
-CLAIMED TO BE.** It was verified through the Drive API instead, which markdown-escapes
-(`\#` on every header line — the 4 Aug finding, reproduced here). **Every spoken paragraph
-is present and correct and none carries an escape**, but the byte-level diff against the
-proven local file **cannot run until the Doc is shared**. *A check that could not run is
-not a check that passed.*
+> ### ⚠️ THE ADVICE I HAD DRAFTED WAS THE OPPOSITE — *"she's already shared it, so this
+> ### buys EP17 nothing"* — AND IT WAS WRONG BECAUSE I HAD NOT CHECKED THE DOC'S CONTENT.
+> One `verify_doc.py` run turned the recommendation over. **The share worked (HTTP 200,
+> clean text) and the words in it were superseded.**
+> *A second, smaller find pointing the same way: the Doc does **not** round-trip
+> byte-identically — Google's paragraph conversion inserts blank lines between every beat.
+> Harmless (`strip_notes_header` filters them) but it means the approved snapshot was never
+> exactly what was written. From the rail it is.*
 
-## 5b. THE WORDS GATE ITSELF — Jodie pastes, deliberately
-The link and the packaging are **hers to paste**, not mine to write to the rail. **That is
-the point:** EP17's words gate is the one observation editor slice 1 is waiting on — she
-types, alt-tabs away, comes back and presses **ctrl+Z once**. Writing the fields from here
-would remove the only chance to see it.
+### WHAT DID **NOT** CHANGE — the two that matter most
+- **`assert_script_gate` is untouched.** It checks `title_approved` and `script_read` and
+  has never mentioned the Doc. **A test now fails if it ever acquires an opinion about
+  where the script lives.**
+- **A Doc still wins whenever one exists.** EP01–EP16 read their Docs exactly as before;
+  the Doc branch is byte-for-byte unchanged. **Not a migration** — old episodes keep their
+  transport, new ones never acquire one.
+
+### 🔒 AND THE GATE DID NOT WEAKEN, WHICH WAS THE POINT
+**The board now shows the script itself, read-only, in the words card.** A tick saying
+*"I've read the script"* against nothing on screen is a gutted gate dressed up as a moved
+file. The tick is enabled when there is something **to read** — a Doc to open, or the words
+in front of her — and never otherwise.
+**It is a `<pre>`, not a textarea**, which is the whole safety argument for landing it
+beside an unproven slice 1: *not an input*, so `harvestDrafts`/`restoreDrafts` and the 30s
+refresh pause cannot see it, and the fields below behave exactly as they did. **Editing
+there is slice 4.** A test fails if a textarea appears.
+
+**17 cases, one section per constraint, PROVED BY MUTATION** — rail-beats-Doc, no
+`spoken-words.txt` write, and an always-enabled tick each turn the suite red. **20/20
+engine suites green.** Engine confirmed fresh from the log: `pid=79844`, started 17:49:20,
+every watched `.py` older than the process.
+
+## 5b. ⏸ WHAT JODIE DOES AT THE GATE
+1. **Read the script** — it is on the card, no link to open, nothing to share.
+2. **Fix the title**: the box reads **"Testing The Numbers"**; the house form is
+   **"Testing the Numbers"**. Set hook `TESTING THE NUMBERS`, byline
+   `The stats tell the story`.
+3. **Tick "I've read the script"**, then approve.
+
+**The fields are still hers to type** — EP17's words gate is the one observation editor
+slice 1 is waiting on: she types, alt-tabs away, comes back and presses **ctrl+Z once**.
+Writing them from here would remove the only chance to see it.
+
+⚠️ **THE OLD DOC IS SUPERSEDED AND STILL EXISTS** in `PP-EP17/`. It holds the pre-ruling
+beat 10. **Nothing reads it** — `script_doc_url` is NULL and the board no longer offers a
+Doc field for a rail episode, so it cannot be linked by accident. **Deleting it is Jodie's
+(A13).**
 
 ⚠️ **The board's title box reads "Testing The Numbers" with a capital T, which is WRONG.**
 The article's headline is *TESTING THE NUMBERS*; the house form is **"Testing the
