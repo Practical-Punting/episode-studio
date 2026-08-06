@@ -310,6 +310,27 @@ whose coverage was correct on the day it was written and has been decaying since
 of every check: if someone adds a new one of these tomorrow, does the check find it by
 itself?** If the answer is "someone will remember", it is not a rule, it is a hope.
 
+> ## 🔴 7b. **A BATCH APPROVAL IS A LIST SOMEBODY APPROVED ONCE AND NOBODY HAS SINCE READ.**
+> **(EP17, 6 Aug 2026 — the EIGHTH instance, and the worst-disguised.)**
+>
+> **The midroll pool's ten lines were approved as a BATCH on 28 July.** `L7` reached its
+> first use at EP17 — **and Jodie found TWO faults in it inside one sitting**, reading it
+> in place: a clause she disliked, and a **pronoun aimed at the wrong noun**
+> (*"subscribe and they'll find you instead"* — "they" points back to *the folk it was made
+> for*, so the line reads as the audience coming to find her; it meant the VIDEOS turn up
+> on their own and never said so).
+>
+> ### NINE OF THE TEN HAD ALREADY SHIPPED. THE APPROVAL COVERED THE BATCH; NOTHING EVER
+> ### COVERED THE LINES.
+>
+> ⚠️ **WHY IT IS WORSE THAN AN ORDINARY STALE LIST: AN APPROVAL FEELS LIKE EVIDENCE.** A
+> hand-maintained tuple at least looks like something that could go out of date. *"Approved
+> as a batch, never rewritten"* reads as a guarantee — and it is a guarantee about the
+> DECISION, not about the CONTENT.
+> **Ask of any batch: has anyone actually read the members since the day they were waved
+> through — and would a fault in one of them be visible before it went to air?**
+> *For the pool the honest answer was no on both counts, for nine lines, for six weeks.*
+
 > ### 🔴 AND THE COROLLARY THAT MADE IT WORTH NUMBERING — EP16, 5 Aug 2026.
 > **A PASS IS A STATEMENT ABOUT WHAT WAS MEASURED, NOT ABOUT WHAT IS TRUE.**
 > E26's pre-flight reported **0 blockers** on EP16's `episode.json` at `audit_inputs`,

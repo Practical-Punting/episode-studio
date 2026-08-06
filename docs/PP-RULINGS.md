@@ -335,14 +335,22 @@ uniform crowds at QC"*, and that is a glance, not a step.
 anatomically broken. **This one is about a picture that is technically perfect and still
 does not look like this country.** *Nothing automated can see either.*
 
-## A16 · 6 Aug 2026 — MIDROLL POOL LINE **L7** IS AMENDED
-Jodie disliked one clause in L7 at EP17's words gate, the line's first use.
+## A16 · 6 Aug 2026 — MIDROLL POOL LINE **L7** IS AMENDED, TWICE
+Both amendments came from Jodie at EP17's words gate — **the line's first use** — in one
+sitting. **BOTH REMOVED FRAGMENTS, quoted so neither can be restored from an older copy:**
 
-**REMOVED, quoted so nobody restores it from an older copy:**
-> *"…, and it does more for them than it ever does for me."*
+| # | removed | replaced with |
+|---|---|---|
+| 1 | *"…, and it does more for them than it ever does for me."* | *(nothing — the sentence closes at "made for.")* |
+| 2 | *"…so subscribe and they'll find you instead."* | *"…so subscribe and the next one finds you."* |
 
-The sentence now closes at *"a like sends it out to the folk it was made for."* **Nothing
-else in L7 moved.**
+> ### HER OBJECTION TO THE SECOND, because the reasoning is the useful part:
+> ### "the bit that says 'and they'll find you instead' does not make sense at all."
+**She is right: "they" points back to "the folk it was made for"**, so the line reads as the
+AUDIENCE coming to find her. **It meant the VIDEOS would turn up on their own and never
+said so.** *A pronoun aimed at the wrong noun — invisible on a page, obvious out loud.*
+
+**Nothing else in L7 moved.**
 
 **WHY THE POOL AND NOT JUST THE EPISODE — she was not asked to rule on the pool
 separately, and did not need to be:**
@@ -357,6 +365,26 @@ are NOT re-opened by this.** Full detail and the before/after: `docs/midroll-lin
 **DOES NOT COVER:** the fixed SHAPE (§4E), which is unchanged and still satisfied.
 *This also part-closes a §B2 gap: the pool's original batch approval has no record, but
 this amendment is sourced.*
+
+> ### 🔴 THE FINDING THAT OUTLIVES THE LINE — **A BATCH APPROVAL IS A LIST SOMEBODY
+> ### APPROVED ONCE AND NOBODY HAS SINCE READ.**
+> **L7 was wrong TWICE, and both faults were found by one person reading it IN PLACE for
+> the first time.** Approved 28 July; **EP17 is its first use. THE OTHER NINE HAVE ALL
+> SHIPPED.**
+> **Ten lines were waved through together, nine went to air, and the tenth turned out to
+> carry two faults the moment a human met it. The approval covered the BATCH; nothing
+> covered the LINES.**
+>
+> **It is `CLAUDE.md` fault #7 in a new costume** — coverage that is a list somebody
+> maintains, except here the list was *approved* rather than maintained, which is worse:
+> **an approval feels like evidence.** *Ask of any batch: has anyone read the members since
+> the day it was waved through?*
+>
+> 📋 **OWED, AFTER EP17 IS MOVING: read the other nine in place** — does every sentence
+> PARSE, and does each still describe reality (all ten carry the **DAILY** cadence, one
+> live setting that will be wrong in **ten places at once**). **Not to re-open them.**
+> ⚖️ **Nothing published is touched** — *found retrospectively does not mean fixed
+> retrospectively* (Jodie, 4 Aug). Fix for future use, log it, move on.
 
 ## A17 · 6 Aug 2026 — 🔴 THE SCRIPT MUST BE EDITABLE BEFORE EP18
 > ### "Please make sure we are able to edit the script before the next episode."

@@ -94,26 +94,53 @@ and need a fresh batch approval.** That is the accepted cost of freezing the wor
 > Pause there a second. If this video has been worth your time so far, a like tells the thing to show it to somebody else like you, which is all I'd ask of you. New ones go out every day for now, weekly down the track, so subscribe and you'll not have to look. There's more confidence about this game than there is homework. I know which of the two I'd trust. Right you are. Where were we.
 
 ### L7
-> Small detour, then we're done with it. If this video is landing for you, a like sends it out to the folk it was made for. We're daily just now, weekly in time, so subscribe and they'll find you instead. Plenty of tips flying about, most of them somebody's guess in a good suit. This video is just a bloke reading the form. Done, let's get on.
+> Small detour, then we're done with it. If this video is landing for you, a like sends it out to the folk it was made for. We're daily just now, weekly in time, so subscribe and the next one finds you. Plenty of tips flying about, most of them somebody's guess in a good suit. This video is just a bloke reading the form. Done, let's get on.
 
-> #### ✏️ AMENDED BY JODIE, 6 August 2026 — at EP17's words gate, the line's first use.
-> **REMOVED, verbatim, so nobody restores it from an older copy:**
-> > *"…, and it does more for them than it ever does for me."*
+> #### ✏️ AMENDED TWICE BY JODIE, 6 August 2026 — at EP17's words gate, the line's FIRST USE.
+> **BOTH REMOVED FRAGMENTS, verbatim, so neither can be restored from an older copy:**
+> | # | removed | replaced with |
+> |---|---|---|
+> | 1 | *"…, and it does more for them than it ever does for me."* | *(nothing — the sentence closes at "made for.")* |
+> | 2 | *"…so subscribe and they'll find you instead."* | *"…so subscribe and the next one finds you."* |
 >
-> The clause sat at the end of the value hook. **Removing it and closing the sentence at
-> "made for" is the whole change** — nothing else in L7 moved, and the fixed shape is
-> intact: value hook naming the video → the ask → the cadence line → the wry nod → return
-> to content.
+> **HER OBJECTION TO THE SECOND, which is the useful part:**
+> > *"the bit that says 'and they'll find you instead' does not make sense at all."*
+> **She is right. "They" points back to "the folk it was made for"**, so it reads as the
+> AUDIENCE coming to find her. **The line meant the VIDEOS would turn up on their own, and
+> never said so.**
+>
+> Nothing else in L7 moved. The fixed shape is intact: value hook naming the video → the
+> ask → the cadence line → the wry nod → return to content.
 >
 > **WHY THE POOL WAS AMENDED AND NOT JUST THE EPISODE:**
 > 1. **The midroll must be VERBATIM from the pool.** An EP17 that differed from L7 would
 >    either fail `render_ready`'s freshness check or quietly weaken it.
 > 2. **The pool wraps.** Left in, those words return at **EP27**, on an episode nobody is
->    watching for them. *She said she dislikes them; she should not have to say it twice.*
+>    watching for them. *She said she disliked them; she should not have to say it twice.*
 >
-> ⚠️ **This is an AMENDMENT to the batch approval, made by the person who gave it.** Rule 7
-> above says changing a line is a new batch approval rather than an edit — **the other nine
-> lines are untouched and are not re-opened by this.**
+> ⚠️ **An AMENDMENT to the batch approval, made by the person who gave it.** Rule 7 above
+> says changing a line is a new batch approval rather than an edit — **the other nine lines
+> are untouched and are NOT re-opened by this.**
+>
+> ## 🔴 AND THE FINDING THAT MATTERS MORE THAN THE LINE
+> **L7 was wrong TWICE, and both faults were found by one person reading it IN PLACE for
+> the first time.** It was batch-approved on 28 July; **EP17 is its first use. The other
+> NINE HAVE ALL SHIPPED.**
+>
+> > ### A BATCH APPROVAL IS A LIST SOMEBODY APPROVED ONCE AND NOBODY HAS SINCE READ.
+> > **Ten lines were waved through together, nine went to air, and the tenth turned out to
+> > have two faults in it the moment a human met it. The approval covered the BATCH;
+> > nothing covered the LINES.**
+>
+> 📋 **OWED, AFTER EP17 IS MOVING AND NOT BEFORE: READ THE OTHER NINE IN PLACE.** Two
+> questions only, and **not** to re-open them:
+> - **does every sentence PARSE** — no dangling "they", no pronoun pointing at the wrong
+>   noun (that is fault 2 above, exactly);
+> - **does each still describe reality** — **all ten carry the DAILY cadence**, a live
+>   setting that will one day be wrong in **ten places at once**.
+>
+> ⚖️ **NOTHING PUBLISHED IS TOUCHED** (Jodie, 4 Aug 2026: *found retrospectively does not
+> mean fixed retrospectively*). Anything broken is fixed **for future use** and logged.
 
 ### L8
 > Two seconds, then we're back on it. If there's something in this video for you, a like puts it in somebody else's evening, and that's the only advertising it ever gets. There's a new one every day at present, weekly further along, so a subscribe keeps them coming. The loud stuff always travels fastest, and it's rarely the useful stuff, is it. That's my bit. Back to it.
