@@ -639,7 +639,7 @@ def main():
         sys.exit(2)
 
     os.makedirs(a.out_dir, exist_ok=True)
-    wrote, skipped = [], []
+    wrote, redone, skipped = [], [], []
     for c, blk in plan:
         frame_tpl = load_frame(c.get("layout", "fullscreen"))
         page = render_card(c, blk, frame_tpl)
@@ -647,12 +647,36 @@ def main():
         out = os.path.join(a.out_dir, c["page"])
         if os.path.exists(out):
             existing = open(out, encoding="utf-8").read()
+            # A HAND-AUTHORED PAGE IS NEVER TOUCHED, not even with --force.
+            # This check comes first on purpose: bespoke pages are the one thing
+            # a blanket re-author would destroy.
             if MARKER not in existing:
                 skipped.append((c["id"], c["page"], "hand-authored (no generated marker)"))
                 continue
-            if not a.force:
-                skipped.append((c["id"], c["page"], "already generated — pass --force to redo"))
+            # 🔴 THE --force TRAP, CLOSED. This used to read "already generated —
+            # pass --force to redo", and the ENGINE NEVER PASSES --force. So
+            # changing episode.json and clearing the flag re-checked the STALE
+            # HTML and returned a byte-identical halt.
+            #
+            #     A CORRECT FIX LOOKED LIKE A FAILED ONE, TWICE.
+            #
+            # It broke nothing. It made the truth invisible — and the natural
+            # next move is to undo a change that was right, or hunt a second
+            # cause that is not there. On EP16 a layout fix moved a box from
+            # (204,838) to (110,787) and NOTHING SHOWED IT, because the page on
+            # disk was never rewritten.
+            #
+            # THE FIX IS DERIVED, NOT A LIST AND NOT A TIMESTAMP: the freshly
+            # rendered page is already in hand, so COMPARE IT. If it differs, the
+            # card's definition changed and the page is rewritten. If it is
+            # identical, there was nothing to do anyway. Nothing to keep in sync,
+            # nothing anyone must remember to bump, and it cannot go stale —
+            # because the comparison IS the definition. (CLAUDE.md fault #7.)
+            if existing == page and not a.force:
+                skipped.append((c["id"], c["page"],
+                                "unchanged — episode.json still says the same thing"))
                 continue
+            redone.append(c["page"])
         open(out, "w", encoding="utf-8", newline="\n").write(page)
         wrote.append(c["page"])
 
@@ -660,9 +684,14 @@ def main():
         if c["block"] == "bespoke":
             skipped.append((c["id"], c.get("page", "?"), "block:bespoke — hand-authored by design"))
 
-    print(f"authored {len(wrote)} card page(s) into {a.out_dir}")
+    # SAY WHICH PAGES WERE RE-AUTHORED, not just how many were written. The whole
+    # cost of the --force trap was that a regeneration and a no-op looked
+    # identical from the outside.
+    print(f"authored {len(wrote)} card page(s) into {a.out_dir}"
+          + (f" ({len(redone)} REDONE because the card changed)" if redone else ""))
     for p in wrote:
-        print(f"  + {p}")
+        print(f"  {'~' if p in redone else '+'} {p}"
+              + ("  (re-authored — its definition changed)" if p in redone else ""))
     for cid, page, why in skipped:
         print(f"  · {cid} {page} — left alone: {why}")
 

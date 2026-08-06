@@ -152,9 +152,17 @@ def main():
         if GEN not in open(os.path.join(a.out_dir, f), encoding="utf-8").read():
             print(f"· {f} left alone: hand-authored (no generated marker)")
             return
+    # THE --force TRAP, closed the same way author_cards.py closes it: the freshly
+    # rendered page is already in hand, so COMPARE IT rather than skipping on mere
+    # existence. The engine never passes --force, so "already generated" meant a
+    # packaging change could never reach the thumbnail — and the halt would look
+    # identical before and after the fix. Nothing to keep in sync, and it cannot
+    # go stale, because the comparison IS the definition.
     if os.path.exists(out) and not a.force:
-        print("· thumbnail left alone: already generated — pass --force to redo")
-        return
+        if open(out, encoding="utf-8").read() == page:
+            print("· thumbnail left alone: unchanged — episode.json still says the same thing")
+            return
+        print("~ thumbnail re-authored — its definition changed")
     open(out, "w", encoding="utf-8", newline="\n").write(page)
 
     logo = os.path.join(a.out_dir, "pp-logo-on-dark.png")

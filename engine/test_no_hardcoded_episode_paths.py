@@ -104,13 +104,33 @@ def _the_lint_can_actually_fail():
 
 
 def _every_suite_that_needs_one_has_it():
-    """Any suite touching a real episode folder must define the resolver."""
+    """Any suite touching a real EPISODE FOLDER must define the resolver.
+
+    ⚠️ NARROWED 6 Aug 2026, to match this function's own docstring.
+    It used to fire on any suite whose source contained "PP Videos" at all — but
+    the thing this lint protects against is the STAGE-8 RENAME, and the rename
+    only ever touches EPISODE folders. `PP Videos/docs/` is shared and is never
+    renamed, so a suite reading a source article out of it has no episode to
+    resolve and nothing to go stale.
+
+    It fired on `test_force_trap.py`, which reaches the shared docs folder and
+    names no episode at all. Adding an unused `episode_dir()` there to silence
+    it would have been a value set to satisfy a checker — the precise move that
+    makes a list stop being true.
+
+    The stricter half is UNTOUCHED: `_no_literal_folder_names` still fails on any
+    hard-coded `PP-EP<n>` anywhere, and it caught test_force_trap on its first
+    run, correctly.
+    """
     for p in sorted(HERE.glob("test_*.py")):
         src = p.read_text(encoding="utf-8")
-        if "PP Videos" not in src or p.name == Path(__file__).name:
+        if p.name == Path(__file__).name:
+            continue
+        if "PP Videos" not in src or not re.search(r"PP-EP", src):
             continue
         assert "def episode_dir(" in src, \
-            f"{p.name} reaches into PP Videos but has no episode_dir() resolver"
+            f"{p.name} reaches into a PP Videos EPISODE FOLDER but has no " \
+            "episode_dir() resolver"
 
 
 # Guarded so `scan()` can be IMPORTED without the suite running and calling sys.exit —
