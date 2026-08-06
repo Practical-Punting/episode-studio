@@ -292,7 +292,50 @@ verdict and reports its write declined.
 | the exact argv from `build_argv()` | **writes the file and conforms** — with a SHORT prompt |
 | the words themselves | **good.** Correct title with the bang, placeholder left, grounded in the article |
 
-### 🔬 THE ONE LEAD, AND IT IS AN UNTESTED GUESS — DO NOT BUILD ON IT
+### ✅ SOLVED, 6 Aug 2026 — **THE `.CMD` SHIM ATE THE COMMAND LINE.** Jodie: *"I want the
+### youtube copy thing fixed please!"*
+
+**`cli_path()` resolves to `claude.CMD`, a BATCH SHIM** whose entire body is
+`"%dp0%\node_modules\...\claude.exe" %*`. **So `cmd.exe` re-parses the whole command line**,
+and a **1,288-character, 15-line brief** sitting in it does not survive — **taking every
+flag after it along too.**
+
+**THREE RUNS, SAME INPUTS, AND THE CONTROL IS THE ONE THAT MATTERS:**
+| invocation | artefact | result |
+|---|---|---|
+| **`claude.CMD` + brief in argv** *(the code as it stood)* | ❌ none | **PROSE, not even JSON** — *"the file write was declined"*. **SIXTH reproduction** |
+| **`claude.CMD` + brief on STDIN** | ✅ written | verdict conforms, `status: ok` |
+| **`claude.exe` + brief in argv** | ✅ written | verdict conforms, `status: ok` |
+
+> ### 🔴 THE FAILURE MODE EXPLAINS ITSELF, AND IT IS NOT WHAT FIVE DRY RUNS CONCLUDED.
+> **The control came back as PROSE — so `--output-format json` never reached the CLI
+> either.** It was never the writer refusing to write. It was **`--allowedTools`,
+> `--output-format` and `--json-schema` being eaten along with the brief.**
+> *Five runs read "the file write was declined" as a permissions problem. It was a mangled
+> command line, and the writer was describing a world it had been handed.*
+
+**THE FIX: `strip_prompt_from_argv()` — the brief goes on STDIN.** Both fixes work; stdin
+was chosen because calling `claude.exe` directly means **hard-coding a path inside
+`node_modules`**, which moves when the CLI updates — *a name where an id should be*. Taking
+the brief out of the argv **fixes the CLASS**: it works through a shim or without one, and
+it removes any future collision with Windows' ~32k command-line limit as briefs grow.
+
+✅ **PROVED END TO END THROUGH THE REAL PATH** — `providers._commission_youtube_copy` →
+`commission()` → the CLI, on **EP17's own inputs**, in a sandbox so the live build was never
+touched: **artefact written (6,492 bytes), verdict conforms, `status: ok`,
+`unread_sources: []`, 123s, $1.06, 9 turns** — and **`check_youtube_title` passes on what it
+produced**: *"youtube title ok: Testing the Numbers | How to Win at Horse Racing"*.
+**87/87 cases**, including the two that matter: the brief is not in the argv, **and it is
+actually piped in** (removing it and not piping it would be a worse bug than the original).
+
+⚠️ **STILL SWITCHED OFF, AND HERE IS THE CONSTRAINT NOBODY HAD SPOTTED:**
+`save_youtube_copy` reads `os.environ["ENGINE_COMMISSION"]` **at call time from the running
+process**, and `providers.py` **is already in memory**. So switching it on needs a
+`providers.py` edit *and a restart* — **and a restart is only safe when nothing is in
+flight.** *The fix itself landed safely mid-build because `commission` is imported LAZILY,
+so it is not a watched file and Python loads it fresh from disk when the step runs.*
+
+### 🔬 THE LEAD AS IT WAS WRITTEN — kept, because the shape of it is the lesson
 > **The long multi-line brief is passed as an ARGV ELEMENT to `claude.CMD`, which is a
 > BATCH SHIM, so `cmd.exe` re-parses it.**
 > **Every short prompt works. Every long one does not.** That is the whole of the

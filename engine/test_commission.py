@@ -373,6 +373,44 @@ def main():
     check("the commission announces it is WAITING before it waits",
           any("a writer is working" in ln for ln in lines))
 
+    print("\n-- the brief goes on STDIN, never in the argv (measured 6 Aug 2026) --")
+    # cli_path() resolves to claude.CMD, a BATCH SHIM, so cmd.exe re-parses the
+    # command line and a 1,288-char 15-line brief in it does not survive — taking
+    # --output-format, --json-schema and --allowedTools with it. That is why five
+    # dry runs came back as PROSE saying "the file write was declined": it was not
+    # the writer refusing, it was a mangled command line. The control reproduced
+    # the failure a SIXTH time; the same inputs on stdin wrote the artefact and
+    # returned a conforming verdict.
+    long_brief = "line one\nline two\n" * 60
+    argv = C.build_argv(Path("claude.CMD"), long_brief, [], ("Read", "Write"), 10, None)
+    check("build_argv still carries the brief (the strip is a separate step)",
+          long_brief in argv)
+    out = C.strip_prompt_from_argv(argv, long_brief)
+    check("the brief is NOT in the argv that gets spawned", long_brief not in out)
+    check("  -p is followed by the next FLAG, so the CLI reads stdin",
+          out[out.index("-p") + 1].startswith("--"))
+    check("  and no other flag was lost while removing it",
+          all(f in out for f in ("--output-format", "--json-schema", "--allowedTools",
+                                 "--permission-mode", "--strict-mcp-config",
+                                 "--max-budget-usd")))
+    check("a missing -p does not crash the strip",
+          C.strip_prompt_from_argv(["claude", "--x"], "p") == ["claude", "--x"])
+
+    # REMOVING IT FROM THE ARGV IS ONLY HALF. If it is not piped in, the writer
+    # gets no brief at all — a worse bug than the one being fixed, and one a
+    # green suite would not mention.
+    fresh = tmp / "piped.txt"
+    fresh.write_text("x\n", encoding="utf-8")
+    os.utime(fresh, (time.time() + 5, time.time() + 5))
+    run = runner_returning(envelope(verdict()))
+    C.commission(prompt="THE WHOLE BRIEF", place=tmp, what="a thing",
+                 find_artefact=lambda: fresh, runner=run, log=quiet)
+    check("the brief IS piped to the process on stdin",
+          run.kw.get("input") == "THE WHOLE BRIEF",
+          f"input was {run.kw.get('input')!r}")
+    check("  and it is not also sitting in the argv",
+          "THE WHOLE BRIEF" not in run.argv)
+
     print(f"\n{len(PASS)}/{len(PASS) + len(FAIL)} green")
     if FAIL:
         print("FAILED:")

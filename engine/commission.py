@@ -212,6 +212,10 @@ def build_argv(cli: Path, prompt: str, add_dirs, tools, budget_usd, model) -> li
 
     Separated from commission() precisely so the PLACE-and-TIME claim is
     testable without spawning anything.
+
+    ⚠️ `prompt` IS ACCEPTED AND DELIBERATELY NOT PLACED IN THE ARGV. See
+    `strip_prompt_from_argv` below — it is kept in the signature so every existing
+    test that asserts the scope keeps working and so the two stay in one place.
     """
     argv = [str(cli), "-p", prompt,
             "--output-format", "json",
@@ -233,6 +237,46 @@ def build_argv(cli: Path, prompt: str, add_dirs, tools, budget_usd, model) -> li
     if model:
         argv += ["--model", model]
     return argv
+
+
+def strip_prompt_from_argv(argv: list[str], prompt: str) -> list[str]:
+    """Take the brief OUT of the command line. It goes on STDIN instead.
+
+    ══ WHY, AND IT IS MEASURED, NOT REASONED (6 Aug 2026) ══════════════════════
+    `cli_path()` resolves to `claude.CMD` — a BATCH SHIM whose whole body is
+    `"%dp0%\\node_modules\\...\\claude.exe" %*`. So **cmd.exe re-parses the entire
+    command line**, and a 1,288-character, 15-line brief sitting in it does not
+    survive. Everything AFTER the long element is lost with it.
+
+    THREE RUNS, ONE EVENING, SAME INPUTS — the control is the important one:
+
+      claude.CMD + brief in argv   -> NO artefact. Result is PROSE, not even JSON,
+                                      and the writer says "the file write was
+                                      declined". SIXTH reproduction.
+      claude.CMD + brief on STDIN  -> artefact written, verdict conforms, status ok
+      claude.exe + brief in argv   -> artefact written, verdict conforms, status ok
+
+    THE FAILURE MODE EXPLAINS ITSELF: the control came back as PROSE. That means
+    `--output-format json` never reached the CLI either — so it was not the writer
+    refusing to write, it was `--allowedTools`, `--output-format` and
+    `--json-schema` being eaten along with the brief. Five dry runs read that as
+    "the writer declines to write its artefact"; it was a mangled command line.
+
+    ⚠️ STDIN RATHER THAN THE .exe, AND THAT IS THE CHOICE WORTH RECORDING. Both
+    fixes work. Calling `claude.exe` directly means hard-coding a path INSIDE
+    node_modules, which moves when the CLI updates and is a name where an id
+    should be. Taking the brief out of the argv fixes the CLASS: it works through
+    a shim or without one, and it also removes any future collision with Windows'
+    ~32k command-line limit as briefs grow.
+    """
+    out = list(argv)
+    try:
+        i = out.index("-p")
+    except ValueError:
+        return out
+    if i + 1 < len(out) and out[i + 1] == prompt:
+        del out[i + 1]                 # `-p` with no value == read the prompt from stdin
+    return out
 
 
 def assert_subscription_wallet(cli: Path, child_env: dict, *, runner, log=print) -> dict:
@@ -455,7 +499,8 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
     child_env = dict(os.environ)
     assert_subscription_wallet(cli, child_env, runner=runner, log=log)
 
-    argv = build_argv(cli, prompt, add_dirs, tools, budget_usd, model)
+    argv = strip_prompt_from_argv(
+        build_argv(cli, prompt, add_dirs, tools, budget_usd, model), prompt)
     started = time.time()
     # ANYTHING THAT WAITS MUST SAY IT IS WAITING (CLAUDE.md fault #3): the START
     # of the work, not only its finish, and who it is waiting on.
@@ -463,9 +508,9 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
         f"capped at ${budget_usd:.2f}", flush=True)
 
     try:
-        r = runner(argv, capture_output=True, text=True, encoding="utf-8",
-                   errors="replace", timeout=timeout, cwd=str(place),
-                   env=child_env)
+        r = runner(argv, input=prompt, capture_output=True, text=True,
+                   encoding="utf-8", errors="replace", timeout=timeout,
+                   cwd=str(place), env=child_env)
     except subprocess.TimeoutExpired:
         raise CommissionHalt(
             f"The studio's writing assistant was asked to draft {what} and did "
