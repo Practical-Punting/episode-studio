@@ -9,7 +9,62 @@
 
 ---
 
-# 1. THE HALT TALLY — **ZERO SO FAR. THE BUILD HAS NOT STARTED.**
+# 0. 🔴 THE ALIGNMENT HALT — **79.8% AGAINST AN 85% FLOOR, AND THE FLAG NAMES THREE
+# CAUSES THAT ARE ALL WRONG**
+
+`align_to_script` refused at `heygen_download`, 10:48. Its words:
+> *"the master is not reading this script — **wrong take, wrong episode, or the words
+> changed after the render**."*
+
+**All three are false, and the third would have sent Jodie to re-render a perfectly good
+master.** *That is CLAUDE.md fault #6 exactly: a halt naming a cause it has not
+established, in a way that makes the operator's next action look like the fix.*
+
+### WHAT IT ACTUALLY IS — measured across every episode, not reasoned
+**We spell every figure as WORDS for the TTS** (`six hundred and sixty`). **WhisperX
+transcribes speech as DIGITS** (`660`). So **every spelled-out figure is a guaranteed
+miss** — and EP17 is an article made almost entirely of figures.
+
+| ep | words | number-words | share | anchored |
+|---|---|---|---|---|
+| EP07–EP14 | — | — | **1.9–5.8%** | comfortable |
+| EP15 | 2,532 | 131 | **5.2%** | fine |
+| **EP16** | 1,925 | 178 | **9.2%** | **87.8%** — "narrowest pass on record" |
+| **EP17** | 1,537 | 213 | **13.9%** *(17.2% counting `per cent`/`dollars`)* | **79.8% — REFUSED** |
+
+**The miss rate tracks the number-word share.** EP16→EP17: number-words **+4.7 points**,
+miss rate **+8.0**. With units, **+6.7 against +8.0.**
+
+> ### ⚰️ AND IT CLOSES THE OPEN QUESTION AT §1f — THE OPPOSITE WAY ROUND.
+> That question was *"does a LOW-BITRATE master depress the anchor rate?"*, asked because
+> EP16 scraped through on a 124 kbps master. **EP17's master is `ffprobe`-measured at
+> 189,366 bps — the full API standard, complete, correctly trimmed — AND IT SCORED SEVEN
+> POINTS WORSE.** **Bitrate is not the driver. Number density is.**
+
+### 📌 THE FIX IS NOT THE FLOOR. IT IS THE COMPARISON.
+**The 85% floor is not wrong; the MEASUREMENT is.** The matcher is comparing
+*"six hundred and sixty"* against *"660"* and honestly recording a mismatch. **Lowering the
+floor would treat the symptom and blind the guard that caught EP15's truncated master at
+62.9%.** The fix is to fold number-words to digits (or the reverse) before matching, so a
+figure we spelled out for Gordon's mouth can still anchor.
+⚠️ **It changes the TIMINGS the whole episode is built from, so it is not a cosmetic
+change** — but it produces MORE anchors and FEWER interpolations, which is the direction
+the guard exists to push.
+
+---
+
+# 1. THE HALT TALLY — **TWO.**
+| # | at | what | kind |
+|---|---|---|---|
+| 1 | `audit_inputs` | `episode.json` missing — **Job Zero's second call site** | job not done |
+| 2 | `heygen_download` | **the alignment, above** | machine fault |
+*(Plus the title-card crop flag at 10:23 — a DESIGNED human gate, cleared in five minutes.)*
+
+**EP16's #2, #3, #4, #9 and #10 have all now been PASSED WITHOUT RECURRING** — including
+#4, the layout collision, which this work never touched. `cards_render` completed with
+15 pages, `check_page_images` clean, autofit fitting one page.
+
+
 
 **EP17 is at the words gate.** Nothing has been claimed, nothing spent. Halts get counted
 here from the LOG as they happen, individually, never from memory.
