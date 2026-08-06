@@ -268,3 +268,23 @@ footer{margin:34px 0 0;font-size:12.5px;color:#b3aca3;}
   .statusbar{margin-left:0;}
   .grid{grid-template-columns:1fr;}
 }
+
+/* ── the pause banner (editor slice 1) ─────────────────────────────────────
+   Shown when the 30-second refresh is deliberately NOT rebuilding the board,
+   because the operator has unsaved changes. It lives OUTSIDE #lanes so that
+   host.innerHTML never destroys it — which is what lets a new halt reach her
+   without rebuilding the field she is typing in. */
+.pausebar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin:0 0 14px; padding:10px 14px; border-radius:10px;
+  background:#2a2418; border:1px solid #6b5a2e; color:#f1e7cf; font-size:14px;
+}
+.pausebar[hidden]{display:none;}
+.pausebar-msg{opacity:.92;}
+/* A new flag must read as louder than the pause it is printed beside. */
+.pausebar-flag{color:#ffb4a2; font-weight:700;}
+.pausebar-btn{
+  margin-left:auto; padding:6px 12px; border-radius:8px; cursor:pointer;
+  background:#DA532C; border:0; color:#fff; font:inherit; font-weight:600;
+}
+.pausebar-btn:hover{filter:brightness(1.08);}

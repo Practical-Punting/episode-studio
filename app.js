@@ -148,7 +148,11 @@ let SESSION = null;
 let channel = null;
 const inflight = new Set();    // idempotency: one write per key at a time
 // Survives the full re-render that realtime triggers, so a half-typed note isn't lost.
-const UI = { open: new Set(), drafts: new Map(), kinds: new Map(), words: new Map() };
+const UI = { open: new Set(), drafts: new Map(), kinds: new Map(), words: new Map(),
+             dirty: new Set() };
+// What `needs_look` looked like at the last render, so a NEW halt can be spotted
+// while the board is paused. Keyed by episode id.
+let LAST_FLAGS = new Map();
 
 // ── helpers ──────────────────────────────────────────────────────────────
 function esc(s) {
@@ -463,7 +467,111 @@ function setLive(ok) {
 }
 
 // ── render ───────────────────────────────────────────────────────────────
-function renderBoard() {
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE REFRESH MUST NOT DESTROY WHAT A HUMAN IS EDITING.  (Slice 1 of the editor.)
+ *
+ * `renderBoard()` does `host.innerHTML = out` every 30 seconds. That does not
+ * merely reset values — IT DESTROYS THE NODES. `restoreDrafts()` puts back
+ * `.value` and nothing else, so caret, selection, scroll and THE BROWSER'S UNDO
+ * STACK all die with the element.
+ *
+ * ⚠️ AND SAVE-AND-RESTORE CANNOT FIX IT. Caret, selection and scroll can be
+ * replayed; UNDO CANNOT — it belongs to the destroyed node and no API exposes
+ * it. So the only fix that delivers all four is TO NOT DESTROY THE NODE.
+ *
+ * WHAT IT COST WHEN IT BIT (EP16, 5 Aug 2026): the saved script-Doc URL was 168
+ * characters — `https://docs.goog` + the entire correct URL + `le.com/…`. An
+ * INSERTION AT OFFSET 17. The value had been restored and THE CARET HAD NOT, so
+ * her next paste landed inside the old string. A wipe is visible; a moved caret
+ * silently corrupts whatever is typed next.
+ *
+ * DIRTY, NOT MERELY FOCUSED. Jodie had ALT-TABBED AWAY when it happened, so a
+ * focus-only test would have missed it exactly when it mattered.
+ *
+ * 🔒 WHY PAUSING IS SAFE, AND THE CONDITION IT RESTS ON:
+ * `renderBoard()`'s only destructive write is `#lanes`. The script editor is a
+ * SEPARATE ROUTE (a sibling of `#board`, like `#login`), so the poll never
+ * rebuilds it. Therefore pausing only ever covers SHORT board edits — a hook, a
+ * byline, a publish field: seconds to a minute. A board a minute stale is not a
+ * problem. **If the editor is ever moved INSIDE `#lanes`, this reasoning breaks
+ * and pausing would blind the operator for twenty minutes at a stretch.**
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Anything the operator has touched since it was last saved. Delegated, so it
+ * covers fields that do not exist yet — no list to maintain. */
+document.addEventListener("input", (e) => {
+  const el = e.target;
+  if (!el || !el.id || !$("lanes")?.contains(el)) return;
+  if (el.type === "checkbox" || el.type === "radio" || el.type === "file") return;
+  UI.dirty.add(el.id);
+}, true);
+
+/* A human-readable name for a field, ASKED OF THE FIELD rather than kept in a
+ * map keyed on id prefixes. A map would be a list somebody maintains, and the
+ * next field added would be described as "a field" without anyone noticing. */
+function fieldLabel(id) {
+  const el = $(id);
+  if (!el) return "";
+  const lab = (el.labels && el.labels[0] && el.labels[0].textContent) ||
+    el.getAttribute("aria-label") || el.getAttribute("placeholder") || "";
+  return lab.trim().replace(/[:*]\s*$/, "").toLowerCase();
+}
+
+function editingNow() {
+  return [...UI.dirty].filter((id) => $(id));
+}
+
+/* Episodes that have raised a flag since the last time the board was drawn. */
+function newlyFlagged() {
+  return EPISODES.filter((e) => e.needs_look && !LAST_FLAGS.get(e.id));
+}
+
+function rememberFlags() {
+  LAST_FLAGS = new Map(EPISODES.map((e) => [e.id, !!e.needs_look]));
+}
+
+/* The banner lives OUTSIDE `#lanes`, so `host.innerHTML` never touches it —
+ * which is what lets a halt reach the operator WITHOUT rebuilding the field she
+ * is typing in. The flag and the edit are not in competition. */
+function pauseBanner(fields, flagged) {
+  let bar = $("pausebar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "pausebar";
+    bar.className = "pausebar";
+    $("lanes").parentNode.insertBefore(bar, $("lanes"));
+  }
+  if (!fields.length) { bar.hidden = true; bar.innerHTML = ""; return; }
+  bar.hidden = false;
+  // SAY WHAT IS PAUSED AND WHY, NAMING THE FIELD. A deliberate pause is only
+  // different from the board describing the past as the present if it SAYS so.
+  const names = [...new Set(fields.map(fieldLabel).filter(Boolean))];
+  const what = names.length ? names.join(" and ")
+    : (fields.length === 1 ? "a box you are filling in" : "boxes you are filling in");
+  let msg = '<span class="pausebar-msg">Not updating while you have unsaved ' +
+    "changes to " + esc(what) + ".</span>";
+  // 🔴 A PAUSED BOARD MUST STILL BREAK THROUGH FOR A NEW FLAG. A stale picture
+  // is a small cost; a hidden halt costs an hour, or a night.
+  if (flagged.length) {
+    msg = '<strong class="pausebar-flag">' +
+      esc(flagged.map((e) => "PP-EP" + (e.ep_number ?? "?")).join(", ")) +
+      (flagged.length === 1 ? " needs a look — it stopped just now."
+        : " need a look — they stopped just now.") + "</strong> " + msg;
+  }
+  bar.innerHTML = msg +
+    '<button type="button" id="pause-refresh" class="pausebar-btn">Refresh anyway</button>';
+  $("pause-refresh").onclick = () => { UI.dirty.clear(); renderBoard(true); };
+}
+
+function renderBoard(force) {
+  const editing = force ? [] : editingNow();
+  if (editing.length) {
+    pauseBanner(editing, newlyFlagged());
+    tickTimers();
+    return;                       // the node she is in is never touched
+  }
+  pauseBanner([], []);
+  rememberFlags();
   const host = $("lanes");
   if (!EPISODES.length) {
     $("count").textContent = "";
@@ -929,6 +1037,10 @@ function harvestDrafts() {
  * for that episode so they can't overwrite what was just stored. */
 function clearWordDrafts(id) {
   [...UI.words.keys()].forEach((k) => { if (k.endsWith("-" + id)) UI.words.delete(k); });
+  // A saved field is no longer unsaved, so it must stop pausing the board.
+  // Without this the pause would outlive the edit and the board would freeze
+  // until a reload — a guard that never lets go is its own fault.
+  [...UI.dirty].forEach((k) => { if (k.endsWith("-" + id)) UI.dirty.delete(k); });
 }
 function restoreDrafts() {
   UI.drafts.forEach((v, id) => { const t = $("chat-" + id); if (t) t.value = v; });
