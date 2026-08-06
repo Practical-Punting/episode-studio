@@ -335,6 +335,75 @@ uniform crowds at QC"*, and that is a glance, not a step.
 anatomically broken. **This one is about a picture that is technically perfect and still
 does not look like this country.** *Nothing automated can see either.*
 
+## A16 · 6 Aug 2026 — MIDROLL POOL LINE **L7** IS AMENDED
+Jodie disliked one clause in L7 at EP17's words gate, the line's first use.
+
+**REMOVED, quoted so nobody restores it from an older copy:**
+> *"…, and it does more for them than it ever does for me."*
+
+The sentence now closes at *"a like sends it out to the folk it was made for."* **Nothing
+else in L7 moved.**
+
+**WHY THE POOL AND NOT JUST THE EPISODE — she was not asked to rule on the pool
+separately, and did not need to be:**
+1. **The midroll must be VERBATIM from the pool.** An EP17 that differed from L7 would
+   either fail `render_ready`'s freshness check or quietly weaken it.
+2. **The pool wraps.** Left in, those words return at **EP27**, on an episode nobody is
+   watching for them. *She said she dislikes them; she should not have to say it twice.*
+
+**SUPERSEDES:** L7 as batch-approved 28 Jul 2026. **The other nine lines are untouched and
+are NOT re-opened by this.** Full detail and the before/after: `docs/midroll-line-pool.md`.
+
+**DOES NOT COVER:** the fixed SHAPE (§4E), which is unchanged and still satisfied.
+*This also part-closes a §B2 gap: the pool's original batch approval has no record, but
+this amendment is sourced.*
+
+## A17 · 6 Aug 2026 — 🔴 THE SCRIPT MUST BE EDITABLE BEFORE EP18
+> ### "Please make sure we are able to edit the script before the next episode."
+**— Jodie.**
+
+**Slice 4 — the `<textarea>` on the board — is a REQUIREMENT for EP18, not a preference.**
+
+> ### ⚠️ THE EVIDENCE, AND IT IS THE WHOLE ARGUMENT: A8's SUSPENSION WAS TESTED WITHIN
+> ### **MINUTES** OF THE GATE OPENING, AND FAILED IMMEDIATELY.
+> **The first thing she tried to do at her own words gate was change a word, and she could
+> not.** The suspension was recorded that same afternoon as lasting "exactly one episode"
+> and as a cost worth naming — *it did not survive the first contact with the person it was
+> imposed on.*
+
+**SUPERSEDES:** nothing. It **ends** A8's suspension at EP17 and forbids extending it.
+**DOES NOT COVER:** EP17 itself, which runs read-only. **The route until then: she says
+what she wants changed and Claude Code writes it to the rail.**
+
+## A18 · 6 Aug 2026 — 🔴 THE MACHINE FILLS THE NAME, HOOK AND BYLINE FROM THE ARTICLE
+> ### "cc should be able to read the title and byline!"
+**— Jodie.**
+
+**A1 says the episode's name, hook and byline come from the source page. Nothing enforces
+it at the moment they are first written**, so they are derived correctly by Claude Code,
+relayed through two machines and a human, and then **typed in by hand.**
+
+> ### IT IS THE SAME FAULT AS THE SCRIPT, ONE FIELD OVER.
+> The script was a field on a record being treated as a document. **The packaging is three
+> fields being treated as something a person types.**
+
+**WORKED EXAMPLE, EP17:** all three were derived from the page on the morning of 6 Aug —
+`Testing the Numbers` · `TESTING THE NUMBERS` · `The stats tell the story` — and there was
+nowhere to put them. **Meanwhile `slugToTitle()` (`app.js:192`) filled the box from the URL
+SLUG**, producing *"Testing The Numbers"* — **a capital T on a word the article sets lower
+case.**
+
+**WHAT IS RULED:** the name, hook and byline **come from the source page**.
+- 🚫 **`slugToTitle()` guessing from a web address must STOP.**
+- ⚠️ **`titleSmell()` suggesting after the fact is GRADE 1 where grade 2 was needed** — it
+  would have flagged this exact string, and by design it only ever warns.
+
+**DOES NOT COVER the mechanism, which is a design question, not a ruling:** whether the
+create step reads the page, or the commission seats the fields, is open. *An empty box a
+human fills is honest; a wrong box that looks authoritative is not.*
+
+**NOT BUILT — recorded 6 Aug, deliberately, while EP17 runs.**
+
 ---
 
 # B. ⚠️ SUSPECTED MISSING — the size of the hole
@@ -368,6 +437,9 @@ find.** Listed, never reconstructed.
   > **A gap list is only useful if its claims are checked the way a ruling's are.**
 - **The midroll pool of ten**, *"approved as a batch, never rewritten"* — the pool is in
   `midroll-line-pool.md`; **the approval is not.**
+  ⚠️ **PART-CLOSED 6 Aug 2026 by A16**: L7's AMENDMENT is sourced to Jodie. **The original
+  batch approval of the other nine is still unrecorded** — and A16 deliberately did not
+  re-open them.
 - **The standing outro wording.** `PP-episode-outro-standard.md` says it *"must be approved
   by Hugh once… after that one approval it's reusable verbatim every episode."* **I cannot
   find any record that the approval happened.** Every episode since has used it.
@@ -401,12 +473,17 @@ find.** Listed, never reconstructed.
 
 ---
 
-> ### THE SIZE OF IT: **16 rulings recorded. At least 17 gaps.**
-> **Eight of them are numbers that stop or pass a build, and not one of them has a name
-> against it.**
-> *(Was 14 and 20. Two closed on 6 Aug 2026 — A5 sourced verbatim, A15 recorded with its
-> reason. **Both were closed by Jodie speaking, not by anyone finding a document**, which
-> is the only route several of the remaining ones have either.)*
+> ### THE SIZE OF IT: **19 rulings recorded. At least 17 gaps.**
+> *(A16–A18 added 6 Aug 2026: L7 amended, the script editable before EP18, and the machine
+> filling the name/hook/byline from the article. **All three came from Jodie speaking at a
+> single words gate** — which is what a gate is for.)*
+>
+> **Eight of the gaps are numbers that stop or pass a build, and not one of them has a
+> name against it.**
+> *(Was 14 and 20, then 16 and 17. Everything closed so far — A5 sourced verbatim, A15
+> recorded with its reason, A16's amendment — was closed by **Jodie speaking, not by
+> anyone finding a document**, which is the only route several of the remaining ones have
+> either.)*
 >
 > ## ASSUME ANYTHING NOT IN THIS FILE IS INVISIBLE TO CLAUDE CODE, AND THEREFORE GOVERNS
 > ## NOTHING.

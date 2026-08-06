@@ -94,7 +94,26 @@ and need a fresh batch approval.** That is the accepted cost of freezing the wor
 > Pause there a second. If this video has been worth your time so far, a like tells the thing to show it to somebody else like you, which is all I'd ask of you. New ones go out every day for now, weekly down the track, so subscribe and you'll not have to look. There's more confidence about this game than there is homework. I know which of the two I'd trust. Right you are. Where were we.
 
 ### L7
-> Small detour, then we're done with it. If this video is landing for you, a like sends it out to the folk it was made for, and it does more for them than it ever does for me. We're daily just now, weekly in time, so subscribe and they'll find you instead. Plenty of tips flying about, most of them somebody's guess in a good suit. This video is just a bloke reading the form. Done, let's get on.
+> Small detour, then we're done with it. If this video is landing for you, a like sends it out to the folk it was made for. We're daily just now, weekly in time, so subscribe and they'll find you instead. Plenty of tips flying about, most of them somebody's guess in a good suit. This video is just a bloke reading the form. Done, let's get on.
+
+> #### ✏️ AMENDED BY JODIE, 6 August 2026 — at EP17's words gate, the line's first use.
+> **REMOVED, verbatim, so nobody restores it from an older copy:**
+> > *"…, and it does more for them than it ever does for me."*
+>
+> The clause sat at the end of the value hook. **Removing it and closing the sentence at
+> "made for" is the whole change** — nothing else in L7 moved, and the fixed shape is
+> intact: value hook naming the video → the ask → the cadence line → the wry nod → return
+> to content.
+>
+> **WHY THE POOL WAS AMENDED AND NOT JUST THE EPISODE:**
+> 1. **The midroll must be VERBATIM from the pool.** An EP17 that differed from L7 would
+>    either fail `render_ready`'s freshness check or quietly weaken it.
+> 2. **The pool wraps.** Left in, those words return at **EP27**, on an episode nobody is
+>    watching for them. *She said she dislikes them; she should not have to say it twice.*
+>
+> ⚠️ **This is an AMENDMENT to the batch approval, made by the person who gave it.** Rule 7
+> above says changing a line is a new batch approval rather than an edit — **the other nine
+> lines are untouched and are not re-opened by this.**
 
 ### L8
 > Two seconds, then we're back on it. If there's something in this video for you, a like puts it in somebody else's evening, and that's the only advertising it ever gets. There's a new one every day at present, weekly further along, so a subscribe keeps them coming. The loud stuff always travels fastest, and it's rarely the useful stuff, is it. That's my bit. Back to it.
