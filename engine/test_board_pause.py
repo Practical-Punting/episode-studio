@@ -12,9 +12,41 @@ What it genuinely catches is REGRESSION — someone deleting the dirty check,
 moving the banner inside `#lanes`, or forgetting to clear dirty on save. What it
 CANNOT tell you is whether a caret survives a poll on Jodie's screen.
 
-    THE BEHAVIOURAL PROOF IS OUTSTANDING and needs a browser with a session:
-    type into a hook, alt-tab away, wait past thirty seconds, come back and
-    check the caret, the selection, the scroll and ctrl-Z.
+DRIVEN AGAINST THE LIVE BOARD, 6 Aug 2026. Three of the four requirements are
+now proved BY MEASUREMENT, one is not:
+
+  ✅ THE EP16 FAULT IS DEAD. Typed a URL, alt-tabbed away, two full refresh
+     cycles, pasted a second URL over a select-all: the node was never rebuilt,
+     the caret was still at 17, and the paste produced a CLEAN 55-character
+     replacement. EP16 produced 168 characters with one URL inserted at offset 17.
+  ✅ Node identity, selection and value: 10 rounds, 10/10 each.
+  ✅ A NEW FLAG BREAKS THROUGH A PAUSED BOARD, announced by episode number, with
+     the half-typed value and its node both intact.
+  ✅ The pause RELEASES on save — board resumes itself, no reload.
+
+  🔴 CTRL+Z IS UNPROVED BY MEASUREMENT. It is NOT proved and must not become
+     "proved" through repetition.
+     It FOLLOWS from node identity — the undo stack belongs to the element and
+     the element demonstrably survives — but that is an ARGUMENT, not an
+     observation, and an argument about behaviour is what this whole exercise
+     exists to distrust.
+     ⏳ AWAITING one observation at EP17's WORDS GATE: Jodie types a hook for
+     real, alt-tabs away as she actually does, comes back and presses ctrl+Z
+     once. Deliberately not rehearsed — no episode currently renders an editable
+     field (all published or ready), so a standalone test would mean
+     manufacturing the situation and she would be rehearsing rather than working.
+
+  ⚠️ WHY IT COULD NOT BE DRIVEN, so the next person does not re-discover it:
+     real keystrokes could not be delivered reliably to the focused field ACROSS
+     tool calls — focus does not survive the round trip — and
+     `document.execCommand("undo")` returns false on programmatically inserted
+     text. It is deprecated and it is not a real undo stack.
+
+  📏 AND A CORRECTION TO THIS SLICE'S OWN CLAIM: SCROLL DOES NOT SURVIVE, and it
+     never did. Measured directly: scrollLeft set to 12 reads back as 12, then
+     goes to 0 ON BLUR, before any refresh happens. That is native browser
+     behaviour for a blurred text input — it predates this change, it happens
+     with the refresh switched off, and the pause neither causes nor can fix it.
 
 Run: python engine/test_board_pause.py
 """
