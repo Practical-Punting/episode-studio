@@ -77,7 +77,12 @@ def main():
     check("it names the field, not just 'paused'",
           "Not updating while you have unsaved" in src and "esc(what)" in code)
     check("the field name is ASKED OF THE FIELD, never a map of id prefixes",
-          "el.labels" in code and "getAttribute(\"placeholder\")" in code)
+          "el.labels" in code and 'getAttribute("aria-label")' in code)
+    # Found by driving the real board: the script-Doc field has no label and its
+    # placeholder is a SAMPLE URL, so the banner echoed a URL back at the
+    # operator — not a name, and a URL in the operator's box is forbidden.
+    check("  and NEVER from a placeholder, which is an example value",
+          'getAttribute("placeholder")' not in code)
     check("there is a Refresh-anyway control", "pause-refresh" in code)
     check("  and it forces a real rebuild", "renderBoard(true)" in code)
 

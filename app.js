@@ -512,8 +512,14 @@ document.addEventListener("input", (e) => {
 function fieldLabel(id) {
   const el = $(id);
   if (!el) return "";
+  // 🔴 NO PLACEHOLDER FALLBACK. Found by driving the real board, 6 Aug 2026:
+  // the script-Doc field has no label and its placeholder is a SAMPLE URL, so
+  // the banner read "unsaved changes to https://docs.google.com/document/d/…".
+  // A placeholder is an example VALUE, not a name — echoing it is neither
+  // honest nor specific, and it puts a URL in the operator's box, which
+  // docs/PP-operator-box-rule.md forbids outright.
   const lab = (el.labels && el.labels[0] && el.labels[0].textContent) ||
-    el.getAttribute("aria-label") || el.getAttribute("placeholder") || "";
+    el.getAttribute("aria-label") || "";
   return lab.trim().replace(/[:*]\s*$/, "").toLowerCase();
 }
 
