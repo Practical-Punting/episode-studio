@@ -432,6 +432,40 @@ human fills is honest; a wrong box that looks authoritative is not.*
 
 **NOT BUILT — recorded 6 Aug, deliberately, while EP17 runs.**
 
+## A19 · 6 Aug 2026 — 🔴 EVERY FLAG DECLARES ITS AUDIENCE
+> ### "I don't like that this says 'needs a look'. It is like it means that the user
+> ### should be doing something. But what can we do?"
+**— Jodie, at EP17's `audit_inputs` halt.**
+
+**The chip says NEEDS A LOOK. The message says *"Claude Code writes these at the create
+step (the create brain is Phase 4)"*. Same card.** It names a file she cannot make, a step
+she cannot run and a phase number that means nothing to her — **then badges it as hers.**
+
+> ## TWO KINDS OF HALT ARE CALLED THE SAME THING.
+> | kind | example | whose |
+> |---|---|---|
+> | **a DECISION** | the hero crop, the midroll listen | **HERS.** These should live forever |
+> | **a JOB NOT DONE** | the script, `episode.json`, the YouTube copy | **THE STUDIO'S.** She can only wait |
+
+**THE FIX:** `operator` → **NEEDS A LOOK**, her lane, plain English, no path, no file name,
+no phase number, no URL. `studio` → **a different lane and a different chip — "Waiting on
+the studio"** — never an orange badge in her queue.
+
+### ⚠️ DERIVED, NOT DECLARED — because a tag is a list somebody maintains
+> ## **A FLAG WHOSE REMEDY NAMES A FILE, A SCRIPT OR A STEP IS BY DEFINITION NOT FOR THE
+> ## OPERATOR.**
+**That single test catches this flag, EP16's crop flag with its Supabase URL, and the
+YouTube-copy halt — with nobody tagging anything.** *(Fault #7's shape done right: derive
+the coverage from the thing itself.)*
+
+**WHY IT IS NOT COSMETIC:** the measure this project is judged by is *"how many things can
+Hugh NOT clear from a browser?"* **The board cannot tell the two piles apart, so it cannot
+even COUNT the thing we are judged by.**
+
+**DOES NOT COVER:** the WORDING of an operator flag, which `docs/PP-operator-box-rule.md`
+already governs. This is about which pile a flag lands in, not how it reads once it is
+there. **RECORDED 6 Aug, NOT BUILT — EP17 was mid-build.**
+
 ---
 
 # B. ⚠️ SUSPECTED MISSING — the size of the hole

@@ -26,13 +26,44 @@ written.**
 
 ---
 
-## 0. THE NUMBER THAT DECIDES IT
+## 0. 🔴 THE NUMBER THAT DECIDES IT — **CORRECTED 6 Aug 2026. IT IS THREE TIMES BIGGER.**
+
+> ### JODIE, at EP17's `audit_inputs` halt:
+> ### "Is this another case of cc not kicking off its next job as soon as we approve
+> ### the previous step? This is a real error if true."
+
+**It is true — and it is not ANOTHER case. It is the SAME case, for the THIRD time in a
+single episode.**
+
+| # | the halt | when |
+|---|---|---|
+| 1 | **the SCRIPT** | EP17's words gate, this afternoon |
+| 2 | **`episode.json`** | EP17's `audit_inputs`, three minutes after she approved |
+| 3 | **the YOUTUBE COPY** | EP16, at ten o'clock at night |
+
+**Three stops per episode where the engine knows the step, knows the artefact and knows
+who writes it — and has no way to ask. So it halts and badges her screen.**
+
+> # JOB ZERO IS NOT ONE HALT. IT IS **THREE PER EPISODE, FOREVER.**
+> ## At 300 episodes that is **NINE HUNDRED** occasions on which a human carries a message
+> ## between two machines running on the same laptop.
+
+⚠️ **THIS DESIGN HAS UNDERCOUNTED ITS OWN VALUE BY A FACTOR OF THREE EVERY TIME IT HAS
+BEEN DISCUSSED**, including in the paragraph immediately below, which prices ONE call
+site. **The mechanism is built once; each extra call site is nearly free** — that is what
+makes the arithmetic land, and it is why "is it worth 1.25 days?" was always the wrong
+question.
+
+---
 
 **Phase 1 prices at ~3.0 working days. About 1.75 of those are already agreed** — the
 script Doc flow queued as item 3 after EP16.
+*(⚰️ Superseded by ruling A5: there is no Doc and no service account, so slice C is
+deleted and Phase 1 is ~2.0 days. The point above stands regardless — it is about how many
+times the mechanism pays back, not what it costs.)*
 
 > # THE MARGINAL COST OF "THE MACHINE WRITES THE SCRIPT" IS ABOUT **1.25 DAYS**.
-> ## TWO PROJECTS ARE ONE PROJECT.
+> ## TWO PROJECTS ARE ONE PROJECT — **AND IT IS THREE, NOT TWO.**
 
 The Doc flow's two open gaps are *"the CREATE is not automatic — a human makes the Doc"*
 and *"the READ is anonymous"*. **If the engine commissions the script, the commission step
