@@ -1313,6 +1313,33 @@ class RealProvider:
         that is wrong for whichever path it was not written for.
         """
         text = text.replace("\r\n", "\n").strip()
+        # THE SCRIPT BOX HOLDS WHAT GORDON SAYS. NOTHING ELSE.
+        #
+        # A production-notes header is a DOC-ERA artefact: it existed so a person
+        # opening a Doc knew what they were looking at, and it described a
+        # transport — "THIS DOC IS THE SCRIPT'S ONE HOME. Edit it here" — that no
+        # longer exists. On the board it is worse than clutter: the panel says
+        # "this is exactly what Gordon says" above text he never speaks, tells her
+        # to edit somewhere there is no longer anywhere to edit, and inflates the
+        # word count by counting notes as script. All three were on Jodie's screen.
+        #
+        # ⚠️ DERIVED, NOT RESTATED. This calls render_ready's OWN strip_notes_header
+        # — the same function `render_ready`, `build_shot_map` and `heygen_generate`
+        # already use — so the definition of "a notes header" cannot drift into a
+        # second implementation. A regex here would have been that second one.
+        try:
+            sys.path.insert(0, str(SKILL_DIR / "scripts"))
+            from render_ready import strip_notes_header    # noqa: PLC0415
+            spoken = "\n\n".join(strip_notes_header(text)).strip()
+        except Exception:                                  # noqa: BLE001
+            spoken = text                                  # never block on the import
+        if spoken and spoken != text:
+            raise EngineFlag(
+                "The script has production notes at the top of it — comment lines, "
+                "or a \"paste below this line\" marker. The script box holds only "
+                "what Gordon says out loud, so the words on screen are the words in "
+                "the video and the count is the real one. Move the notes into the "
+                "episode's run log and leave the script itself here.")
         if re.search(r"\\[#!*_\[\]()]", text):
             raise EngineFlag(
                 "The script has backslashes in front of ordinary punctuation "

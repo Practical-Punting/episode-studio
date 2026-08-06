@@ -632,7 +632,13 @@ function cardFor(ep) {
   const pct = (WORKING.has(ep.status) && ep.progress_pct > 0) ? ep.progress_pct : st.pct;
   const barCls = nl ? "" : (st.cls === "work" ? " work" : (st.cls === "ok" ? " ok" : ""));
 
-  let h = '<article class="card' + (nl ? " alert" : "") + '">';
+  // THE WORDS GATE IS NOT A STATUS CARD. When she is reading a script, this card
+  // breaks out of the lane and spans the page: it is the one human decision that
+  // can never be automated away, and a 1,500-word script read through a 360px
+  // slot is the studio asking for care it has made hard to give.
+  const readingScript = wordsGatePending(ep) && !!(ep.script_snapshot || "").trim();
+  let h = '<article class="card' + (nl ? " alert" : "") +
+          (readingScript ? " wide" : "") + '">';
 
   h += '<div class="toprow"><h3><span class="epnum">' + esc(num) + "</span> " +
        esc(ep.title || "Untitled") + "</h3>" +
@@ -797,9 +803,19 @@ function gateWords(ep) {
     h += '<input type="url" id="w-doc-' + ep.id + '" value="' + esc(ep.script_doc_url || "") +
          '" placeholder="https://docs.google.com/document/d/…">';
   } else if (script) {
+    // THE HEADING IS A CLAIM AND IT HAS TO BE TRUE. It says these are the words
+    // Gordon speaks, so the panel may hold nothing else — no notes header, no
+    // paste marker — and the count is the count of what is on screen.
+    // The invariant is enforced where the script is WRITTEN (providers.
+    // _script_checks refuses a script with notes on it, using render_ready's own
+    // strip_notes_header), NOT stripped again here: a second implementation of
+    // that rule, in another language, is exactly the drift worth avoiding.
     h += '<div class="scriptbox" id="w-script-' + ep.id + '">' +
-         '<div class="sb-head">The script — ' + script.split(/\s+/).length +
-         " words. Read it here; this is exactly what Gordon says.</div>" +
+         '<div class="sb-head">The script &middot; ' +
+         script.split(/\s+/).filter(Boolean).length +
+         " words &middot; about " +
+         Math.round(script.split(/\s+/).filter(Boolean).length / 150) +
+         " minutes &mdash; this is exactly what Gordon says</div>" +
          "<pre>" + esc(script) + "</pre></div>";
   } else {
     h += '<div class="doclink none">No script yet. Nothing builds until there is one.</div>';

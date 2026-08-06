@@ -149,6 +149,33 @@ Produce the clean narration `.txt`, one paragraph per beat. Obey the **TTS + hum
 The ~6–7s silent head and ~3s tail are **render/build properties** — request them in the HeyGen
 template / build config and verify them on the master; the `.txt` cannot hold silence.
 
+#### 🔴 NO PRODUCTION-NOTES HEADER. THE SCRIPT IS WHAT GORDON SAYS, AND NOTHING ELSE.
+**(Jodie, 6 Aug 2026 — found by reading her own board.)**
+> **Do NOT open the script with `#` comment lines, a title block, a source note, or a
+> "PASTE EVERYTHING BELOW THIS LINE" marker.** Those are a **DOC-ERA** convention that
+> survived by being copied from the previous episode's file, and **ruling A5 deleted the
+> Doc.**
+
+**The script now lives on the RAIL and is displayed on the board**, under a heading that
+says *"this is exactly what Gordon says"*. A header breaks three things at once:
+- **the heading becomes false** — Gordon speaks none of it;
+- **the content becomes a lie** — EP17's said *"THIS DOC IS THE SCRIPT'S ONE HOME. Edit it
+  here"* on an episode with **no Doc and no editing**, three contradictory instructions on
+  one card;
+- **the word count is wrong**, because notes get counted as script. *EP17 read **1,954**
+  against **1,495** actually spoken.*
+
+✅ **ENFORCED, not merely written:** `providers._script_checks()` **refuses** a rail script
+that still carries one, and it decides what a header IS by calling **`render_ready`'s own
+`strip_notes_header`** — the same function `build_shot_map` and `heygen_generate` use — so
+there is no second definition to drift.
+
+📌 **WHERE THE NOTES GO INSTEAD: `docs/EP<n>-run-log.md`.** Everything worth saying about
+how the script was written — the rulings, the figures you did not voice, the beats to look
+at — belongs there, where it can be as long as it needs to be and nobody mistakes it for
+something Gordon says. *(EP01–EP16 keep their headers; those episodes are shipped and their
+tools strip the header anyway. This applies from EP17.)*
+
 ### Step 6 — Craft the SEAMS (where your writing lives)
 The seams are the only original prose. Make them excellent:
 - **The opening** (§4A) — frame the article's start as a hook that earns the next 30 seconds.

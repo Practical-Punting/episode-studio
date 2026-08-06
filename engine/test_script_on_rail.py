@@ -252,6 +252,47 @@ def test_backslash_escaped_rail_script_flags():
     raise AssertionError("backslash-escaped punctuation was accepted")
 
 
+def test_a_notes_header_on_a_rail_script_is_refused():
+    """THE PANEL'S HEADING IS A CLAIM: "this is exactly what Gordon says". So the
+    script box may hold nothing Gordon does not say.
+
+    EP17 shipped to Jodie's screen with its Doc-era header on display — heading
+    false, content telling her to edit a Doc that A5 had just deleted, and a word
+    count of 1,954 against 1,495 actually spoken. Refused at the write end now."""
+    p = Prov(scratch())
+    withhdr = ('# PP-EP18 — "Something"\n'
+               "# THIS DOC IS THE SCRIPT'S ONE HOME. Edit it here.\n"
+               "# PASTE EVERYTHING BELOW THIS LINE INTO HEYGEN\n\n\n" + SCRIPT)
+    try:
+        p.fetch_script({"ep_number": 18, "script_snapshot": withhdr})
+    except EngineFlag as e:
+        m = str(e)
+        assert "production notes" in m.lower(), f"wrong message: {m}"
+        assert "run log" in m.lower(), "the message does not say where the notes should go"
+        return
+    raise AssertionError("a script with a notes header was accepted onto the rail")
+
+
+def test_the_header_rule_is_derived_not_restated():
+    """It must call render_ready's OWN strip_notes_header. A regex here would be a
+    second definition of 'a notes header' drifting away from the three tools that
+    already have one."""
+    src = Path(providers.__file__).read_text(encoding="utf-8")
+    body = src.split("def _script_checks")[1].split("\n    def ")[0]
+    assert "strip_notes_header" in body, \
+        "_script_checks no longer calls render_ready's strip_notes_header — if the rule " \
+        "has been restated as a regex, it is now a second definition that can drift"
+
+
+def test_a_clean_script_is_not_mistaken_for_a_header():
+    """The does-not-cry-wolf case. A script that merely CONTAINS a hash somewhere,
+    or starts with an ordinary sentence, must sail through."""
+    p = Prov(scratch())
+    for text in (SCRIPT, SCRIPT + " Number one, hash it out.", "Right.\n\n" + SCRIPT):
+        t, _s, _src = p.fetch_script({"ep_number": 17, "script_snapshot": text}, write=False)
+        assert t.strip(), "a clean script was rejected"
+
+
 def test_crlf_is_normalised_on_the_rail_path():
     p = Prov(scratch())
     ep = {"ep_number": 17, "script_snapshot": SCRIPT.replace(". ", ".\r\n") + "\r\n"}
@@ -303,6 +344,24 @@ def test_approve_refuses_when_there_is_no_script_at_all():
         "approve-words still demands a Doc — the point of the change was to stop"
 
 
+def test_the_words_gate_breaks_out_of_its_lane_when_there_is_a_script():
+    """A 1,500-word script was being read through a 360px lane slot at 15px. This
+    is the one human decision the studio can never automate; it may not look like
+    a tooltip. The card spans the page when — and only when — she is reading."""
+    body = APP.split("function cardFor(ep)")[1].split("\nfunction ")[0]
+    assert "readingScript" in body, "the words-gate card no longer breaks out"
+    assert 'wordsGatePending(ep) && !!(ep.script_snapshot' in body, \
+        "the breakout is not conditional on there being a script to read"
+    assert '" wide"' in body, "the wide class is not applied"
+    css = (HERE.parent / "styles.css").read_text(encoding="utf-8")
+    assert ".card.wide{grid-column:1/-1" in css, "the wide card does not span the lane"
+    assert "max-width:66ch" in css, \
+        "the reading column is not capped — full width must not mean full-width TEXT"
+    m = re.search(r"\.card\.wide \.scriptbox pre\{font-size:(\d+)px", css)
+    assert m and int(m.group(1)) >= 20, \
+        f"the script type is {m.group(1) if m else '?'}px — it was 15px and that was the fault"
+
+
 def test_a_rail_episode_never_writes_an_empty_doc_url():
     """An empty string is not NULL, and fetch_script branches on that value."""
     h = APP.split('if (act === "approve-words")')[1].split("\n  if (act ===")[0]
@@ -324,10 +383,11 @@ if __name__ == "__main__":
               test_a_doc_episode_with_no_snapshot_is_unchanged,
               test_a_blank_doc_url_is_not_a_doc):
         case(f.__name__, f)
-    print("\n3. the input fields are not touched")
+    print("\n3. the input fields are not touched, and it is a reading surface")
     for f in (test_the_script_view_is_not_an_input,
               test_the_tick_is_enabled_only_when_there_is_something_to_read,
               test_approve_refuses_when_there_is_no_script_at_all,
+              test_the_words_gate_breaks_out_of_its_lane_when_there_is_a_script,
               test_a_rail_episode_never_writes_an_empty_doc_url):
         case(f.__name__, f)
     print("\n4. spoken-words.txt is still written, and the guards still hold")
@@ -336,6 +396,9 @@ if __name__ == "__main__":
               test_no_doc_and_no_script_flags_in_plain_english,
               test_a_short_rail_script_flags,
               test_backslash_escaped_rail_script_flags,
+              test_a_notes_header_on_a_rail_script_is_refused,
+              test_the_header_rule_is_derived_not_restated,
+              test_a_clean_script_is_not_mistaken_for_a_header,
               test_crlf_is_normalised_on_the_rail_path):
         case(f.__name__, f)
 

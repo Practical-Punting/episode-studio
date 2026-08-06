@@ -176,13 +176,38 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 /* THE SCRIPT, READ WHERE IT IS APPROVED (ruling A5 — the script's home is the rail).
    Read-only on purpose: it is a <pre>, not an input, so the 30s refresh pause and the
    draft harvest never touch it and the fields below behave exactly as they did.
-   Scrolls inside itself — a 1,500-word script must never push the gate off the page. */
-.scriptbox{border:2px solid #e9e3dd;border-radius:10px;margin-bottom:11px;overflow:hidden;}
+
+   🔴 THIS IS A READING SURFACE, NOT A PREVIEW. It carries the one human decision the
+   studio can never automate, and it was shipped at 15px inside a 360px lane — a
+   1,500-word script through a slot four words wide. Jodie asked for triple the size,
+   full page width, and something that looks professional. */
+.scriptbox{border:2px solid #e9e3dd;border-radius:12px;margin-bottom:14px;overflow:hidden;
+  background:#fff;}
 .scriptbox .sb-head{font-size:12px;font-weight:800;color:var(--muted);background:#faf7f4;
-  padding:9px 12px;border-bottom:2px solid #e9e3dd;text-transform:uppercase;letter-spacing:.04em;}
-.scriptbox pre{margin:0;padding:13px;max-height:44vh;overflow:auto;background:#fff;
-  font:15px/1.6 ui-serif,Georgia,"Times New Roman",serif;color:var(--ink);
+  padding:11px 16px;border-bottom:2px solid #e9e3dd;text-transform:uppercase;letter-spacing:.05em;}
+.scriptbox pre{margin:0;padding:16px;max-height:44vh;overflow:auto;background:#fff;
+  font:16px/1.7 ui-serif,Georgia,"Times New Roman",serif;color:var(--ink);
   white-space:pre-wrap;overflow-wrap:break-word;-webkit-overflow-scrolling:touch;}
+
+/* THE WORDS GATE BREAKS OUT OF ITS LANE when there is a script to read.
+   grid-column:1/-1 spans the lane; the margin-left/transform pair is the standard
+   full-bleed escape from .wrap's 1160px cap. Capped at 1500px and 92vw so a very
+   wide monitor does not produce a page-wide line of text and no horizontal scroll
+   appears next to a scrollbar. */
+.card.wide{grid-column:1/-1;width:min(1500px,92vw);margin-left:50%;transform:translateX(-50%);}
+/* FULL WIDTH IS NOT FULL-WIDTH TEXT. The panel spans the page; the reading COLUMN is
+   capped at a comfortable measure and centred inside it, which is what makes a long
+   script readable rather than merely large. */
+/* the measure: ~66 characters, centred. Long enough not to feel cramped, short
+   enough that the eye finds the start of the next line without hunting. */
+.card.wide .scriptbox pre{font-size:21px;line-height:1.85;max-height:64vh;
+  padding:36px 0;max-width:66ch;margin-inline:auto;}
+.card.wide .sb-head{font-size:13px;padding:14px 20px;}
+.card.wide .gate h4{font-size:20px;}
+@media (max-width:900px){
+  .card.wide{width:auto;margin-left:0;transform:none;}
+  .card.wide .scriptbox pre{font-size:18px;line-height:1.75;padding:18px;max-height:56vh;}
+}
 /* the tick is a decision — make it big enough to hit with a thumb */
 .tick{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:800;color:var(--ink);
   padding:11px 2px;cursor:pointer;user-select:none;}
