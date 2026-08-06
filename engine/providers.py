@@ -1290,8 +1290,70 @@ class RealProvider:
             time.sleep(10)
         raise RuntimeError(f"Higgsfield job for {label} never completed ({job_id})")
 
-    # -- the script's ONE home: the Google Doc --------------------------------
+    # -- the script's ONE home: the RAIL (ruling A5), or a Doc while one exists -
     DOC_ID = re.compile(r"/document/d/([A-Za-z0-9_-]{20,})")
+
+    def _script_checks(self, text: str, where: str) -> str:
+        """The RAIL path's guarantees. The Doc path keeps its own, on purpose.
+
+        ⚠️ THE OBVIOUS MOVE HERE IS TO SHARE ONE FUNCTION BETWEEN BOTH PATHS, AND
+        IT IS THE WRONG ONE — for two separate reasons, both worth keeping:
+
+        1. **EP01–EP16 must behave IDENTICALLY.** Touching the Doc branch at all
+           to refactor it is a change to fifteen live episodes' read path, bought
+           for tidiness. The Doc branch is left byte-for-byte alone.
+        2. **THE SAME SYMPTOM HAS A DIFFERENT CAUSE ON EACH PATH.** Backslashed
+           punctuation off the Doc means the engine read through the wrong
+           channel — *"a fault in me, not in your script"*. The same characters in
+           the script box mean a human pasted from something that escapes
+           markdown. **A halt may not name a cause it has not established**
+           (CLAUDE.md #6), so these two must say different things.
+
+        The duplication is two lines of word-count. The alternative is a message
+        that is wrong for whichever path it was not written for.
+        """
+        text = text.replace("\r\n", "\n").strip()
+        if re.search(r"\\[#!*_\[\]()]", text):
+            raise EngineFlag(
+                "The script has backslashes in front of ordinary punctuation "
+                "(things like \\! or \\#). Those would be read out loud. It "
+                "usually means the words were pasted from something that escapes "
+                "punctuation — a chat window or a markdown editor. Nothing has "
+                "been saved. Paste the plain words again.")
+        if len(text.split()) < 50:
+            raise EngineFlag(
+                f"The script in {where} reads as only {len(text.split())} words "
+                "— that's not a full episode script. Write or paste the whole "
+                "script, then clear this flag.")
+        return text
+
+    def _script_from_rail(self, ep, write=True):
+        """THE SCRIPT IS A FIELD IN A RECORD, NOT A DOCUMENT. (Ruling A5.)
+
+        `script_snapshot` on the rail is the script's home. There is no fetch, no
+        sharing, no permission and nothing to 404 — which is the whole point of
+        the ruling: the Doc dragged in sharing, permissions, formats and
+        corruption that a text field simply does not have.
+
+        `docs/spoken-words.txt` is still written here, exactly as the Doc path
+        writes it, because it is a DERIVED CACHE that `render_ready` reads at
+        `audit_inputs`. Rebuilt every build so an operator edit can never be
+        silently ignored.
+        """
+        text = (ep.get("script_snapshot") or "")
+        if not text.strip():
+            raise EngineFlag(
+                "There is no script for this episode yet. The script lives on "
+                "the board, in the script box on the words card — write or "
+                "paste it there, read it, tick \"I've read the script\" and "
+                "approve the words. Nothing builds and nothing renders until "
+                "there is a script to build from.")
+        text = self._script_checks(text, "the script box")
+        if write:
+            out = self.dir(ep) / "docs/spoken-words.txt"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text + "\n", encoding="utf-8")
+        return text, sha256_text(text), "the script box on the board"
 
     def _doc_id(self, ep) -> str:
         url = (ep.get("script_doc_url") or "").strip()
@@ -1310,16 +1372,26 @@ class RealProvider:
         return m.group(1)
 
     def fetch_script(self, ep, write=True):
-        """Read the script from its Google Doc and (by default) overwrite the local
-        docs/spoken-words.txt from it. Returns (text, sha256, source).
+        """Read the approved script and (by default) rebuild docs/spoken-words.txt
+        from it. Returns (text, sha256, source).
 
-        ONE SCRIPT, ONE HOME: the Doc is authoritative from the moment it is made.
+        ONE SCRIPT, ONE HOME — and since ruling A5 that home is THE RAIL.
         spoken-words.txt is a derived cache, rebuilt here every single build, so an
         operator edit can never be silently ignored.
 
-        Reads via the Doc's plain-text export URL, which needs the Doc shared as
-        "anyone with the link can view". Anything that isn't real text — a Google
-        sign-in page, an empty body — FLAGS. We never fall back to the stale draft."""
+        ### A DOC STILL WINS WHENEVER ONE EXISTS, AND THAT IS DELIBERATE.
+        EP01–EP16 all carry a `script_doc_url` and must go on behaving EXACTLY as
+        they did — a re-read of EP15 must still fetch EP15's Doc. The rail path is
+        reached only when there is no Doc at all, which is true of EP17 onward.
+        **So this is not a migration and nothing is rewritten**: the old episodes
+        keep their transport, and the new ones simply never acquire one.
+
+        The Doc branch reads the plain-text export URL, which needs the Doc shared
+        as "anyone with the link can view" — the manual step A5 exists to delete.
+        Anything that isn't real text — a sign-in page, an empty body — FLAGS. We
+        never fall back to a stale local draft, on either path."""
+        if not (ep.get("script_doc_url") or "").strip():
+            return self._script_from_rail(ep, write=write)
         doc_id = self._doc_id(ep)
         url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
         try:

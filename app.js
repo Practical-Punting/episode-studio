@@ -780,23 +780,37 @@ function gateWords(ep) {
     "title card and video all use exactly what you leave in these boxes. The " +
     "<b>hook</b> is the big text on the thumbnail.</p>";
 
-  // 1 — the script Doc, its one home. Opens in a new tab; fine on a phone.
+  // 1 — the script. Its home is the RAIL (ruling A5): script_snapshot is the
+  // script, and it is shown right here so she reads it where she approves it.
+  // Episodes up to EP16 still carry a Doc and still get the link — nothing about
+  // them changes.
+  //
+  // 🔒 THIS IS A <pre>, NOT A TEXTAREA, AND THAT IS THE WHOLE SAFETY ARGUMENT.
+  // It is not an input, so harvestDrafts/restoreDrafts never see it, the 30s
+  // refresh pause does not apply to it, and the caret/undo behaviour of the
+  // fields below is untouched. Editing here is slice 4 and is NOT this change.
+  const script = (ep.script_snapshot || "").trim();
   h += '<div class="scriptrow">';
   if (doc) {
     h += '<a class="doclink" href="' + esc(doc) + '" target="_blank" rel="noopener">' +
          "📄 Open the script &nearr;</a>";
+    h += '<input type="url" id="w-doc-' + ep.id + '" value="' + esc(ep.script_doc_url || "") +
+         '" placeholder="https://docs.google.com/document/d/…">';
+  } else if (script) {
+    h += '<div class="scriptbox" id="w-script-' + ep.id + '">' +
+         '<div class="sb-head">The script — ' + script.split(/\s+/).length +
+         " words. Read it here; this is exactly what Gordon says.</div>" +
+         "<pre>" + esc(script) + "</pre></div>";
   } else {
-    h += '<div class="doclink none">No script Doc linked yet — paste its link below.</div>';
+    h += '<div class="doclink none">No script yet. Nothing builds until there is one.</div>';
   }
-  h += '<input type="url" id="w-doc-' + ep.id + '" value="' + esc(ep.script_doc_url || "") +
-       '" placeholder="https://docs.google.com/document/d/…">';
-  if (!doc) {
-    h += '<button class="mini" data-act="save-doc" data-ep="' + ep.id + '">Link this Doc</button>';
-  }
+  // THE GATE DOES NOT WEAKEN: the tick is enabled when there is something to
+  // READ — a Doc to open, or the script on screen — and never otherwise.
+  const readable = !!doc || !!script;
   h += '<label class="tick"><input type="checkbox" data-act="script-read" data-ep="' + ep.id +
-       '"' + (read ? " checked" : "") + (doc ? "" : " disabled") +
+       '"' + (read ? " checked" : "") + (readable ? "" : " disabled") +
        "><span>I've read the script</span></label>";
-  if (!doc) h += '<p class="g-hint">Link the Doc first — you can\'t tick the box until there\'s a script to read.</p>';
+  if (!readable) h += '<p class="g-hint">There is no script to read yet, so the box stays locked.</p>';
   h += "</div>";
 
   // 2 — the three words, editable
@@ -1121,11 +1135,23 @@ $("lanes").addEventListener("click", async (e) => {
     const title = val("title"), doc = val("doc");
     if (!title) { toast("toast", "The title can’t be empty.", false); return; }
     if (doc && !safeUrl(doc)) { toast("toast", "That script link isn’t a valid https URL.", false); return; }
-    if (!$("w-doc-" + id) || !doc) { toast("toast", "Link the script Doc first — it’s the one home for the script.", false); return; }
+    // THE GATE DOES NOT WEAKEN — it stops asking for a DOC and starts asking for
+    // a SCRIPT. Ruling A5: the script's home is the rail, so an episode written
+    // in the script box has nothing to link and never will. What is refused is
+    // approving words with NO SCRIPT AT ALL, which is the thing that actually
+    // matters and is what the old Doc check was standing in for.
+    if (!doc && !(ep.script_snapshot || "").trim()) {
+      toast("toast", "There’s no script for this episode yet — nothing to read or approve.", false);
+      return;
+    }
     const patch = {
       title, hook: val("hook"), byline: val("byline"),
-      script_doc_url: doc, script_read: true, title_approved: true,
+      script_read: true, title_approved: true,
     };
+    // Only ever WRITE the Doc URL when there is a field for it (an episode that
+    // still has a Doc). Sending "" on a rail episode would write an empty string
+    // where the column is NULL, and `fetch_script` branches on that value.
+    if ($("w-doc-" + id)) patch.script_doc_url = doc;
     if (await writeEpisode(id, patch, id + ":words", btn)) {
       clearWordDrafts(id);      // saved — the DB is now the truth, not the boxes
       toast("toast", "Script read and words approved — the build can start.", true);

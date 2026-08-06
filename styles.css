@@ -173,6 +173,16 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
   padding:13px;border:2px dashed var(--orange);border-radius:10px;text-align:center;margin-bottom:11px;}
 .doclink:hover{background:#fff6ef;}
 .doclink.none{color:var(--muted);border-color:#ded7cf;font-weight:700;font-size:13px;}
+/* THE SCRIPT, READ WHERE IT IS APPROVED (ruling A5 — the script's home is the rail).
+   Read-only on purpose: it is a <pre>, not an input, so the 30s refresh pause and the
+   draft harvest never touch it and the fields below behave exactly as they did.
+   Scrolls inside itself — a 1,500-word script must never push the gate off the page. */
+.scriptbox{border:2px solid #e9e3dd;border-radius:10px;margin-bottom:11px;overflow:hidden;}
+.scriptbox .sb-head{font-size:12px;font-weight:800;color:var(--muted);background:#faf7f4;
+  padding:9px 12px;border-bottom:2px solid #e9e3dd;text-transform:uppercase;letter-spacing:.04em;}
+.scriptbox pre{margin:0;padding:13px;max-height:44vh;overflow:auto;background:#fff;
+  font:15px/1.6 ui-serif,Georgia,"Times New Roman",serif;color:var(--ink);
+  white-space:pre-wrap;overflow-wrap:break-word;-webkit-overflow-scrolling:touch;}
 /* the tick is a decision — make it big enough to hit with a thumb */
 .tick{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:800;color:var(--ink);
   padding:11px 2px;cursor:pointer;user-select:none;}
