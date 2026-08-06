@@ -495,6 +495,22 @@ function setLive(ok) {
  * byline, a publish field: seconds to a minute. A board a minute stale is not a
  * problem. **If the editor is ever moved INSIDE `#lanes`, this reasoning breaks
  * and pausing would blind the operator for twenty minutes at a stretch.**
+ *
+ * 📌 NOTE FOR WHOEVER BUILDS SLICE 4 — NOT A FAULT TODAY, READ IT BEFORE YOU START.
+ * WHILE THE BOARD IS PAUSED, THE SCRIPT PANEL IS FROZEN TOO. It lives inside
+ * `#lanes`, so a dirty field holds the whole card, script and all.
+ *
+ * Normally harmless: a script does not change during a gate. **It changed twice
+ * during EP17's gate** (Jodie amended the midroll line while sitting at it), and
+ * the trap that opens is small but exact — she would have gone on reading the
+ * pre-amendment words and approved having read a version that is not what gets
+ * built. THE GATE'S WHOLE MEANING IS THAT SHE READ WHAT GETS BUILT. Handled that
+ * night by asking her to reload BEFORE reading and before touching a field.
+ *
+ * ⚠️ WHEN SLICE 4 LANDS THIS STOPS BEING THEORETICAL, because then SHE is the one
+ * changing the script while the pause is active, every time. Think it through
+ * then: a paused card that is also the thing being edited needs to distinguish
+ * "do not clobber what she is typing" from "do not hide what she is approving".
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Anything the operator has touched since it was last saved. Delegated, so it
