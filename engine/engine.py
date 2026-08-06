@@ -363,6 +363,68 @@ def _preflight_config(ctx) -> list[str]:
     return out
 
 
+def _preflight_cards(ctx) -> list[str]:
+    """Run the card pipeline's DATA and TEXT checks before a credit moves.
+
+    Raises EngineFlag on a blocker. Warnings are logged and never block — they
+    are estimates, and a build must not stop on arithmetic it cannot yet do.
+
+    ⚠️ Like E26, this must NEVER be the reason a build cannot start. If the
+    episode's files are not there to read, it says so and stands aside.
+    """
+    if ctx.mock or not ctx.ep.get("ep_number"):
+        return ["card pre-flight: skipped (mock)"]
+    import preflight_cards as pc
+
+    d = ctx.provider.dir(ctx.ep)
+    epj_path = d / "docs/episode.json"
+    if not epj_path.is_file():
+        return ["card pre-flight: no episode.json yet — nothing to check"]
+    try:
+        epj = json.loads(epj_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise EngineFlag(
+            "The episode's own settings file could not be read, so nothing about "
+            "this episode's cards could be checked. Nothing has been built and "
+            "nothing spent.\n"
+            f"It reported: {e}")
+
+    def _read(p):
+        try:
+            return p.read_text(encoding="utf-8") if p and p.is_file() else None
+        except Exception:
+            return None
+
+    # The approved script is on the rail; the file is its derived cache.
+    script = ctx.ep.get("script_snapshot") or _read(d / "docs/spoken-words.txt") or ""
+    capture = None
+    rel = pc.capture_rel(epj)
+    if rel:
+        capture = _read(ctx.provider.pp / rel) or _read(d / rel)
+    # check_trace compares figures against the ARTICLE TEXT ONLY — never the
+    # capture's header notes about the scan repairs, which is the same trap the
+    # marker check exists to stop.
+    article = None
+    if capture:
+        try:
+            import author_cards as ac
+            article = ac.norm(capture.split(pc.MARKER_BEGIN)[-1])
+        except Exception:
+            article = None
+
+    res = pc.preflight_cards(epj, script_text=script, capture_text=capture,
+                             article_norm=article)
+    lines = pc.format_report(res).splitlines()
+    if res["blockers"]:
+        raise EngineFlag(
+            "This episode's cards cannot be built as they are written. Nothing has "
+            "been built and nothing has been spent — these were all found before "
+            "anything started.\n"
+            "Each line below names the card and what is wrong with it:\n"
+            + "\n".join(f"  - {b}" for b in res["blockers"]))
+    return lines
+
+
 def step_audit_inputs(ctx):
     # Defence-in-depth: even if a stale or foreign claim path got us here, never
     # build before the gate has passed (the EP09 zombie lesson).
@@ -385,6 +447,14 @@ def step_audit_inputs(ctx):
     # because a rule inferred from a single sample was wrong on all three axes when it
     # was tried. Blocks on what will certainly cost a halt; merely NAMES the rest.
     for line in _preflight_config(ctx):
+        log(f"   {line}")
+    # JOB A — THE CARD PIPELINE'S CHECKS, MOVED HERE FROM cards_render/shot_map.
+    # EP16's card faults were twenty schema/job, twenty-six trace, two bad cues
+    # and three short beats — every one of them pure data or pure text, every one
+    # knowable right here, and every one of them actually fired AFTER the render
+    # gate, the credit check, seven paid clips, two paid heroes and a cover pick.
+    #     THE CHECKS EXISTED. THEY RAN TOO LATE.
+    for line in _preflight_cards(ctx):
         log(f"   {line}")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
