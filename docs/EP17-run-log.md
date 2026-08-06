@@ -53,12 +53,33 @@ the guard exists to push.
 
 ---
 
-# 1. THE HALT TALLY — **TWO.**
-| # | at | what | kind |
+# 1. THE HALT TALLY — **THREE, AND TWO OF THEM ARE MINE.**
+| # | at | what | whose |
 |---|---|---|---|
-| 1 | `audit_inputs` | `episode.json` missing — **Job Zero's second call site** | job not done |
-| 2 | `heygen_download` | **the alignment, above** | machine fault |
-*(Plus the title-card crop flag at 10:23 — a DESIGNED human gate, cleared in five minutes.)*
+| 1 | `audit_inputs` | `episode.json` missing — **Job Zero's second call site** | the studio's: a job not done |
+| 2 | `heygen_download` | **the alignment refused at 79.8%** (§0 above) | **the machine's** — a matcher that never folded figures |
+| 3 | `shot_map` | **C4, C8 and C10 are panel-push and I authored their beats MCU.** A panel-push card needs WIDE for its whole window or it lands on Gordon's face | **MINE** |
+*(Plus the title-card crop flag at 10:23 — a DESIGNED human gate, cleared in five minutes. Not a halt.)*
+
+> ### 📌 TWO OF THE THREE ARE THE BUILDER'S OWN AUTHORING FAULTS, AND THE TALLY SAYS SO.
+> Halt 1 is `episode.json` not existing when the build asked for it. Halt 3 is framing I
+> wrote wrongly. **Only halt 2 was the machine's.**
+> **An honest tally where the builder owns two of three is worth more than a flattering
+> one** — the whole value of counting is that the number can be compared with EP16's, and
+> a count that quietly excludes the counter's own mistakes cannot be.
+> ⚖️ **AND NONE OF THE THREE IS A RECURRENCE OF EP16's SIXTEEN.** #2, #3, #4, #9 and #10
+> were all passed without firing, including #4's layout collision, which none of this
+> week's work touched.
+
+### ⚰️ WHAT THE REGRESSION DID TO AN OLD NUMBER — worth more than the fix
+**EP15 went 91.1 → 95.9 and EP16 went 87.8 → 96.3.** So **every episode has been
+UNDER-MEASURED since the matcher was written.** Two consequences, both of which change how
+something already written down should be read:
+- **EP16's 87.8% was called "the narrowest pass on record"** and used as evidence for the
+  low-bitrate hypothesis. **It was neither narrow nor about bitrate** — it was a
+  figure-dense episode measured by an instrument that could not see figures.
+- **EP15's truncated master at 62.9% was a MORE decisive catch than anyone knew.** The
+  honest comparison is against **~96, not ~88** — a 33-point gap, not a 25-point one.
 
 **EP16's #2, #3, #4, #9 and #10 have all now been PASSED WITHOUT RECURRING** — including
 #4, the layout collision, which this work never touched. `cards_render` completed with
