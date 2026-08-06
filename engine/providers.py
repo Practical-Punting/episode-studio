@@ -649,6 +649,39 @@ def author_missing_ebook(ep_dir: Path) -> str:
     return (r.stdout or "").strip()
 
 
+def _ebook_vocabulary_note() -> str:
+    """The class vocabulary, ASKED OF THE CHECKER THAT ENFORCES IT.
+
+    🔴 DERIVED, NOT RESTATED, AND THE FIRST LIVE RUN IS WHY. The brief pointed at
+    PP-STANDARDS §E-book and said "use the class vocabulary". The writer produced
+    `<p class="kicker">` — the right class on the WRONG ELEMENT — and the fidelity
+    gate refused the whole body after 483s and $2.97. Pointing at a document that
+    names the classes does not say which element each one attaches to.
+
+    Restating them here by hand would be fault #2 with extra steps: two lists,
+    one edit reaching one of them. So it imports author_ebook's own sets. The day
+    somebody adds a class, this brief gains it in the same commit.
+    """
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import author_ebook as ae
+        p = ", ".join(f'<p class="{k}">' for k in ae.P_CLASSES if k)
+        div = ", ".join(f'<div class="{k}">' for k in ae.DIV_CLASSES if k)
+        img = ", ".join(f'<img class="{k}">' for k in sorted(ae.IMG_CLASSES))
+        return (
+            "THE CLASS VOCABULARY IS CLOSED, AND EACH CLASS BELONGS TO ONE "
+            "ELEMENT. A right class on the wrong element is refused:\n"
+            f"  - a BARE <p> — the article's own prose, and nothing else\n"
+            f"  - editorial paragraphs: {p}\n"
+            f"  - divs: {div}\n"
+            f"  - figures: {img}\n"
+            "  - headings: h1.section, h2.rule; and blockquote for a quotation\n"
+            "Anything else is refused outright — a new class is not a way round "
+            "the fidelity check.\n\n")
+    except Exception:                                  # noqa: BLE001
+        return ""      # the brief is still usable; the gate still holds
+
+
 def autofit_cards(ep_dir: Path) -> str:
     """Step the type down until the rendered card fits. Runs BETWEEN authoring and
     checking, because it exists to stop `card_check` halting over type size.
@@ -2065,9 +2098,27 @@ class RealProvider:
         The shell, the layout and the figures are now authored; the article BODY
         stays editorial and is written at script time, gated by the fidelity check
         rather than by a human read (see author_ebook.py's header).
+
+        🆕 AND IF THE BODY IS NOT THERE, IT IS COMMISSIONED RATHER THAN DEMANDED.
+        This is the point that halted EP17 with "the e-book article body is
+        missing… it is written at SCRIPT time" — a true sentence and no help at
+        all to somebody holding a browser. The engine knows the step, knows the
+        file, knows the article and knows who writes it; it now asks, the same
+        way `youtube_copy` does, and carries on.
         """
         d = self.dir(ep)
         print(f"    figures: {render_ebook_figures(d)}")
+        if not (d / "ebook/body.html").is_file():
+            import commission as com
+            try:
+                self._commission_ebook_body(ep, d)
+            except com.CommissionHalt as h:
+                # The writer's halt is already operator-shaped. The maintainer's
+                # half goes to the run log — different readers, same event.
+                if h.detail:
+                    print(f"    (commission detail, for the log: "
+                          f"{com._safe(h.detail)})", flush=True)
+                raise EngineFlag(h.message)
         print(f"    {author_missing_ebook(d)}")
         src = d / "ebook" / f"{ep_folder(ep)}-ebook-source.html"
         if not src.exists():
@@ -2233,6 +2284,127 @@ class RealProvider:
             timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
+
+    # ---- the SECOND call site: the e-book article body ----------------------
+    #
+    # THE THIRD OF THE THREE PLACES THE MACHINE NEEDS AN AUTHOR (Job Zero). It
+    # halted EP17 last night at `ebook_pdf` with "the e-book article body is
+    # missing… it is written at SCRIPT time" — true, and no help at all to
+    # somebody holding a browser. Same shape as the YouTube copy: prose that has
+    # to be WRITTEN, not a button to press.
+    #
+    # ⚠️ AND IT IS THE CHEAPEST SECOND USER, for one reason: the acceptance gate
+    # ALREADY EXISTS AND IS THE STRICTEST ONE WE HAVE. `author_ebook --check-only`
+    # hard-fails unless every bare <p> is a character-for-character reproduction
+    # of a source paragraph, in order, folding nothing — not case, not quotes, not
+    # dashes. A commission with a gate that good is a commission whose failure
+    # mode is "halt", never "quietly wrong".
+    def _commission_ebook_body(self, ep, d: Path):
+        import commission as com
+        import preflight_cards as pc
+
+        body = d / "ebook/body.html"
+
+        def find():
+            return body if body.is_file() else None
+
+        # THE CAPTURE, NAMED ABSOLUTELY. This is the fault the YouTube brief hit
+        # on its first live run: a relative `docs/…` resolves against the CWD,
+        # which IS THE EPISODE FOLDER, and the episode has its own docs/. The
+        # writer then looked outside the sandbox and place scoping correctly
+        # refused it — and reported "the sandbox refused my reads", which sent a
+        # session hunting a permissions bug that did not exist. An id is a
+        # promise; a relative path is a guess.
+        epj = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+        rel = pc.capture_rel(epj)
+        capture = (self.pp / rel) if rel else None
+        if not capture or not capture.is_file():
+            raise EngineFlag(
+                "I cannot write the e-book without the captured article to copy "
+                "from, and I could not find it. Nothing has been written.\n"
+                "The episode's settings name the capture file; that file is not "
+                "where it says it is.\n"
+                "Retrying will not fix this until the capture is in place.")
+
+        docs = REPO_DIR / "docs"
+        prompt = (
+            "You are writing the ARTICLE BODY of a Practical Punting e-book. You "
+            "are running inside this episode's folder.\n\n"
+            "READ FIRST, and follow them exactly. These are ABSOLUTE paths "
+            "outside this folder — do not look for them relative to where you "
+            "are, and note that this episode has a docs/ folder of its own that "
+            "is a DIFFERENT place:\n"
+            f"  - {capture} — THE ARTICLE. Everything between the "
+            "'---- ARTICLE TEXT BEGINS ----' and '---- ARTICLE TEXT ENDS ----' "
+            "markers, and nothing above or below them.\n"
+            f"  - {docs / 'PP-STANDARDS.md'} — the E-book section: the class "
+            "vocabulary you may use, and §0a on never improving the article.\n"
+            "Then, relative to this episode folder:\n"
+            "  - docs/episode.json — ebook.departures, ebook.omit_paragraphs and "
+            "figures[], which decide what you may change and which figures exist\n\n"
+            "WRITE the body to ebook/body.html\n\n"
+            "THE ARTICLE BODY ONLY. No <html>, no <style>, no page setup, no "
+            "cover, no marketing page, no warranty page — every one of those is "
+            "standing furniture and a second copy makes the book print it twice.\n"
+            "EVERY BARE <p> MUST BE THE ARTICLE'S OWN PARAGRAPH, CHARACTER FOR "
+            "CHARACTER, IN ORDER. Copy them across and resist every instinct to "
+            "improve them: do not fix a figure that looks wrong, tidy a date, "
+            "correct a name or smooth an inconsistency. An oddity in the source "
+            "is the author's and it stands.\n\n"
+            + _ebook_vocabulary_note() +
+            "HOW YOUR WORK WILL BE JUDGED, so you can meet it exactly. A machine "
+            "compares every bare <p> against the article's paragraphs and folds "
+            "NOTHING — not case, not curly quotes, not dashes, not punctuation, "
+            "not whitespace inside a sentence. One changed character fails it and "
+            "names the word. Anything you do not reproduce must be quoted "
+            "verbatim in episode.json -> ebook.omit_paragraphs; there is no way "
+            "to drop a paragraph silently.\n\n"
+            "Then return the verdict object. If anything you needed would not "
+            "open or could not be read, list it in unread_sources and set status "
+            "to halt — never write around a source you could not read. Keep "
+            "what_i_saw in plain English for someone who has never seen this "
+            "code: no file names, no paths, no code."
+        )
+        verdict = com.commission(
+            prompt=prompt,
+            place=d,
+            what="the e-book article body",
+            find_artefact=find,
+            add_dirs=[REPO_DIR / "docs", capture.parent],
+            # 🚫 THE DEFAULT TOOLS, AND DELIBERATELY NO Bash.
+            # The obvious move is to let the writer run `author_ebook --check-only`
+            # itself and iterate. It is the wrong move: `--add-dir` scopes the FILE
+            # tools to a place, and a shell is scoped to nothing — it can cd
+            # anywhere and run anything, including git. That trades Jodie's
+            # place-and-time rule for a convenience the design does not need,
+            # because THE ENGINE RUNS THE GATE ITSELF below. A writer's "I checked
+            # and it passed" would be a report, and this whole mechanism exists
+            # because a report is not an artefact.
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
+            model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
+        )
+        # 🔴 THE FOURTH GATE, AND IT IS THE ONE THAT MATTERS HERE.
+        # commission() already proved: a valid envelope, a typed verdict of ok,
+        # and an artefact that EXISTS and is NEWER than the run. None of that
+        # says the words are the ARTICLE'S words. The writer was asked to run
+        # this itself — and "I ran it and it passed" is a report, exactly the
+        # kind of proxy the whole design refuses. So it is run again, here, by
+        # the engine, against the file on disk.
+        check = subprocess.run(
+            [sys.executable, str(SKILL_DIR / "scripts/author_ebook.py"),
+             str(d / "docs/episode.json"), str(d / "ebook"), "--check-only"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=180)
+        if check.returncode:
+            raise EngineFlag(
+                "The e-book body was written but it does not reproduce the "
+                "article exactly, so it has not been accepted. Nothing "
+                "downstream will use it.\n"
+                "The message below names the exact word where it departs.\n"
+                + (check.stderr or check.stdout).strip()[-1200:])
+        print(f"    fidelity gate: {(check.stdout or '').strip().splitlines()[-1]}")
+        return verdict
 
     def save_youtube_copy(self, ep) -> str:
         import commission as com
