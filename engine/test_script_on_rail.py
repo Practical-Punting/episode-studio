@@ -308,6 +308,10 @@ def _gate_words():
     return APP.split("function gateWords(ep)")[1].split("\nfunction ")[0]
 
 
+def _script_panel():
+    return APP.split("function scriptPanel(ep, idPrefix)")[1].split("\nfunction ")[0]
+
+
 def test_the_script_view_is_not_an_input():
     """THE SAFETY ARGUMENT FOR LANDING THIS BESIDE AN UNPROVEN slice 1: a <pre>
     is not an input, so harvestDrafts/restoreDrafts and the refresh pause cannot
@@ -316,14 +320,53 @@ def test_the_script_view_is_not_an_input():
     Asserted against the CODE because that is where the claim lives — if someone
     later 'improves' this into a textarea, that is the moment the pause has to be
     re-reasoned, and this test is what tells them."""
-    g = _gate_words()
-    assert "scriptbox" in g, "the script view is missing from the words card"
-    box = g.split("scriptbox")[1][:400]
-    assert "<pre>" in box, "the script view is no longer a <pre>"
-    assert "<textarea" not in g, (
-        "a TEXTAREA has appeared in the words card. That is slice 4, and it changes "
-        "the refresh-pause reasoning: an input IS harvested and restored, so caret "
-        "and undo come back into play. Do not land it without redoing that argument.")
+    p = _script_panel()
+    assert "scriptbox" in p and "<pre>" in p, "the script view is no longer a <pre>"
+    # SCOPED to the script panel and the two gates that show it — NOT the whole
+    # file. The board already has one legitimate <textarea>: the chat box, which
+    # predates all of this and is a message field, not the script. A file-wide
+    # assertion fired on it and would have had to be weakened rather than aimed.
+    render = APP.split("function gateRender(ep)")[1].split("\nfunction ")[0]
+    for where, src in (("scriptPanel", p), ("gateWords", _gate_words()),
+                       ("gateRender", render)):
+        assert "<textarea" not in src, (
+            f"a TEXTAREA has appeared in {where}. That is slice 4, and it changes the "
+            "refresh-pause reasoning: an input IS harvested and restored, so caret and "
+            "undo come back into play. Do not land it without redoing that argument.")
+
+
+def test_one_script_panel_serves_both_gates():
+    """ONE implementation, TWO gates. Two panels would be two things to keep in
+    step, and the heading is a CLAIM about what the panel holds."""
+    assert APP.count("function scriptPanel(") == 1, "more than one script panel exists"
+    assert 'scriptPanel(ep, "w-script-")' in APP, "the words gate does not use the shared panel"
+    assert 'scriptPanel(ep, "r-script-")' in APP, "the render gate does not use the shared panel"
+    # and the markup lives ONLY in the shared function
+    assert APP.count('class="scriptbox"') == 1, \
+        "scriptbox markup appears more than once — that is the second panel that can drift"
+
+
+def test_the_render_gate_gives_her_the_script():
+    """🔴 THIRD EPISODE. The card asked her to go and render and handed her the
+    PROJECT NAME — not the words, which is what HeyGen actually consumes. The
+    words card has closed by the time she reaches this one."""
+    g = APP.split("function gateRender(ep)")[1].split("\nfunction ")[0]
+    assert 'scriptPanel(ep, "r-script-")' in g, "the render gate still does not show the script"
+    assert 'data-act="copy-script"' in g, \
+        "there is no way to copy the script — dragging a selection over a scrolling " \
+        "read-only panel is not a workflow"
+    assert 'data-act="copy-heygen"' in g, "the project-name copy button is gone from the render gate"
+    assert "Copy the project name" in g and "Copy the whole script" in g, \
+        "the two copy buttons are not labelled — two unlabelled Copy buttons is a new " \
+        "confusion replacing an old one"
+
+
+def test_copying_the_script_copies_the_whole_thing():
+    h = APP.split('if (act === "copy-script")')[1].split("\n  if (act ===")[0]
+    assert "ep.script_snapshot" in h, "copy-script does not read the script"
+    assert "clipboard.writeText(script)" in h, "copy-script does not put the script on the clipboard"
+    assert "Couldn’t copy automatically" in h or "Couldn't copy automatically" in h, \
+        "a refused clipboard fails silently — say so, the panel is read-only"
 
 
 def test_the_tick_is_enabled_only_when_there_is_something_to_read():
@@ -349,10 +392,18 @@ def test_the_words_gate_breaks_out_of_its_lane_when_there_is_a_script():
     is the one human decision the studio can never automate; it may not look like
     a tooltip. The card spans the page when — and only when — she is reading."""
     body = APP.split("function cardFor(ep)")[1].split("\nfunction ")[0]
-    assert "readingScript" in body, "the words-gate card no longer breaks out"
-    assert 'wordsGatePending(ep) && !!(ep.script_snapshot' in body, \
-        "the breakout is not conditional on there being a script to read"
+    assert "readingScript = showsScript(ep)" in body, \
+        "the breakout is no longer derived from showsScript()"
     assert '" wide"' in body, "the wide class is not applied"
+    # ASKED, NOT LISTED: showsScript covers both gates, so a third one that shows
+    # the script gets the reading surface without anyone widening cardFor.
+    s = APP.split("function showsScript(ep)")[1].split("\nfunction ")[0]
+    assert "script_snapshot" in s, "showsScript does not check there IS a script"
+    assert "wordsGatePending(ep)" in s, "showsScript misses the words gate"
+    assert "awaiting_render" in s, "showsScript misses the render gate"
+    assert "heygen_name" in s and "render_started_at" in s, \
+        "showsScript misses the render gate as it appears DURING the build, which is " \
+        "where it actually shows under the locked order"
     css = (HERE.parent / "styles.css").read_text(encoding="utf-8")
     assert ".card.wide{grid-column:1/-1" in css, "the wide card does not span the lane"
     assert "max-width:66ch" in css, \
@@ -385,6 +436,9 @@ if __name__ == "__main__":
         case(f.__name__, f)
     print("\n3. the input fields are not touched, and it is a reading surface")
     for f in (test_the_script_view_is_not_an_input,
+              test_one_script_panel_serves_both_gates,
+              test_the_render_gate_gives_her_the_script,
+              test_copying_the_script_copies_the_whole_thing,
               test_the_tick_is_enabled_only_when_there_is_something_to_read,
               test_approve_refuses_when_there_is_no_script_at_all,
               test_the_words_gate_breaks_out_of_its_lane_when_there_is_a_script,

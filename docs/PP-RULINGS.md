@@ -466,6 +466,50 @@ even COUNT the thing we are judged by.**
 already governs. This is about which pile a flag lands in, not how it reads once it is
 there. **RECORDED 6 Aug, NOT BUILT — EP17 was mid-build.**
 
+## A20 · 6 Aug 2026 — 🔴 PUT THE THING WHERE THE PERSON IS STANDING
+> ### "But there was no script given to me so that I can start the render. This is
+> ### an issue we have discussed several times! And still not fixed."
+**— Jodie, blocked at EP17's render gate.**
+
+**The render card told her to open HeyGen and render, and handed her the PROJECT NAME
+on a Copy button — not the SCRIPT, which is the thing HeyGen actually consumes.** The
+words card shows the script; **that card has CLOSED by the time she reaches the render
+gate**, so at the exact moment she needed the words there were none on screen.
+
+**Written down on 5 August as EP17-list item 5** — *"the render card asks for the one
+thing it does not give"* — **and this is the THIRD episode.** It blocks the longest single
+job in the pipeline: EP16's render cooked for over four hours, so every minute it holds
+her up is a minute on the end of her night.
+
+### ✅ FIXED THE SAME EVENING
+1. **The render card shows the script** — the SAME read-only panel as the words card,
+   extracted to one `scriptPanel()` used by both. **Not a second one that can drift.**
+2. **A Copy button for the script itself**, beside the one for the project name — the
+   whole thing on the clipboard in one action. *Copying 1,484 words by dragging a
+   selection across a scrolling read-only panel is not a workflow.*
+3. **Both buttons say what they are for.** *Two unlabelled Copy buttons would be a new
+   confusion replacing an old one.*
+🔒 **Still a `<pre>`, not an input** — the refresh-pause reasoning is unchanged.
+
+> ## 🔴 FOUR INSTANCES, ONE FAULT — and this is the ruling, not the button.
+> ## **THE MACHINE HAS THE THING, KNOWS SHE NEEDS IT, AND DOES NOT PUT IT WHERE SHE IS
+> ## STANDING.**
+> | # | what the machine had | where she was |
+> |---|---|---|
+> | 1 | the **SCRIPT** | at the words gate, told to read something with no box to read it in (A5) |
+> | 2 | the **NAME, HOOK and BYLINE**, derived from the article that morning | typing them in by hand (A18) |
+> | 3 | the **SCRIPT AGAIN** | at the render gate, told to render with no words on screen (here) |
+> | 4 | **`episode.json`, the YouTube copy** | badged NEEDS A LOOK for jobs she cannot do (A19) |
+>
+> ⚖️ **It is the inverse of `CLAUDE.md` fault #0.** That one says *never ask a person for
+> something the rail already knows.* **This one says: when the rail knows it and the
+> person needs it, PUT IT IN FRONT OF THEM.** Same root — the machine holds something and
+> the person is left to supply it — and **every one of the four was found by Jodie, not by
+> a check.**
+
+**DOES NOT COVER:** what a card SAYS once the thing is on it — `PP-operator-box-rule.md`
+governs that. This is about whether the thing is there at all.
+
 ---
 
 # B. ⚠️ SUSPECTED MISSING — the size of the hole

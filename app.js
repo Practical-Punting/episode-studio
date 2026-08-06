@@ -652,7 +652,10 @@ function cardFor(ep) {
   // breaks out of the lane and spans the page: it is the one human decision that
   // can never be automated away, and a 1,500-word script read through a 360px
   // slot is the studio asking for care it has made hard to give.
-  const readingScript = wordsGatePending(ep) && !!(ep.script_snapshot || "").trim();
+  // ASKED, NOT LISTED — showsScript() covers the words gate AND the render gate,
+  // so a third gate that shows the script gets the reading surface without anyone
+  // remembering to widen this line.
+  const readingScript = showsScript(ep);
   let h = '<article class="card' + (nl ? " alert" : "") +
           (readingScript ? " wide" : "") + '">';
 
@@ -763,6 +766,34 @@ function coverPickOpen(ep) {
             ep.cover_choice !== "A" && ep.cover_choice !== "B");
 }
 
+/* ═══ THE SCRIPT PANEL — ONE implementation, TWO gates ═══════════════════════
+ * Used by the WORDS gate (read it before approving) and the RENDER gate (see and
+ * copy what you are about to render). Written once on purpose: two panels would
+ * be two things to keep in step, and the heading is a CLAIM about the content.
+ *
+ * 🔒 A <pre>, NOT AN INPUT — so harvestDrafts/restoreDrafts and the 30s refresh
+ * pause never see it, on either card. Editing is slice 4 and is not this.
+ */
+function scriptPanel(ep, idPrefix) {
+  const script = (ep.script_snapshot || "").trim();
+  if (!script) return "";
+  const words = script.split(/\s+/).filter(Boolean).length;
+  return '<div class="scriptbox" id="' + idPrefix + ep.id + '">' +
+    '<div class="sb-head">The script &middot; ' + words + " words &middot; about " +
+    Math.round(words / 150) + " minutes &mdash; this is exactly what Gordon says</div>" +
+    "<pre>" + esc(script) + "</pre></div>";
+}
+
+/* Is this card showing the script right now? Drives the full-width breakout, and
+ * it is ASKED rather than listed, so a third gate that shows the script gets the
+ * reading surface without anyone remembering to add it here. */
+function showsScript(ep) {
+  if (!(ep.script_snapshot || "").trim()) return false;
+  if (wordsGatePending(ep)) return true;
+  if (ep.status === "awaiting_render") return true;
+  return ep.status === "building" && !!ep.heygen_name && !ep.render_started_at;
+}
+
 function gateFor(ep) {
   if (wordsGatePending(ep)) return gateWords(ep);
   switch (ep.status) {
@@ -826,13 +857,7 @@ function gateWords(ep) {
     // _script_checks refuses a script with notes on it, using render_ready's own
     // strip_notes_header), NOT stripped again here: a second implementation of
     // that rule, in another language, is exactly the drift worth avoiding.
-    h += '<div class="scriptbox" id="w-script-' + ep.id + '">' +
-         '<div class="sb-head">The script &middot; ' +
-         script.split(/\s+/).filter(Boolean).length +
-         " words &middot; about " +
-         Math.round(script.split(/\s+/).filter(Boolean).length / 150) +
-         " minutes &mdash; this is exactly what Gordon says</div>" +
-         "<pre>" + esc(script) + "</pre></div>";
+    h += scriptPanel(ep, "w-script-");
   } else {
     h += '<div class="doclink none">No script yet. Nothing builds until there is one.</div>';
   }
@@ -888,16 +913,42 @@ function scriptDriftNote(ep) {
  * track, which is final at the Words Gate — so this gate is offered as soon as the
  * engine has named the HeyGen project (a few seconds into the build), and the
  * pictures are generated beside it. It is never the last thing to happen. */
+/* 🔴 THE RENDER CARD GIVES HER THE SCRIPT. (Jodie, 6 Aug 2026 — THIRD EPISODE.)
+ * Her words: "But there was no script given to me so that I can start the render.
+ * This is an issue we have discussed several times! And still not fixed."
+ *
+ * It asked her to go and render and handed her the PROJECT NAME — and not the
+ * words, which is the thing HeyGen actually consumes. The words card shows the
+ * script, but that card has CLOSED by the time she reaches this one, so at the
+ * exact moment she needs the words there were none on screen. Recorded on the
+ * EP17 list on 5 August as "the render card asks for the one thing it does not
+ * give", and it has now blocked the longest job in the pipeline three times.
+ *
+ * TWO COPY BUTTONS, EACH SAYING WHAT IT IS FOR. Two unlabelled Copy buttons would
+ * be a new confusion replacing an old one. */
 function gateRender(ep) {
   const name = ep.heygen_name || (ep.ep_number != null ? "PP-EP" + ep.ep_number : "this episode");
   const parallel = ep.status === "building"
     ? " I’m generating the pictures right now — don’t wait for me, the render is the slow part."
     : "";
-  return '<div class="gate"><h4>Your turn — start the render</h4>' +
-    '<p class="g-hint">Open HeyGen, find <b>' + esc(name) +
-    "</b> and hit render. Then tell the board it’s going." + parallel + "</p>" +
-    '<button class="btn" data-act="render-started" data-ep=' + '"' + ep.id + '"' +
+  let h = '<div class="gate"><h4>Your turn — start the render</h4>' +
+    '<p class="g-hint">Open HeyGen, make the project <b>' + esc(name) +
+    "</b>, paste the script below into it and hit render. Then tell the board it’s going." +
+    parallel + "</p>";
+
+  h += '<div class="copyrow">' +
+    '<button class="mini copy" data-act="copy-heygen" data-ep="' + ep.id + '">' +
+    "Copy the project name</button>" +
+    '<button class="mini copy" data-act="copy-script" data-ep="' + ep.id + '">' +
+    "Copy the whole script</button>" +
+    '<span class="copyhint">One copies the name HeyGen asks for. The other copies ' +
+    "the words Gordon speaks — all of them, ready to paste.</span></div>";
+
+  h += scriptPanel(ep, "r-script-");
+
+  h += '<button class="btn" data-act="render-started" data-ep=' + '"' + ep.id + '"' +
     ">I’ve started the render &rarr;</button></div>";
+  return h;
 }
 
 function gateCover(ep) {
@@ -1266,6 +1317,22 @@ $("lanes").addEventListener("click", async (e) => {
     patch[field] = false;
     if (ep.status === "ready") patch.status = "awaiting_approval";  // pull it back
     if (await writeEpisode(id, patch, id + ":" + field, btn)) toast("toast", "Approval removed.", true);
+    return;
+  }
+
+  // THE WHOLE SCRIPT, IN ONE ACTION. Copying 1,484 words by dragging a selection
+  // across a scrolling panel is not a workflow — and the panel is read-only, so
+  // there is no other way to get the words out of it.
+  if (act === "copy-script") {
+    const script = (ep.script_snapshot || "").trim();
+    if (!script) { toast("toast", "There’s no script on this one yet.", false); return; }
+    try {
+      await navigator.clipboard.writeText(script);
+      const n = script.split(/\s+/).filter(Boolean).length;
+      toast("toast", "Script copied — all " + n + " words. Paste it into HeyGen.", true);
+    } catch (e) {
+      toast("toast", "Couldn’t copy automatically — select the script and copy it.", false);
+    }
     return;
   }
 

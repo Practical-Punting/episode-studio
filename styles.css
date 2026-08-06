@@ -208,6 +208,11 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
   .card.wide{width:auto;margin-left:0;transform:none;}
   .card.wide .scriptbox pre{font-size:18px;line-height:1.75;padding:18px;max-height:56vh;}
 }
+/* THE RENDER GATE'S TWO COPY BUTTONS, each saying what it is for. Two unlabelled
+   Copy buttons would be a new confusion replacing an old one. */
+.copyrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 13px;}
+.copyrow .mini{flex:none;}
+.copyhint{font-size:13px;color:var(--muted);line-height:1.45;flex:1 1 240px;min-width:200px;}
 /* the tick is a decision — make it big enough to hit with a thumb */
 .tick{display:flex;align-items:center;gap:11px;font-size:15px;font-weight:800;color:var(--ink);
   padding:11px 2px;cursor:pointer;user-select:none;}
