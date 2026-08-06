@@ -91,6 +91,37 @@ words landing on a real aligned word; the rest interpolated).
 the real broken file. **E26 returns ZERO blockers on it** — that is the argument in one
 measurement.
 
+## 🚫 RECORDED, DELIBERATELY NOT BUILT — THE EPISODE NAME IS GUESSED FROM THE URL
+**(Found 6 Aug 2026. Jodie's instruction: record it, do not build it today.)**
+
+> ### `slugToTitle()` (`app.js:192`) BUILDS THE EPISODE NAME FROM THE WEB ADDRESS.
+> **That is ruling A1 unenforced at the very first step a human touches.**
+
+It takes the last URL segment, strips a trailing date, splits on hyphens and Title-Cases
+every word. `…/testing-the-numbers-20070115` therefore created EP17 as
+**"Testing The Numbers"** — capital T on "The", which is **not** the article's headline.
+**A1 says the name comes from the page's own headline; nothing at create time has read
+the page.**
+
+⚠️ **AND THE BOARD HALF-KNEW.** `titleSmell()` (`app.js:111`) tests the title against a
+`SMALL_WORDS` list that **contains "The"**, so it would have flagged this exact string —
+and by design it only ever **suggests, never blocks**. *Grade 1 where grade 2 was needed.*
+📌 **NAMING CORRECTION:** an earlier note called this function `looksLikeSlugCaps()`. **No
+such function exists** — grepping that name finds nothing. It is `titleSmell()`.
+
+**THE FIX, for when it is time:** the create step should leave the title **EMPTY** rather
+than guess it from the web address, and say on the card that the studio fills it from the
+article. **An empty box a human fills is honest; a wrong box that looks authoritative is
+not.**
+
+### WHY IT IS NOT BEING BUILT TODAY — and this is the reasoning, not the excuse
+**The board already carries one unproven change from this morning:** the refresh pause
+(`c087b7d`, `b7d7046`), whose **ctrl+Z behaviour is deliberately waiting on Jodie's hands
+at EP17's words gate** — it follows from node identity, which is an argument, not an
+observation. **A second `app.js` change now means EP17 tests two things and proves
+neither.** *Same rule that made EP16 run on a Doc (A5), applied to the board instead of
+the engine.*
+
 ## JOB B — BIND APPROVALS TO WHAT WAS APPROVED
 Every approval flag is a **bare boolean**; nothing records which value it was given against,
 so any later edit silently inherits consent. **Twice now — EP14 and EP16 — and both times a
