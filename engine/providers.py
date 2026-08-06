@@ -2146,7 +2146,26 @@ class RealProvider:
 
         d = self.dir(ep)
         hits = list((d / "output").glob("*youtube*.txt"))
-        enabled = os.environ.get("ENGINE_COMMISSION") == "1"
+        # 🔴 ON BY DEFAULT, IN CODE, FOR THIS ONE STEP — 6 Aug 2026.
+        # Jodie: "I want the youtube copy thing fixed please!"
+        #
+        # The comment above said the default flips ON "the day a dry run
+        # produces the file end to end". It did: 6,492 bytes written through
+        # the real path on EP17's own inputs, a conforming verdict, status ok,
+        # unread_sources empty, and check_youtube_title passing on the result.
+        # The five earlier failures were a MANGLED COMMAND LINE, not a writer
+        # refusing to write — claude.CMD is a batch shim and cmd.exe ate the
+        # brief along with --output-format, --json-schema and --allowedTools.
+        # Fixed by commission.strip_prompt_from_argv(); the brief goes on stdin.
+        #
+        # DEFAULT-ON RATHER THAN AN EXPORT, deliberately: a capability that
+        # depends on somebody remembering to set a variable disappears the
+        # first time the supervisor restarts from a different terminal.
+        # ENGINE_COMMISSION=0 is the off switch and stays.
+        #
+        # ⚠️ THIS STEP ONLY. The SCRIPT commission is not switched on by this
+        # and has no call site yet — one place, proved, before any second one.
+        enabled = os.environ.get("ENGINE_COMMISSION", "1") != "0"
         if not hits and enabled:
             try:
                 v = self._commission_youtube_copy(ep, d)
