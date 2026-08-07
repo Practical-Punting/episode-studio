@@ -388,18 +388,153 @@ async function route() {
  * a second mechanism to get wrong, and would leave the board stale the moment
  * she closed the panel. */
 let SCRIPT_OPEN = false;
+let SC_EP = null;              // the episode being edited
+let SC_TIMER = null;           // the 3s debounce
+let SC_INFLIGHT = false;       // a save is on the wire
+let SC_PENDING = false;        // ...and more typing happened while it was
+let SC_LAST_SAVED = "";        // what the rail is known to hold
+let SC_VERSION_AT = 0;         // when we last wrote a version boundary
+let SC_ORIGINAL = null;        // what Claude Code wrote — the revert target
 
-function openScript(id) {
+/* 🔴 THREE HONEST STATES, AND NEVER A FOURTH MEANING "WE DON'T KNOW".
+ * Saving… · Saved 10:42 · ⚠️ NOT SAVED — still trying.
+ * A save WILL fail mid-sentence: 59 rail transients in one evening, a
+ * nine-attempt give-up, fonts unreachable for hours. The rule the build plan
+ * puts above the rest is TEXT IS NEVER LOST BECAUSE A SAVE FAILED — so on
+ * failure the words stay in the box, the indicator says so loudly, and it keeps
+ * trying. Silently reverting to the stored value is the C1 fault in a new hat. */
+function scState(kind, when) {
+  const el = $("sc-state");
+  if (!el) return;
+  el.className = "sc-state sc-" + kind;
+  el.textContent = kind === "saving" ? "Saving…"
+    : kind === "saved" ? "Saved " + when
+    : kind === "failed" ? "⚠️ NOT SAVED — still trying. Your words are safe in this box."
+    : "";
+}
+
+function scCounts(text) {
+  const el = $("sc-counts");
+  if (!el) return;
+  const words = (text.trim().match(/\S+/g) || []).length;
+  // HeyGen's text variable caps at 10,000 characters and our scripts run ~7,000,
+  // so the character count is operational, not decoration. Duration drives the
+  // credit cost of the render.
+  el.textContent = words + " words · " + text.length + " characters · about "
+    + (words / 150).toFixed(1) + " min spoken";
+}
+
+/* THE DEDICATED WRITER — and it exists because `writeEpisode()` cannot be used.
+ * writeEpisode ends with `await loadAll()` — a full refetch of every episode AND
+ * every message, plus a full rebuild, EVERY THREE SECONDS WHILE SHE TYPES. And
+ * `if (inflight.has(k)) return false;` DISCARDS a concurrent save rather than
+ * queueing it: correct for a double-clicked button, silently lost keystrokes for
+ * autosave. (REVIEW §2.2.)
+ *
+ * So: no loadAll(), last-write-wins, and ONE QUEUED TRAILING SAVE — if a save is
+ * on the wire and she keeps typing, the newest text goes as soon as the wire is
+ * free. Never dropped. */
+async function scSave() {
+  if (!SC_EP) return;
+  const text = $("sc-text").value;
+  if (text === SC_LAST_SAVED) return;
+  if (SC_INFLIGHT) { SC_PENDING = true; return; }
+  SC_INFLIGHT = true;
+  scState("saving");
+  try {
+    const patch = { script_snapshot: text, updated_at: new Date().toISOString() };
+    // Her FIRST save takes ownership of the words. From here the engine must not
+    // overwrite them — it raises a flag and asks instead.
+    if (!SC_EP.script_edited_by_human_at) {
+      patch.script_edited_by_human_at = new Date().toISOString();
+      SC_EP.script_edited_by_human_at = patch.script_edited_by_human_at;
+    }
+    const { error } = await db.from("episodes").update(patch).eq("id", SC_EP.id);
+    if (error) throw error;
+    SC_LAST_SAVED = text;
+    scState("saved", new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+    // A VERSION BOUNDARY, NOT A KEYSTROKE. ~5 minutes of active editing.
+    if (Date.now() - SC_VERSION_AT > 300000) await scVersion("human", "tick");
+  } catch (e) {
+    scState("failed");
+    // Keep trying, keep the text. Backoff is deliberate: a flaky line recovers.
+    setTimeout(scSave, 5000);
+  } finally {
+    SC_INFLIGHT = false;
+    if (SC_PENDING) { SC_PENDING = false; scSave(); }
+  }
+}
+
+function scTyped() {
+  const text = $("sc-text").value;
+  scCounts(text);
+  clearTimeout(SC_TIMER);
+  // 3 SECONDS, NOT 2. The spec said ~2s; the build plan raised it with a reason —
+  // "15 KB every two seconds on a flaky line is chatter". Jodie confirmed 3s.
+  SC_TIMER = setTimeout(scSave, 3000);
+}
+
+/* INSERT-ONLY HISTORY. Never an update, never a delete — the table has no RLS
+ * policy for either, so there is no path even by accident. */
+async function scVersion(author, reason) {
+  if (!SC_EP) return;
+  const text = $("sc-text").value;
+  try {
+    await db.from("script_versions").insert({
+      episode_id: SC_EP.id, script: text, author: author, reason: reason,
+    });
+    SC_VERSION_AT = Date.now();
+  } catch (e) { /* history is best-effort; never block her typing on it */ }
+}
+
+async function openScript(id) {
+  const ep = (EPISODES || []).find((e) => e.id === id);
+  if (!ep) return;
+  SC_EP = ep;
   SCRIPT_OPEN = true;
+  const text = ep.script_snapshot || "";
+  SC_LAST_SAVED = text;
+  SC_VERSION_AT = Date.now();
+  $("sc-title").textContent = (ep.ep_number != null ? "EP" + ep.ep_number + " — " : "")
+    + (ep.title || "Untitled");
+  $("sc-text").value = text;
+  scCounts(text);
+  scState("");
   $("board").hidden = true;
   $("script").hidden = false;
   $("sc-text").focus();
+  await scVersion("human", "open");
+  // "Back to what Claude Code wrote" is the FIRST version, however many edits
+  // deep she is. Fetched once on open so the button is always one click.
+  try {
+    const { data } = await db.from("script_versions").select("script,author,created_at")
+      .eq("episode_id", ep.id).order("created_at", { ascending: true }).limit(1);
+    SC_ORIGINAL = (data && data[0]) ? data[0].script : text;
+  } catch (e) { SC_ORIGINAL = text; }
 }
 
-function closeScript() {
+async function closeScript() {
+  clearTimeout(SC_TIMER);
+  await scSave();
+  await scVersion("human", "close");
   SCRIPT_OPEN = false;
+  SC_EP = null;
   $("script").hidden = true;
   $("board").hidden = false;
+  await loadAll();
+}
+
+/* NOTHING IN THE EDITOR IS DESTRUCTIVE. Reverting does not delete the edits it
+ * replaces — it writes the original back as a NEW state, and every version she
+ * passed through is still in the table. There is no action here that loses text. */
+async function scRevert() {
+  if (SC_ORIGINAL == null) return;
+  if (!confirm("Put back the script exactly as Claude Code first wrote it?\n\n"
+    + "Your edits are not deleted — every version is kept.")) return;
+  await scVersion("human", "before-revert");
+  $("sc-text").value = SC_ORIGINAL;
+  scCounts(SC_ORIGINAL);
+  await scSave();
 }
 
 // ── auth ─────────────────────────────────────────────────────────────────
@@ -433,6 +568,23 @@ $("logout").addEventListener("click", async () => {
 });
 
 $("refresh").addEventListener("click", () => loadAll());
+
+// ── the editor's own wiring, outside #lanes so it is bound ONCE ─────────────
+// Handlers on #lanes must be delegated because that node is rebuilt every 30s.
+// These elements are never rebuilt, so they take ordinary listeners — which is
+// the point of the panel living out here.
+$("sc-close").addEventListener("click", () => closeScript());
+$("sc-revert").addEventListener("click", () => scRevert());
+$("sc-text").addEventListener("input", scTyped);
+
+/* WARN BEFORE LEAVING WITH ANYTHING UNSAVED. The debounce means there is always
+ * a window — up to three seconds — where her last sentence is only in the box. */
+window.addEventListener("beforeunload", (e) => {
+  if (SCRIPT_OPEN && $("sc-text").value !== SC_LAST_SAVED) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
 
 // ── start a new episode ──────────────────────────────────────────────────
 $("start-form").addEventListener("submit", async (e) => {

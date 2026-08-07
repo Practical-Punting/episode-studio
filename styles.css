@@ -328,3 +328,49 @@ footer{margin:34px 0 0;font-size:12.5px;color:#b3aca3;}
   background:#DA532C; border:0; color:#fff; font:inherit; font-weight:600;
 }
 .pausebar-btn:hover{filter:brightness(1.08);}
+
+/* ── THE SCRIPT EDITOR ──────────────────────────────────────────────────────
+   "A lovely big pretty space that is easy to navigate" (Jodie, 28 Jul 2026).
+
+   🔴 THIS IS TIER 1, NOT DECORATION, AND JODIE RULED IT SO: readable typography
+   is what makes editing 2,500 words in a browser possible at all rather than a
+   downgrade from Google Docs. The single biggest lever is the MEASURE — about
+   70 characters a line. Wider is genuinely worse no matter how much screen
+   there is, which is why this is a max-width and not a full-bleed box. */
+#script{
+  display:flex; flex-direction:column; height:100vh;
+  background:var(--bg); color:var(--ink);
+}
+.sc-bar{
+  display:flex; align-items:center; gap:14px;
+  padding:10px 18px; background:var(--charcoal); color:#fff; flex:0 0 auto;
+}
+.sc-title{font-weight:700; font-size:15px;}
+/* The save state sits in the bar, always visible, never silent. */
+.sc-state{margin-left:auto; font-size:13.5px; font-weight:600;}
+.sc-saving{color:#ffd9a0;}
+.sc-saved{color:#9fe3b8;}
+.sc-failed{color:#ffb4a2;}
+
+.sc-wrap{flex:1 1 auto; overflow:auto; display:flex; justify-content:center;}
+#sc-text{
+  /* ~70 characters at this size. `ch` is the width of "0" in the rendered font,
+     so the measure follows the type rather than a guessed pixel count. */
+  width:100%; max-width:70ch;
+  margin:34px 20px; padding:0;
+  border:0; outline:none; resize:none; background:transparent;
+  font-family:'Barlow',system-ui,sans-serif;
+  font-size:19px; line-height:1.7; color:var(--ink);
+  /* One continuous document that grows with the words — NOT a textarea with its
+     own tiny scrollbar inside a card. The page scrolls; the box does not. */
+  min-height:100%; overflow:hidden;
+}
+#sc-text::placeholder{color:var(--muted);}
+
+.sc-foot{
+  flex:0 0 auto; display:flex; align-items:center; gap:16px;
+  padding:9px 18px; border-top:1px solid var(--line);
+  background:var(--card); font-size:13px; color:var(--muted);
+}
+.sc-foot .mini{margin-left:auto;}
+
