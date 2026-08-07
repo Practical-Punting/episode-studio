@@ -65,7 +65,22 @@ QC_REL = ".claude/skills/pp-episode-production/scripts/qc_episode.py"
 
 class EngineFlag(Exception):
     """Raise to say: a HUMAN is needed. The engine flags needs_look with this
-    message (plain English!) and does not retry — it isn't transient."""
+    message (plain English!) and does not retry — it isn't transient.
+
+    `blockers` is OPTIONAL and carries the raw, machine-shaped lines a checker
+    produced — card names, keys, source sentences — where a caller needs the
+    faults themselves rather than the prose wrapped round them. The episode.json
+    repair loop hands them straight back to the writer.
+
+    🔴 THE TWO ARE NOT INTERCHANGEABLE AND THAT IS THE POINT. str(EngineFlag) is
+    what a PERSON reads on the board and must stay plain English with no path, no
+    file name and no card id (docs/PP-operator-box-rule.md). `.blockers` is for a
+    machine and a run log. Different readers; the same text cannot serve both.
+    """
+
+    def __init__(self, message, blockers=()):
+        super().__init__(message)
+        self.blockers = list(blockers)
 
 
 # --- card authoring (1d, 28 Jul 2026) ----------------------------------------
@@ -2354,7 +2369,13 @@ class RealProvider:
     # paragraphs — writing it without one would be guessing at both. If the script
     # is missing too, this stands aside and the old flag still speaks: that is the
     # NEXT call site, not this one.
-    def _commission_episode_json(self, ep, d: Path):
+    # `followup` IS THE REPAIR LEG. It arrives from commission_with_repair()
+    # carrying the gate's own words, and it is appended to THIS brief rather than
+    # replacing it, because every repair is a FRESH SPAWN — there is no session to
+    # resume, so the writer that fixes the file has never seen the instructions
+    # that produced it. Building the follow-up here keeps the brief in one home;
+    # commission.py knows what the checks SAID and nothing about episode.json.
+    def _commission_episode_json(self, ep, d: Path, *, followup: str | None = None):
         import commission as com
         import preflight_episode_json as pj
 
@@ -2429,6 +2450,31 @@ class RealProvider:
             "what_i_saw in plain English for someone who has never seen this "
             "code: no file names, no paths, no code."
         )
+        if followup:
+            # 🔴 FIX IN PLACE, DO NOT START AGAIN. A writer told only "this was
+            # rejected" rewrites the whole 67 KB file and drags in a fresh set of
+            # faults; the fault it was asked about is then fixed and two others
+            # have appeared. Naming the file as ALREADY PRESENT and forbidding
+            # unrequested change is what makes a repair converge.
+            #
+            # ⚠️ AND IT CANNOT LIE ITS WAY PAST THIS. commission()'s freshness
+            # check compares the artefact's mtime against the START of this run,
+            # so a writer that reads the complaint, decides the file is fine and
+            # writes nothing gets a stale-artefact halt. The proof of a repair is
+            # a NEW FILE, never a claim that one was made.
+            prompt += (
+                "\n\n"
+                "======== AN EARLIER ATTEMPT AT THIS FILE WAS REJECTED ========\n"
+                "docs/episode.json ALREADY EXISTS in this folder — it is your "
+                "earlier attempt. READ IT FIRST, fix what is listed below, and "
+                "write the corrected file back to docs/episode.json.\n"
+                "Do NOT start again from nothing. Do NOT change anything the list "
+                "does not mention: the rest of the file has already been checked "
+                "and passed, and every change you make unasked is a new chance to "
+                "break something that was right.\n\n"
+                + followup
+                + "\n\nThen return the verdict object as before."
+            )
         verdict = com.commission(
             prompt=prompt,
             place=d,

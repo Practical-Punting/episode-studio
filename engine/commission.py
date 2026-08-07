@@ -537,3 +537,102 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
     verdict["_path"] = str(path)
     verdict["_cost_usd"] = float(env.get("total_cost_usd") or 0)
     return verdict
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# THE BOUNDED, SELF-CORRECTING RETRY
+#
+# The first scratch run of the episode.json commission produced a good 67 KB file
+# with ONE fault in it: a card's eyebrow carried a figure with no trace entry.
+# preflight_cards said so precisely — it named the card, the key and what was
+# missing — and the build halted a human with it.
+#
+#     A CHECKER THAT GOOD IS A SET OF INSTRUCTIONS. FEED IT BACK TO THE WRITER.
+#
+# 🚫 AND THE CONSTRAINT THAT SHAPES THE WHOLE THING: THE ENGINE STILL RUNS THE
+# GATE. The obvious move is to give the writer the checker and let it iterate.
+# That is the wrong move twice over — it needs a shell, which is scoped to
+# nothing (Jodie's place-and-time rule), and it turns the acceptance test into
+# the writer's own report. "I ran it and it passed" is a report, and this whole
+# module exists because a report is not an artefact. So: the engine runs the
+# gate, passes its OUTPUT back as text, and runs the gate again itself.
+#
+# ⚠️ THE GATE IS INJECTED, NOT REIMPLEMENTED. `gate` is a callable supplied by
+# the caller and is THE SAME function the build halts on — not a copy of it
+# living in a second file (fault #2, one source of truth or it drifts).
+#
+# SCOPE — NARROW ON PURPOSE. This retries GATE failures: the writer produced a
+# file and the checks rejected it. A CommissionHalt — a mangled envelope, a
+# timeout, a stale artefact, the wallet refusal — propagates immediately and
+# unchanged, because commission() has already decided whether retrying helps and
+# said so in words. Retrying a wallet refusal three times would be absurd.
+_EXHAUSTED = (
+    "The studio asked its writing assistant to draft {what}, checked the work, "
+    "sent back what was wrong and asked again — {n} times in all. Something in it "
+    "is still not right, so nothing has been built and nothing has been spent.\n"
+    "It could be that this article needs something the studio's usual rules do not "
+    "cover, or that the assistant is stuck on the same point and cannot get past "
+    "it.\n"
+    "Retrying will not fix this. This one is the studio's to sort out — it is not "
+    "something to clear from the board."
+)
+
+
+def _repair_note(blockers) -> str:
+    """The follow-up brief: THE CHECKER'S OWN WORDS, not a paraphrase of them.
+
+    ⚠️ DELIBERATELY NOT PASSED THROUGH _safe(). This text goes to the CHILD on
+    stdin, which is utf-8, and the blockers quote the ARTICLE — source sentences,
+    figures, curly quotes, em dashes. Flattening those to ASCII here would hand
+    the writer a corrupted version of the very sentences it has to reproduce
+    character for character. _safe() is for OUR log stream, which is cp1252 on
+    this machine, and it is applied there and only there.
+    """
+    lines = ["The studio's checks read what you wrote and rejected it. This is "
+             "what they said, word for word:", ""]
+    lines += [f"  - {b}" for b in blockers]
+    lines += ["",
+              "Fix exactly these and nothing else — each line names the thing it "
+              "is about. Do not rewrite the parts nobody complained about.",
+              "If one of these is wrong about the article, do NOT work around it: "
+              "say so in what_i_saw and set status to halt."]
+    return "\n".join(lines)
+
+
+def commission_with_repair(*, attempt, gate, what: str, attempts: int = 3,
+                           log=print) -> dict:
+    """Commission, run the caller's gate, and give the writer its own faults back.
+
+    `attempt(followup)` -> verdict. Supplied by the caller; `followup` is None on
+        the first go and the checker's words on every one after it.
+    `gate()` -> list of blocker strings. EMPTY MEANS PASS. It is the caller's
+        real gate, so this cannot go stale against what the build actually runs.
+
+    Returns the verdict of the attempt that PASSED THE GATE. Raises CommissionHalt
+    when the attempts are used up — operator-shaped, no paths, no card names, no
+    JSON; the checker's actual lines go to `.detail`, which is the run log's.
+    """
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    blockers: list[str] = []
+    for i in range(1, attempts + 1):
+        if i > 1:
+            # ANYTHING THAT WAITS MUST SAY IT IS WAITING (fault #3) — and say
+            # WHY it is going round again, not merely that it is.
+            log(f"    repair {i - 1} of {attempts - 1}: asking the writer to fix "
+                f"{len(blockers)} thing(s) the studio's checks rejected", flush=True)
+        verdict = attempt(_repair_note(blockers) if blockers else None)
+        blockers = [str(b) for b in (gate() or [])]
+        if not blockers:
+            if i > 1:
+                log(f"    the writer's own repair passed the studio's checks "
+                    f"(attempt {i} of {attempts})", flush=True)
+            return verdict
+        log(f"    attempt {i} of {attempts} rejected by the studio's checks — "
+            f"{len(blockers)} thing(s):", flush=True)
+        for b in blockers:
+            log(f"      x {_safe(b)}")          # OUR stream: flatten it (see above)
+    raise CommissionHalt(
+        _EXHAUSTED.format(what=what, n=attempts),
+        detail=_safe(f"{attempts} attempt(s) all rejected by the gate; the last "
+                     f"{len(blockers)} blocker(s) were: " + " | ".join(blockers)))

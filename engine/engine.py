@@ -142,7 +142,11 @@ def assert_script_gate(ep):
     return True
 
 
-def log(msg):
+def log(msg, **_):
+    # **_ so this can stand in anywhere a print-like logger is expected — the
+    # commission relay calls its logger with flush=True, and the alternative was
+    # letting those lines fall through to a bare print(), which would put half the
+    # run log's lines under a timestamp and half of them not.
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
@@ -352,12 +356,16 @@ def _preflight_config(ctx) -> list[str]:
     j = json.loads(target.read_text(encoding="utf-8"))
     res = preflight_episode_json.preflight(j, refs)
     if res["must"]:
+        # The raw lines ride along on the flag so the repair loop can hand them
+        # to the writer verbatim. The MESSAGE is unchanged — it is what a person
+        # reads; `.blockers` is what a machine reads.
         raise EngineFlag(
             "This episode's settings differ from the last two episodes in ways that "
             "will stop the build later on:\n"
             + "\n".join(f"      • {m}" for m in res["must"])
             + "\n    Every one of these has cost a build before. They are cheaper to "
-              "fix now than eighteen steps in, which is why I look before I start.")
+              "fix now than eighteen steps in, which is why I look before I start.",
+            blockers=res["must"])
     out = [f"config pre-flight: clean against {' + '.join(names)}"]
     out += [f"   note — {w}" for w in res["worth"]]
     return out
@@ -421,8 +429,71 @@ def _preflight_cards(ctx) -> list[str]:
             "been built and nothing has been spent — these were all found before "
             "anything started.\n"
             "Each line below names the card and what is wrong with it:\n"
-            + "\n".join(f"  - {b}" for b in res["blockers"]))
+            + "\n".join(f"  - {b}" for b in res["blockers"]),
+            blockers=res["blockers"])
     return lines
+
+
+# ONE write, then TWO repairs. Three goes in all, and the number is a judgement
+# with its cost named rather than a round one: each attempt is bounded at 1800s,
+# so a writer that thrashes costs about ninety minutes before the engine gives up.
+# Jodie took that trade on 7 Aug 2026 — "a repair fixing a named fault is fast, so
+# the realistic cost of the third is small; the ninety minutes is only a thrashing
+# writer, which is genuinely stuck and should flag anyway."
+EPJSON_ATTEMPTS = 3
+
+
+def _epjson_gate(ctx) -> list[str]:
+    """Run the build's OWN two gates and return their blocker lines. [] = pass.
+
+    🔴 THE SAME FUNCTIONS THE BUILD HALTS ON, called here, not copied. A second
+    implementation of the gate is a second thing to keep in step, and the whole
+    point of commissioning at THIS spot is that a machine-written file is judged
+    by exactly the mutation-proved checks a hand-written one is.
+
+    ⚠️ BOTH GATES RUN, EVEN WHEN THE FIRST ONE FAILS. E26 raises before the card
+    checks would ever run, so letting it short-circuit would spend one of three
+    attempts fixing settings and the next one fixing cards. The writer gets every
+    complaint at once.
+
+    ⚠️ AND WHAT THIS FUNCTION CANNOT TELL YOU: both gates STAND ASIDE quietly when
+    their inputs are not there — fewer than two reference episodes, no episode.json.
+    An empty list means "nothing was found", which is not the same as "the file is
+    good", and on a fresh target it can mean "nothing looked". The lines each gate
+    returns say which of the two happened, which is why they are logged and not
+    swallowed. (CLAUDE.md: a pass is a statement about what was MEASURED.)
+    """
+    blockers: list[str] = []
+    for fn in (_preflight_config, _preflight_cards):
+        try:
+            for line in fn(ctx):
+                log(f"   {line}")
+        except EngineFlag as f:
+            # `.blockers` is the checker's own lines. The fallback is the flag's
+            # prose, so a raise site that has not been given blockers still says
+            # something useful rather than silently contributing nothing.
+            blockers += list(getattr(f, "blockers", None) or [str(f)])
+    return blockers
+
+
+def _commission_epjson_with_repair(ctx, d):
+    """Commission episode.json, and give the writer the gate's own faults back.
+
+    Returns the verdict of the attempt that passed. Raises CommissionHalt when
+    the attempts are used up (operator-shaped) — the caller turns that into a flag.
+
+    ⚠️ THE GATES RUN INSIDE THIS LOOP, so the caller must NOT run them again
+    afterwards. It only returns when they are clean.
+    """
+    import commission as com
+
+    return com.commission_with_repair(
+        attempt=lambda followup: ctx.provider._commission_episode_json(
+            ctx.ep, d, followup=followup),
+        gate=lambda: _epjson_gate(ctx),
+        what="this episode's settings and cards",
+        attempts=EPJSON_ATTEMPTS,
+        log=log)
 
 
 def step_audit_inputs(ctx):
@@ -463,28 +534,41 @@ def step_audit_inputs(ctx):
     # red suite the moment it was written: test_step_call_sites drove the real
     # dispatch and got AttributeError, which is the same shape as the NameError
     # that killed EP15 and exactly what that suite exists to catch.
+    commissioned = False
     if not ctx.mock and ctx.ep.get("ep_number"):
         d = ctx.provider.dir(ctx.ep)
+        # 🔴 THE PRESENCE GUARD IS EVALUATED ONCE, HERE, ABOVE THE LOOP — and it
+        # has to be. It asks whether episode.json is ABSENT, and the moment the
+        # first attempt writes one it is not. Inside the loop, no repair would
+        # ever fire; the second attempt would look at the file the first attempt
+        # wrote and decide there was nothing to do.
         if (not (d / "docs/episode.json").is_file()
                 and (d / "docs/spoken-words.txt").is_file()):
             import commission as com
             try:
-                ctx.provider._commission_episode_json(ctx.ep, d)
+                _commission_epjson_with_repair(ctx, d)
             except com.CommissionHalt as h:
                 if h.detail:
                     log(f"   (commission detail, for the log: {com._safe(h.detail)})")
                 raise EngineFlag(h.message)
+            commissioned = True
 
-    for line in _preflight_config(ctx):
-        log(f"   {line}")
     # JOB A — THE CARD PIPELINE'S CHECKS, MOVED HERE FROM cards_render/shot_map.
     # EP16's card faults were twenty schema/job, twenty-six trace, two bad cues
     # and three short beats — every one of them pure data or pure text, every one
     # knowable right here, and every one of them actually fired AFTER the render
     # gate, the credit check, seven paid clips, two paid heroes and a cover pick.
     #     THE CHECKS EXISTED. THEY RAN TOO LATE.
-    for line in _preflight_cards(ctx):
-        log(f"   {line}")
+    #
+    # ⚠️ EXACTLY ONCE PER PATH. The repair loop above runs these same two gates
+    # itself and only returns when they are clean, so running them here as well
+    # would be a second, pointless pass — and on the hand-written path they must
+    # still raise their own flags, unchanged, exactly as they did before.
+    if not commissioned:
+        for line in _preflight_config(ctx):
+            log(f"   {line}")
+        for line in _preflight_cards(ctx):
+            log(f"   {line}")
     meta = ctx.provider.audit_inputs(ctx.ep)
     ctx.ep_set({"drive_folder": ep_folder(ctx.ep)})
     return meta
