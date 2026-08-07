@@ -178,6 +178,94 @@ def main():                                                            # noqa: C
     check("no article text -> it says so rather than passing",
           len(F.check("He got eight to one.", "no markers here")) == 1)
 
+    print("\n-- 🔴 THE FIVE READINGS THE SECOND ARTICLE FORCED --")
+    # EP16 was the only article the gate had met. Run against all seven shipped
+    # scripts it produced 39 false alarms on APPROVED, PUBLISHED work. These are
+    # the readings that closed them — accurate readings, never loose fallbacks.
+    UNITS_CAP = ("x\n---- ARTICLE TEXT BEGINS ----\n"
+                 "Won over 1600m at 57kg, beaten 3.9 lengths on September 23, "
+                 "rated 2nd of 2020 starters over the 2100m to 2300m range, "
+                 "at $100 to $50.\n---- ARTICLE TEXT ENDS ----\n")
+    for phrase, why in [
+            ("sixteen hundred metres", "a unit-suffixed distance, hundreds reading"),
+            ("sixteen hundred", "the same distance with the unit left off"),
+            ("one thousand six hundred", "and its cardinal reading"),
+            ("fifty seven", "a weight in kilos"),
+            ("three point nine", "a DECIMAL, not 'three' and 'nine'"),
+            ("twenty third", "a cardinal date read as an ordinal"),
+            ("second", "2nd read as a word"),
+            ("two thousand and twenty", "the 'and' people say and int_words omits"),
+            ("twenty twenty", "and its pair reading"),
+            ("twenty one hundred to twenty three hundred", "a range carrying a unit"),
+            ("a hundred to fifty", "'a hundred' is 'one hundred'")]:
+        check(f"  {why}: {phrase!r}", F.check(f"It was {phrase}.", UNITS_CAP) == [],
+              str(F.check(f"It was {phrase}.", UNITS_CAP)))
+
+    print("\n-- and the readings did NOT open a door --")
+    for phrase in ("seventeen hundred metres", "four point one", "twenty fourth",
+                   "two thousand and thirty", "a hundred to sixty"):
+        check(f"  a figure the article does not state is still caught: {phrase!r}",
+              len(F.check(f"It was {phrase}.", UNITS_CAP)) == 1,
+              str(F.check(f"It was {phrase}.", UNITS_CAP)))
+
+    print("\n-- 'and' joins figures; it is only INSIDE one after hundred/thousand --")
+    # EP17: "eleven dollars fifty for number EIGHT AND TWELVE dollars for number
+    # nine" — treating "and" as internal glued two real figures into one that no
+    # article states.
+    two = F.figures("eleven dollars fifty for number eight and twelve dollars")
+    check("two separate figures are not glued into one",
+          not any("eight and twelve" in f for f in two), str(two))
+    check("  but 'two thousand and twenty' stays one figure",
+          any(f == "two thousand and twenty"
+              for f in F.figures("rated two thousand and twenty")),
+          str(F.figures("rated two thousand and twenty")))
+
+    print("\n-- ordinary English is still not a figure --")
+    for phrase in ("the third one was better", "half the field never fires",
+                   "a quarter of the way up the straight"):
+        check(f"  {phrase!r}", F.check(phrase, UNITS_CAP) == [],
+              str(F.check(phrase, UNITS_CAP)))
+
+    # ⚠️ BUT A FINISHING POSITION IS A CLAIM ABOUT THE WORLD, SO IT IS TRACED.
+    # This case first asserted "he ran on for sixth" was prose — my assumption,
+    # not a rule. Saying a horse ran sixth when the article says fourth is
+    # exactly the kind of altered figure §0a forbids, and the seven-article table
+    # shows tracing ordinals costs nothing: EP14, EP15 and EP16 stay clean and
+    # EP11's and EP12's ordinal alarms went away once dates folded properly.
+    check("a finishing position IS checked, not waved through",
+          len(F.check("he ran on for sixth", UNITS_CAP)) == 1,
+          str(F.check("he ran on for sixth", UNITS_CAP)))
+    check("  and it passes when the article supports it",
+          F.check("he was second", UNITS_CAP) == [],
+          str(F.check("he was second", UNITS_CAP)))
+
+    print("\n-- 🔴 BOTH HALVES, ACROSS EVERY SHIPPED EPISODE --")
+    # "Zero false alarms" alone proves nothing: a gate that passes everything
+    # scores zero too. Each script is ALSO planted with a racing price its own
+    # article never states, and the gate must find it.
+    clean, planted_caught, planted_tried = [], 0, 0
+    for n in range(11, 18):
+        cap = capture(n)
+        sc = shipped_script(n)
+        if not cap or not sc:
+            continue
+        base = F.check(sc, cap)
+        if not base:
+            clean.append(n)
+        price = next((c for c in ("eleven to four", "fifteen to eight",
+                                  "thirty three to one", "sixty six to one")
+                      if F.check(f"He was at {c}.", cap)), None)
+        if price:
+            planted_tried += 1
+            after = F.check(sc + f"\n\nHe was sent out at {price}.\n", cap)
+            if any(price in b for b in after if b not in base):
+                planted_caught += 1
+    check("a fabricated price is caught in EVERY shipped episode",
+          planted_tried > 0 and planted_caught == planted_tried,
+          f"{planted_caught}/{planted_tried}")
+    check("  and the articles that were clean stay clean",
+          set(clean) >= {14, 15, 16}, f"clean: {clean}")
+
     print("\n-- the render path was NOT touched (Jodie's ruling) --")
     import align_to_script as A
     check("spoken_form still renders 8-1 the old way (unchanged)",
