@@ -72,6 +72,37 @@
     </footer>
   </main>
 
+  <!-- ── THE SCRIPT EDITOR ─────────────────────────────────────────────
+       🔴 A THIRD TOP-LEVEL SIBLING OF #login AND #board, AND THAT PLACEMENT
+       IS THE WHOLE FIX FOR BOARD BUG 1.
+
+       renderBoard() does `host.innerHTML = out` where `host = $("lanes")`
+       (app.js:597,631), on a 30-second timer (app.js:1439). Anything inside
+       #lanes is DESTROYED AND REBUILT every cycle: the caret jumps to the end,
+       the selection goes, the scroll position goes, and the browser undo stack
+       goes with the node. restoreDrafts() puts the VALUE back and nothing else.
+
+       A textarea out here is never touched by that rebuild, because innerHTML
+       is only ever assigned to #lanes. The editor is a ROUTE, not an overlay —
+       so renderBoard() does not change at all, and there is no new scaffolding
+       around the global re-render for anyone to maintain.
+       (PP-script-editor-REVIEW-4Aug §0 and §2.1.) -->
+  <main id="script" hidden>
+    <div class="sc-bar">
+      <button class="mini" id="sc-close">&larr; Back to the board</button>
+      <span class="sc-title" id="sc-title"></span>
+      <span class="sc-state" id="sc-state" role="status" aria-live="polite"></span>
+    </div>
+    <div class="sc-wrap">
+      <textarea id="sc-text" spellcheck="true"
+                aria-label="The script — the words Gordon says"></textarea>
+    </div>
+    <div class="sc-foot">
+      <span id="sc-counts"></span>
+      <button class="mini" id="sc-revert">Back to what Claude Code wrote</button>
+    </div>
+  </main>
+
 </div>
 
 <!-- supabase-js v2 (UMD) -->

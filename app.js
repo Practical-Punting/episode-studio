@@ -348,7 +348,8 @@ async function route() {
       history.replaceState(null, "", window.location.pathname + window.location.search);
     }
     $("login").hidden = true;
-    $("board").hidden = false;
+    $("board").hidden = SCRIPT_OPEN;          // the editor takes the board's place
+    $("script").hidden = !SCRIPT_OPEN;
     $("statusbar").hidden = false;
     $("whoami").hidden = false;
     $("who").textContent = session.user.email;
@@ -357,9 +358,48 @@ async function route() {
   } else {
     $("login").hidden = false;
     $("board").hidden = true;
+    $("script").hidden = true;
     $("statusbar").hidden = true;
     $("whoami").hidden = true;
   }
+}
+
+/* ── THE SCRIPT EDITOR — A ROUTE, NOT AN OVERLAY ────────────────────────────
+ *
+ * 🔴 BOARD BUG 1, AND WHY THIS IS THE SHAPE OF THE FIX.
+ * `renderBoard()` assigns `host.innerHTML` where `host = $("lanes")`, every 30
+ * seconds. Everything inside #lanes is destroyed and rebuilt: caret, selection,
+ * scroll position and — the one that matters — THE BROWSER UNDO STACK, which
+ * does not survive node replacement. `restoreDrafts()` puts the VALUE back and
+ * nothing else, so a long edit silently loses its place mid-sentence.
+ *
+ * Jodie raised bug 1 from LOW to BLOCKER for this work, and the reasoning is
+ * arithmetic: the same bug ate a pasted YouTube URL. Applied to 2,500 words she
+ * has just spent twenty minutes on, it destroys twenty minutes with no warning
+ * and no undo. "Losing a link is annoying. Losing a script is the kind of thing
+ * that makes a person stop trusting the tool entirely."
+ *
+ * THE EDITOR THEREFORE LIVES OUTSIDE #lanes ENTIRELY — a sibling panel that the
+ * rebuild cannot reach, rather than more scaffolding around it. renderBoard()
+ * is untouched. (REVIEW §0, §2.1.)
+ *
+ * ⚠️ AND THE POLL KEEPS RUNNING WHILE SHE TYPES, DELIBERATELY. It refreshes
+ * #lanes underneath her; she simply is not in it. Suppressing the poll would be
+ * a second mechanism to get wrong, and would leave the board stale the moment
+ * she closed the panel. */
+let SCRIPT_OPEN = false;
+
+function openScript(id) {
+  SCRIPT_OPEN = true;
+  $("board").hidden = true;
+  $("script").hidden = false;
+  $("sc-text").focus();
+}
+
+function closeScript() {
+  SCRIPT_OPEN = false;
+  $("script").hidden = true;
+  $("board").hidden = false;
 }
 
 // ── auth ─────────────────────────────────────────────────────────────────
