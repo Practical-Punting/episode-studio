@@ -682,6 +682,63 @@ def _ebook_vocabulary_note() -> str:
         return ""      # the brief is still usable; the gate still holds
 
 
+def _card_vocabulary_note() -> str:
+    """The card vocabulary, ASKED OF author_cards, WHICH ENFORCES IT.
+
+    🔴 DERIVED, NOT RESTATED, for the reason the e-book brief learned the hard
+    way: a brief that points at a document naming the vocabulary does not say
+    which value goes where, and a brief that restates it is a second list nobody
+    updates. EP16 carried TWENTY schema and job faults written from memory of
+    exactly this vocabulary — four jobs, a job->block map, per-block schemas with
+    required/optional/list keys, enums, and "every declared key must be PRESENT,
+    null if empty". That is not an argument for trying harder. It is the argument
+    for handing the writer the real thing.
+    """
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import author_cards as ac
+        blocks = sorted(f[:-5] for f in os.listdir(os.path.join(ac.CARDS_DIR, "blocks"))
+                        if f.endswith(".html"))
+        lines = [
+            "THE CARD VOCABULARY IS CLOSED. These are the real values, read from "
+            "the code that enforces them — not a summary:\n",
+            f"  jobs: {', '.join(ac.JOBS)}   (every card declares exactly one)",
+            "  a job constrains which block may render it:",
+        ]
+        for job, allowed in ac.JOB_BLOCKS.items():
+            lines.append(f"    {job:<8} -> "
+                         + ("any block" if allowed is None else ", ".join(sorted(allowed))))
+        lines.append(f"  blocks available: {', '.join(blocks)}, or \"bespoke\" for a "
+                     "hand-authored page (say why in detail)")
+        lines.append(f"  R3 CAP: at most {ac.MAX_ASSERTION*100:.0f}% of content cards may "
+                     f"use {', '.join(sorted(ac.ASSERTION_BLOCKS))} — measured on the "
+                     "BLOCK, never on the declared job, because relabelling does not "
+                     "change a picture")
+        lines.append(f"  a {', '.join(sorted(ac.LIST_BLOCKS))} claiming job 'relate' must "
+                     "also carry relates_to, naming what its items connect to")
+        lines.append("\n  EACH BLOCK'S OWN SCHEMA — every declared key must be PRESENT, "
+                     "with explicit null for a slot you mean to leave empty. A MISSING "
+                     "key halts, because null records a decision and absence records "
+                     "nothing:")
+        for b in blocks:
+            s = ac.load_block(b)["schema"]
+            req = ", ".join(s.get("required", [])) or "-"
+            opt = ", ".join(s.get("optional", [])) or "-"
+            lst = ""
+            for name, spec in (s.get("lists") or {}).items():
+                f = spec.get("fields")
+                lst += (f"\n      list {name}: {spec.get('min',1)}-{spec.get('max',99)} items"
+                        + (f", fields {f}" if f else ", plain strings"))
+                for k, vals in (spec.get("enum") or {}).items():
+                    lst += f", {k} must be one of {vals}"
+                for k in spec.get("numeric", []):
+                    lst += f", {k} must be a bare number"
+            lines.append(f"    {b}: required [{req}]  optional [{opt}]{lst}")
+        return "\n".join(lines) + "\n\n"
+    except Exception:                                  # noqa: BLE001
+        return ""      # the brief is still usable; the gates still hold
+
+
 def autofit_cards(ep_dir: Path) -> str:
     """Step the type down until the rendered card fits. Runs BETWEEN authoring and
     checking, because it exists to stop `card_check` halting over type size.
@@ -2284,6 +2341,116 @@ class RealProvider:
             timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
+
+    # ---- the THIRD call site: episode.json and the cards --------------------
+    #
+    # This is the halt Jodie met three minutes after approving EP17's words:
+    # "Create-inputs are missing… Claude Code writes these at the create step
+    # (the create brain is Phase 4). Stage them, then clear this flag." A flag
+    # that NAMES ITS OWN AUTHOR and then asks a human to go and fetch him.
+    #
+    # ⚠️ IT FIRES ONLY WHEN THE SCRIPT IS ALREADY THERE. episode.json's cues must
+    # be literal substrings of the approved script, and its beats are the script's
+    # paragraphs — writing it without one would be guessing at both. If the script
+    # is missing too, this stands aside and the old flag still speaks: that is the
+    # NEXT call site, not this one.
+    def _commission_episode_json(self, ep, d: Path):
+        import commission as com
+        import preflight_episode_json as pj
+
+        target = d / "docs/episode.json"
+
+        def find():
+            return target if target.is_file() else None
+
+        # THE CAPTURE AND THE REFERENCES, NAMED ABSOLUTELY. A relative `docs/…`
+        # resolves against the CWD, which IS the episode folder, and the episode
+        # has its own docs/. That trap cost the first YouTube run a whole cycle
+        # and reported itself as a permissions fault.
+        caps = sorted((self.pp / "docs").glob(
+            f"EP{int(ep['ep_number']):02d}-source-article-*.md"))
+        if not caps:
+            raise EngineFlag(
+                "I cannot write this episode's settings without the captured "
+                "article they describe, and I could not find it. Nothing has "
+                "been written.\n"
+                "The capture is made when the script is written; it is not there.\n"
+                "Retrying will not fix this until the capture is in place.")
+        capture = caps[0]
+
+        # THE SAME TWO REFERENCES E26 WILL JUDGE IT AGAINST — asked of E26's own
+        # resolver, so the brief cannot point at one pair while the gate uses
+        # another. Showing real files beats describing a schema.
+        refs = []
+        for n in range(int(ep["ep_number"]) - 1, 0, -1):
+            if len(refs) == 2:
+                break
+            try:
+                p = pj.ep_dir(n) / "docs/episode.json"
+                if p.is_file():
+                    refs.append(p)
+            except Exception:                                  # noqa: BLE001
+                continue
+
+        docs = REPO_DIR / "docs"
+        prompt = (
+            "You are writing episode.json for a Practical Punting episode — the "
+            "settings file the whole build reads: the beats, the motion cards, "
+            "the b-roll, the cover and thumbnail wording and the e-book "
+            "declarations. You are running inside this episode's folder.\n\n"
+            "READ FIRST. These are ABSOLUTE paths outside this folder — do not "
+            "look for them relative to where you are, and note that this episode "
+            "has a docs/ folder of its own that is a DIFFERENT place:\n"
+            f"  - {capture} — THE ARTICLE. Every figure you put on a card must be "
+            "traceable to a sentence between its ARTICLE TEXT markers.\n"
+            f"  - {docs / 'PP-EPISODE-JSON-SPEC.md'} — the file's own contract\n"
+            f"  - {docs / 'PP-STANDARDS.md'} — the house rules, §0a and the cards\n"
+            + "".join(f"  - {p} — a REAL, SHIPPED example. This episode will be "
+                      f"judged for missing keys and changed types against this "
+                      f"file.\n" for p in refs)
+            + "Then, relative to this episode folder:\n"
+            "  - docs/spoken-words.txt — THE APPROVED SCRIPT. The beats ARE its "
+            "paragraphs, in order, and every card cue must be a literal substring "
+            "of it.\n\n"
+            f"WRITE the settings to docs/episode.json\n\n"
+            + _card_vocabulary_note() +
+            "TRACE OR IT DOES NOT SHIP. Any value carrying a figure needs a "
+            "trace{} entry quoting the SOURCE SENTENCE verbatim from the article, "
+            "and the figure must actually appear in that sentence. A card once "
+            "showed placings inferred from the order four horses were listed in; "
+            "every automated check passed and it shipped. trace{} is what stops "
+            "that.\n\n"
+            "DO NOT INVENT. Never add a fact the article does not state, never "
+            "correct one it does, and never round or tidy a figure. If something "
+            "looks wrong it stands, and you say so in what_i_saw.\n\n"
+            "Then return the verdict object. If anything you needed would not "
+            "open or could not be read, list it in unread_sources and set status "
+            "to halt — never write around a source you could not read. Keep "
+            "what_i_saw in plain English for someone who has never seen this "
+            "code: no file names, no paths, no code."
+        )
+        verdict = com.commission(
+            prompt=prompt,
+            place=d,
+            what="this episode's settings and cards",
+            find_artefact=find,
+            add_dirs=[REPO_DIR / "docs", capture.parent]
+                     + [p.parent for p in refs],
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            # ⏱ 1800s, NOT THE 900 THE OTHER TWO USE — and the number is measured.
+            # The first scratch run TIMED OUT at 900s. It had not stalled: it wrote
+            # a complete 67 KB file at about EIGHTEEN MINUTES, so the ceiling cut
+            # off a job that was working. This artefact is an order of magnitude
+            # bigger than the other two — 27 beats, 16 cards each with content and
+            # trace, 7 b-roll prompts, cover and thumbnail wording — and 900s was
+            # a number carried over from a 2 KB one.
+            # ⚠️ 1800 IS A BOUND WITH MARGIN, NOT A MEASUREMENT OF THE TYPICAL
+            # CASE. One observation sets a floor, not a distribution. If a second
+            # run lands near it, raise it on that evidence rather than on nerves.
+            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "1800")),
+            model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
+        )
+        return verdict
 
     # ---- the SECOND call site: the e-book article body ----------------------
     #

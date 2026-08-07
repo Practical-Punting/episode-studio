@@ -446,6 +446,35 @@ def step_audit_inputs(ctx):
     # against the last two episodes that built cleanly — TWO references, never one,
     # because a rule inferred from a single sample was wrong on all three axes when it
     # was tried. Blocks on what will certainly cost a halt; merely NAMES the rest.
+    # ═══ COMMISSION THE SETTINGS RATHER THAN DEMAND THEM ═════════════════════
+    # This is the halt Jodie met three minutes after approving EP17's words:
+    # "Create-inputs are missing… Claude Code writes these at the create step."
+    # A flag that names its own author and then asks a human to fetch him.
+    #
+    # 🔴 THE FOURTH GATE NEEDS NO NEW CODE, AND THAT IS THE POINT OF PUTTING IT
+    # HERE. Immediately below, _preflight_config (E26) and _preflight_cards run
+    # against whatever is on disk and HALT on anything they do not like. Placing
+    # the commission just above them means the file a writer produced is judged
+    # by exactly the same mutation-proved checks a hand-written one is — not by a
+    # copy of them, and not by the writer's own report that it checked.
+    #
+    # ⚠️ `dir()` IS REAL-PROVIDER-ONLY — MockProvider has no such method, so the
+    # lookup stays INSIDE the real-path guard. Computing it above the `if` cost a
+    # red suite the moment it was written: test_step_call_sites drove the real
+    # dispatch and got AttributeError, which is the same shape as the NameError
+    # that killed EP15 and exactly what that suite exists to catch.
+    if not ctx.mock and ctx.ep.get("ep_number"):
+        d = ctx.provider.dir(ctx.ep)
+        if (not (d / "docs/episode.json").is_file()
+                and (d / "docs/spoken-words.txt").is_file()):
+            import commission as com
+            try:
+                ctx.provider._commission_episode_json(ctx.ep, d)
+            except com.CommissionHalt as h:
+                if h.detail:
+                    log(f"   (commission detail, for the log: {com._safe(h.detail)})")
+                raise EngineFlag(h.message)
+
     for line in _preflight_config(ctx):
         log(f"   {line}")
     # JOB A — THE CARD PIPELINE'S CHECKS, MOVED HERE FROM cards_render/shot_map.
