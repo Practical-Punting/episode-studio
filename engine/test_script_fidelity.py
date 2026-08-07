@@ -239,6 +239,35 @@ def main():                                                            # noqa: C
           F.check("he was second", UNITS_CAP) == [],
           str(F.check("he was second", UNITS_CAP)))
 
+    print("\n-- 🔴 A SLASH IS ODDS *AND* A FRACTION (EP18, 7 Aug 2026) --")
+    # THE FAULT: EP18's first live draft was FAITHFUL and the gate blocked it. The
+    # article says "an average dividend of $2.80 (about 7/4)"; the writer wrote
+    # "about seven to four", which is how a price is said. The slash rule only
+    # knew the FRACTION meaning (EP16's 1/9 = "one ninth"), so it produced "seven
+    # quarters" and "seven in four" and matched neither.
+    #     THE DRAFT WAS MORE CORRECT THAN THE CHECKER.
+    SLASH_CAP = ("x\n---- ARTICLE TEXT BEGINS ----\n"
+                 "An average dividend of $2.80 (about 7/4). The probability is "
+                 "1/9, and three times that is 1/3.\n---- ARTICLE TEXT ENDS ----\n")
+    for phrase, why in [
+            ("seven to four", "7/4 read as ODDS — the EP18 case"),
+            ("one ninth", "1/9 still reads as a FRACTION"),
+            ("one in nine", "and in its other spoken form"),
+            ("one third", "1/3 as a fraction"),
+            ("one to nine", "a slash may also be said as odds")]:
+        check(f"  {why}: {phrase!r}",
+              F.check(f"It was {phrase}.", SLASH_CAP) == [],
+              str(F.check(f"It was {phrase}.", SLASH_CAP)))
+
+    print("\n-- and the WIDENING did not make it go soft --")
+    # A gate that goes quiet is worse than one that false-alarms. Adding a reading
+    # to what the ARTICLE may be said as must not admit a price it never states.
+    for phrase in ("eleven to four", "seven to five", "nine to two",
+                   "two ninths", "eight to four"):
+        check(f"  a price the article never states is still caught: {phrase!r}",
+              len(F.check(f"It was {phrase}.", SLASH_CAP)) == 1,
+              str(F.check(f"It was {phrase}.", SLASH_CAP)))
+
     print("\n-- 🔴 BOTH HALVES, ACROSS EVERY SHIPPED EPISODE --")
     # "Zero false alarms" alone proves nothing: a gate that passes everything
     # scores zero too. Each script is ALSO planted with a racing price its own

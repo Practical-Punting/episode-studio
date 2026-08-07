@@ -121,6 +121,29 @@ def _frac_in(m) -> str:
     return f"{int_words(int(m.group(1)))} in {int_words(int(m.group(2)))}"
 
 
+def _frac_odds(m) -> str:
+    """`7/4` READ AS ODDS — "seven to four".
+
+    ══ EP18, 7 Aug 2026 ═══════════════════════════════════════════════════════
+    A SLASH MEANS TWO THINGS IN RACING AND THE NOTATION CANNOT TELL YOU WHICH.
+      · EP16's `1/9` is a genuine FRACTION — a probability, spoken "one ninth"
+        or "one in nine". That is what the slash rule was built for.
+      · EP18's `7/4` is ODDS — "an average dividend of $2.80 (about 7/4)",
+        spoken "seven to four", exactly as the hyphen form `7-4` would be.
+
+    The gate blocked EP18's first live draft on "seven to four" — a faithful
+    reading of the article's own words. **The draft was more correct than the
+    checker.** This is the same family as the existing hyphen-odds rule; the
+    slash simply had only half its meanings.
+
+    🔒 ADDED AS AN EXTRA READING, NEVER A REPLACEMENT. `_frac_named` and
+    `_frac_in` are untouched, so a script that reads `a/b` as a FRACTION still
+    passes exactly as before. Widening what the ARTICLE may be read as cannot
+    narrow anything — and the planted-fabrication tests prove it did not go soft.
+    """
+    return f"{int_words(int(m.group(1)))} to {int_words(int(m.group(2)))}"
+
+
 # ── ORDINALS ────────────────────────────────────────────────────────────────
 # Articles write `2nd`, `3rd`, `4th`; scripts say "second", "the third". And a
 # DATE written `September 23` is spoken "the twenty third of September" — the
@@ -240,10 +263,14 @@ def haystacks(capture_text: str) -> list[list[str]]:
         hundred and eighty-eight" as a cardinal. BOTH are kept, which is why the
         year pass is a variant and not a rewrite: if a four-digit number is not
         a year at all, its cardinal reading is still there to match.
+      · `a/b` reads as a FRACTION ("one ninth", "one in nine") AND as ODDS
+        ("seven to four"). The notation cannot tell you which it is — EP16's
+        `1/9` is a probability and EP18's `7/4` is a price — so all three are
+        offered and the script may legitimately say any of them.
     """
     src = source_text(capture_text)
     out = []
-    for frac in (_frac_named, _frac_in):
+    for frac in (_frac_named, _frac_in, _frac_odds):
         for pairs in (False, True):
             for odates in (False, True):
                 s = fold(src, frac, pairs=pairs, ordinal_dates=odates)
