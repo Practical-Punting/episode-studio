@@ -97,7 +97,8 @@ import preflight_episode_json                  # E26 — the config pre-flight (
                                                # because engine.py imports NAMES from
                                                # providers and that is what bit EP15)
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
-                       assert_standing_assets, pasteable_description)
+                       assert_standing_assets, pasteable_description,
+                       assert_capture_for_script)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -1253,6 +1254,89 @@ def _code_changed_exit(ctx, when: str) -> None:
     raise SystemExit(0)
 
 
+def _draft_watch(provider):
+    """THE PRE-CLAIM DRAFTING PASS — the engine writes the script it is waiting for.
+
+    docs/DESIGN-the-pre-claim-drafting-pass.md, Shape A'. For a QUEUED episode with
+    an empty script box and its article already captured: commission the script,
+    seat it, stop. A human still reads it and still approves it.
+
+    🔴 I1 — IT NEVER CLAIMS, NEVER SETS A STATUS, NEVER TOUCHES claim_next.
+    The Script Gate's filter is not relaxed, not duplicated and not read. The
+    invariant that survives because of this: NO STEP IN `PHASES` RUNS BEFORE THE
+    GATE — `PHASES` is reachable only through claim_next, and this is not a step.
+
+    WHY IT LIVES HERE. `_stage8_watch()` below already iterates the board and
+    writes to episodes it has never claimed, from this exact branch, in this exact
+    process. Pre-claim work is an existing pattern here, not a new one. And
+    `_why_idle()` already prints "waiting on the Script Gate — PP-EP18: ..." every
+    five minutes: this turns that sentence into an action.
+
+    🔴 A19 — EVERY STOP THIS PASS PRODUCES IS THE STUDIO'S, NOT THE OPERATOR'S.
+    A missing capture, an unreachable writer, a halt: Jodie can act on none of
+    them, so none of them flags her queue. They go to the run log and the episode
+    is left exactly as it was — still queued, still waiting on the gate, with
+    `_why_idle` still saying so in the words it already uses.
+
+    ⚠️ NAMED LIMITATION: a commission takes minutes and this blocks the idle loop
+    for that long, so an episode approved mid-draft waits to be claimed. That is
+    the cost of not building a second engine, it is measured on EP18, and Shape B
+    is the fallback if it bites (design section 7).
+    """
+    if os.environ.get("ENGINE_COMMISSION", "1") == "0":
+        return
+    import commission as com
+    try:
+        for ep in rail.list_queued():
+            nn = ep.get("ep_number")
+            if not nn or ep.get("needs_look"):
+                continue
+            # THE BOX MUST BE EMPTY. Checked here to avoid commissioning something
+            # that could never be seated — but this is NOT the guard. The guard is
+            # rail.seat_script_if_empty()'s conditional write, because a human can
+            # type in the minutes between this line and the seat (I2).
+            if (ep.get("script_snapshot") or "").strip():
+                continue
+            # An episode with a Doc keeps its transport (A5: a Doc still wins
+            # wherever one exists). EP01-EP16 are not drafted into.
+            if (ep.get("script_doc_url") or "").strip():
+                continue
+            try:
+                assert_capture_for_script(provider.pp, nn)
+            except EngineFlag as f:
+                log(f"drafting pass: PP-EP{int(nn):02d} — {f}")     # RUN LOG ONLY
+                continue
+
+            d = provider.dir(ep)
+            log(f"drafting pass: PP-EP{int(nn):02d} has no script and its article "
+                f"is captured — commissioning one")
+            try:
+                verdict = provider._commission_script(ep, d)
+            except com.CommissionHalt as h:
+                if h.detail:
+                    log(f"   (commission detail, for the log: {com._safe(h.detail)})")
+                log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {h.message}")
+                continue
+            except EngineFlag as f:
+                log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {f}")
+                continue
+
+            text = Path(verdict["_path"]).read_text(encoding="utf-8").strip()
+            # 🔴 THE ONLY WAY THESE WORDS REACH THE RAIL. Never set_fields, never an
+            # unconditional PATCH: the check and the set are one statement, so a
+            # human who started typing while the writer was working keeps every
+            # character (I2).
+            row = rail.seat_script_if_empty(ep["id"], text)
+            if row:
+                log(f"   seated {len(text.split())} words into PP-EP{int(nn):02d}'s "
+                    "script box — it is waiting for a person to read and approve it")
+            else:
+                log(f"   PP-EP{int(nn):02d}'s script box was filled while the writer "
+                    "was working — the draft was NOT used, and nothing was overwritten")
+    except Exception as e:                                            # noqa: BLE001
+        log(f"drafting pass skipped ({e})")
+
+
 def _stage8_watch():
     """Stage-8 rename watchdog (EP10 lesson, 25 Jul 2026): a PUBLISHED episode
     whose local folder still carries the bare PP-EP<NN> name missed its
@@ -1284,6 +1368,7 @@ def cmd_run(mock, watch):
     idle_poll = 3 if mock else 30
     _s8_last = 0.0
     _gate_last = 0.0
+    _draft_last = 0.0
     while True:
         changed = _code_changed()
         if changed:
@@ -1309,6 +1394,13 @@ def cmd_run(mock, watch):
                 if not mock and time.time() - _s8_last > 600:
                     _stage8_watch()
                     _s8_last = time.time()
+                # THE DRAFTING PASS — same branch, same process, same guards. It
+                # runs ONLY when nothing was claimable, so it can never delay work
+                # the engine could otherwise be doing; and on a long interval,
+                # because it is the one thing here that can block for minutes.
+                if not mock and time.time() - _draft_last > 900:
+                    _draft_watch(provider)
+                    _draft_last = time.time()
                 time.sleep(idle_poll)
                 continue
         except rail.RailUnavailable as e:

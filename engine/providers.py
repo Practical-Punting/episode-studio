@@ -2554,6 +2554,121 @@ class RealProvider:
         )
         return verdict
 
+    # ---- the FOURTH call site: THE SCRIPT ITSELF ----------------------------
+    #
+    # THE LAST HAND-OFF. The other three call sites fill halts INSIDE a build; this
+    # one runs BEFORE the engine can even claim the episode, because claim_next
+    # refuses anything without `script_read` — and "I've read the script"
+    # presupposes a script exists. See docs/DESIGN-the-pre-claim-drafting-pass.md.
+    #
+    # 🔴 THE ARTEFACT IS A FILE; THE HOME IS THE RAIL. The writer writes
+    # docs/spoken-words.txt — the same derived cache `_script_from_rail` rebuilds
+    # every build — so commission()'s existence-and-freshness check works unchanged.
+    # The caller then seats those words with rail.seat_script_if_empty(), which is
+    # the only way they ever reach script_snapshot.
+    #
+    # ⚖️ AND WHAT DOES NOT CHANGE: Jodie still reads it and still ticks "I've read
+    # the script". The machine drafts; she stays the judge. Automation eats chores,
+    # never decisions (A12).
+    def _commission_script(self, ep, d: Path):
+        import commission as com
+
+        nn = int(ep["ep_number"])
+        capture = assert_capture_for_script(self.pp, nn)      # piece 2's precondition
+        spoken = d / "docs/spoken-words.txt"
+
+        def find():
+            return spoken if spoken.is_file() else None
+
+        # The episode folder may not exist yet — this runs before the build ever
+        # touches it. Making it is not a decision, it is where the work goes.
+        spoken.parent.mkdir(parents=True, exist_ok=True)
+
+        # 🔴 EVERY SOURCE BY ABSOLUTE PATH, AND NEVER BY SKILL DISCOVERY.
+        # Claude Code finds project skills from the directory the session STARTED
+        # in. A commission starts in the EPISODE folder, so walking up finds
+        # `G:\My Drive\PP Videos\.claude\skills\` — one signpost, and nothing for
+        # pp-episode-script. Commit c7f4e77 records what that costs: a script
+        # written without the v1.2 fidelity tightening, "silently absent".
+        # A relative `docs/…` is the same trap wearing different clothes: it
+        # resolves against the episode folder, which has its own docs/.
+        skills = REPO_DIR / ".claude/skills"
+        docs = REPO_DIR / "docs"
+        prompt = (
+            "You are writing the SPOKEN SCRIPT for a Practical Punting episode — "
+            "the words Gordon says to camera, and nothing else. You are running "
+            "inside this episode's folder.\n\n"
+            "READ FIRST, all of them, and follow them exactly. These are ABSOLUTE "
+            "paths outside this folder — do not look for them relative to where "
+            "you are, and note that this episode has a docs/ folder of its own "
+            "that is a DIFFERENT place:\n"
+            f"  - {capture} — THE ARTICLE. This is what the episode is made of.\n"
+            f"  - {skills / 'pp-episode-script/SKILL.md'} — the craft: the golden "
+            "rule (0), who is talking (2), the process (3), and 4A-4K.\n"
+            f"  - {skills / 'pp-my-audience-avatar/SKILL.md'} — WHO YOU ARE "
+            "WRITING TO. One person, called Dave. Never 'punters in general'.\n"
+            f"  - {docs / 'PP-STANDARDS.md'} — the governing standard. If it and "
+            "anything else disagree, this wins.\n"
+            f"  - {docs / 'midroll-line-pool.md'} — the midroll invitation is "
+            "TAKEN from this pool, verbatim. You do not write it.\n"
+            f"  - {docs / 'PP-operator-box-rule.md'} — how to word what_i_saw.\n\n"
+            f"This is episode {nn}.\n\n"
+            f"WRITE the spoken track to docs/spoken-words.txt\n\n"
+            # ── THE RULE ABOVE ALL ────────────────────────────────────────────
+            "======== THE RULE ABOVE ALL, AND IT OVERRIDES YOUR INSTINCTS ========\n"
+            "THE ONLY ORIGINAL PROSE IN THE WHOLE SCRIPT IS: the opening framing "
+            "line, the short transitions between beats, the midroll invitation, "
+            "and the outro wind-down.\n"
+            "EVERYTHING ELSE IS THE ARTICLE'S OWN SENTENCES. Lift them across, "
+            "lightly tidied for the ear. Keep the author's actual phrasing wherever "
+            "it will play aloud; reword only where the original genuinely will not "
+            "lift to the spoken ear, and then as little as possible.\n"
+            "A SCRIPT THAT PARAPHRASES THE ARTICLE'S BODY HAS FAILED, HOWEVER GOOD "
+            "IT SOUNDS. A heavy rewrite is new, unapproved content and it drifts in "
+            "meaning. Craft — hooks, loops, rhythm, signposting — is applied to how "
+            "you PRESENT and SEQUENCE the article, never by rewriting its "
+            "sentences, inventing facts, or reordering the argument.\n"
+            "When craft pulls against fidelity, FIDELITY WINS.\n"
+            "And never correct the article: not a figure that looks wrong, not a "
+            "date, not a name. If something looks wrong it stands, and you say so "
+            "in what_i_saw.\n\n"
+            # ── the one instruction in the skill that does NOT apply ───────────
+            "======== ONE OVERRIDE TO THE SKILL, RULED BY JODIE ========\n"
+            "The skill's section 3 Step 2 tells you to run the article through a "
+            "'signature concept finder'. DO NOT. There is no such step here.\n"
+            "The hook comes from the AVATAR and the ARTICLE directly: find Dave's "
+            "wound in this article — the thing he has already tried and failed at, "
+            "or the thing he believes that is costing him — and open on it, in his "
+            "own language, then let the article answer it.\n\n"
+            "HOW YOUR WORK WILL BE JUDGED, so you can meet it exactly:\n"
+            "  - NUMBERS AS WORDS. A bare numeral anywhere in the spoken track is a "
+            "hard failure — the voice engine guesses and guesses wrong. Write the "
+            "words you want to hear (section 4B).\n"
+            "  - NO PRODUCTION-NOTES HEADER, no comment lines, no 'paste below this "
+            "line' marker. The file holds what Gordon says out loud and nothing "
+            "else: it is shown to a person as the script, and counted as the script.\n"
+            "  - The midroll line must match the pool VERBATIM.\n"
+            "  - The responsible-gambling line is word-for-word locked.\n\n"
+            "Then return the verdict object. If anything you needed would not open "
+            "or could not be read, list it in unread_sources and set status to halt "
+            "— never write around a source you could not read. Keep what_i_saw in "
+            "plain English for someone who has never seen this code: no file names, "
+            "no paths, no code."
+        )
+        return com.commission(
+            prompt=prompt,
+            place=d,
+            what="this episode's script",
+            find_artefact=find,
+            # The skills tree is added so the writer can READ it. It is still named
+            # by absolute path above — --add-dir grants access, it does not tell
+            # anybody where to look.
+            add_dirs=[REPO_DIR / "docs", skills, capture.parent],
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200")),
+            model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
+        )
+
     # ---- the SECOND call site: the e-book article body ----------------------
     #
     # THE THIRD OF THE THREE PLACES THE MACHINE NEEDS AN AUTHOR (Job Zero). It
