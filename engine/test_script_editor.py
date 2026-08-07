@@ -249,6 +249,45 @@ def main():                                                  # noqa: C901
         check("  and every row carries the words in full, never a diff",
               page.evaluate("window.__INSERTS.every(r => typeof r.script === 'string')"))
 
+        print("\n-- 🔴 APPROVED WORDS ARE FROZEN, AND THERE IS A WAY BACK (5) --")
+        # The lock and its way back are ONE feature. A lock with no way back
+        # strands her on the first typo spotted afterwards, exactly as EP15's
+        # title did.
+        page.evaluate("""
+            const ep = EPISODES.find(e => e.id === 'ep-18');
+            ep.title_approved = true; ep.script_read = true;
+            openScript('ep-18');
+        """)
+        page.wait_for_timeout(300)
+        check("an approved script opens READ-ONLY",
+              page.evaluate("document.getElementById('sc-text').readOnly"))
+        check("  it still shows the words (she can always read what was approved)",
+              len(page.input_value("#sc-text")) > 0)
+        check("  and says plainly that this is what the build is using",
+              not page.is_hidden("#sc-lockmsg"))
+        check("  the revert button is out of the way while locked",
+              page.is_hidden("#sc-revert"))
+        page.evaluate("window.__UPDATES.length = 0;")
+        page.evaluate("document.getElementById('sc-text').value = 'SNEAKED IN';"
+                      "scTyped();")
+        page.wait_for_timeout(3400)
+        check("  a save is refused while locked — nothing reaches the rail",
+              page.evaluate("window.__UPDATES.length === 0"),
+              "the freeze is cosmetic; the words could still be changed")
+
+        check("THE WAY BACK IS RIGHT THERE", not page.is_hidden("#sc-unlock"))
+        page.evaluate("window.confirm = () => true; scUnlock();")
+        page.wait_for_timeout(400)
+        check("  unlocking clears the approval, so she approves again knowingly",
+              page.evaluate("window.__UPDATES.some(u => u.script_read === false)"))
+        check("  and the box is editable again",
+              not page.evaluate("document.getElementById('sc-text').readOnly"))
+        check("  the unlock was RECORDED as a version boundary",
+              page.evaluate("window.__INSERTS.some(r => r.reason === 'before-unlock')"),
+              "an unlock nobody can see afterwards is not a recorded act")
+        check("  and nothing was deleted to do it",
+              page.evaluate("window.__INSERTS.length > 0"))
+
         print("\n-- and nothing threw --")
         check("no page errors", not errs, str(errs[:2]))
         b.close()

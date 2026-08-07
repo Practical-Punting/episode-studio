@@ -121,6 +121,24 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    call count, a code path, a cached read and your memory of what happened are
    all proxies. Ask what a human actually RECEIVES, and check that.
    *A guard that greps for a string can be satisfied by a comment.*
+   > ## 🔴 1a. GREPPING SOURCE IS A PROXY FOR WHAT THE CODE DOES — **AND IT FAILS
+   > ## IN BOTH DIRECTIONS. READ THE SYNTAX TREE, NOT THE TEXT.**
+   > **THIS RULE WAS ALREADY HERE, IN ONE DIRECTION ONLY** — *"can be satisfied by
+   > a comment"*, the false PASS. **The other direction bit three times in a single
+   > day (8 Aug 2026), because nobody had written it down: a check that FIRES ON THE
+   > COMMENT DESCRIBING THE THING IT GUARDS.**
+   > | # | the check | what it hit |
+   > |---|---|---|
+   > | 1 | `_draft_watch` must never call `claim_next` | the DOCSTRING saying it never calls `claim_next` |
+   > | 2 | the brief must name all four seams | *"the opening framing "* + *"line"* — one string split across two literals |
+   > | 3 | `_draft_watch` must never call `set_fields` | the COMMENT saying *"Never `set_fields`"* |
+   > **Each one reported a correct file as broken, and #2 nearly had me "fix" a brief
+   > that was already right.** A guard that fires when somebody DOCUMENTS the thing it
+   > guards is a guard that gets deleted — and the fix is the same every time:
+   > **`ast.walk` the function and collect the CALLS.** Prose cannot trip an AST walk
+   > and a real call cannot hide from one.
+   > ⚠️ **Same for the artefact side: assert the ASSEMBLED string** — the prompt the
+   > writer receives, not the source that concatenates it.
    > ### 🔴 A FILE THAT IS THE RIGHT LENGTH IS NOT THE RIGHT FILE.
    > **Duration is METADATA. Byte count is the truth — and the server gives it to you.**
    > *EP15, 4 Aug 2026:* HeyGen reported **114,395,315 bytes**; **78,947,138** landed.

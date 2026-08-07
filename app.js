@@ -436,6 +436,7 @@ function scCounts(text) {
  * free. Never dropped. */
 async function scSave() {
   if (!SC_EP) return;
+  if (scLocked(SC_EP)) return;          // approved words are frozen, not editable
   const text = $("sc-text").value;
   if (text === SC_LAST_SAVED) return;
   if (SC_INFLIGHT) { SC_PENDING = true; return; }
@@ -487,6 +488,59 @@ async function scVersion(author, reason) {
   } catch (e) { /* history is best-effort; never block her typing on it */ }
 }
 
+/* 🔴 APPROVAL FREEZES THE SCRIPT — and the way back is part of the same feature.
+ *
+ * Edit freely BEFORE approval, unlimited, which is better than the one shot A8
+ * gave her. Press approve and it locks: no concurrent edit while the engine
+ * reads, no "which version is being built", no drift check. That single decision
+ * deletes a whole class of problem.
+ *
+ * ⚠️ A LOCK WITH NO WAY BACK STRANDS HER ON THE FIRST TYPO SPOTTED AFTERWARDS —
+ * exactly as EP15's title did. So "unlock and re-approve" ships WITH the lock,
+ * never after it. It is a recorded, deliberate act: it writes a version boundary
+ * and clears the approval so she approves again with her eyes open. That is her
+ * changing her mind, which is legitimate — not drift, which is the thing the old
+ * check existed to catch.
+ *
+ * 🚫 SCOPED NARROWLY, BY RULING (Jodie, 8 Aug 2026): this is ONLY the way back
+ * from the words/approval lock the editor creates. It is NOT a general
+ * "send it back a stage" control — that touches every card and means something
+ * different at each stage, and it is its own later piece with its own design. */
+function scLocked(ep) {
+  return !!(ep && ep.title_approved && ep.script_read);
+}
+
+async function scUnlock() {
+  if (!SC_EP) return;
+  if (!confirm("Unlock the script so you can edit it again?\n\n"
+    + "This clears your approval — you'll be asked to approve the words once "
+    + "more when you're happy. Nothing is deleted.")) return;
+  await scVersion("approve", "before-unlock");
+  try {
+    await db.from("episodes").update({
+      script_read: false,
+      updated_at: new Date().toISOString(),
+    }).eq("id", SC_EP.id);
+    SC_EP.script_read = false;
+    scApplyLock();
+  } catch (e) {
+    scState("failed");
+  }
+}
+
+/* The lock is applied to the SURFACE, not enforced by hiding a button — a
+ * readonly textarea still shows the words, still scrolls, still copies. She can
+ * always READ what was approved. */
+function scApplyLock() {
+  const locked = scLocked(SC_EP);
+  const ta = $("sc-text");
+  ta.readOnly = locked;
+  $("sc-revert").hidden = locked;
+  $("sc-unlock").hidden = !locked;
+  $("sc-lockmsg").hidden = !locked;
+  ta.classList.toggle("sc-readonly", locked);
+}
+
 async function openScript(id) {
   const ep = (EPISODES || []).find((e) => e.id === id);
   if (!ep) return;
@@ -500,6 +554,7 @@ async function openScript(id) {
   $("sc-text").value = text;
   scCounts(text);
   scState("");
+  scApplyLock();
   $("board").hidden = true;
   $("script").hidden = false;
   $("sc-text").focus();
@@ -575,6 +630,7 @@ $("refresh").addEventListener("click", () => loadAll());
 // the point of the panel living out here.
 $("sc-close").addEventListener("click", () => closeScript());
 $("sc-revert").addEventListener("click", () => scRevert());
+$("sc-unlock").addEventListener("click", () => scUnlock());
 $("sc-text").addEventListener("input", scTyped);
 
 /* WARN BEFORE LEAVING WITH ANYTHING UNSAVED. The debounce means there is always

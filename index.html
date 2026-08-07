@@ -99,7 +99,13 @@
     </div>
     <div class="sc-foot">
       <span id="sc-counts"></span>
+      <span class="sc-lockmsg" id="sc-lockmsg" hidden>These words are approved and
+        frozen &mdash; that is what the build is using.</span>
       <button class="mini" id="sc-revert">Back to what Claude Code wrote</button>
+      <!-- The way back from the lock. It ships WITH the lock, never after it:
+           a lock with no way back strands her on the first typo spotted
+           afterwards, exactly as EP15's title did. -->
+      <button class="mini" id="sc-unlock" hidden>Unlock and re-approve</button>
     </div>
   </main>
 

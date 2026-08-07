@@ -311,6 +311,33 @@ def step_script_sync(ctx):
     never quietly fall back to the stale local draft."""
     assert_script_gate(ctx.ep)                      # no override, ever
     text, sha, source = ctx.provider.fetch_script(ctx.ep)
+
+    # 🔴 ONCE A HUMAN HAS EDITED, THE HUMAN'S VERSION IS THE TRUTH.
+    #
+    # The script is the only artefact with TWO AUTHORS, and without a rule a
+    # re-read silently overwrites her edits — the exact class of fault as board
+    # bug 1, just slower and with no undo at all. `script_edited_by_human_at` is
+    # set on her FIRST save in the board editor; from that moment the engine may
+    # READ freely and must never WRITE over her.
+    #     Reading is always safe. Writing over a person is not.
+    #
+    # ⚠️ IT COMPARES THE WORDS, NOT JUST THE FLAG. On the rail path this step
+    # re-reads what she wrote and writes the same string back, which is a no-op
+    # and must not halt a build. What must halt is the case where the incoming
+    # text DIFFERS from hers — a Doc still holding the pre-edit version, or any
+    # future path that regenerates the script. Flagging on the flag alone would
+    # stop every episode she has ever touched, which is the version somebody
+    # switches off.
+    if ctx.ep.get("script_edited_by_human_at") and text != (ctx.ep.get("script_snapshot") or ""):
+        raise EngineFlag(
+            "The script for this episode was edited on the board, and the words "
+            "the studio was about to build from are different ones. Nothing has "
+            "been changed and nothing has been built.\n"
+            "Your version is the one being kept. The studio will not write over "
+            "words a person has edited — it stops and asks instead.\n"
+            "Open the script, check it reads the way you want, and approve it "
+            "again. If it is already right, clearing this is all that is needed.")
+
     words = len(text.split())
     ctx.ep_set({
         "script_snapshot": text,                    # exactly what gets rendered
