@@ -239,6 +239,71 @@ def set_fields(id, fields):
     return rows[0] if rows else None
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔴 I2 — THE SCRIPT IS SEATED ONLY INTO AN EMPTY BOX. IT IS NEVER OVERWRITTEN.
+#
+# `script_snapshot` is the script's home (ruling A5). TWO writers are about to
+# share it: the board's script textarea (A17, owed before EP18) and the machine's
+# drafting pass (docs/DESIGN-the-pre-claim-drafting-pass.md).
+#
+#     THIS GUARD PROTECTS THE HUMAN FROM THE MACHINE. NEVER THE REVERSE.
+#
+# Jodie overwriting a machine draft is her call and always was — she is the editor.
+# A machine landing 1,500 words on top of a sentence she is halfway through typing
+# is EP16's corrupted script_doc_url with the whole script at stake: an insertion
+# at offset 17, a paste arriving where the caret used to be.
+#
+# ⚠️ AND THE RACE IS REAL, NOT THEORETICAL, BECAUSE THE WRITER TAKES MINUTES.
+# The measured episode.json commission ran 783 SECONDS. Reading "is it empty?" when
+# a drafting pass STARTS and writing when it FINISHES leaves a window THIRTEEN
+# MINUTES WIDE for a human to type into. A read-then-write in Python does not
+# narrow that window, it merely moves it — the check and the set are two round
+# trips and anything can happen between them.
+#
+#     SO THE CHECK IS NOT IN PYTHON. IT IS IN THE URL, AND THE DATABASE
+#     EVALUATES IT AS PART OF THE UPDATE ITSELF.
+#
+# One statement: UPDATE ... WHERE id = ? AND (snapshot IS NULL OR snapshot = '').
+# There is no "between check and set" to slip into, because there is no between.
+# This is the SAME shape claim_next already uses to win its race (filters in the
+# query string, one writer gets a row back, the loser gets nothing) — the same
+# file, the same mechanism, nothing new to learn or to get subtly wrong.
+#
+# 🚫 WHY NOT A DATABASE TRIGGER, WHICH WOULD BE STRONGER STILL: migration 005's
+# trigger is the right shape for the web-address columns because NOBODY should
+# write a bad value there. Here the human SHOULD be able to overwrite. A trigger
+# cannot tell the board apart from the engine, so it would block Jodie's own edit
+# — enforcing the rule by breaking the thing the rule exists to protect.
+#
+# 📏 MEASURED, NOT ASSUMED (read-only probe, 7 Aug 2026): PostgREST parses
+# `or=(script_snapshot.is.null,script_snapshot.eq.)` and it selects exactly the
+# five NULL rows (EP06-EP10); the other seven carry 5,765-14,176 characters.
+#
+# ⚠️ WHITESPACE-ONLY COUNTS AS OCCUPIED, ON PURPOSE. A box holding " " refuses the
+# machine's draft. That is the safe direction — the failure is "the studio wrote
+# nothing", never "the studio wrote over somebody" — and it is stated here because
+# it is a decision, not an oversight.
+def seat_script_if_empty(id, text):
+    """Seat a script into `script_snapshot` ONLY if the field is empty.
+
+    Returns the updated ticket if the words landed, or None if they did not.
+
+    None means EITHER the box already held text OR there is no such episode. The
+    caller re-reads to say which — a read is safe; it is the WRITE that had to be
+    conditional. (claim_next carries the same ambiguity for the same reason.)
+    """
+    if not str(text or "").strip():
+        # Seating an empty script would leave the field "empty" by this very
+        # function's definition, so the next pass would try again forever.
+        raise ValueError("refusing to seat an empty script into script_snapshot")
+    rows = _request(
+        "PATCH",
+        f"?id=eq.{_q(id)}&or=(script_snapshot.is.null,script_snapshot.eq.)",
+        {"script_snapshot": text, "updated_at": _now()},
+        write=True)
+    return rows[0] if rows else None
+
+
 def insert(fields):
     """Create a ticket (admin/testing). Returns the new ticket."""
     rows = _request("POST", "", fields, write=True)
