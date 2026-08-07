@@ -2391,11 +2391,7 @@ class RealProvider:
             "title is derived, not chosen.\n"
             "Leave the e-book link as the placeholder the kit specifies — a human "
             "pastes the real one at upload.\n\n"
-            "Then return the verdict object. If anything you needed would not "
-            "open or could not be read, list it in unread_sources and set status "
-            "to halt — never write around a source you could not read. Keep "
-            "what_i_saw in plain English for someone who has never seen this "
-            "code: no file names, no paths, no code."
+            + com.verdict_instructions()
         )
         return com.commission(
             prompt=prompt,
@@ -2500,11 +2496,7 @@ class RealProvider:
             "DO NOT INVENT. Never add a fact the article does not state, never "
             "correct one it does, and never round or tidy a figure. If something "
             "looks wrong it stands, and you say so in what_i_saw.\n\n"
-            "Then return the verdict object. If anything you needed would not "
-            "open or could not be read, list it in unread_sources and set status "
-            "to halt — never write around a source you could not read. Keep "
-            "what_i_saw in plain English for someone who has never seen this "
-            "code: no file names, no paths, no code."
+            + com.verdict_instructions()
         )
         if followup:
             # 🔴 FIX IN PLACE, DO NOT START AGAIN. A writer told only "this was
@@ -2649,11 +2641,7 @@ class RealProvider:
             "else: it is shown to a person as the script, and counted as the script.\n"
             "  - The midroll line must match the pool VERBATIM.\n"
             "  - The responsible-gambling line is word-for-word locked.\n\n"
-            "Then return the verdict object. If anything you needed would not open "
-            "or could not be read, list it in unread_sources and set status to halt "
-            "— never write around a source you could not read. Keep what_i_saw in "
-            "plain English for someone who has never seen this code: no file names, "
-            "no paths, no code."
+            + com.verdict_instructions()
         )
         return com.commission(
             prompt=prompt,
@@ -2743,11 +2731,7 @@ class RealProvider:
             "names the word. Anything you do not reproduce must be quoted "
             "verbatim in episode.json -> ebook.omit_paragraphs; there is no way "
             "to drop a paragraph silently.\n\n"
-            "Then return the verdict object. If anything you needed would not "
-            "open or could not be read, list it in unread_sources and set status "
-            "to halt — never write around a source you could not read. Keep "
-            "what_i_saw in plain English for someone who has never seen this "
-            "code: no file names, no paths, no code."
+            + com.verdict_instructions()
         )
         verdict = com.commission(
             prompt=prompt,

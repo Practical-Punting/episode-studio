@@ -170,6 +170,59 @@ def main():
         e = halts(lambda o=out, r=rc: run_commission(tmp, o, returncode=r))
         check(f"{label} -> halt", e is not None)
 
+    # NOTE: this file prints ASCII only. It does not reconfigure stdout, and this
+    # machine's console is cp1252 — an emoji in a header here raises
+    # UnicodeEncodeError and takes the whole suite down. That is _safe()'s lesson
+    # arriving in the suite that tests _safe().
+    print("\n-- THE SUCCESS PATH NEEDS ONLY THE THREE THAT MEAN SOMETHING --")
+    # WHAT THIS STANDS AGAINST, MEASURED ON TWO LIVE RUNS, 7 Aug 2026: requiring
+    # all five KILLED TWO COMPLETE, GATE-PASSING SCRIPTS. Both wrote the artefact
+    # and then died arguing with the validator over what_it_could_be and
+    # does_retry_help — the two fields _verdict_or_halt never reads when status is
+    # "ok". The schema was demanding, on pain of throwing away twenty minutes of
+    # good work, two things nothing would have looked at.
+    art.write_text("PP-EP99 ...\n", encoding="utf-8")
+    ok_minimal = json.dumps({"status": "ok", "what_i_saw": "Wrote it.",
+                             "unread_sources": []})
+    v = run_commission(tmp, envelope(ok_minimal))
+    check("an ok verdict with status + what_i_saw + unread_sources is ACCEPTED",
+          v.get("status") == "ok")
+    check("  what_it_could_be is not required on the success path",
+          "what_it_could_be" not in C.VERDICT_SCHEMA["required"])
+    check("  does_retry_help is not required on the success path",
+          "does_retry_help" not in C.VERDICT_SCHEMA["required"])
+
+    print("\n-- BUT THE GUARANTEE THE DESIGN RESTS ON DID NOT MOVE --")
+    check("unread_sources is STILL required", "unread_sources" in C.VERDICT_SCHEMA["required"])
+    check("  status is STILL required", "status" in C.VERDICT_SCHEMA["required"])
+    e = halts(lambda: run_commission(
+        tmp, envelope(json.dumps({"status": "ok", "what_i_saw": "x"}))))
+    check("  an ok verdict with NO unread_sources is still a halt", e is not None)
+    e = halts(lambda: run_commission(tmp, envelope(json.dumps(
+        {"status": "ok", "what_i_saw": "x", "unread_sources": ["a scan"]}))))
+    check("  and ok WITH unread_sources is still refused", e is not None)
+
+    print("\n-- A HALT MUST STILL BE SHAPED LIKE A HALT (fault #6's template) --")
+    # Moved from the schema to _verdict_or_halt: the ACCEPT side, at the only
+    # moment these two are ever read or shown to a person.
+    for missing in C.HALT_REQUIRED:
+        body = {"status": "halt", "what_i_saw": "It would not open.",
+                "unread_sources": ["a table"], "what_it_could_be": ["a scan"],
+                "does_retry_help": False}
+        body.pop(missing)
+        e = halts(lambda b=body: run_commission(tmp, envelope(json.dumps(b))))
+        check(f"  a halt missing {missing!r} is refused", e is not None)
+        check(f"    and the reason reaches the run log, not the operator",
+              e is not None and missing in (e.detail or "")
+              and missing not in e.message)
+    full = json.dumps({"status": "halt", "what_i_saw": "A table would not open.",
+                       "unread_sources": ["a table"],
+                       "what_it_could_be": ["it may be a picture"],
+                       "does_retry_help": False})
+    e = halts(lambda: run_commission(tmp, envelope(full)))
+    check("  a properly shaped halt is relayed with the writer's own words",
+          e is not None and "A table would not open." in e.message)
+
     print("\n-- a timeout says so, and says nothing was saved --")
     # The wallet probe must SUCCEED here, or this tests the wallet refusal
     # instead of the timeout. (It did, on the first run — the fake timed out

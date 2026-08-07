@@ -154,6 +154,10 @@ def _calls_made(path: Path, func: str) -> set[str]:
     return out
 
 
+def psrc_count(path: Path, needle: str) -> int:
+    return path.read_text(encoding="utf-8").count(needle)
+
+
 def real_brief() -> str:
     """THE BRIEF AS THE WRITER RECEIVES IT — assembled, not read off the source.
 
@@ -306,6 +310,82 @@ def main():                                                            # noqa: C
     check("Bash is not in the commission's tools", "Bash" not in C.DEFAULT_TOOLS)
     check("  the brief never asks the writer to check its own work",
           "run the check" not in brief.lower() and "python " not in brief)
+
+    print("\n-- 🔴 THE VERDICT INSTRUCTIONS NAME EVERY REQUIRED FIELD --")
+    # THE FAULT: the first live script commission wrote a complete, gate-passing
+    # script and died returning the verdict. The transcript shows it called
+    # StructuredOutput FIVE times with only `status` and `what_i_saw`; the schema
+    # rejected all five for the same three missing fields. The old brief mentioned
+    # unread_sources only CONDITIONALLY and never named the other two at all.
+    #     THE INSTRUCTIONS AND THE SCHEMA DISAGREED, AND THE WRITER BELIEVED THE
+    #     INSTRUCTIONS.
+    import commission as C2
+    for field in C2.VERDICT_SCHEMA["required"]:
+        check(f"  the brief names {field!r}", field in brief)
+    check("  it says ALL of them are required even when the work went fine",
+          "EVEN WHEN THE WORK WENT PERFECTLY" in brief)
+    check("  it says a missing field throws the whole job away",
+          "thrown away" in brief)
+    check("  and it asks for a SHORT what_i_saw (the essay is what broke it)",
+          "SHORT" in brief)
+    # DERIVED, so a new required field cannot be added without the brief saying so.
+    check("  the field list is derived from the schema, not hand-written",
+          all(f in C2.verdict_instructions() for f in C2.VERDICT_SCHEMA["required"]))
+    src_c = (HERE / "commission.py").read_text(encoding="utf-8")
+    vi = src_c.split("def verdict_instructions")[1].split("\ndef ")[0]
+    check("  verdict_instructions() reads VERDICT_SCHEMA['required']",
+          "VERDICT_SCHEMA['required']" in vi or 'VERDICT_SCHEMA["required"]' in vi)
+    check("  and every OTHER call site uses the same text",
+          psrc_count(HERE / "providers.py", "com.verdict_instructions()") == 4,
+          f"{psrc_count(HERE / 'providers.py', 'com.verdict_instructions()')} call sites")
+
+    print("\n-- 🔴 THE BOUND: A DETERMINISTIC FAULT CANNOT SPEND FOREVER --")
+    pp_b = pp_tree("EP18-source-article-a-real-one.md")
+
+    class Failing(Provider):
+        def _commission_script(self, ep, d):
+            self.commissioned.append(int(ep["ep_number"]))
+            import commission as C3
+            raise C3.CommissionHalt("the writer fell over", detail="deterministic")
+
+    fp = Failing(pp_b)
+    lines_b = []
+    for _ in range(8):                       # eight passes, as a long night would
+        lines_b += run_pass(Rail([episode(18)]), fp)
+    check("it stops after exactly 3 attempts, not 8",
+          len(fp.commissioned) == engine.DRAFT_ATTEMPT_LIMIT,
+          f"{len(fp.commissioned)} commissions")
+    said_b = " ".join(lines_b)
+    check("  and it says plainly it is being left alone",
+          "left alone" in said_b and "Nothing more will be spent" in said_b)
+    check("  it says whose problem it is (A19: the studio's)",
+          "the studio's to look at" in said_b)
+    check("  and how to start it again", ".draft-attempts.json" in said_b)
+
+    print("\n-- the attempt is counted BEFORE the spend, so a crash still counts --")
+    pp_c = pp_tree("EP18-source-article-a-real-one.md")
+
+    class Crashing(Provider):
+        def _commission_script(self, ep, d):
+            self.commissioned.append(int(ep["ep_number"]))
+            raise KeyboardInterrupt("killed mid-commission")
+
+    cp = Crashing(pp_c)
+    for _ in range(5):
+        try:
+            run_pass(Rail([episode(18)]), cp)
+        except KeyboardInterrupt:
+            pass
+    check("a run killed mid-commission still counts against the bound",
+          len(cp.commissioned) == engine.DRAFT_ATTEMPT_LIMIT,
+          f"{len(cp.commissioned)} commissions")
+
+    print("\n-- a seated script clears the ledger --")
+    pp_d = pp_tree("EP18-source-article-a-real-one.md")
+    gp = Provider(pp_d)
+    run_pass(Rail([episode(18)]), gp)
+    check("the ledger is gone after a successful seat",
+          not engine._draft_ledger_path(gp.dir({"ep_number": 18})).exists())
 
     print("\n-- the human gate is untouched --")
     check("claim_next still requires both halves of the Script Gate",

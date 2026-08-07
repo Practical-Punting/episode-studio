@@ -1254,6 +1254,69 @@ def _code_changed_exit(ctx, when: str) -> None:
     raise SystemExit(0)
 
 
+# 🔴 THE BOUND — A PASS THAT RUNS UNATTENDED MUST NOT BE ABLE TO SPEND FOREVER.
+#
+# EARNED ON THE FIRST LIVE RUN, 7 Aug 2026. A commission produced a complete,
+# gate-passing script and returned is_error — so nothing was seated, and the very
+# next pass commissioned another one. In production this loop fires every fifteen
+# minutes, all night, with nobody watching: a deterministic fault would spend
+# Jodie's rate limits indefinitely and the board would show nothing at all.
+#
+# THREE, THE SAME NUMBER AND THE SAME SHAPE AS THE episode.json REPAIR LOOP.
+# Then it stops, says so in the run log, and LEAVES THE EPISODE ALONE.
+#
+# ⚠️ THE LEDGER IS A FILE, NOT THE RAIL, AND THAT IS I1. Recording attempts on the
+# episode row would be a rail write beyond seat_script_if_empty — the one write
+# this pass is allowed. It lives beside the artefact instead, so it survives a
+# restart (an in-memory counter would reset and re-spend, which is the fault it
+# exists to stop) and a human can clear it by deleting one file.
+DRAFT_ATTEMPT_LIMIT = 3
+_DRAFT_LEDGER = "docs/.draft-attempts.json"
+
+
+def _draft_ledger_path(d) -> Path:
+    return Path(d) / _DRAFT_LEDGER
+
+
+def _draft_attempts(d) -> int:
+    """How many times this episode's script has already been commissioned."""
+    try:
+        return int(json.loads(_draft_ledger_path(d).read_text(encoding="utf-8"))
+                   .get("attempts", 0))
+    except Exception:                                                 # noqa: BLE001
+        return 0                       # unreadable or absent == none yet
+
+
+def _record_draft_attempt(d, note: str = "") -> int:
+    """Count an attempt BEFORE it is made.
+
+    ⚠️ BEFORE, NOT AFTER, AND THAT IS THE WHOLE POINT. Counting on the way out
+    means a crash, a kill or a power cut during the commission never increments —
+    and the loop that bound exists to stop is exactly the one where the run does
+    not come back.
+    """
+    p = _draft_ledger_path(d)
+    n = _draft_attempts(d) + 1
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({
+            "attempts": n,
+            "last_at": datetime.now(timezone.utc).isoformat(),
+            "last_note": note,
+        }, indent=2), encoding="utf-8")
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not record the drafting attempt: {e})")
+    return n
+
+
+def _clear_draft_attempts(d) -> None:
+    """A seated script closes the ledger. The next episode starts from zero."""
+    try:
+        _draft_ledger_path(d).unlink(missing_ok=True)
+    except Exception:                                                 # noqa: BLE001
+        pass
+
+
 def _draft_watch(provider):
     """THE PRE-CLAIM DRAFTING PASS — the engine writes the script it is waiting for.
 
@@ -1308,8 +1371,20 @@ def _draft_watch(provider):
                 continue
 
             d = provider.dir(ep)
+            # THE BOUND, CHECKED BEFORE A SINGLE TOKEN IS SPENT.
+            done = _draft_attempts(d)
+            if done >= DRAFT_ATTEMPT_LIMIT:
+                log(f"drafting pass: PP-EP{int(nn):02d} has been attempted "
+                    f"{done} times and is being left alone. Nothing more will be "
+                    "spent on it. This one is the studio's to look at — the run "
+                    f"log above says what went wrong each time, and clearing "
+                    f"{_DRAFT_LEDGER} in the episode folder is what starts it again.")
+                continue
+
+            n = _record_draft_attempt(d, "commissioning the script")
             log(f"drafting pass: PP-EP{int(nn):02d} has no script and its article "
-                f"is captured — commissioning one")
+                f"is captured — commissioning one (attempt {n} of "
+                f"{DRAFT_ATTEMPT_LIMIT})")
             try:
                 verdict = provider._commission_script(ep, d)
             except com.CommissionHalt as h:
@@ -1328,6 +1403,7 @@ def _draft_watch(provider):
             # character (I2).
             row = rail.seat_script_if_empty(ep["id"], text)
             if row:
+                _clear_draft_attempts(d)
                 log(f"   seated {len(text.split())} words into PP-EP{int(nn):02d}'s "
                     "script box — it is waiting for a person to read and approve it")
             else:

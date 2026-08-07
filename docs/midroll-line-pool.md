@@ -146,6 +146,25 @@ and need a fresh batch approval.** That is the accepted cost of freezing the wor
 > Two seconds, then we're back on it. If there's something in this video for you, a like puts it in somebody else's evening, and that's the only advertising it ever gets. There's a new one every day at present, weekly further along, so a subscribe keeps them coming. The loud stuff always travels fastest, and it's rarely the useful stuff, is it. That's my bit. Back to it.
 
 ### L9
+> ## 🔴 FAULT FOUND 7 AUG 2026 — **NEEDS JODIE'S RULING BEFORE EP19, WHICH IS ITS FIRST USE.**
+> **RECORDED, NOT FIXED.** *"so subscribe and **they'll turn up on their own**"* is the SAME
+> pronoun fault Jodie amended out of **L7** on 6 August (ruling **A16**): *"the bit that says
+> 'and they'll find you instead' does not make sense at all."*
+>
+> **"They" points back to *somebody else… who's been asking the same questions you have*** — so
+> the line reads as **other viewers** turning up on their own. It means **the VIDEOS** turn up,
+> and it never says so. A16's fix for the identical fault was *"so subscribe and the next one
+> finds you."*
+>
+> ⚠️ **HOW IT WAS FOUND, because it is the argument for reading the rest:** a commissioned
+> writer took L9 **verbatim and correctly** for a test episode, and the line was read in place
+> for the first time. **This is exactly what `CLAUDE.md` fault 7b predicts** — *a batch approval
+> is a list somebody approved once and nobody has since read.* **L7 was wrong twice. L9 is wrong
+> once. Eight lines still have not been read in place.**
+>
+> 📋 **THE OWED WORK IS UNCHANGED AND IS NOW OVERDUE: read the other eight in place.** L9 is
+> simply the one with a date on it — **EP19.**
+
 > Before we get to the meat of it. If this video has been worth sitting through, a like helps somebody else find it who's been asking the same questions you have. Every day at the moment, weekly down the line, so subscribe and they'll turn up on their own. There's no end of people in this game who'll tell you they've got it all worked out. I'm not one of them. Good. Let's pick it up again.
 
 ---

@@ -105,11 +105,13 @@ VERDICT_SCHEMA = {
         "what_it_could_be": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "Possible causes. ASSERT NONE of them. Empty when status is ok.",
+            "description": ("Possible causes. ASSERT NONE of them. Required when "
+                            "status is halt; omit it when status is ok."),
         },
         "does_retry_help": {
             "type": "boolean",
-            "description": "Would running this again plausibly succeed?",
+            "description": ("Would running this again plausibly succeed? Required "
+                            "when status is halt; omit it when status is ok."),
         },
         "unread_sources": {
             "type": "array",
@@ -120,10 +122,108 @@ VERDICT_SCHEMA = {
             ),
         },
     },
-    "required": ["status", "what_i_saw", "what_it_could_be",
-                 "does_retry_help", "unread_sources"],
+    # 🔴 THREE REQUIRED, NOT FIVE — AND THE TWO THAT MOVED ARE STILL ENFORCED.
+    #
+    # ══ MEASURED ACROSS TWO LIVE RUNS, 7 Aug 2026 ════════════════════════════
+    # Requiring all five KILLED TWO COMPLETE, GATE-PASSING SCRIPTS. Both runs
+    # wrote the artefact and then died arguing with the validator:
+    #     run 1 (before the brief named the fields): 5 attempts, ALL THREE of
+    #           what_it_could_be / does_retry_help / unread_sources missing.
+    #     run 2 (after the brief named them explicitly): unread_sources fixed
+    #           outright — 0 rejections — does_retry_help once, and
+    #           what_it_could_be FOUR MORE TIMES. Naming them helped and did not
+    #           cure it.
+    #
+    # ⚠️ AND THE TWO THAT KEPT FAILING ARE THE TWO THE ENGINE NEVER READS ON THE
+    # SUCCESS PATH. _verdict_or_halt() touches what_it_could_be and
+    # does_retry_help ONLY when status != "ok". So the schema was demanding, on
+    # pain of throwing away twenty minutes of good work, two fields nothing would
+    # have looked at.
+    #
+    # THE FIX IS THIS MODULE'S OWN STATED PRINCIPLE, APPLIED PROPERLY: "the schema
+    # constrains what the model may EMIT, and _verdict_or_halt() constrains what
+    # the engine will ACCEPT." The EMIT constraint now covers only what is always
+    # meaningful; the ACCEPT constraint below now REFUSES A HALT that does not
+    # carry both — which is where fault #6's template actually needs enforcing,
+    # because a halt is the only place those fields are read or shown.
+    #
+    # 🔒 UNTOUCHED, AND IT IS THE ONE THAT MATTERS: `unread_sources` and `status`
+    # are both still required, so "a writer that could not read a source MUST BE
+    # UNABLE to return ok" holds exactly as before.
+    "required": ["status", "what_i_saw", "unread_sources"],
+    # Present when status is halt; enforced by _verdict_or_halt, not by the schema.
     "additionalProperties": False,
 }
+
+# What a HALT must carry on top of the always-required three (fault #6's template:
+# say what you saw · list what it could be, asserting none · say plainly whether a
+# retry helps). Checked by the engine, where a halt is actually read.
+HALT_REQUIRED = ("what_it_could_be", "does_retry_help")
+
+# 🔴 THE BRIEF MUST NAME EVERY FIELD THE SCHEMA REQUIRES — AND IT IS DERIVED FROM
+# THE SCHEMA, SO IT CANNOT GO STALE.
+#
+# ══ FOUND BY READING THE TRANSCRIPT, 7 Aug 2026 ═══════════════════════════════
+# The first live script commission wrote a COMPLETE, GATE-PASSING 10,446-byte
+# script — 1,918 words, zero bare numerals, the midroll verbatim from the pool —
+# and then returned `is_error=true, result=None`. The artefact was good and the
+# run was reported as a failure.
+#
+# The session transcript says exactly why, five times over: the writer called
+# StructuredOutput with ONLY `status` and `what_i_saw`, and the schema rejected it
+#     "must have required property 'what_it_could_be' / 'does_retry_help' /
+#      'unread_sources'"
+# ten times. It never emitted the other three, ran out of turns arguing with the
+# validator, and the whole run died on the last step of an otherwise perfect job.
+#
+# ⚠️ AND THE BRIEF IS WHY. Every call site closed with the same paragraph, which
+# mentions `unread_sources` ONLY CONDITIONALLY — "IF anything you needed would not
+# open… list it in unread_sources" — and never names `what_it_could_be` or
+# `does_retry_help` AT ALL. A writer whose run went fine reads that as "those do
+# not apply to me". The schema said required; the brief said if.
+#     THE INSTRUCTIONS AND THE SCHEMA DISAGREED, AND THE WRITER BELIEVED THE
+#     INSTRUCTIONS.
+#
+# This was latent in ALL FOUR call sites. The other three got away with it.
+#
+# ✅ DERIVED, NOT RESTATED (fault #7 done right): the list comes from
+# VERDICT_SCHEMA["required"], so a field added to the schema tomorrow appears in
+# every brief today. A hand-written list here would be the next stale list.
+_VERDICT_WHEN_FINE = {
+    "status": '"ok"',
+    "what_i_saw": "a few plain sentences — no more",
+    "unread_sources": "[] (empty — you read everything)",
+}
+
+
+def verdict_instructions() -> str:
+    """The closing paragraph of every brief. One text, four call sites."""
+    lines = [
+        "Then return the verdict object. IT MUST CARRY ALL "
+        f"{len(VERDICT_SCHEMA['required'])} FIELDS, EVERY TIME, EVEN WHEN THE WORK "
+        "WENT PERFECTLY — an answer missing any of them is rejected and the whole "
+        "job is thrown away, however good the work was.",
+        "",
+        "When the work went fine, they are:",
+    ]
+    for k in VERDICT_SCHEMA["required"]:
+        lines.append(f"  - {k}: {_VERDICT_WHEN_FINE.get(k, 'see the schema')}")
+    lines += [
+        "",
+        "If anything you needed would not open or could not be read, list it in "
+        "unread_sources and set status to halt — never write around a source you "
+        "could not read.",
+        "ONLY IF you are halting, add these two as well: "
+        + ", ".join(HALT_REQUIRED)
+        + " — what it could be (list the possibilities and assert none of them) "
+        "and whether running it again would plausibly help. Leave them out "
+        "entirely when the work went fine.",
+        "Keep what_i_saw in plain English for someone who has never seen this "
+        "code: no file names, no paths, no code, and SHORT. It is read by a person "
+        "on a board, not by a machine.",
+    ]
+    return "\n".join(lines)
+
 
 # No Bash. No WebFetch. See the module docstring.
 DEFAULT_TOOLS = ("Read", "Write", "Edit", "Glob", "Grep")
@@ -395,6 +495,22 @@ def _verdict_or_halt(env: dict, what: str) -> dict:
 
     unread = raw.get("unread_sources") or []
     status = raw.get("status")
+
+    # 🔴 A HALT MUST BE SHAPED LIKE A HALT. The schema no longer demands these two
+    # (they killed two complete jobs on the success path, where nothing reads
+    # them), so the ACCEPT side demands them here — at the only moment they are
+    # ever used, and shown to a person.
+    if status != "ok":
+        absent = [k for k in HALT_REQUIRED if k not in raw]
+        if absent:
+            raise CommissionHalt(
+                f"The studio's writing assistant stopped while working on {what} "
+                "and did not explain itself in a way the studio can pass on. "
+                "Nothing was saved.\n"
+                "It could be a change in the assistant, or a run that was cut "
+                "short.\n"
+                "Retrying is worth one attempt.",
+                detail=f"halt verdict missing {', '.join(absent)}")
 
     # 🔴 THE CONSTRAINT. Enforced here as well as in the schema, because the
     # schema binds what the model may EMIT and this binds what the engine will
