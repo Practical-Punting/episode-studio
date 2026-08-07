@@ -145,8 +145,7 @@ and need a fresh batch approval.** That is the accepted cost of freezing the wor
 ### L8
 > Two seconds, then we're back on it. If there's something in this video for you, a like puts it in somebody else's evening, and that's the only advertising it ever gets. There's a new one every day at present, weekly further along, so a subscribe keeps them coming. The loud stuff always travels fastest, and it's rarely the useful stuff, is it. That's my bit. Back to it.
 
-### L9
-> ## 🔴 FAULT FOUND 7 AUG 2026 — **NEEDS JODIE'S RULING BEFORE EP19, WHICH IS ITS FIRST USE.**
+> ## 🔴 L9 — FAULT FOUND 7 AUG 2026. **NEEDS JODIE'S RULING BEFORE EP19, ITS FIRST USE.**
 > **RECORDED, NOT FIXED.** *"so subscribe and **they'll turn up on their own**"* is the SAME
 > pronoun fault Jodie amended out of **L7** on 6 August (ruling **A16**): *"the bit that says
 > 'and they'll find you instead' does not make sense at all."*
@@ -164,7 +163,14 @@ and need a fresh batch approval.** That is the accepted cost of freezing the wor
 >
 > 📋 **THE OWED WORK IS UNCHANGED AND IS NOW OVERDUE: read the other eight in place.** L9 is
 > simply the one with a date on it — **EP19.**
+>
+> ⚠️ **THIS NOTE SITS ABOVE THE HEADING ON PURPOSE.** `test_midroll_window.py` parses the
+> pool with `^### (L\d)\n> (.+?)$` — **heading, then immediately the line.** Putting this
+> block between them made the WARNING the pool line, and three checks failed on my own
+> prose (bare numerals, em dashes, no "this video"). *A rules file a machine parses is not
+> free-form prose, and the parser is the contract.*
 
+### L9
 > Before we get to the meat of it. If this video has been worth sitting through, a like helps somebody else find it who's been asking the same questions you have. Every day at the moment, weekly down the line, so subscribe and they'll turn up on their own. There's no end of people in this game who'll tell you they've got it all worked out. I'm not one of them. Good. Let's pick it up again.
 
 ---

@@ -125,11 +125,25 @@ def episode(n, **kw):
     return row
 
 
+# A capture shaped like a REAL one: a header with a byline, the article-text
+# markers, and a body carrying a racing price. Without the markers the fidelity
+# gate has nothing to compare against, and these cases would pass for the wrong
+# reason — which is how the first version of this file ran.
+CAPTURE = (
+    "# A Headline\n"
+    "By Roger Dedman — PRACTICAL PUNTING, MARCH 1988\n"
+    "notes about repairing a scanner go here and are NOT traceable source\n"
+    "---- ARTICLE TEXT BEGINS ----\n"
+    "The favourite was 8-1 on the day, and a quarter of the odds is 2-1.\n"
+    "---- ARTICLE TEXT ENDS ----\n"
+)
+
+
 def pp_tree(*captures) -> Path:
     root = Path(tempfile.mkdtemp(prefix="pp-draft-"))
     (root / "docs").mkdir()
     for c in captures:
-        (root / "docs" / c).write_text("# A Headline\n", encoding="utf-8")
+        (root / "docs" / c).write_text(CAPTURE, encoding="utf-8")
     return root
 
 
@@ -338,6 +352,32 @@ def main():                                                            # noqa: C
     check("  and every OTHER call site uses the same text",
           psrc_count(HERE / "providers.py", "com.verdict_instructions()") == 4,
           f"{psrc_count(HERE / 'providers.py', 'com.verdict_instructions()')} call sites")
+
+    print("\n-- 🔴 THE FIDELITY GATE, AS WIRED: A BAD FIGURE IS NOT SEATED --")
+    # The module has its own suite. This proves the ENGINE runs it, on the way
+    # from the writer to the rail — the wiring, not the checker.
+    pp_f = pp_tree("EP18-source-article-a-real-one.md")
+    liar = Provider(pp_f, script_text=(
+        "He was sent off at eleven to four, which was generous.\n"))
+    rl = Rail([episode(18)])
+    lines_f = run_pass(rl, liar)
+    check("a script stating a figure the article does not is NOT seated",
+          rl.seated == [], str(rl.seated))
+    said_f = " ".join(lines_f)
+    check("  the run log names the figure", "eleven to four" in said_f, said_f[-300:])
+    check("  and says nothing was written to the script box",
+          "nothing was written to the script box" in said_f)
+    check("  the attempt still counted against the bound",
+          engine._draft_attempts(liar.dir({"ep_number": 18})) == 1)
+
+    faithful = Provider(pp_f, script_text=(
+        "The favourite was eight to one on the day, and a quarter of the odds "
+        "is two to one.\n"))
+    rl2 = Rail([episode(18)])
+    run_pass(rl2, faithful)
+    check("a faithful script IS seated", len(rl2.seated) == 1)
+    check("  and the ledger is cleared", not engine._draft_ledger_path(
+        faithful.dir({"ep_number": 18})).exists())
 
     print("\n-- 🔴 THE BOUND: A DETERMINISTIC FAULT CANNOT SPEND FOREVER --")
     pp_b = pp_tree("EP18-source-article-a-real-one.md")

@@ -96,6 +96,7 @@ import rail  # the one shared Supabase client (RAIL-INTEGRATION.md)
 import preflight_episode_json                  # E26 — the config pre-flight (module,
                                                # because engine.py imports NAMES from
                                                # providers and that is what bit EP15)
+import script_fidelity                         # the drafting pass's own gate
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
                        assert_capture_for_script)
@@ -1365,7 +1366,7 @@ def _draft_watch(provider):
             if (ep.get("script_doc_url") or "").strip():
                 continue
             try:
-                assert_capture_for_script(provider.pp, nn)
+                capture = assert_capture_for_script(provider.pp, nn)
             except EngineFlag as f:
                 log(f"drafting pass: PP-EP{int(nn):02d} — {f}")     # RUN LOG ONLY
                 continue
@@ -1397,6 +1398,30 @@ def _draft_watch(provider):
                 continue
 
             text = Path(verdict["_path"]).read_text(encoding="utf-8").strip()
+
+            # 🔴 THE FIDELITY GATE — THE ENGINE RUNS IT, NEVER THE WRITER.
+            # The writer has no shell and was never asked to check itself: "I ran
+            # it and it passed" is a report, and the whole relay exists because a
+            # report is not an artefact. A script that states a figure the article
+            # does not is NOT SEATED — the attempt already counted against the
+            # bound above, so a writer that keeps inventing figures runs out of
+            # goes rather than filling the box with something nobody can trust.
+            try:
+                problems = script_fidelity.check(
+                    text, capture.read_text(encoding="utf-8"))
+            except Exception as e:                                    # noqa: BLE001
+                log(f"   drafting pass: could not check PP-EP{int(nn):02d}'s "
+                    f"figures against the article ({type(e).__name__}), so the "
+                    "draft was NOT used. Nothing unchecked is ever seated.")
+                continue
+            if problems:
+                log(f"   drafting pass: PP-EP{int(nn):02d}'s draft states "
+                    f"{len(problems)} figure(s) the article does not, so it was "
+                    "NOT used and nothing was written to the script box:")
+                for p in problems:
+                    log(f"      x {p}")
+                continue
+
             # 🔴 THE ONLY WAY THESE WORDS REACH THE RAIL. Never set_fields, never an
             # unconditional PATCH: the check and the set are one statement, so a
             # human who started typing while the writer was working keeps every
