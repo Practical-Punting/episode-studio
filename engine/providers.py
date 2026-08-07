@@ -816,6 +816,57 @@ def ep_folder(ep) -> str:
     return f"PP-EP{int(nn):02d}" if nn is not None else f"PP-EP-{ep['id'][:8]}"
 
 
+# --- the §4a source-article capture: ONE LOOKUP, EVERY CALLER ----------------
+#
+# The capture is the article's own words, saved to PP Videos/docs before anything
+# is written from it. FOUR things read it — author_ebook's fidelity gate,
+# author_cards' trace check, preflight_cards' marker check, and the episode.json
+# commission — and the drafting pass will be the fifth.
+#
+# 🔴 IT LIVES HERE BECAUSE A SECOND COPY OF A GLOB IS A SECOND THING TO GET WRONG.
+# This pattern was written inline inside _commission_episode_json. Adding the
+# script's own precondition by copying those three lines would be fault #2 exactly
+# — one value in two places, and the fix reaching one reader. The MESSAGES differ
+# per caller, on purpose (see below); the LOOKUP does not.
+#
+# ✅ AND THE GLOB IS ANCHORED, WHICH IS NOT AN ACCIDENT. `EP{nn:02d}-source-article-*`
+# zero-pads and carries a literal `-source-article-` immediately after the number,
+# so EP01 cannot match EP10's capture and EP09 cannot match EP98's. That is fault
+# #0a — the bug that made two outro audits confidently wrong — and it is closed by
+# the shape of the pattern rather than by anybody remembering.
+def find_capture(pp: Path, ep_number) -> Path | None:
+    """The episode's source-article capture, or None. Deterministic when several
+    match (sorted, first) so two callers never disagree about which one it is."""
+    hits = sorted((Path(pp) / "docs").glob(
+        f"EP{int(ep_number):02d}-source-article-*.md"))
+    return hits[0] if hits else None
+
+
+def assert_capture_for_script(pp: Path, ep_number) -> Path:
+    """The capture, or HALT. The precondition the drafting pass runs on.
+
+    ⚠️ THE WORDING IS THE SCRIPT'S OWN, AND THAT IS DELIBERATE. The episode.json
+    commission raises its own sentence for the same missing file, because the two
+    are met at different moments and a message that tries to serve both is wrong
+    for whichever it was not written for (the same reasoning `_script_checks`
+    already carries). The FILE LOOKUP is shared; the ENGLISH is not.
+
+    A19: this halt is the STUDIO's, not the operator's — nobody holding a browser
+    can capture an article. The drafting pass therefore CATCHES this and writes it
+    to the run log rather than badging Jodie's queue with a job she cannot do
+    (docs/DESIGN-the-pre-claim-drafting-pass.md §4).
+    """
+    cap = find_capture(pp, ep_number)
+    if cap is None:
+        raise EngineFlag(
+            "The article for this episode hasn't been captured yet, so there is "
+            "nothing to write the script from. Nothing has been written.\n"
+            "The capture is the article's own words, saved before the script is "
+            "drafted. It isn't there yet.\n"
+            "Retrying will not help until the article has been captured.")
+    return cap
+
+
 # ==========================================================================
 
 def pasteable_description(text: str) -> str:
@@ -2388,16 +2439,21 @@ class RealProvider:
         # resolves against the CWD, which IS the episode folder, and the episode
         # has its own docs/. That trap cost the first YouTube run a whole cycle
         # and reported itself as a permissions fault.
-        caps = sorted((self.pp / "docs").glob(
-            f"EP{int(ep['ep_number']):02d}-source-article-*.md"))
-        if not caps:
+        #
+        # 🔴 THE LOOKUP IS `find_capture()` AND NOT A GLOB WRITTEN HERE. It used to
+        # be three lines of glob in this function; the script's precondition needs
+        # the same answer, and two copies of a pattern is one value in two places
+        # with the fix reaching one reader. The MESSAGE below stays this call
+        # site's own — it is met at a different moment than the script's, and a
+        # sentence that serves both is wrong for whichever it was not written for.
+        capture = find_capture(self.pp, ep["ep_number"])
+        if capture is None:
             raise EngineFlag(
                 "I cannot write this episode's settings without the captured "
                 "article they describe, and I could not find it. Nothing has "
                 "been written.\n"
                 "The capture is made when the script is written; it is not there.\n"
                 "Retrying will not fix this until the capture is in place.")
-        capture = caps[0]
 
         # THE SAME TWO REFERENCES E26 WILL JUDGE IT AGAINST — asked of E26's own
         # resolver, so the brief cannot point at one pair while the gate uses
