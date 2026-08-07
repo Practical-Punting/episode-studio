@@ -55,6 +55,45 @@ pid 75784 **13 seconds later** with no human involved — the whole sequence in 
 dated log. *13s because the kill landed just before a tick boundary; the guaranteed
 bound is 5 minutes.*
 
+### 🟦 OPTIONAL — "poke it awake", for when a person is watching and impatient
+
+> ## 🚫 THIS IS NOT A STEP IN NORMAL RUNNING. NOBODY HAS TO DO THIS, EVER.
+> ## THE DEFAULT IS THAT NOBODY POKES ANYTHING.
+> **The engine picks work up by itself.** The drafting pass sweeps every **15 minutes**;
+> everything else the engine does is driven by the board and the rail. If you do
+> nothing at all, the machine still does the work — it may simply be up to fifteen
+> minutes before it starts.
+>
+> **This note exists for ONE situation:** somebody is sitting there watching, has just
+> put a capture in place, and does not want to wait for the next sweep. That is a
+> convenience, not a duty. *(Written 7 Aug 2026 at Jodie's request, on EP18's first
+> live draft, and labelled this way at her insistence so it can never read as a chore.)*
+
+**If you are watching and do not want to wait, the safe nudge is A CLEAN ENGINE
+RESTART.** A fresh process runs its first drafting sweep straight away, because the
+sweep timer starts at zero; the supervisor brings the engine back within five minutes
+of any exit, on its own.
+
+```
+python engine/supervisor.py --status     # is it even running, and on what pid
+```
+
+> ### 🔴 THE ONE RULE, AND IT IS THE WHOLE REASON THIS IS WRITTEN DOWN:
+> ### **NEVER KILL A LIVE COMMISSION.**
+> A commissioned writer runs for **three to five minutes**. Ending the engine while one
+> is in flight throws that work away **and spends one of the three attempts** the
+> drafting pass is allowed — so the nudge costs an attempt and gains nothing.
+>
+> **LOOK BEFORE YOU POKE.** The log says plainly whether a writer is working:
+> ```
+> commissioning this episode's script — a writer is working, up to 1200s
+> ```
+> If that line is the last thing in the log with no result under it, **a writer is
+> working right now. Do nothing.**
+> *Worked example, 7 Aug 2026: the nudge was asked for at 11:22 and the sweep had
+> already fired by itself at 11:23:32. Poking would have aborted a live commission and
+> burned an attempt, to save nothing at all.*
+
 Config comes from `PP Videos/.env` via `scripts/rail.py` (the ONE Supabase
 client — service_role key, never client-side). Overrides:
 `PP_VIDEOS_DIR`, `ENGINE_WORKER`, `ENGINE_CREDIT_CEILING`, `ENGINE_RETRY_DELAYS`,
