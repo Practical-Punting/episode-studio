@@ -1694,8 +1694,23 @@ $("lanes").addEventListener("click", async (e) => {
   }
 
   if (act === "clear-look") {
-    if (await writeEpisode(id, { needs_look: false, needs_look_message: null }, id + ":look", btn))
+    if (await writeEpisode(id, { needs_look: false, needs_look_message: null }, id + ":look", btn)) {
       toast("toast", "Cleared.", true);
+      /* 🔴 DROP THE CARD HERE, IN THE DOM — the same fault as the Script Gate tick
+       * one screen up, and the same fix. The rail says the flag is gone; the SCREEN
+       * kept showing "⚠ Needs a look" with its button until a re-render arrived, and
+       * renderBoard() returns early while any field is dirty (the C1 pause that
+       * protects her typing). So on the one card she has been editing, no re-render
+       * is coming, Refresh does not rescue it, and the board asks her to sort a thing
+       * she has already sorted.
+       *     ASKED TWICE IS WORSE THAN ASKED LATE: the second ask makes her doubt the
+       *     first click landed, and the honest response to that doubt is to click it
+       *     again — on a flag the engine may have legitimately re-raised by then.
+       * The gate is not weakened: the rail write above is still the only thing that
+       * clears needs_look, and the next poll re-renders from the row either way. */
+      const block = btn.closest(".needlook");
+      if (block && block.remove) block.remove();
+    }
     return;
   }
 
