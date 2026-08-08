@@ -110,6 +110,31 @@ coincidence and the audit proves it:**
 `nine-runners-turn` had it and still produced a field moving as one body. **Blur describes
 the camera; a verb describes the horse.**
 
+### 4. HATS ARE A VARIETY OF NATURAL COLOURS — name the range, every crowd clip
+**(Jodie, 8 Aug 2026, from EP18 as shipped. Now a fourth standing item because it HAS gone
+wrong, which is the bar this file uses.)**
+
+**Say it, every clip containing a crowd:**
+> *"Akubra-style hats in a VARIETY of natural colours — fawn, sand, tan, brown, grey, black,
+> olive — worn at different angles, no two neighbours alike"*
+
+**EP18 `broll-country-course-gums-and-rail`:** sixteen people along the rail, in sharp focus,
+**and every single hat the same pale cream.** The crowd IS the subject of that shot.
+
+> ## ⚖️ THE REASON, AND IT IS THE GENERAL ONE: **A MODEL FILLS A CROWD BY REPEATING ONE THING.**
+> Asked for "hats", it does not sample a wardrobe — it picks a hat and clones it across every
+> head. **Uniformity is the model's DEFAULT, not an accident**, so variety has to be demanded
+> in words or it will not appear. The same reasoning covers shirts, caps and umbrellas the day
+> one of them fills a frame.
+
+⚠️ **STATE IT POSITIVELY — name the colours you want.** *"Not all white"* leaves the model to
+choose the replacement and it will choose one replacement, for every head. **The fault is not
+the colour white; it is the UNIFORMITY.** A rail of identical fawn hats is the same fault
+wearing a different colour.
+📌 **EP16's prompt already said *"about half in hats including Akubras"*** — hats were named,
+the RANGE was not, and that is exactly the §2 gap in a new place: *the model dresses what it
+is told about and improvises the rest.*
+
 ---
 
 ## 📋 STILL UNSPECIFIED — found by auditing all seven EP16 prompts, not yet gone wrong
@@ -222,6 +247,34 @@ binoculars in the stand, horses cooling down after the race.
 | broll-racecourse-wide | reading the speed shape of a race |
 
 ⚠️ **Reuse (Jodie-approved 2026-07-23):** `broll-winner-hits-line` and `broll-racecourse-wide` are reused from EP05 for these two connective shots — waived the no-repeat rule per Jodie's call. The other 5 are new, all turf + saddled (except `broll-punter-form-study`, an intentional non-turf cafe shot). Frame-QC'd 2026-07-23.
+
+### EP18 (2026-08-08) — "Those Top 6 Favourites"
+| File | Subject |
+|---|---|
+| broll-binoculars-lowered-stand | Punter lowering binoculars in the stand |
+| broll-lone-outsider-trailing | Lone outsider trailing the field |
+| broll-field-canters-to-barriers | Field cantering back to the barriers |
+| broll-strapper-leads-winner-in | Strapper leading the winner in |
+| broll-dividends-screen-after-race | Dividends screen after a race |
+| broll-crossing-off-the-card | Hand crossing races off a card |
+| broll-country-course-gums-and-rail | Quiet country course, gums and rail |
+
+> #### ♻️ SUPERSEDED THE SAME DAY — the white-hat fix. **Jodie's call, 8 Aug 2026.**
+> **`broll-country-course-gums-and-rail`** and **`broll-binoculars-lowered-stand`** were
+> **regenerated**, replacing the first versions. The originals came back with a UNIFORM
+> pale-cream hat on every head — sixteen of them along the rail in the first clip, in
+> sharp focus. See standing shot template item 4 and ruling **A15a**.
+> **What changed in the prompt** — the old line was *"About half in hats including
+> Akubras"*, which names hats and not their range. Both now read:
+> > *"About half the visible crowd in hats, Akubra-style in a variety of natural colours
+> > - fawn, sand, tan, brown, grey, black and olive - worn at different angles, no two
+> > neighbours in the same colour."*
+> **The superseded versions are not in service** — the files were deleted before the
+> regeneration, so nothing downstream can pick them up.
+> 📌 **A REGENERATION IS NOT A REPEAT.** `broll_registry_check.py` excludes an episode's
+> OWN section from the no-repeat comparison, so logging a replacement here is safe and a
+> visual correction stays hands-off. *That rule exists because the first attempt at this
+> fix hard-failed the build.*
 
 ### EP08 — deliberate exception (2026-07-25, Jodie's call)
 - **EP01 thumbnail hero (dramatic field-rounding-the-turn) reused as EP08's COVER hero.**

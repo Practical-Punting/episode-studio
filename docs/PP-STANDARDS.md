@@ -280,6 +280,36 @@ it become human-waits-machine-waits-human ping-pong.
 start, and the run-time `build_state.order` stamps that warn if the render is offered after the gens
 batch starts or the cover pick lands after the master. See `episode-studio/engine/README.md`.
 
+## 🔒 THE MACHINE QCs THE ASSEMBLED VIDEO BEFORE EVERY HUMAN APPROVAL GATE
+**(Jodie, 8 Aug 2026. A STANDING STEP, not a courtesy — step 6 above may not hand to
+step 7 until it has run and passed.)**
+
+> **"My review can be about *does it look and sound great*, not hunting for a glitch."**
+
+**The point is the DIVISION OF LABOUR.** Technical integrity is a machine's job and a
+human is bad at it — a truncated tail or a dead audio channel is exactly what an eye
+slides over while it judges pacing and tone. **Jodie still watches it. The QC does not
+replace her eyes; it means what she approves has already been proven sound.**
+
+**What it must establish about the FINAL assembled MP4** — the artefact that ships,
+never a proxy for it:
+1. **It decodes to the very end.** Every frame out of the decoder, count compared with
+   the container's declared total. ⚠️ **Duration proves nothing** — `faststart` writes
+   `moov` at the FRONT, so the header announces the full length even when the tail
+   never arrived (fault #1a; EP15 stopped mid-word at 9:10 of a "13:31" file).
+2. **No silent tail and no dead audio.** Measured, not assumed.
+3. **The cards land on Gordon's words** — entry timings against the master's own SRT,
+   which `qc_episode.py --episode` already hard-fails on. **Do not reimplement it here;
+   call it** (fault #2, one source of truth).
+
+🔴 **AND THE CHECKS THEMSELVES ARE WRITTEN CONTROL-FIRST — see CLAUDE.md 4b.** Any new
+QC check must be watched FAILING on a deliberately broken artefact before its pass is
+worth anything. *A check whose output is discarded and a check that passes look
+identical; only a control tells them apart.*
+
+📌 **Until this lands in the engine it is run by hand before the approvals are
+surfaced, and the run is recorded in the episode's run log.**
+
 ## Host, voice & render
 - **Host** "Gordon", HeyGen avatar look `de774dd2f3ef4a52bc31dee6fc91f118` (the favourited "seated at desk" Floyd, under HeyGen **Public Avatars**). Render on **Avatar IV**.
 - **Voice** the standing "Floyd"/PP Gordon voice baked into the template. It sounds Australian; it is **NEVER ElevenLabs** (that engine forces a US accent — it cost a full day on EP04). If ever set manually: voice engine **Auto**, accent **English (Australia)**.

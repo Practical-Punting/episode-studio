@@ -2198,6 +2198,19 @@ class RealProvider:
                     f"overlay/clips. The chip is rendered from the standing "
                     f"assets/midroll-lowerthird.html — render it, then re-run.")
             cmd += ["-i", clip_path]                           # input MUSIC_IN+1
+        # early e-book CTA — input MUSIC_IN+2 (or +1 with no chip). The ORDER here is
+        # the contract with assemble_episode.py's `cta_in`; append, never insert.
+        cta = epj["build"].get("early_cta") or {}
+        if cta.get("clip"):
+            # A4 again: a named asset that is not there must be LOUD, not dropped.
+            cta_path = d / "overlay/clips" / cta["clip"]
+            if not cta_path.is_file():
+                raise EngineFlag(
+                    f"build.early_cta.clip names {cta['clip']!r} but that file is not in "
+                    f"overlay/clips, so the e-book card would be silently missing from the "
+                    f"early call-to-action while the rest of the video assembled fine. "
+                    f"Render the card, then re-run.")
+            cmd += ["-i", cta_path]                            # input MUSIC_IN+2
         final = d / "output" / f"{ep_folder(ep)}-FINAL.mp4"
         cmd += ["-filter_complex_script", graph, "-map", "[vout]", "-map", "[aout]",
                 "-c:v", "libx264", "-crf", "18", "-preset", "medium",

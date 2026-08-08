@@ -335,6 +335,31 @@ uniform crowds at QC"*, and that is a glance, not a step.
 anatomically broken. **This one is about a picture that is technically perfect and still
 does not look like this country.** *Nothing automated can see either.*
 
+### A15a · 8 Aug 2026 — 🔴 HATS ARE A VARIETY OF NATURAL COLOURS
+> ### "Akubra-style hats must be a variety of natural colours — fawn, sand, tan, brown,
+> ### grey, black, olive — never a uniform white field."
+**— Jodie, on EP18 as shipped.**
+
+**Filed INSIDE A15 on purpose: it is the same defect one level down.** A15 records that the
+generator *"defaults to all-white crowds"*; this is that same habit in the wardrobe — **asked
+for "hats", the model picks ONE hat and clones it onto every head.** `broll-country-course-
+gums-and-rail` came back with sixteen people at the rail, in focus, wearing the identical pale
+cream hat. **Uniformity is the default, not the accident.**
+
+⚠️ **STATE IT POSITIVELY — name the colours wanted.** *"Not all white"* hands the model the
+choice of replacement and it will make ONE choice, for every head. **The fault is the
+UNIFORMITY, not the colour**: a rail of identical fawn hats fails this ruling too.
+
+**WHY IT NEEDED WRITING DOWN AND NOT JUST FIXING:** A15's own prompt language already said
+*"about half the crowd in hats including Akubras"* — **hats were named, the RANGE was not.**
+That is A15's lesson recurring: *the model dresses what it is told about and improvises the
+rest.* Fixing EP18's clip without fixing the words would have bought one good clip and left
+the next crowd to the same default.
+
+**HOW IT IS ENFORCED:** through the PROMPTS, exactly as A15 — **now item 4 of the standing shot
+template in `broll-registry.md`.** No approval step, no review gate; a uniform crowd is
+regenerated on sight.
+
 ## A16 · 6 Aug 2026 — MIDROLL POOL LINE **L7** IS AMENDED, TWICE
 Both amendments came from Jodie at EP17's words gate — **the line's first use** — in one
 sitting. **BOTH REMOVED FRAGMENTS, quoted so neither can be restored from an older copy:**

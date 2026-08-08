@@ -749,7 +749,13 @@ def stage_card_timing(qc, final, beats, head, episode_path):
                 clash = True
     mid_cfg = B.get("midroll") or {}
     if mid_cfg.get("composite") and mid_cfg.get("beat"):
-        m0 = mid_cfg.get("at") or bs(mid_cfg["beat"]) + mid_cfg.get("offset", 1.0)
+        # `at` is PRESENTER-CLOCK; every other time here is final-clock via bs().
+        # This line read it raw, exactly as assemble_episode.py did — so the checker
+        # and the thing it checks carried the SAME 7s error and agreed with each other.
+        # "A check that shares its source with the thing it checks is not a check."
+        # (Jodie, 29 Jul 2026 — the comment is already in this file, thirty lines up.)
+        m0 = ((mid_cfg["at"] + head) if mid_cfg.get("at") is not None
+              else bs(mid_cfg["beat"]) + mid_cfg.get("offset", 1.0))
         m1 = m0 + mid_cfg.get("dur", 5.0)
         for c, (c0, c1) in windows.items():
             if min(m1, c1) - max(m0, c0) > 0.05:

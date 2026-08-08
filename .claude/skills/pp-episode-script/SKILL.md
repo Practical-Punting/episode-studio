@@ -309,6 +309,32 @@ Rounding note: it's fine to **round in speech** for flow ("seventy-point-seven")
 shows the precise figure** ("70.66") — that's intentional, not an error; just be consistent
 (the spoken value must round *to* the card value).
 
+#### 🔊 THE PRONUNCIATION LEXICON — words the voice says wrong, and the spelling that fixes them
+**The mechanism is ORTHOGRAPHIC, not SSML.** The HeyGen template is handed plain text and there
+is no markup layer in this pipeline, so the only lever is *how the word is spelled in the spoken
+track*. Write the spelling that produces the sound.
+
+| Word | Say it like | ❌ in the spoken track | ✅ in the spoken track |
+|---|---|---|---|
+| favourites (short form) | **rhymes with "craves"** — long *a* | `favs`, `fav` | **`faves`**, **`fave`** |
+
+**`favs` / `fave` — Jodie, 8 Aug 2026, from EP18 as shipped.** Gordon said *"favs"* with a SHORT
+*a* early in the episode and a LONG *a* later — **the same word, two ways, in one video**, which
+is worse than either. Spelled `faves`, the engine lands the long *a* every time.
+
+> ### ⚠️ THE SPOKEN TRACK ONLY. ON-SCREEN TEXT KEEPS THE ARTICLE'S SPELLING.
+> Mr Money writes *"favs"* and the cards quote him, so **card content, trace sentences, the e-book
+> body and the capture are untouched** — they are read by eyes, not by the voice engine. Changing
+> them would put the script out of step with the source for no gain.
+> 📌 **Consequence to expect at the fidelity gate:** the spoken track will now differ from the
+> capture by this one spelling. That is a DELIBERATE divergence of the same family as spelling
+> `43%` as *"forty-three per cent"* — the whole point of this section — and it is not a fidelity
+> fault. If the gate ever starts reporting it, the gate is what needs the exemption, not the word.
+
+**Adding to this table:** a word earns a row when a HUMAN HAS HEARD IT SAID WRONG in a finished
+episode. Do not populate it with guesses about what a voice engine might mispronounce — an
+unverified row is a change to every future script on no evidence.
+
 ### 4C — Writing that sounds human, not AI-slop
 Gordon is already an AI avatar, so the writing must over-index on warmth and humanity.
 

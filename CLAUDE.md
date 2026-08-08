@@ -219,6 +219,31 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > A finished artefact is the easiest fixture to reach for and it is very often the
    > wrong one.
 
+   > ## 🔴 4b. A GUARD IS NOT TRUSTWORTHY UNTIL YOU HAVE WATCHED IT **FAIL**.
+   > ### CONTROL FIRST: PROVE IT CATCHES A BAD INPUT, THEN BELIEVE IT ON A GOOD ONE.
+   > **(Jodie, 8 Aug 2026, ruling how the two EP19 guards get written.)**
+   > *"A guard is only trustworthy once it's tested against real data with a control
+   > that proves it can FAIL."*
+   > **What it cost the same day.** EP18's seven b-roll clips were checked for a frozen
+   > tail with `ffmpeg -vf freezedetect`. **All seven came back clean.** So did a clip
+   > that had been deliberately frozen solid for two seconds — because `freezedetect`
+   > logs at **INFO** and the command ran at `-v error`, so the filter worked perfectly
+   > and **every line it emitted was discarded.** *A passing check and an absent check
+   > produce the identical output: nothing.*
+   > **The control is what separates them, and nothing else can.** A truncation control
+   > (a copy chopped to 55% of its bytes → 73 frames of a declared 121) proved the
+   > sibling check honest in the same pass.
+   > ⚖️ **This is #4 turned around.** #4 says a green suite that never names your change
+   > is not evidence about it. **4b says a green suite that never SAW A FAILURE is not
+   > evidence that the check works at all** — the fixture proves the checker, not only
+   > the code. **Write the failing case FIRST, watch it go red, then write the passing
+   > one.**
+   > 🚫 **AND DO NOT DRAFT A GUARD AHEAD OF BEING ABLE TO RUN IT** (Jodie, same ruling).
+   > E11's patch sat in `docs/landing-queue/` written, reasoned and reviewed for a day
+   > and **was still wrong about which loop** until it was built — see #9. A guard that
+   > cannot yet be run against real data with a real control is a guess with tests
+   > around it. **Wait for the freeze to lift; write it fresh.**
+
 5. **A DERIVED ARTEFACT INHERITS THE FAULT WITHOUT INHERITING THE BYTES.**
    When you quarantine a bad artefact, ask **what was BUILT from it**, not only what
    EQUALS it. **Chasing copies finds copies; it does not find children.**

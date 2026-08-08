@@ -148,12 +148,44 @@ def passB():
     MID = B.get("midroll") or {}
     if MID.get("composite") and MID.get("clip"):
         mid_in = MUSIC_IN + 1
-        mt = MID.get("at") or round(bs(MID.get("beat", 1)) + MID.get("offset", 1.0), 2)
+        # 🔴 `at` IS PRESENTER-CLOCK AND MUST HAVE THE HEAD ADDED. (Jodie, 8 Aug 2026.)
+        # `derive_card_timings.py` measures `midroll.at` from renders/aligned.srt, whose
+        # t=0 is Gordon's first word. The FINAL file prepends `title_head` (7.0s) — passA
+        # pads the video, passB delays the speech by the same amount — so every other
+        # time in this graph goes through bs(), which adds HEAD. This line did not, so
+        # the chip landed SEVEN SECONDS BEFORE the words it belongs to, on every episode
+        # that set an explicit `at`. Jodie saw it as "the chip comes up before he asks".
+        # The `bs()+offset` fallback below was always right; only the explicit path was wrong.
+        mt = (round(MID["at"] + HEAD, 2) if MID.get("at") is not None
+              else round(bs(MID.get("beat", 1)) + MID.get("offset", 1.0), 2))
         md = MID.get("dur", 5.0); mf = MID.get("fade", 0.4)
         fc += (f"[{mid_in}:v]fps=25,chromakey=0x00FF00:0.28:0.06,"
                f"tpad=stop_mode=clone:stop_duration={md},"
                f"fade=t=in:st=0:d={mf}:alpha=1,fade=t=out:st={round(md - mf, 2)}:d={mf}:alpha=1,"
                f"setpts=PTS+{mt}/TB[mrl];\n"); labels.append("mrl")
+    # early e-book CTA (opt-in: build.early_cta) — the SAME marketing card the end
+    # uses (the one carrying the e-book's first page), held briefly over the early
+    # "free companion guide" mention. Jodie, 8 Aug 2026.
+    #
+    # ⚠️ IT IS A SECOND INPUT OF THE SAME FILE, NOT A REUSE OF END_IN. A filtergraph
+    # input can be consumed by one branch only; sharing it would need a `split`, and
+    # a split on the end card is a change to the ENDING. The ending must not move —
+    # the last slide is the WARRANTY slide and it is not ours to touch — so this
+    # takes its own input and leaves both the end-card and warranty branches alone.
+    #
+    # Index: the optional inputs are appended in a FIXED order after MUSIC_IN —
+    # midroll chip first (if present), then this. providers.assemble_passB appends
+    # `-i` in exactly the same order; the two must be read together.
+    CTA = B.get("early_cta") or {}
+    if CTA.get("clip"):
+        cta_in = MUSIC_IN + (2 if (MID.get("composite") and MID.get("clip")) else 1)
+        # presenter-clock, same as midroll.at — HEAD is added here, in one place
+        ct = round(CTA["at"] + HEAD, 2); cd = CTA.get("dur", 2.0); cf = CTA.get("fade", 0.3)
+        # trim AFTER tpad so the card is exactly `dur` long whatever the source runs to
+        fc += (f"[{cta_in}:v]fps=25,format=yuva420p,tpad=stop_mode=clone:stop_duration={cd},"
+               f"trim=duration={cd},setpts=PTS-STARTPTS,"
+               f"fade=t=in:st=0:d={cf}:alpha=1,fade=t=out:st={round(cd - cf, 2)}:d={cf}:alpha=1,"
+               f"setpts=PTS+{ct}/TB[cta];\n"); labels.append("cta")
     # panel-push cards overlay at x=36:y=312; everything else full-frame 0:0
     ch = "[0:v]"
     for k, lbl in enumerate(labels):
