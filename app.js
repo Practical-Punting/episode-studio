@@ -1176,11 +1176,23 @@ function gateWords(ep) {
         "that is the title you want.</i>"
       : "") + "</div>";
 
+  /* 🔴 THE HINT CARRIES A HANDLE, because this pair has to be switchable WITHOUT
+   * a re-render. renderBoard() bails out early while any field is dirty:
+   *     const editing = force ? [] : editingNow();
+   *     if (editing.length) { pauseBanner(...); tickTimers(); return; }
+   * — which is the C1 pause, and correct: it is what stops the board destroying
+   * what she is typing. But it means that once she has touched hook, title or
+   * byline, THE CARD NEVER RE-RENDERS, so ticking "I've read the script" wrote
+   * script_read=true to the rail and the button stayed grey. Plain Refresh does
+   * not help either: it calls loadAll() -> renderBoard() UNFORCED, so it bails
+   * on the same line. She was stuck looking at a disabled button that the rail
+   * said should be live. (Jodie, 8 Aug 2026.) */
   const ready = read;
   h += '<p style="margin-top:12px">' +
     '<button class="btn" data-act="approve-words" data-ep="' + ep.id + '"' +
     (ready ? "" : " disabled") + ">Save &amp; approve &rarr;</button>" +
-    (ready ? "" : ' <span class="muted">— tick “I’ve read the script” to enable</span>') +
+    ' <span class="muted" data-tickhint="' + ep.id + '"' + (ready ? " hidden" : "") +
+    ">— tick “I’ve read the script” to enable</span>" +
     "</p></div>";
   return h;
 }
@@ -1521,7 +1533,24 @@ $("lanes").addEventListener("click", async (e) => {
     // Half of the Script Gate. Never set by anything but this click.
     const on = btn.checked;
     if (!(await writeEpisode(id, { script_read: on }, id + ":read", null))) btn.checked = !on;
-    else toast("toast", on ? "Script marked as read." : "Script no longer marked as read.", true);
+    else {
+      toast("toast", on ? "Script marked as read." : "Script no longer marked as read.", true);
+      /* 🔴 SWITCH THE BUTTON HERE, IN THE DOM — DO NOT WAIT FOR A RE-RENDER.
+       * renderBoard() returns early while any field is dirty (the C1 pause that
+       * protects her typing), so on the one card where she has just edited the
+       * hook, title or byline, no re-render is ever going to arrive. Refresh
+       * does not rescue it either — loadAll() calls renderBoard() unforced and
+       * bails on the same line.
+       *     THE GATE IS NOT WEAKENED: the rail write above is still the only
+       *     thing that sets script_read, and approve-words re-reads the row.
+       * This only stops the SCREEN lying about what the rail already says. */
+      const ok = document.querySelector(
+        '[data-act="approve-words"][data-ep="' + CSS.escape(id) + '"]');
+      if (ok) ok.disabled = !on;
+      const hint = document.querySelector(
+        '[data-tickhint="' + CSS.escape(id) + '"]');
+      if (hint) hint.hidden = on;
+    }
     return;
   }
 

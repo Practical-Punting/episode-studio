@@ -358,6 +358,52 @@ def main():                                                  # noqa: C901
         check("  and it keeps its place across a rebuild", after == got,
               f"was {got}, now {after}")
 
+        print("\n-- 🔴 THE WORDS GATE UNSTICKS WITHOUT A RE-RENDER --")
+        # THE BUG, found by Jodie on 8 Aug: renderBoard() returns early while any
+        # field is dirty — the C1 pause that protects her typing. So once she has
+        # edited hook/title/byline, ticking "I've read the script" wrote
+        # script_read=true to the rail and the button STAYED GREY, and Refresh did
+        # not help because loadAll() -> renderBoard() is unforced and bails on the
+        # same line. She was looking at a disabled button the rail said was live.
+        page.evaluate("""(() => {
+            const ep = EPISODES.find(e => e.id === 'ep-18');
+            ep.title_approved = false; ep.script_read = false;
+            ep.script_snapshot = 'Words to read.';
+            renderBoard();
+        })()""")
+        page.wait_for_timeout(150)
+        approve = page.locator("[data-act='approve-words'][data-ep='ep-18']").first
+        check("the approve button starts disabled", approve.is_disabled())
+
+        # DIRTY A WORD FIELD — this is the whole point. Without it the card would
+        # simply re-render and the bug would never show.
+        title = page.locator("#w-title-ep-18")
+        title.click()
+        title.type(" edited", delay=1)
+        dirty = page.evaluate("editingNow().length")
+        check("  a word field is genuinely dirty, so the board is paused",
+              dirty > 0, f"editingNow() = {dirty} — the card would re-render "
+                         "and this case would prove nothing")
+
+        page.locator("[data-act='script-read'][data-ep='ep-18']").first.check()
+        page.wait_for_timeout(400)
+        check("TICKING READ ENABLES APPROVE, with no refresh",
+              not approve.is_disabled(),
+              "the button is still grey — she is stuck exactly as before")
+        check("  and the 'tick to enable' hint is gone",
+              page.is_hidden("[data-tickhint='ep-18']"))
+        check("  her half-typed title was NOT destroyed to do it",
+              "edited" in page.input_value("#w-title-ep-18"),
+              page.input_value("#w-title-ep-18"))
+        check("  the rail was told, not just the screen",
+              page.evaluate("window.__UPDATES.some(u => u.script_read === true)"))
+
+        print("\n-- and un-ticking puts it back --")
+        page.locator("[data-act='script-read'][data-ep='ep-18']").first.uncheck()
+        page.wait_for_timeout(400)
+        check("the button greys again", approve.is_disabled())
+        check("  and the hint comes back", not page.is_hidden("[data-tickhint='ep-18']"))
+
         print("\n-- and nothing threw --")
         check("no page errors", not errs, str(errs[:2]))
         b.close()
