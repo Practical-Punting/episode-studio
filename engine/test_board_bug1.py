@@ -201,6 +201,26 @@ def main():                                                  # noqa: C901
         check("ctrl+Z still works after a refresh (the undo stack survived)",
               undone != "first second", f"undo gave {undone!r}")
 
+        print("\n-- 🔴 AND SCROLL — the one the card preview still loses --")
+        # Asked directly by Jodie: "confirm the editor panel itself never jumps
+        # once I'm in it." The ten-times loop above checked text, caret and node
+        # identity and NEVER SCROLL — so this was an untested claim until now.
+        # The scroll lives on .sc-wrap (the textarea grows; the wrapper scrolls).
+        page.focus("#sc-text")
+        page.fill("#sc-text", "\n".join(f"line {i} of a long script" for i in range(400)))
+        page.evaluate("scTyped()")          # grow the box to its content, as typing does
+        page.wait_for_timeout(150)
+        page.evaluate("document.querySelector('.sc-wrap').scrollTop = 1200")
+        before = page.evaluate("document.querySelector('.sc-wrap').scrollTop")
+        check("the panel can actually be scrolled (or this proves nothing)",
+              before > 400, f"scrollTop only reached {before}")
+        for _ in range(3):
+            page.evaluate("loadAll()")
+            page.wait_for_timeout(120)
+        after = page.evaluate("document.querySelector('.sc-wrap').scrollTop")
+        check("SCROLL POSITION SURVIVES THREE REFRESHES — the panel never jumps",
+              after == before, f"was {before}, now {after}")
+
         print("\n-- 🔴 THE CONTROL: can this suite actually SEE bug 1? --")
         # A proof that cannot fail is decoration. Put an IDENTICAL textarea
         # INSIDE #lanes, on the same page, through the same refresh — if that one

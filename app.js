@@ -149,7 +149,7 @@ let channel = null;
 const inflight = new Set();    // idempotency: one write per key at a time
 // Survives the full re-render that realtime triggers, so a half-typed note isn't lost.
 const UI = { open: new Set(), drafts: new Map(), kinds: new Map(), words: new Map(),
-             dirty: new Set() };
+             dirty: new Set(), scroll: new Map() };
 // What `needs_look` looked like at the last render, so a NEW halt can be spotted
 // while the board is paused. Keyed by episode id.
 let LAST_FLAGS = new Map();
@@ -466,8 +466,27 @@ async function scSave() {
   }
 }
 
+/* ONE CONTINUOUS DOCUMENT — and it needs JavaScript, which the CSS assumed away.
+ *
+ * The spec asks for "full height, scrolls as one continuous document — not
+ * paginated, not a textarea with its own tiny scrollbar". A <textarea> DOES NOT
+ * GROW WITH ITS CONTENT, so `overflow:hidden` on it did not make the page scroll
+ * — it CLIPPED the script and made the rest unreachable.
+ *
+ * Found by the scroll case in test_board_bug1: the wrapper would only scroll 68px
+ * on a 400-line script. Its sibling assertion ("survives three refreshes") passed
+ * on 68 == 68 — a green that meant nothing, caught only because that case checks
+ * the panel can be scrolled AT ALL before checking the scroll survives. */
+function scGrow() {
+  const ta = $("sc-text");
+  if (!ta) return;
+  ta.style.height = "auto";
+  ta.style.height = ta.scrollHeight + "px";
+}
+
 function scTyped() {
   const text = $("sc-text").value;
+  scGrow();
   scCounts(text);
   clearTimeout(SC_TIMER);
   // 3 SECONDS, NOT 2. The spec said ~2s; the build plan raised it with a reason —
@@ -552,6 +571,7 @@ async function openScript(id) {
   $("sc-title").textContent = (ep.ep_number != null ? "EP" + ep.ep_number + " — " : "")
     + (ep.title || "Untitled");
   $("sc-text").value = text;
+  scGrow();
   scCounts(text);
   scState("");
   scApplyLock();
@@ -1026,10 +1046,28 @@ function scriptPanel(ep, idPrefix) {
   const script = (ep.script_snapshot || "").trim();
   if (!script) return "";
   const words = script.split(/\s+/).filter(Boolean).length;
+  /* 🔴 THE WAY IN. The editor panel existed for a whole landing with NOTHING ON
+   * THE BOARD THAT OPENED IT — openScript() was defined and never called, so
+   * Jodie could read EP18's script and had no way to change a word of it.
+   *
+   * ⚠️ AND THE PROOF MISSED IT BECAUSE THE PROOF REACHED PAST THE DOOR. Both
+   * browser suites opened the panel with `page.evaluate("openScript('ep-18')")`
+   * — calling the function directly. They proved the panel WORKS once open and
+   * never that a human can OPEN it. Assert the artefact a person receives: the
+   * artefact here is a BUTTON, and there wasn't one.
+   *
+   * It lives in scriptPanel so it appears wherever the script is shown, rather
+   * than in a list of cards somebody has to remember to extend — the same
+   * "asked, not listed" reasoning showsScript() already uses.
+   *
+   * DELEGATED via data-act, because #lanes is rebuilt every 30 seconds and a
+   * listener bound to this node would die with it. */
   return '<div class="scriptbox" id="' + idPrefix + ep.id + '">' +
     '<div class="sb-head">The script &middot; ' + words + " words &middot; about " +
-    Math.round(words / 150) + " minutes &mdash; this is exactly what Gordon says</div>" +
-    "<pre>" + esc(script) + "</pre></div>";
+    Math.round(words / 150) + " minutes &mdash; this is exactly what Gordon says" +
+    '<button class="mini sb-edit" data-act="edit-script" data-ep="' + ep.id + '">' +
+    "&#9998; Edit the script</button>" +
+    "</div><pre>" + esc(script) + "</pre></div>";
 }
 
 /* Is this card showing the script right now? Drives the full-width breakout, and
@@ -1362,6 +1400,16 @@ function harvestDrafts() {
     if (t.value) UI.drafts.set(id, t.value); else UI.drafts.delete(id);
   });
   document.querySelectorAll("select[id^='kind-']").forEach((s) => UI.kinds.set(s.id.slice(5), s.value));
+  // Where she had scrolled to in each on-card script preview, before the rebuild
+  // throws the node away. Restored in restoreDrafts().
+  // ⚠️ THE SCROLLER IS THE <pre>, NOT THE BOX. `.scriptbox` is overflow:hidden;
+  // `.scriptbox pre` carries max-height:44vh and overflow:auto. The first version
+  // of this harvested the box and read 0 every time — a preserve that preserved
+  // nothing, and it would have passed a test that only checked "no error".
+  // Keyed on the BOX's id, since the <pre> has none.
+  document.querySelectorAll(".scriptbox > pre").forEach((p) => {
+    if (p.scrollTop) UI.scroll.set(p.parentElement.id, p.scrollTop);
+  });
   // EVERY input on a card is an edit-in-progress. Keyed by the full input id.
   //
   // 🔴 C1, 2 Aug 2026 — WHY THIS IS NOW A SKIP-LIST AND NOT AN ALLOW-LIST.
@@ -1399,6 +1447,16 @@ function restoreDrafts() {
   UI.words.forEach((v, id) => { const i = $(id); if (i && v) i.value = v; });
   // Threads read newest-last, so start them scrolled to the bottom.
   document.querySelectorAll(".msgs").forEach((m) => { m.scrollTop = m.scrollHeight; });
+  // THE ON-CARD SCRIPT PREVIEW KEEPS ITS PLACE. Jodie, 8 Aug: reading the script
+  // on the card, it "jumps to the top every ~30s" — board bug 1 again, on the
+  // one surface still inside #lanes. The editor is the real reading surface and
+  // is immune, but a preview that throws you back to the top while you are
+  // halfway down it is the same insult in miniature, and this costs four lines.
+  // Keyed on the box id, which already carries the episode id.
+  UI.scroll.forEach((v, id) => {
+    const p = $(id) && $(id).querySelector("pre");
+    if (p) p.scrollTop = v;
+  });
 }
 
 // ── writes (idempotent: one in-flight write per key, buttons lock) ───────
@@ -1443,6 +1501,14 @@ $("lanes").addEventListener("click", async (e) => {
   const id = btn.getAttribute("data-ep");
   const ep = EPISODES.find((x) => x.id === id);
   if (!ep) return;
+
+  // THE EDITOR'S ENTRY POINT. Delegated, so it survives the 30s rebuild that
+  // replaces every button inside #lanes.
+  if (act === "edit-script") {
+    harvestDrafts();                 // don't lose anything typed elsewhere first
+    await openScript(id);
+    return;
+  }
 
   if (act === "thread") {
     harvestDrafts();

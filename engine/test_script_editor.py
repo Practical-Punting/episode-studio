@@ -141,8 +141,44 @@ def main():                                                  # noqa: C901
         page.on("pageerror", lambda e: errs.append(str(e)))
         page.goto(url)
         page.wait_for_selector("#board:not([hidden])", timeout=15000)
-        page.evaluate("openScript('ep-18')")
-        page.wait_for_selector("#script:not([hidden])")
+
+        print("\n-- 🔴 CAN A HUMAN ACTUALLY OPEN IT? (the case that was missing) --")
+        # THE FAULT THIS STANDS AGAINST, and it shipped: the editor panel existed
+        # for a whole landing with NOTHING ON THE BOARD THAT OPENED IT.
+        # openScript() was defined and never called. Jodie could read EP18's
+        # script and could not change a word.
+        #
+        # AND THE PROOF MISSED IT BECAUSE THE PROOF REACHED PAST THE DOOR: every
+        # case below used page.evaluate("openScript('ep-18')") — calling the
+        # function directly. They proved the panel WORKS once open and never that
+        # a person can OPEN it. So this case clicks the REAL button on the REAL
+        # rendered card, and everything after it inherits a panel opened the way
+        # she opens it.
+        btn = page.locator("#lanes [data-act='edit-script']").first
+        check("the words card renders an edit button at all", btn.count() > 0,
+              "there is no way in — the editor is orphaned")
+        check("  and it says what it does",
+              "Edit the script" in (btn.text_content() or ""),
+              btn.text_content() or "")
+        check("  the panel is shut before she clicks", page.is_hidden("#script"))
+        btn.click()
+        page.wait_for_selector("#script:not([hidden])", timeout=5000)
+        check("CLICKING IT OPENS THE EDITOR", not page.is_hidden("#script"))
+        check("  the board steps aside", page.is_hidden("#board"))
+        check("  and the focus is in the words, ready to type",
+              page.evaluate("document.activeElement.id") == "sc-text")
+
+        print("\n-- the button survives the 30s rebuild that replaces it --")
+        # It is delegated through #lanes, so the node is destroyed every cycle and
+        # the handler is not. A listener bound to the button itself would die.
+        page.evaluate("closeScript()")
+        page.wait_for_selector("#board:not([hidden])")
+        page.evaluate("loadAll()")
+        page.wait_for_timeout(200)
+        page.locator("#lanes [data-act='edit-script']").first.click()
+        page.wait_for_selector("#script:not([hidden])", timeout=5000)
+        check("it still opens after the board has been rebuilt",
+              not page.is_hidden("#script"))
 
         print("\n-- it opens on what Claude Code wrote --")
         check("the box holds the seated script",
@@ -287,6 +323,40 @@ def main():                                                  # noqa: C901
               "an unlock nobody can see afterwards is not a recorded act")
         check("  and nothing was deleted to do it",
               page.evaluate("window.__INSERTS.length > 0"))
+
+        print("\n-- the on-card preview keeps its place too (bug 1, in miniature) --")
+        # Jodie, 8 Aug: reading the script on the card, it "jumps to the top every
+        # ~30s". The editor is the real reading surface and is immune; the preview
+        # still lives inside #lanes, so its place is harvested and restored the
+        # same way the board already does for every input.
+        page.evaluate("closeScript()")
+        page.wait_for_selector("#board:not([hidden])")
+        # THE REAL ELEMENT AND THE REAL CSS. `.scriptbox` is overflow:hidden; the
+        # scroller is `.scriptbox > pre` (max-height:44vh, overflow:auto). An
+        # earlier version of this case styled the box by hand and measured a
+        # scroll that does not exist on the shipped board.
+        # A REAL-LENGTH SCRIPT, or the <pre> never exceeds its 44vh and there is
+        # no scroll to preserve. Earlier cases have whittled the fixture down to
+        # a few words.
+        page.evaluate("""(() => {
+            const ep = EPISODES.find(e => e.id === 'ep-18');
+            ep.script_snapshot = Array.from({length: 300},
+                (_, i) => 'Line ' + i + ' of a script long enough to scroll.').join('\\n\\n');
+            renderBoard();
+        })()""")
+        page.wait_for_timeout(150)
+        page.evaluate("""(() => {
+            const p = document.querySelector('.scriptbox > pre');
+            p.scrollTop = 60;
+        })()""")
+        got = page.evaluate("document.querySelector('.scriptbox > pre').scrollTop")
+        check("the preview can be scrolled (or this proves nothing)", got > 0,
+              f"scrollTop {got} — the <pre> is not overflowing, so nothing is proved")
+        page.evaluate("harvestDrafts(); loadAll();")
+        page.wait_for_timeout(250)
+        after = page.evaluate("document.querySelector('.scriptbox > pre').scrollTop")
+        check("  and it keeps its place across a rebuild", after == got,
+              f"was {got}, now {after}")
 
         print("\n-- and nothing threw --")
         check("no page errors", not errs, str(errs[:2]))
