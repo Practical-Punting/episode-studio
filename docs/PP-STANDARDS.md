@@ -302,6 +302,32 @@ never a proxy for it:
    which `qc_episode.py --episode` already hard-fails on. **Do not reimplement it here;
    call it** (fault #2, one source of truth).
 
+> ## 🔴 3a. TIMING IS MEASURED IN THE FINISHED MP4, NEVER TRUSTED FROM THE DERIVATION.
+> **(Jodie, 8 Aug 2026, after EP18 shipped two overlays seven seconds out.)**
+> > *"Card/overlay timing must be worked out and VERIFIED against the actually-created
+> > video, not a predicted timeline."*
+>
+> **The proof is a sentence of this shape, one per overlay, and it must be produced from
+> the file:** *"overlay X appears at real time T, while Gordon is saying '…', and holds
+> N seconds."* A predicted window is not that sentence.
+>
+> **WHY IT IS NOT PEDANTRY — the failure it catches is invisible to every other check.**
+> episode.json times are **PRESENTER-CLOCK** (t=0 is Gordon's first word). The finished
+> file prepends `title_head` (7.0s). Cards reach the final clock through `bs()`, which
+> adds it. `midroll.at` and `early_cta.at` were read RAW by BOTH `assemble_episode.py`
+> AND `qc_episode.py` — so the chip sat **7 seconds before the words it belongs to**, and
+> the checker made the same error and agreed with it. **Two green checks, one wrong
+> picture, and only a human eye caught it.**
+> ⚠️ **A CONTROL THAT PROVES THE OVERLAY APPEARED WHERE YOU PUT IT PROVES NOTHING ABOUT
+> WHETHER THAT IS THE RIGHT PLACE.** The early-CTA card was control-rendered and
+> confirmed visible at 48.6s — correctly, and 7s away from the invitation. **Measure
+> against the WORDS, not against your own placement.**
+> 📌 **How to measure** (`scratchpad/measure_overlays2.py` is the worked example): read
+> `pts_time` out of `metadata=print` with `-copyts` — never count frames forward from a
+> seek — use ABSOLUTE luma thresholds, and write a PNG at each measured boundary so the
+> number is checked by eye. *Both faults were in the first version of that tool: an
+> instrument gets the same scrutiny as the thing it measures.*
+
 🔴 **AND THE CHECKS THEMSELVES ARE WRITTEN CONTROL-FIRST — see CLAUDE.md 4b.** Any new
 QC check must be watched FAILING on a deliberately broken artefact before its pass is
 worth anything. *A check whose output is discarded and a check that passes look

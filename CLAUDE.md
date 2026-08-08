@@ -159,6 +159,21 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > numbers in plain English. **Used by the HeyGen master AND the paid Higgsfield clips
    > and heroes** — the sibling was fixed by asking whether the fault had one, rather
    > than waiting for it to bite a second time.
+   > ### 🔴 1b. THERE ARE TWO CLOCKS, AND A TIME IS NOT A NUMBER — IT IS A NUMBER IN A FRAME.
+   > **(EP18, 8 Aug 2026. Fault #1 pointed at TIME, and it shipped past every check.)**
+   > `episode.json` times are **PRESENTER-CLOCK** — t=0 is Gordon's first word, because
+   > that is what `aligned.srt` measures. The finished file prepends `title_head` (7.0s).
+   > Cards cross over via `bs()`, which adds it. **`midroll.at` and `early_cta.at` were
+   > read RAW by `assemble_episode.py` AND by `qc_episode.py`**, so the like/subscribe chip
+   > sat **seven seconds before the ask** — on every episode that set an explicit `at`.
+   > **Both green. Both wrong. The same error in the checker and the checked**, which this
+   > repo already names: *a check that shares its source with the thing it checks is not a
+   > check.* **Jodie found it by watching the video.**
+   > ⚠️ **AND THE CONTROL THAT MISSED IT IS THE LESSON.** The early card was control-rendered
+   > and proved visible at 48.6s — true, and irrelevant: **it proved the card appeared where
+   > I PUT it, never that where I put it was where the WORDS were.** A control that
+   > re-measures your own placement measures nothing. **Assert against the artefact a human
+   > perceives — here, the spoken word under the frame.** Rule: `PP-STANDARDS` §3a.
    > ### 🔴 AND: A REAL PASS ON THE WRONG ARTEFACT IS A FALSE PASS.
    > **Twice on 4 Aug 2026, and both times every check was honest:**
    > · the master had the **right duration** and the **wrong audio** — `ffprobe` read
