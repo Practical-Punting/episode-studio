@@ -358,6 +358,92 @@ def check_trace(card, article_norm):
     return problems
 
 
+def check_dead_trace(card):
+    """A trace key that matches NO content key is a dead citation. (E-b)
+
+    🔴 A DEAD CITATION LOOKS EXACTLY LIKE A LIVE ONE. Nothing reads it, nothing
+    reports it, and the value it was written for silently falls back to the list's
+    general entry — or to nothing at all.
+
+    EP18, 8 Aug 2026: every per-item key in that file was written 0-BASED while
+    `walk_values` yields 1-BASED (`enumerate(v, 1)`). All nine entries were
+    therefore addressed to the row BELOW the one they were written for, and the
+    last row of each list had no entry at all. It surfaced as EIGHT trace faults
+    across five cards; it was ONE fault, and this check names it directly.
+
+    The valid set is DERIVED from `walk_values` — the same function `check_trace`
+    uses to decide what needs a citation — so it cannot drift from it.
+    """
+    cid = card.get("id", "<no id>")
+    trace = card.get("trace") or {}
+    content = card.get("content")
+    if not trace or not isinstance(content, dict):
+        return []
+    live, bases, counts = set(), set(), {}
+    for key, _v in walk_values(content):
+        live.add(key)
+        b = key.split("[")[0]
+        bases.add(b)
+        live.add(b)
+        m = re.match(r"^[A-Za-z_]+\[(\d+)\]", key)
+        if m:
+            counts[b] = max(counts.get(b, 0), int(m.group(1)))
+    live |= {"headline", "eyebrow", "rail"}
+    problems = []
+    for k in sorted(trace):
+        if k in live:
+            continue
+        b = k.split("[")[0]
+        m = re.match(r"^[A-Za-z_]+\[(\d+)\]", k)
+        # ⚠️ ONLY INDEX-SHAPED DEAD KEYS HALT, and the narrowing is deliberate.
+        # A key like `bars[0].value` is a MISADDRESSED CITATION: the list is real, so
+        # the entry was written for a row and silently landed on a different one (or on
+        # none). That is EP18's fault and it is dangerous.
+        # A key that matches nothing at all — EP16 c02 carries `trace["Three chances"]`
+        # — is untidy, reads as a note, and misleads nobody. Halting on it would have
+        # blocked EP16, an episode that shipped fine, which is the "guard that halts a
+        # good episode is the version somebody switches off" failure (CLAUDE.md 4a).
+        # Those are returned by check_stray_trace() as WARNINGS instead.
+        if not (m and b in bases):
+            continue
+        i, n = int(m.group(1)), counts.get(b, 0)
+        why = (f"{b!r} is indexed from 1 and has {n} item(s), so the valid keys are "
+               f"{b}[1] to {b}[{n}]." + (" A 0-based key is the usual cause — the "
+               "citation then lands on the row below the one it was written for."
+               if i == 0 else ""))
+        problems.append(f"{cid}.trace[{k!r}] matches no value on this card — {why}")
+    return problems
+
+
+def check_stray_trace(card):
+    """Trace keys that address nothing recognisable — untidy, reported, never fatal.
+
+    The sibling of check_dead_trace: same derivation, opposite severity. See the
+    comment there for why the split exists.
+    """
+    cid = card.get("id", "<no id>")
+    trace = card.get("trace") or {}
+    content = card.get("content")
+    if not trace or not isinstance(content, dict):
+        return []
+    live, bases = set(), set()
+    for key, _v in walk_values(content):
+        live.add(key)
+        bases.add(key.split("[")[0])
+        live.add(key.split("[")[0])
+    live |= {"headline", "eyebrow", "rail"}
+    out = []
+    for k in sorted(trace):
+        if k in live:
+            continue
+        if re.match(r"^[A-Za-z_]+\[(\d+)\]", k) and k.split("[")[0] in bases:
+            continue                      # that one is a blocker, handled above
+        out.append(f"{cid}.trace[{k!r}] addresses nothing on this card and is never read. "
+                   f"Harmless, but it looks like a citation and is not one. "
+                   f"Content keys here: {sorted(bases | (set(content) - bases)) or 'none'}.")
+    return out
+
+
 # ---------------------------------------------------------------- rendering
 
 def esc(v):
@@ -628,6 +714,7 @@ def main():
             validate(c, blk)
             problems += check_job(c)
             problems += check_trace(c, article)
+            problems += check_dead_trace(c)
             plan.append((c, blk))
         except Halt as e:
             problems.append(str(e))
@@ -694,6 +781,11 @@ def main():
               + ("  (re-authored — its definition changed)" if p in redone else ""))
     for cid, page, why in skipped:
         print(f"  · {cid} {page} — left alone: {why}")
+    # Untidy-but-harmless citations go in the RUN LOG, never in a gate — see the note
+    # in preflight_cards.preflight_cards() for why they are not warnings.
+    for c in cards:
+        for s in check_stray_trace(c):
+            print(f"  · {s}")
 
 
 if __name__ == "__main__":

@@ -449,8 +449,10 @@ def _preflight_cards(ctx) -> list[str]:
         except Exception:
             article = None
 
+    # capture_looked_for=True: this caller DID go to disk for it, so "named but not
+    # there" is a real finding here and not merely an argument nobody supplied.
     res = pc.preflight_cards(epj, script_text=script, capture_text=capture,
-                             article_norm=article)
+                             article_norm=article, capture_looked_for=bool(rel))
     lines = pc.format_report(res).splitlines()
     if res["blockers"]:
         raise EngineFlag(

@@ -166,6 +166,12 @@ def authoring_faults(epj: dict, article_norm: str | None) -> list[str]:
             out += [f"{cid}: {p}" for p in ac.check_job(c)]
         except Exception as e:
             out.append(f"{cid}: {e}")
+        # A dead trace key needs no article, so it is checked even when the capture
+        # is missing — it is a fault in the FILE, not in the comparison.
+        try:
+            out += [f"{cid}: {p}" for p in ac.check_dead_trace(c)]
+        except Exception as e:
+            out.append(f"{cid}: {e}")
         if article_norm is not None:
             try:
                 out += [f"{cid}: {p}" for p in ac.check_trace(c, article_norm)]
@@ -284,17 +290,66 @@ def layout_is_not_here() -> str:
             "audit_inputs")
 
 
+# ---------------------------------------------- the capture must BE THERE (E-a)
+def capture_reference_faults(epj: dict, capture_text: str | None,
+                             capture_looked_for: bool = False) -> list[str]:
+    """`source` must name a capture that exists — this is a BLOCKER, not a shrug.
+
+    🔴 WHY IT BLOCKS, when the rest of this module leans towards standing aside:
+    the capture is the SWITCH FOR THE WHOLE TRACE REGIME. With it missing,
+    `authoring_faults` skips `check_trace` (`if article_norm is not None`) and
+    `capture_faults` returns [] on the spot — so the pre-flight reports CLEAN
+    having checked nothing at all.
+
+    EP18, 8 Aug 2026: the field named the right file as an ABSOLUTE Windows path
+    inside a helpful sentence, so the `docs/....md` pattern matched nothing. The
+    build passed audit_inputs, spent the cover pair, SEVEN PAID CLIPS and the
+    e-book cover, and halted at step ten on eight trace faults that had been
+    invisible from the start. **The one input whose absence blinds the checker
+    cannot be the one input it forgives.** (Jodie's ruling, 8 Aug 2026.)
+    """
+    rel = capture_rel(epj)
+    if not rel:
+        src = str(epj.get("source") or "")
+        return ["episode.json -> source does not name a source-article capture. It must "
+                "contain a RELATIVE, forward-slash path of the form "
+                "'docs/EPnn-source-article-....md' — an absolute path, backslashes, or a "
+                "description of where the file lives will not do, because the whole "
+                "figure-tracing regime is switched off when this cannot be read, and "
+                "everything downstream then passes by default.\n"
+                f"    source currently reads: {src[:200]!r}"]
+    # ⚠️ "named but unreadable" fires ONLY when the caller says it actually looked.
+    # The engine reads the capture off disk and passes capture_looked_for=True. A unit
+    # test or a caller that simply has no capture to hand has not discovered a fault —
+    # and treating "you didn't give me one" as "it is missing" halted EP16-as-shipped
+    # in the existing suite the first time this was written.
+    if capture_text is None and capture_looked_for:
+        return [f"episode.json -> source names {rel!r} but that file could not be read. "
+                "Figures cannot be traced to an article that is not there, so nothing "
+                "after this point would be checked. Put the capture in place (it lives "
+                "in the SHARED 'PP Videos/docs' folder), then re-run."]
+    return []
+
+
 # ------------------------------------------------------------------- the run
 def preflight_cards(epj: dict, *, script_text: str = "",
                     capture_text: str | None = None,
-                    article_norm: str | None = None) -> dict:
+                    article_norm: str | None = None,
+                    capture_looked_for: bool = False) -> dict:
     """Return {'blockers': [...], 'warnings': [...]}. Callers decide to halt."""
     blockers = []
+    blockers += capture_reference_faults(epj, capture_text, capture_looked_for)
     blockers += authoring_faults(epj, article_norm)
     if script_text:
         blockers += cue_faults(epj, script_text)
     blockers += capture_faults(capture_text)
     blockers += name_faults(epj, capture_text)
+    # 🚫 STRAY TRACE KEYS ARE NOT REPORTED HERE, AND THAT IS THE SAME DECISION AS THE
+    # BEAT-LENGTH CHECK ABOVE. This module emits NO warnings on purpose (Jodie, 6 Aug
+    # 2026): "a warning that is wrong about half the time trains people to stop reading
+    # warnings". A key that addresses nothing is harmless BY DEFINITION — nothing reads
+    # it — so it has no business in a gate. `author_cards` prints it in the authoring
+    # report, where it belongs: visible in the run log, never in front of an operator.
     return {"blockers": blockers, "warnings": []}
 
 
