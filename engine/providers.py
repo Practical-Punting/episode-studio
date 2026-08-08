@@ -1961,13 +1961,45 @@ class RealProvider:
         *because the duration matched*. An observation you explain away is worse than
         one you never made: it leaves you confident. Hence a machine check, not care.
         """
+        # 🔴 COUNT WHAT WE RECEIVED. DO NOT ASK THE FILESYSTEM.
+        #
+        # ══ EP18, 8 Aug 2026 — THIS GUARD FAILED A PERFECT FILE, THREE TIMES ══
+        # covers_ab halted with "9,629,496 stated, 9,437,184 arrived" on every
+        # attempt, on good home internet. Jodie spotted what made it diagnosable:
+        # a dropped connection truncates at a DIFFERENT point each time, and
+        # 9,437,184 is EXACTLY 9 MiB. Deterministic, and on a round binary
+        # boundary — that is a buffer, not a network.
+        #
+        # MEASURED, both sides: fetching the same URL returns all 9,629,496 bytes
+        # twice, byte-identical. Writing it to C: and stat-ing immediately gives
+        # 9,629,496. Writing it to G: and stat-ing immediately gives 9,437,184 —
+        # and 9,629,496 three seconds later, with the bytes on disk complete and
+        # the sha256 matching the source.
+        #     GOOGLE DRIVE'S VIRTUAL FILESYSTEM REPORTS SIZE LAZILY.
+        # `shutil.copyfileobj` + `tmp.stat().st_size` asked a filesystem that had
+        # not finished thinking, and believed it.
+        #
+        # ⚠️ AND IT IS THE EXACT INVERSE OF THE FAULT IT WAS BUILT FOR. EP15: a
+        # genuinely short file that LOOKED complete. EP18: a complete file that
+        # LOOKED short. Both are the same root — trusting something that reports
+        # ON the artefact instead of the artefact itself. `stat()` is a proxy.
+        # The bytes we counted through our own hands are not.
+        #
+        # 🔒 THE ORIGINAL GUARANTEE IS UNCHANGED. EP15's master would still be
+        # refused: the read stops early, so the running total stops early too.
+        # This only stops the filesystem's lag being read as a short download.
         tmp = dest.with_suffix(".part")
+        got = 0
         with urllib.request.urlopen(url, timeout=600) as r:
             stated = r.headers.get("Content-Length")
             stated = int(stated) if stated and stated.isdigit() else None
             with open(tmp, "wb") as f:
-                shutil.copyfileobj(r, f)
-        got = tmp.stat().st_size
+                while True:
+                    chunk = r.read(1 << 20)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    got += len(chunk)
 
         if stated is not None and got != stated:
             short = stated - got
