@@ -46,7 +46,13 @@ ElevenLabs → US-accent bug) **cannot recur** — you only drop in the script.
 When Claude says *"the presenter is ready to generate,"* Jodie:
 1. Open the HeyGen web app and open the **locked episode template** (avatar, voice, and grandstand backdrop are already baked in — nothing to pick).
 2. **Paste the spoken-words script** Claude provides into the template's script/text slot.
-3. Confirm **Captions OFF**.
+3. Confirm **Captions OFF**. ⚠️ **This one cannot be undone.** HeyGen BURNS captions into
+   the picture, so a master rendered with them on is a master with words baked into every
+   frame — the only fix is a re-render, which is real money and the long pole of the whole
+   build. And the episode ships **its own** `.srt` (A7), so HeyGen's would be a *second*
+   set of words on screen, out of step with ours. *The reason is recorded because a step
+   with no reason is a step somebody helpfully skips.* **Also shown on the render card in
+   the board, where the hand actually is (Bundle F).**
 4. Click **Generate** and let it finish.
 5. Tell Claude **"it's rendered"** (and the `video_id` if it's handy).
 

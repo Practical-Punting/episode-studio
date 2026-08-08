@@ -356,6 +356,49 @@ def main():
                             f"{MIDROLL_MIN_FULL}s bar.")
         windows["MIDROLL"] = (mid_at, round(mid_at + dur, 2))
 
+    # ---- 4b. the early e-book card: FOLLOWS the spoken mention, like the chip ----
+    # Every episode carries an early companion-guide line near the top (script skill
+    # §4J). The marketing card — the same one the end uses, the one with the e-book's
+    # first page on it — is held over it for a few seconds.
+    #
+    # 🔴 `at` IS DERIVED, NEVER TYPED. EP18's first attempt hard-coded 48.6 and it was
+    # wrong twice over: wrong clock (presenter read as final, so 7s early) and a number
+    # nobody could re-check. A typed timestamp is the EP15 `midroll.at = 235.0` fault
+    # waiting to happen — right on the day it was written, stale by the next re-render.
+    # Give it an `anchor` phrase and the SRT places it, exactly as the chip is placed.
+    EARLY_FOLLOW = 1.0
+    cta = build.get("early_cta") or {}
+    cta_at = None
+    if cta:
+        anchor = str(cta.get("anchor") or "").strip()
+        cdur = float(cta.get("dur", 6.0))
+        cfade = float(cta.get("fade", 0.3))
+        print("\nEARLY E-BOOK CARD — FOLLOWS the spoken mention by "
+              f"{EARLY_FOLLOW}s, never precedes it")
+        if not anchor:
+            # A4: a missing value must not QUIETLY drop the card.
+            problems.append(
+                "build.early_cta is set but has no `anchor`. It must quote the opening "
+                "words of this episode's early companion-guide mention, verbatim, so the "
+                "card is placed from the SRT instead of a typed timestamp. Not guessing.")
+            print("  anchor NOT SET — refusing to guess (see the problem above)")
+        else:
+            c0 = find_phrase(tl, anchor)
+            if c0 is None:
+                problems.append(
+                    f"early_cta: anchor {anchor!r} is not in the SRT, so the card cannot "
+                    "be placed. The wording of the early e-book mention has changed, or "
+                    "this is the wrong master. Not guessing early_cta.at.")
+                print(f"  anchor {anchor!r} NOT FOUND in the SRT")
+            else:
+                cta_at = round(c0 + EARLY_FOLLOW, 2)
+                print(f"  mention spoken  : {c0:.2f}")
+                print(f"  early_cta.at    : {cta_at:.2f}  (holds {cdur}s, "
+                      f"full visibility {cdur - 2 * cfade:.2f}s)")
+                if cta_at < c0:
+                    problems.append("early_cta: would precede its own mention.")
+                windows["EARLY_CTA"] = (cta_at, round(cta_at + cdur, 2))
+
     # ---- 5. ALL FOUR OVERLAP CLASSES ---------------------------------------
     broll_dur = float(build.get("broll_dur", 5))
     offs = build.get("broll_offsets") or {}
@@ -516,15 +559,20 @@ def main():
         sys.exit(1)
 
     print("\nALL CHECKS PASS.")
-    print(f"leads      = {json.dumps(leads)}")
-    print(f"midroll.at = {mid_at}")
+    print(f"leads        = {json.dumps(leads)}")
+    print(f"midroll.at   = {mid_at}")
+    if cta:
+        print(f"early_cta.at = {cta_at}")
     if write:
         build["leads"] = leads
         if mid_at is not None:
             build["midroll"]["at"] = mid_at
+        if cta_at is not None:
+            build["early_cta"]["at"] = cta_at
         epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
                             encoding="utf-8")
-        print(f"\nWROTE {epj_path} (build.leads and build.midroll.at only).")
+        print(f"\nWROTE {epj_path} (build.leads, build.midroll.at"
+              + (", build.early_cta.at" if cta_at is not None else "") + " only).")
     else:
         print("\nReport only. Re-run with --write to apply.")
 

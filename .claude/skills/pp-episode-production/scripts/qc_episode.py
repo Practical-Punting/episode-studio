@@ -619,6 +619,136 @@ def stage_numbers(qc, episode_path, ep_dir, out_dir):
         qc.note("numbers check: no figures found on the cards")
 
 
+def stage_deliverables(qc, episode_path, ep_dir, out_dir):
+    """The two things a reader RECEIVES besides the video: the e-book PDF and the
+    thumbnail. (Jodie, 9 Aug 2026 — extend the machine QC to every approval gate.)
+
+    `stage_packaging` already proves their SOURCES carry the locked words. This is the
+    other half and the one that was missing: are the FILES THEMSELVES whole? A source
+    can be perfect and the artefact still be a blank page, a missing image, or a 3-byte
+    PNG — and every one of those reaches a human before it reaches a check.
+    `build_ebook.py` QCs the PDF as it BUILDS it; this looks at what is on disk now,
+    which is not the same claim.
+    """
+    import glob as _g
+    ep = {}
+    try:
+        ep = json.load(open(episode_path, encoding="utf-8"))
+    except Exception:
+        pass
+
+    # ---------------------------------------------------------------- the PDF
+    # ASK BOTH PLACES. The built PDF lands in output/ beside the video; ebook/ holds
+    # the sources it was made from. The first version of this looked only in ebook/
+    # and reported EP18's shipped guide as missing — a check that cannot find the
+    # artefact reports the wrong fault with total confidence.
+    pdfs = (sorted(_g.glob(os.path.join(ep_dir, "output", "*.pdf")))
+            or sorted(_g.glob(os.path.join(ep_dir, "ebook", "*.pdf"))))
+    if not pdfs:
+        qc.fail("no e-book PDF in output/ or ebook/ — the guide is a shipped "
+                "deliverable and the video's call to action points at it")
+    else:
+        pdf = pdfs[-1]
+        try:
+            import fitz
+        except Exception as e:                                        # noqa: BLE001
+            qc.warn(f"e-book PDF not examined — PyMuPDF is not importable ({e}). "
+                    "The file exists but nothing has looked inside it.")
+        else:
+            try:
+                doc = fitz.open(pdf)
+            except Exception as e:                                    # noqa: BLE001
+                qc.fail(f"the e-book PDF will not open ({e}) — {os.path.basename(pdf)}")
+                doc = None
+            if doc is not None:
+                n = doc.page_count
+                if n < 4:
+                    qc.fail(f"the e-book PDF has only {n} page(s) — that is not a guide")
+                blank, noimg, texts = [], [], []
+                for i, page in enumerate(doc, 1):
+                    t = page.get_text().strip()
+                    imgs = page.get_images(full=True)
+                    texts.append(t)
+                    if not t and not imgs:
+                        blank.append(i)
+                    elif not imgs and len(t) < 40:
+                        noimg.append(i)
+                if blank:
+                    qc.fail(f"e-book page(s) {blank} are completely EMPTY — no text and "
+                            "no image. A blank page in a guide reads as a fault in us.")
+                if noimg:
+                    qc.warn(f"e-book page(s) {noimg} carry almost nothing")
+                body = "\n".join(texts)
+                # 🔴 THE ROGUE '?' — EP17's ruling, and it recurred on EP18. The scans
+                # carry a literal '?' glued to the front of a word mid-sentence. It is
+                # repaired at the CAPTURE, so one arriving here means the repair was
+                # missed or something downstream re-introduced it.
+                rogue = re.findall(r"\?[A-Za-z]\w*", body)
+                if rogue:
+                    qc.fail(f"the e-book PDF contains {len(rogue)} rogue '?' glued to a "
+                            f"word — {rogue[:5]}. These are scan noise (EP17 ruling) and "
+                            "are repaired at the capture, not here.")
+                if doc.page_count:
+                    qc.note(f"e-book PDF: {n} pages, "
+                            f"{sum(len(t) for t in texts):,} chars of text, "
+                            f"{'no' if not blank else len(blank)} blank page(s)")
+                doc.close()
+
+    # ------------------------------------------------------------ the thumbnail
+    thumbs = sorted(_g.glob(os.path.join(ep_dir, "output", "*thumbnail*.png")))
+    if not thumbs:
+        qc.fail("no thumbnail PNG in output/ — it is a first-class deliverable and the "
+                "step most likely to be forgotten (PP-STANDARDS)")
+        return
+    th = thumbs[-1]
+    size = os.path.getsize(th)
+    if size < 20_000:
+        qc.fail(f"the thumbnail is only {size:,} bytes — that is not a finished 1280x720 "
+                "picture, it is a placeholder or a failed render")
+    dim = _probe_png(th)
+    if dim is None:
+        qc.fail(f"the thumbnail will not decode — {os.path.basename(th)} is corrupt")
+        return
+    w, h, luma = dim
+    if (w, h) != (1280, 720):
+        qc.fail(f"the thumbnail is {w}x{h}, not 1280x720 — YouTube will rescale it and "
+                "the type will soften")
+    # 🚫 THERE IS NO "IS IT TOO DARK" FAIL HERE, AND THAT IS A DECISION.
+    # One was written and then taken out, because it could not be made to FIRE on any
+    # realistic fixture (CLAUDE.md 4b — a guard you have not watched fail does not ship).
+    # The failure it was aimed at is a render that produced nothing, and that render
+    # produces a FLAT frame, which is a 4 KB PNG — already caught by the size check
+    # above, proved. To make the luma rule fire the fixture had to be a noise field
+    # scaled down, which is not a thing this pipeline can emit.
+    # Mean luma is still REPORTED, because it is the number a human would want if a
+    # thumbnail ever did look wrong — but it judges nothing.
+    qc.note(f"thumbnail: {w}x{h}, {size:,} bytes, mean luma "
+            f"{'n/a' if luma is None else round(luma, 1)}")
+
+
+def _probe_png(path):
+    """(width, height, mean_luma) straight out of the file, or None if it will not
+    decode. ffprobe/ffmpeg rather than a new image library — the toolchain already
+    depends on them and a check should not add a way to fail."""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                            "-show_entries", "stream=width,height", "-of", "csv=p=0",
+                            path], capture_output=True, text=True)
+        w, h = (int(x) for x in r.stdout.strip().split(",")[:2])
+    except Exception:                                                  # noqa: BLE001
+        return None
+    luma = None
+    try:
+        r2 = subprocess.run(["ffmpeg", "-v", "info", "-i", path, "-vf",
+                             "signalstats,metadata=print", "-f", "null", "-"],
+                            capture_output=True, text=True)
+        m = re.search(r"lavfi\.signalstats\.YAVG=([0-9.]+)", r2.stderr)
+        luma = float(m.group(1)) if m else None
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return w, h, luma
+
+
 def stage_card_timing(qc, final, beats, head, episode_path):
     """Card-sync standard (25 Jul 2026): every card ENTERS no earlier than its
     spoken cue (beat start) and HOLDS at least the readable minimum. Verified
@@ -969,6 +1099,7 @@ def main():
         stage_numbers(qc, args.episode, ep_dir, args.out_dir)
         print("[4e] card timing + midroll ...")
         stage_card_timing(qc, args.final, beats, args.head, args.episode)
+        stage_deliverables(qc, args.episode, ep_dir, args.out_dir)
 
     status, report = build_report(qc, args.final, args.shot_map, args.head)
     report_path = os.path.join(args.out_dir, "QC-REPORT.md")

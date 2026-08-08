@@ -147,6 +147,28 @@ let threw = null;
 try { await fire(b3); } catch (e) { threw = e; }
 check("no .needlook wrapper -> it does not throw", threw === null, String(threw));
 
+console.log("\n=== (c) the render card carries the captions-OFF instruction ===\n");
+
+/* This is the one instruction carried out inside somebody else's product, and the only
+ * irreversible one on the card: HeyGen BURNS captions into the picture. The guide has
+ * said "Confirm Captions OFF" for weeks; the card she is looking at while she is in
+ * HeyGen did not. Assert the RENDERED CARD, not the source — a grep would pass on a
+ * comment that merely mentions captions (CLAUDE.md 1a). */
+const gate = vm.runInContext(
+  'gateRender({ id: "ep-18", ep_number: 18, heygen_name: "PP-EP18", status: "building" })',
+  sandbox);
+check("the render card mentions captions at all", /caption/i.test(gate),
+      gate.slice(0, 160));
+check("  and says to turn them OFF", /captions?\s*OFF/i.test(gate));
+check("  and says why it cannot be undone",
+      /burn/i.test(gate) && /cannot be taken out|cannot be removed/i.test(gate),
+      "a step with no reason is a step somebody helpfully skips");
+check("  and it is not styled as just another grey hint",
+      /class="g-warn"/.test(gate), "it needs to read louder than g-hint");
+check("  the copy buttons are still there",
+      /data-act="copy-heygen"/.test(gate) && /data-act="copy-script"/.test(gate),
+      "the EP17 fault — the card that asks for the one thing it does not give");
+
 console.log(`\n${pass} passed, ${fails.length} failed`);
 for (const f of fails) console.log("  FAILED: " + f);
 process.exit(fails.length ? 1 : 0);

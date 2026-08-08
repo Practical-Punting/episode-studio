@@ -115,6 +115,11 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .gate h4{font-size:11.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
   color:var(--orange);margin-bottom:5px;}
 .gate p.g-hint{font-size:13px;color:var(--muted);line-height:1.45;margin-bottom:12px;}
+/* The one instruction that must be carried out inside somebody else's product, and
+   the only one on this card that cannot be undone afterwards — so it does not read
+   as another grey hint. */
+.gate p.g-warn{font-size:13px;line-height:1.45;margin-bottom:12px;padding:9px 12px;
+  border-left:3px solid #DA532C;background:rgba(218,83,44,.08);border-radius:0 6px 6px 0;}
 .gate .btn{font-size:14.5px;padding:12px 18px;}
 .gate input[type=url],.gate input[type=text]{width:100%;font-family:inherit;font-size:14px;padding:11px 13px;
   border:2px solid #e6e2dd;border-radius:10px;background:#fff;color:var(--ink);outline:none;margin-bottom:10px;}

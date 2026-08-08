@@ -1232,7 +1232,19 @@ function gateRender(ep) {
   let h = '<div class="gate"><h4>Your turn — start the render</h4>' +
     '<p class="g-hint">Open HeyGen, make the project <b>' + esc(name) +
     "</b>, paste the script below into it and hit render. Then tell the board it’s going." +
-    parallel + "</p>";
+    parallel + "</p>" +
+    /* CAPTIONS OFF, SAID WHERE THE HAND IS. HeyGen burns its own captions into the
+     * picture when the setting is left on, and burnt-in text cannot be removed
+     * afterwards — the master is the master. The episode ships its own .srt (A7), so
+     * HeyGen's would also be a SECOND set of words on screen, out of step with ours.
+     * This is the one instruction that has to be followed inside somebody else's
+     * product, so it belongs on the card she is looking at while she is in there —
+     * not only in a guide she read once. (Bundle F: put the thing where the person
+     * is standing.) */
+    '<p class="g-warn"><b>Before you hit render: turn captions OFF.</b> ' +
+    "HeyGen burns them into the picture and they cannot be taken out afterwards. " +
+    "This episode ships its own subtitles, so leaving them on puts two sets of " +
+    "words on screen.</p>";
 
   h += '<div class="copyrow">' +
     '<button class="mini copy" data-act="copy-heygen" data-ep="' + ep.id + '">' +

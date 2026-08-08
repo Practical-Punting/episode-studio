@@ -512,6 +512,46 @@ promise.** If an email is needed, say so plainly with an easy out. Deliver the v
 then offer the guide as the natural next step. Use **Link → Gap → Promise**: reference what he just
 learned → open a small new question → promise what the guide/next step delivers.
 
+#### 🔒 THE EARLY MENTION — every episode names the guide near the top, and the card follows
+**(Jodie, 8 Aug 2026, from EP18.) TWO mentions per episode, and they do different jobs.**
+
+| | where | what it does |
+|---|---|---|
+| **the early mention** | in the opening, once the hook has landed and before the article proper starts | tells Dave the figures exist in full so he can *follow along*, not just be sold to at the end |
+| the closing CTA | after the payoff (above) | the natural next step |
+
+**Write the early one as a genuine aside, not an ad break** — Gordon interrupting himself
+to be useful. EP18's, as a shape to hit and not a sentence to copy:
+> *"One quick thing before we dig in: there's a free companion guide to go with this,
+> with [the author]'s full set of figures for [what they cover]. The link's in the
+> description below — grab it and you can follow along as we go."*
+
+**AND THE PICTURE GOES WITH IT.** The same marketing card the end uses — the one carrying
+the e-book's first page — is held over this line for a few seconds. In `episode.json`:
+
+```json
+"early_cta": {
+  "clip":   "end-card-template.mp4",
+  "anchor": "One quick thing before we dig in",
+  "at":     null,
+  "dur":    6.0,
+  "fade":   0.3
+}
+```
+
+> ### 🔴 `at` IS NULL AT SCRIPT TIME AND MUST STAY NULL. `anchor` IS WHAT YOU WRITE.
+> `derive_card_timings.py` finds the anchor in the forced-aligned SRT and computes `at`
+> — **the card FOLLOWS the spoken mention by 1.0s**, exactly as the midroll chip follows
+> the ask. **A typed timestamp is the EP15 `midroll.at = 235.0` fault waiting to happen:**
+> right on the day it was written, stale at the next re-render, and unre-checkable by
+> anyone. EP18's first attempt typed `48.6` and was wrong twice — wrong number *and* the
+> wrong clock.
+> **`anchor` must be the opening words of the mention, VERBATIM from the spoken track**,
+> long enough to be unique. If it is missing or cannot be found, the build says so and
+> refuses to guess — it does not quietly drop the card (A4).
+> 📌 **Times in `episode.json` are PRESENTER-CLOCK throughout.** The assembler adds
+> `title_head` in one place. See [[two-clocks-presenter-and-final]] / `PP-STANDARDS` §3a.
+
 ### 4K — The e-book ARTICLE BODY (write it HERE, at script time) — 28 July 2026
 
 **The e-book's shell, layout, cover and figures are all AUTHORED by the engine from
