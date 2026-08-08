@@ -631,6 +631,64 @@ def render_card(card, blk, frame):
 
 # ---------------------------------------------------------------- provenance
 
+def visible_text(page):
+    """The words a viewer actually sees — tags, head, script and style removed."""
+    body = re.sub(r"<head.*?</head>|<script.*?</script>|<style.*?</style>", " ",
+                  page, flags=re.S)
+    return norm(re.sub(r"<[^>]+>", " ", html.unescape(body))).lower()
+
+
+def assert_measured_items_show_a_figure(page, card, blk):
+    """🔴 THE OTHER HALF OF THE GUARD, AND THE ONE THAT WAS MISSING.
+
+    `assert_no_invented_text` proves nothing appears that is not in the file. NOTHING
+    proved the reverse — that a number the card is ABOUT reaches the screen at all.
+
+    EP18 C9, 8 Aug 2026: the `bars` block uses {{ITEM.value}} for {{WIDTH}} only, the
+    bar's LENGTH, and never draws it as text. C9's notes read "per cent profit on
+    turnover" with no number in front, so the finished video showed two bars and a
+    dangling phrase. `check_trace` passed, correctly — 5 and 12 both trace. It had
+    verified the DATA and nobody had looked at the PICTURE.
+
+    ⚠️ THE RULE IS PER ITEM, NOT PER FIGURE, AND THE NARROWING IS THE WHOLE POINT.
+    The first version demanded that EVERY figure appear on screen, and it halted EP18's
+    C3 — an episode that shipped and is right. C3 draws win counts as bar LENGTHS and
+    labels them with strike rates: the measurement is the picture, the note is the
+    number, and the viewer is well served. Demanding both would ban a good card.
+    What cannot stand is an item that carries a measurement and shows NO figure at all:
+    a bar, and a caption with a hole where the number should be.
+
+    Which fields are measurement-only is read from the BLOCK'S OWN SCHEMA (`numeric`),
+    so a block added tomorrow is covered without anyone listing it here.
+    """
+    content = card.get("content") or {}
+    lists = (blk.get("schema") or {}).get("lists", {})
+    seen = visible_text(page)
+    for name, spec in lists.items():
+        numeric = set(spec.get("numeric", []))
+        if not numeric:
+            continue                     # nothing here is measurement-only
+        for i, item in enumerate(content.get(name) or [], 1):
+            if not isinstance(item, dict):
+                continue
+            measured = [item.get(k) for k in numeric if str(item.get(k) or "").strip()]
+            if not measured:
+                continue                 # nothing being measured, nothing to show
+            shown = [v for k, v in item.items()
+                     if k not in numeric and isinstance(v, str) and re.search(r"\d", v)]
+            if shown:
+                continue
+            label = item.get("label") or item.get("k") or f"{name}[{i}]"
+            raise Halt(
+                f"card {card.get('id')}: {name}[{i}] ({label!r}) is drawn as a "
+                f"measurement of {measured[0]!r} and shows NO figure anywhere a viewer "
+                f"can read it. `{name}.{sorted(numeric)[0]}` sets the bar LENGTH only — "
+                "it is never rendered as text — so the number reaches the screen solely "
+                "through this item's other fields, and none of them has one. EP18 C9 "
+                'shipped exactly this: two bars and "per cent profit on turnover" with '
+                'nothing in front. Its notes became "5 per cent profit on turnover".')
+
+
 def assert_no_invented_text(page, card, frame_tpl, blk):
     """Post-hoc proof of guard 3: every visible word came from the file.
 
@@ -731,6 +789,7 @@ def main():
         frame_tpl = load_frame(c.get("layout", "fullscreen"))
         page = render_card(c, blk, frame_tpl)
         assert_no_invented_text(page, c, frame_tpl, blk)
+        assert_measured_items_show_a_figure(page, c, blk)
         out = os.path.join(a.out_dir, c["page"])
         if os.path.exists(out):
             existing = open(out, encoding="utf-8").read()

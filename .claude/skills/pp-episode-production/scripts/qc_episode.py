@@ -619,6 +619,85 @@ def stage_numbers(qc, episode_path, ep_dir, out_dir):
         qc.note("numbers check: no figures found on the cards")
 
 
+def stage_timing_proof(qc, episode_path, ep_dir, head):
+    """One sentence per card and overlay, in the finished file's own clock:
+
+        "X appears at real time T, while Gordon is saying '…', and holds N seconds."
+
+    (Jodie's ruling, 8 Aug 2026: timing is verified against the ACTUALLY-CREATED video,
+    not a predicted timeline — and the proof is that sentence.)
+
+    🔴 WHY IT IS COMPUTED AND NOT DETECTED FROM PIXELS. The obvious move is to look at
+    the frames and find the overlay. That was tried on EP18 the same night and the
+    detector was flaky twice over: the card region separated by a luma gap of 120 and
+    read cleanly, while the chip's best region separated by 23 and reported an exit
+    SEVEN SECONDS after the truth. A measurement you cannot trust is worse than an
+    honest calculation, because it looks like evidence.
+    So this reads the two things that ARE reliable: the forced-aligned SRT (the words,
+    measured off the real audio) and the window the assembler actually used, shifted by
+    the ONE head conversion. What makes it a proof rather than a restatement is that
+    the words come from the audio and the times come from the graph — two independent
+    sources meeting on the page, where a human can see they agree.
+    """
+    windows = getattr(qc, "timing_windows", None)
+    if not windows:
+        qc.warn("timing proof skipped — the card-timing stage did not run, so there "
+                "are no windows to describe")
+        return
+    srt = os.path.join(ep_dir, "renders", "aligned.srt")
+    if not os.path.isfile(srt):
+        qc.warn("timing proof skipped — renders/aligned.srt is not there, so there is "
+                "nothing measured off the audio to check the words against")
+        return
+    cues = []
+    try:
+        blocks = re.split(r"\n\s*\n", open(srt, encoding="utf-8").read().strip())
+        for b in blocks:
+            lines = [x for x in b.splitlines() if x.strip()]
+            tl = next((x for x in lines if "-->" in x), None)
+            if not tl:
+                continue
+            m = re.findall(r"(\d+):(\d+):(\d+)[,.](\d+)", tl)
+            if len(m) < 2:
+                continue
+            s, e = [int(x) for x in m[0]], [int(x) for x in m[1]]
+            cues.append((s[0]*3600+s[1]*60+s[2]+s[3]/1000 + head,
+                         e[0]*3600+e[1]*60+e[2]+e[3]/1000 + head,
+                         " ".join(lines[lines.index(tl)+1:])))
+    except Exception as e:                                             # noqa: BLE001
+        qc.warn(f"timing proof skipped — aligned.srt could not be read ({e})")
+        return
+
+    def spoken_at(t):
+        hit = next((c for c in cues if c[0] <= t <= c[1]), None)
+        if hit:
+            return f'"{hit[2]}"', round(t - hit[0], 2)
+        nxt = next((c for c in cues if c[0] > t), None)
+        if nxt:
+            return f'(nothing — next words in {round(nxt[0]-t, 2)}s)', None
+        return "(nothing — after the last word)", None
+
+    everything = ([(k, v, "card") for k, v in windows["cards"].items()]
+                  + [(k, v, "overlay") for k, v in windows["overlays"].items()])
+    silent = []
+    for label, (t0, t1), kind in sorted(everything, key=lambda x: x[1][0]):
+        words, into = spoken_at(t0)
+        when = f"{int(t0 // 60)}:{t0 % 60:05.2f}"
+        qc.note(f"TIMING · {label} appears at {t0:.2f}s ({when}), holds "
+                f"{t1 - t0:.1f}s — Gordon is saying {words}"
+                + (f", {into}s in" if into is not None else ""))
+        if into is None and kind == "overlay":
+            silent.append(label)
+    # An OVERLAY that lands where nothing is being said is the EP18 fault exactly: the
+    # e-book card came up while Gordon was still on the hook line, and left before he
+    # mentioned the guide. A card may legitimately outlast a sentence; an overlay that
+    # ARRIVES in silence is arriving somewhere nobody chose.
+    for label in silent:
+        qc.fail(f"{label} appears while nothing is being spoken. Overlays are placed "
+                "against the words — an arrival in silence means its anchor is wrong "
+                "or the clock is.")
+
+
 def stage_deliverables(qc, episode_path, ep_dir, out_dir):
     """The two things a reader RECEIVES besides the video: the e-book PDF and the
     thumbnail. (Jodie, 9 Aug 2026 — extend the machine QC to every approval gate.)
@@ -868,6 +947,7 @@ def stage_card_timing(qc, final, beats, head, episode_path):
     # screen - a card writing over a clip means one of them wasn't seen.
     # Same maths as the assembler (broll_offsets default 1.0, broll_dur 5).
     clash = False
+    overlay_windows = {}          # filled below; shared with the timing proof
     for br in ep.get("broll", []):
         r0 = bs(br["beat"]) + (B.get("broll_offsets", {}) or {}).get(br["target"], 1.0)
         r1 = r0 + B.get("broll_dur", 5)
@@ -877,6 +957,20 @@ def stage_card_timing(qc, final, beats, head, episode_path):
                         f"({c0:.1f}-{c1:.1f}s) are on screen at the same time - "
                         "b-roll and cards must never overlap; move one")
                 clash = True
+    # The early e-book card is an overlay like any other and owes the same debts:
+    # it must not share the screen with a card, and it must be provable against the
+    # words. Adding an overlay without adding it here is how the chip went unchecked.
+    cta_cfg = B.get("early_cta") or {}
+    if cta_cfg.get("clip") and cta_cfg.get("at") is not None:
+        e0 = cta_cfg["at"] + head
+        e1 = e0 + cta_cfg.get("dur", 6.0)
+        for c, (c0, c1) in windows.items():
+            if min(e1, c1) - max(e0, c0) > 0.05:
+                qc.fail(f"the early e-book card ({e0:.1f}-{e1:.1f}s) and card {c} "
+                        f"({c0:.1f}-{c1:.1f}s) are on screen together - move one")
+                clash = True
+        overlay_windows["EARLY_CTA"] = (round(e0, 2), round(e1, 2))
+
     mid_cfg = B.get("midroll") or {}
     if mid_cfg.get("composite") and mid_cfg.get("beat"):
         # `at` is PRESENTER-CLOCK; every other time here is final-clock via bs().
@@ -887,6 +981,7 @@ def stage_card_timing(qc, final, beats, head, episode_path):
         m0 = ((mid_cfg["at"] + head) if mid_cfg.get("at") is not None
               else bs(mid_cfg["beat"]) + mid_cfg.get("offset", 1.0))
         m1 = m0 + mid_cfg.get("dur", 5.0)
+        overlay_windows["MIDROLL_CHIP"] = (round(m0, 2), round(m1, 2))
         for c, (c0, c1) in windows.items():
             if min(m1, c1) - max(m0, c0) > 0.05:
                 qc.fail(f"midroll chip ({m0:.1f}-{m1:.1f}s) and card {c} ({c0:.1f}-{c1:.1f}s) "
@@ -894,6 +989,10 @@ def stage_card_timing(qc, final, beats, head, episode_path):
                 clash = True
     if not clash:
         qc.note("no b-roll/card/chip overlaps - every visual owns its moment")
+    # 🔒 ONE COMPUTATION, TWO READERS. The timing proof does NOT recompute these — a
+    # second copy of the window maths is a second thing to get wrong, and the whole
+    # point of the proof is that it describes what the assembler actually did.
+    qc.timing_windows = {"cards": dict(windows), "overlays": dict(overlay_windows)}
     mid = B.get("midroll") or {}
     if mid.get("composite") and mid.get("beat"):
         # ---------------------------------------------------------------------
@@ -959,7 +1058,16 @@ def stage_card_timing(qc, final, beats, head, episode_path):
         else:
             qc.note(f"midroll chip visibility ok: {full_vis:.1f}s fully visible "
                     f"(dur {dur:.1f}s, fades {fade:.1f}s)")
-        mt = (mid.get("at") or bs(mid["beat"]) + mid.get("offset", 1.0)) + mid.get("dur", 5.0) / 2
+        # 🔴 THE SECOND RAW `at` — found by the clock audit, 9 Aug 2026, and it had
+        # survived the 8 Aug fix. That fix corrected the OVERLAP line and stopped there;
+        # this line, which decides WHERE IN THE VIDEO to sample for the chip, kept
+        # reading `at` as final-clock. So the probe looked 7 seconds before the chip and
+        # reported "midroll lower-third visible (chip luma 55)" from whatever happened
+        # to be on screen there. A green light from the wrong frame.
+        #     FIXING THE INSTANCE IS NOT FIXING THE FAULT. The audit found the sibling
+        #     the way E22's did: by asking whether the fault had one.
+        mt = ((mid["at"] + head) if mid.get("at") is not None
+              else bs(mid["beat"]) + mid.get("offset", 1.0)) + mid.get("dur", 5.0) / 2
         import subprocess
         r = subprocess.run([FFMPEG, "-hide_banner", "-ss", f"{mt:.2f}", "-i", final,
                             "-frames:v", "1", "-vf", "crop=700:260:70:790,scale=64:24,format=gray",
@@ -1099,6 +1207,7 @@ def main():
         stage_numbers(qc, args.episode, ep_dir, args.out_dir)
         print("[4e] card timing + midroll ...")
         stage_card_timing(qc, args.final, beats, args.head, args.episode)
+        stage_timing_proof(qc, args.episode, ep_dir, args.head)
         stage_deliverables(qc, args.episode, ep_dir, args.out_dir)
 
     status, report = build_report(qc, args.final, args.shot_map, args.head)
