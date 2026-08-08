@@ -1725,10 +1725,15 @@ class RealProvider:
         url = job.get("result_url")
         if not url:
             raise RuntimeError(f"job for {clip} completed but has no result_url")
-        tmp = p.with_suffix(".part")
-        with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
-            shutil.copyfileobj(r, f)
-        tmp.rename(p)
+        # 🔴 E-a: THIS WAS `copyfileobj` + `rename`, WITH NO LENGTH CHECK AT ALL, ON A
+        # PAID CLIP. The pre-E22 shape, left behind when the master and the heroes were
+        # fixed on 4 Aug — "the sibling was fixed by asking whether the fault had one",
+        # and this one was missed. A connection that drops mid-transfer ends the copy
+        # WITHOUT RAISING, so a short clip is renamed into place and ships as a cut that
+        # ends abruptly. Nothing downstream would say so: ffprobe reads the full
+        # duration out of a faststart mp4 whose tail never arrived.
+        # Same byte-counting treatment as the master (f1c3eab), same bounded retry.
+        self._download_exact(url, p)
         return str(p)
 
     def broll_contact(self, ep, files) -> str:
@@ -1943,7 +1948,7 @@ class RealProvider:
         self._download_exact(url, master)
 
     @staticmethod
-    def _download_exact(url: str, dest: Path):
+    def _download_exact(url: str, dest: Path, attempts: int = 3):
         """Download, and refuse to promote a short file to THE MASTER. (E22)
 
         ⚠️ THIS USED TO BE `copyfileobj` STRAIGHT INTO `.part`, THEN `rename`, WITH NO
@@ -1988,38 +1993,63 @@ class RealProvider:
         # 🔒 THE ORIGINAL GUARANTEE IS UNCHANGED. EP15's master would still be
         # refused: the read stops early, so the running total stops early too.
         # This only stops the filesystem's lag being read as a short download.
+        # ── E-c: A DROPPED CONNECTION IS A TRANSIENT. THE MACHINE RETRIES IT. ──
+        # Every flag this function ever raised said "retrying is the right move and
+        # usually works" — and then asked a HUMAN to press the button that does it.
+        # That is a chore, not a decision, and automation eats chores. The bound is
+        # what keeps it honest: three verified attempts, then a human, so a genuinely
+        # broken URL cannot spin. Nothing is re-charged — the render already exists.
         tmp = dest.with_suffix(".part")
-        got = 0
-        with urllib.request.urlopen(url, timeout=600) as r:
-            stated = r.headers.get("Content-Length")
-            stated = int(stated) if stated and stated.isdigit() else None
-            with open(tmp, "wb") as f:
-                while True:
-                    chunk = r.read(1 << 20)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    got += len(chunk)
-
-        if stated is not None and got != stated:
-            short = stated - got
+        why = None
+        for attempt in range(1, attempts + 1):
+            got, stated = 0, None
+            try:
+                with urllib.request.urlopen(url, timeout=600) as r:
+                    stated = r.headers.get("Content-Length")
+                    stated = int(stated) if stated and stated.isdigit() else None
+                    with open(tmp, "wb") as f:
+                        while True:
+                            chunk = r.read(1 << 20)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            got += len(chunk)
+            except Exception as e:                                    # noqa: BLE001
+                why = (f"the connection failed ({type(e).__name__}: {e})", None, None)
+            else:
+                if stated is not None and got != stated:
+                    why = ("the download stopped early", stated, got)
+                elif stated is None and got == 0:
+                    why = ("the download produced an empty file and the server did "
+                           "not say how big it should have been", None, 0)
+                else:
+                    tmp.replace(dest)
+                    if attempt > 1:
+                        print(f"    download recovered on attempt {attempt} of "
+                              f"{attempts} — {got:,} bytes, counted in")
+                    return
             tmp.unlink(missing_ok=True)
+            if attempt < attempts:
+                wait = 5 * attempt
+                print(f"    {why[0]} (attempt {attempt} of {attempts}) — "
+                      f"retrying in {wait}s")
+                time.sleep(wait)
+
+        head, stated, got = why
+        if stated is not None:
+            short = stated - got
             raise EngineFlag(
-                f"The download stopped early, so I have not kept it. The server said "
-                f"the file is {stated:,} bytes and only {got:,} arrived — "
-                f"{short:,} bytes short ({short / stated:.0%} of it missing).\n\n"
+                f"A download kept stopping early, so I have not kept it. I tried "
+                f"{attempts} times. The server said the file is {stated:,} bytes and "
+                f"only {got:,} arrived — {short:,} bytes short "
+                f"({short / stated:.0%} of it missing).\n\n"
                 "This matters more than it looks: a part-downloaded video still PLAYS, "
                 "and still reports its full length, so it can look completely normal "
-                "while the end of it is silent. Retrying is the right move and usually "
-                "works — the connection dropped, nothing is wrong with the render "
-                "itself, and nothing has been charged again.")
-        if stated is None and got == 0:
-            tmp.unlink(missing_ok=True)
-            raise EngineFlag(
-                "The download produced an empty file and the server did not say how "
-                "big it should have been. Nothing has been kept. Retrying is the "
-                "right move.")
-        tmp.replace(dest)
+                "while the end of it is silent. Nothing has been charged again. If it "
+                "keeps failing the connection is the thing to look at, not the render.")
+        raise EngineFlag(
+            f"A download failed {attempts} times and nothing usable arrived — {head}. "
+            "Nothing has been kept and nothing has been charged again.")
 
     def _env(self, name):
         env = self.pp / ".env"

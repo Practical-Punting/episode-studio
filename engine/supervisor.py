@@ -190,6 +190,69 @@ def environment_problem(standby=_powercfg):
     return standby_problem(standby)
 
 
+# ── E-b: "THE PID IS ALIVE" IS A PROXY FOR "IT IS WORKING" ────────────────────
+# pid 87536 was SUSPENDED by Modern Standby on 8 Aug 2026: last log line "engine up",
+# then nothing — no traceback, no exit. `engine_pid()` asks whether the pid exists, and
+# a frozen process DOES exist, so this said "running — nothing to do" and would have
+# said it forever. The BOARD already knew (it flags a stale heartbeat); the supervisor
+# never looked.
+#
+# ⚠️ THE TRAP THIS IS DESIGNED AROUND, or the fix kills healthy engines: THE HEARTBEAT
+# IS DELIBERATELY NOT BEATING AT A HUMAN GATE. `hb.active.clear()` runs at
+# awaiting_render / awaiting_cover / awaiting_approval, and the board ignores staleness
+# there on purpose. So a naive "stale => restart" would kill an engine parked correctly,
+# waiting on Jodie. Restart only when some episode is in a WORKING status — and take
+# that set from `rail.WORKING`, never retyped here (one source of truth).
+STALE_SECS = 300          # the board's "a few min"; a step that beats every loop is far under
+STOP_MARKER = ENGINE_DIR / "engine.stopped"
+
+
+def frozen_work(_now=None):
+    """(label, seconds_stale) if a WORKING episode's heartbeat has gone quiet."""
+    try:
+        sys.path.insert(0, str(ENGINE_DIR))
+        import rail
+    except Exception as e:                                        # noqa: BLE001
+        say(f"could not read the rail to check liveness ({type(e).__name__}) — "
+            "leaving the engine alone")
+        return None
+    now_ = _now or _dt.datetime.now(_dt.timezone.utc)
+    worst = None
+    for e in rail.list_all():
+        if e.get("status") not in rail.WORKING:
+            continue                       # a human gate: silence is correct there
+        hb = e.get("heartbeat_at")
+        if not hb:
+            continue
+        try:
+            age = (now_ - _dt.datetime.fromisoformat(str(hb).replace("Z", "+00:00"))
+                   ).total_seconds()
+        except Exception:                                          # noqa: BLE001
+            continue
+        if age > STALE_SECS and (worst is None or age > worst[1]):
+            worst = (f"PP-EP{e.get('ep_number')} ({e.get('status')})", age)
+    return worst
+
+
+def stopped_on_purpose():
+    """A deliberate stop and a freeze look IDENTICAL from outside — both are a pid
+    that is not beating. The difference is that somebody MEANT one of them, and only
+    that person can say so. Whoever stops the engine on purpose writes this marker;
+    the healer reads it and keeps its hands off.
+
+    Learned the hard way on 8 Aug 2026: the engine was stopped deliberately to send
+    EP18 back a stage, the board showed a stale heartbeat and "self_qc stuck 22 min",
+    and a restart was asked for. Had this healer existed then, it would have fought
+    the rewind and restarted the engine underneath a deliberate hold.
+    """
+    if not STOP_MARKER.exists():
+        return None
+    try:
+        return STOP_MARKER.read_text(encoding="utf-8").strip() or "no reason given"
+    except Exception:                                              # noqa: BLE001
+        return "no reason given"
+
+
 def start():
     problem = environment_problem()
     if problem:
@@ -198,7 +261,29 @@ def start():
 
     pid = engine_pid()
     if pid:
-        say(f"engine already running (pid {pid}) — nothing to do")
+        why = stopped_on_purpose()
+        if why:
+            say(f"engine running (pid {pid}) and {STOP_MARKER.name} is present — "
+                f"leaving it alone. Reason on file: {why}")
+            return 0
+        frozen = frozen_work()
+        if not frozen:
+            say(f"engine already running (pid {pid}) — nothing to do")
+            return 0
+        label, age = frozen
+        say(f"engine pid {pid} is ALIVE BUT NOT WORKING — {label} has not beaten for "
+            f"{int(age // 60)}m{int(age % 60):02d}s (a working status, so silence is "
+            f"not a human gate). Stopping it so the next tick starts fresh code.")
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"],
+                           capture_output=True, text=True)
+        except Exception as e:                                     # noqa: BLE001
+            say(f"could not stop pid {pid}: {e}")
+            return 0
+        say(f"stopped pid {pid} — restarting now")
+    elif stopped_on_purpose():
+        say(f"{STOP_MARKER.name} is present — NOT starting. "
+            f"Reason on file: {stopped_on_purpose()}")
         return 0
 
     env = dict(os.environ)
