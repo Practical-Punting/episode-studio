@@ -72,6 +72,7 @@ skipped for a page that is hand-authored or already generated; the fidelity gate
 runs every time regardless, because it is a gate and not an authoring step.
 """
 import argparse
+import difflib
 import html
 import json
 import os
@@ -446,6 +447,13 @@ def parse_body(body: str, source_figures: dict | None = None):
             raise Halt(f"ebook/{BODY_FILE}: every figure needs alt text. Found: "
                        f"{m.group(0)[:120]}")
     figures = [int(n) for n in re.findall(r'src="figure-(\d+)\.png"', body)]
+    # THE HEADINGS, IN ORDER, as text. Collected so check_fidelity can RECOGNISE that an
+    # article line the body promotes to a heading has been reproduced — see the note on
+    # `headings` there. They are already known to carry the right class (checked above).
+    headings = [t for t in
+                (text_of(m.group(2))
+                 for m in re.finditer(r"<h([123])(?:\s[^>]*)?>(.*?)</h\1>", body, re.S))
+                if t]
 
     prose, quoted = [], []
     for m in re.finditer(r"<p(\s[^>]*)?>(.*?)</p>", body, re.S):
@@ -464,7 +472,7 @@ def parse_body(body: str, source_figures: dict | None = None):
         t = text_of(m.group(2))
         if t:
             quoted.append(t)
-    return prose, quoted, figures
+    return prose, quoted, figures, headings
 
 
 # ------------------------------------------------------------------ the gate
@@ -505,7 +513,158 @@ def closest(target: str, pool: list[str]) -> int:
     return best if score > 0.5 else -1
 
 
-def check_fidelity(prose, quoted, ep, article: list[str]):
+# ── AN ARTICLE LINE THE BODY SETS AS A HEADING, OR SHOWS AS A FIGURE ─────────────
+#
+# 🔴 EP19, 9 Aug 2026, AND THIS IS THE "RECOGNISE, DON'T EXCUSE" FIX. check_fidelity
+# walks the article's paragraphs against the body's BARE <p> paragraphs, so any article
+# line the body promotes to a HEADING read as a paragraph that had been skipped. The
+# sanctioned answer was `omit_paragraphs`, whose own halt message says so: "Most
+# episodes need one entry: the article's own headline line, which is set as the h1
+# section heading rather than as body prose."
+#
+# EP19 was the first article whose SUB-headings are standalone paragraphs, so it needed
+# SIX of those entries plus a seventh for its table. THAT IS A HOLE, NOT A FIX:
+#   · declaring a heading "omitted" tells the checker NOT TO LOOK FOR IT, so a body
+#     whose <h2> said "THE 10K PLAN" would sail through;
+#   · seven declarations is enough for a genuinely dropped paragraph to hide among.
+# EP19's five were verified BY HAND, which is exactly what a gate is meant to replace.
+#
+# So the gate now RECOGNISES both shapes, and VERIFIES each:
+#   · a bold-only article paragraph is satisfied by a heading whose text is IDENTICAL;
+#   · a markdown-table paragraph is satisfied by a figure of the CARD that renders it,
+#     cross-checked cell by cell against that card's own content in episode.json.
+# Neither is a free pass: if the words differ, it is still a skipped paragraph and the
+# build still halts. `omit_paragraphs` goes back to meaning only "deliberately left out".
+BOLD_ONLY = re.compile(r"^\*\*(.+?)\*\*$")
+MD_TABLE = re.compile(r"^\|.*\|.*\|-{2,}")
+
+
+def _squash(s: str) -> str:
+    """Letters and digits only, lowercased — for comparing a table cell to a card.
+
+    ONE function, used on BOTH sides of every comparison below. Two different
+    normalisations is not a comparison, it is two descriptions of different things that
+    happen to be tested against each other.
+    """
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _table_cells(paragraph: str) -> list[str]:
+    """The values in a markdown-table paragraph, separators dropped."""
+    out = []
+    for cell in paragraph.split("|"):
+        c = cell.strip()
+        if c and not re.fullmatch(r":?-{2,}:?", c):
+            out.append(c)
+    return out
+
+
+def _card_for_figure(ep: dict, n: int) -> dict | None:
+    cid = next((f.get("card") for f in ep.get("figures") or [] if f.get("n") == n), None)
+    return next((c for c in ep.get("cards") or [] if c.get("id") == cid), None)
+
+
+def _why_not(paragraph: str, headings, near_misses) -> str:
+    """Say WHY a heading or table was not recognised, rather than only that it wasn't.
+
+    Without this the message reads "the body skips **THE 10K SYSTEM**" about a body that
+    has THE 10K PLAN on the page in 62px type — true, useless, and the reader concludes
+    the gate is broken rather than that the words are wrong.
+    """
+    m = BOLD_ONLY.fullmatch(paragraph.strip())
+    if m:
+        want = re.sub(r"\s+", " ", m.group(1)).strip()
+        # ⚠️ CHARACTER-LEVEL, not `closest()`. closest() compares WORD LISTS, which is
+        # right for a paragraph and useless for a heading: "A SUB-HEADING" against
+        # "A SUB HEEDING" shares one word out of two-or-three and scores 0.40, so the
+        # nearest match was reported as "no match" and the writer was told the body had
+        # no such heading while it sat on the page one letter wrong.
+        best, score = None, 0.0
+        for h in headings:
+            s = difflib.SequenceMatcher(None, h, want, autojunk=False).ratio()
+            if s > score:
+                best, score = h, s
+        if best is not None and score >= 0.55:
+            return (f"\n    This is a HEADING in the article, and the body has one near "
+                    f"it — but not the same words:\n"
+                    f"      {first_difference(best, want)}\n"
+                    f"    A heading is recognised only when its text is IDENTICAL. Fix "
+                    f"the heading; do not declare it omitted.")
+        return ("\n    This is a HEADING in the article and the body has no heading "
+                "carrying these words. Set it as <h2 class=\"rule\">, and it will be "
+                "recognised and checked word for word.")
+    if MD_TABLE.match(paragraph.strip()) and near_misses:
+        return "\n    " + "\n    ".join(near_misses)
+    return ""
+
+
+def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
+    """Which article paragraphs the body reproduces somewhere other than a bare <p>.
+
+    Returns ({index: why}, [complaints]). A complaint is a NEAR miss — the body has a
+    heading or a figure in that position but the words do not match — and it is a
+    complaint precisely so that "recognise" can never soften into "ignore".
+    """
+    got, notes = {}, []
+    pool = list(headings)
+    for i, p in enumerate(art):
+        # THE BOLD MARKERS ARE THE ARTICLE'S OWN MARKUP, not part of the words — an
+        # article that writes "**THE 10K SYSTEM**" and a body that sets "THE 10K SYSTEM"
+        # as a heading say the same thing. A paragraph with no markers is compared as it
+        # stands, which is what closes the ORIGINAL case this hole was opened for: the
+        # article's headline line, set as h1.section. With that recognised too,
+        # `omit_paragraphs` finally means only "deliberately left out" and EP19 needs no
+        # entries at all.
+        m = BOLD_ONLY.fullmatch(p.strip())
+        want = re.sub(r"\s+", " ", (m.group(1) if m else p)).strip()
+        if want in pool:
+            pool.remove(want)              # consumed: two identical headings need two
+            got[i] = f"set as a heading: {want!r}"
+            continue
+        if m:
+            continue                       # a heading in the article, absent from the body
+        if MD_TABLE.match(p.strip()):
+            cells = _table_cells(p)
+            # WHAT "THE CARD CARRIES THIS TABLE" HAS TO MEAN, and the naive version does
+            # not work: a cell reads "Win 9 pts" while the card holds place:"Win" and
+            # points:["9 pts"] separately, so the cell text never appears contiguously.
+            # Comparing the whole cell would reject a card that renders the table
+            # perfectly. So: EVERY NUMBER THE TABLE STATES must be in the card, and every
+            # word of every cell must be too. The numbers are the claim — a card missing
+            # one is not a reproduction of this table, whatever it looks like.
+            want_nums = sorted(re.findall(r"\d+(?:\.\d+)?", p))
+            for n in figures:
+                card = _card_for_figure(ep, n)
+                if not card:
+                    continue
+                blob = json.dumps(card.get("content") or {}, ensure_ascii=False).lower()
+                # ⚠️ BOTH SIDES SQUASHED BY THE SAME FUNCTION. The first version stripped
+                # all punctuation from the word but only whitespace from the card, so
+                # "2nd-last" became "2ndlast" and was hunted for inside "2nd-laststart"
+                # — never found, and the table was reported unreproduced by a card that
+                # reproduces it exactly. Asymmetric normalisation is a comparison
+                # between two different things.
+                flat = _squash(blob)
+                lost_n = [x for x in want_nums if x not in re.findall(
+                    r"\d+(?:\.\d+)?", blob)]
+                lost_w = [c for c in cells
+                          if any(_squash(w) and _squash(w) not in flat
+                                 for w in c.split())]
+                if not lost_n and not lost_w:
+                    got[i] = (f"carried by figure {n} — the render of card "
+                              f"{card.get('id')}, which holds all {len(want_nums)} of "
+                              f"its numbers and every word of its {len(cells)} cells")
+                    break
+                notes.append(
+                    f"figure {n} (card {card.get('id')}) is the nearest thing to the "
+                    f"article's table, but it does not carry "
+                    + (f"the number(s) {lost_n[:4]}" if lost_n
+                       else f"the cell(s) {lost_w[:3]}")
+                    + " — so it is not a reproduction of it")
+    return got, notes
+
+
+def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None):
     """HARD-FAIL unless the body reproduces the article, departures aside.
 
     Returns a plain-English report of what it verified, so a passing build says
@@ -558,6 +717,25 @@ def check_fidelity(prose, quoted, ep, article: list[str]):
                        f"not get to drop a paragraph without saying which one.")
         omitted.add(hits[0])
 
+    # …and what the body reproduces somewhere OTHER than a bare <p>: a heading with
+    # identical words, or a figure of the card that renders the article's table. These
+    # are RECOGNISED and verified, never declared away — see the note by BOLD_ONLY.
+    elsewhere, near_misses = _satisfied_elsewhere(art, ep, headings or [], figures or [])
+    # AN ENTRY THAT IS NOW REDUNDANT IS A BUG, NOT A TIDY. If a paragraph is both
+    # declared omitted AND visibly reproduced, one of the two is wrong, and the
+    # dangerous one is the declaration: it stops the checker looking at words that ARE
+    # on the page. Say so rather than silently preferring either.
+    both = sorted(set(omitted) & set(elsewhere))
+    if both:
+        raise Halt(
+            "ebook.omit_paragraphs declares paragraph(s) the body actually REPRODUCES:\n"
+            + "\n".join(f"      {art[i][:70]!r} — {elsewhere[i]}" for i in both)
+            + "\n    omit_paragraphs means DELIBERATELY LEFT OUT. Declaring something "
+              "that is on the page stops the checker verifying its words, which is how "
+              "a typo in a heading would ship. Remove the entry; the gate now "
+              "recognises it on its own.")
+    accounted = omitted | set(elsewhere)
+
     # every prose paragraph must be an article paragraph, in order, once each
     ai, matched = 0, 0
     for bp in prose:
@@ -577,22 +755,23 @@ def check_fidelity(prose, quoted, ep, article: list[str]):
                 f"has to be a DECLARED departure in episode.json -> ebook.departures, and "
                 f"the vocabulary is: {', '.join(sorted(DEPARTURES))}.")
         for j in range(ai, k):
-            if j not in omitted:
+            if j not in accounted:
                 raise Halt(
                     f"E-BOOK FIDELITY: the body skips an article paragraph that is not "
                     f"declared in ebook.omit_paragraphs:\n      {art[j][:150]}"
                     f"{'…' if len(art[j]) > 150 else ''}\n"
                     f"    §0a's mirror: never add what the article does not say, and never "
                     f"REMOVE what it does. Reproduce it, or declare the omission by quoting "
-                    f"it.")
+                    f"it." + _why_not(art[j], headings or [], near_misses))
         ai = k + 1
         matched += 1
     for j in range(ai, len(art)):
-        if j not in omitted:
+        if j not in accounted:
             raise Halt(
                 f"E-BOOK FIDELITY: the body stops before the end of the article. This "
                 f"paragraph is neither reproduced nor declared as an omission:\n"
-                f"      {art[j][:150]}{'…' if len(art[j]) > 150 else ''}")
+                f"      {art[j][:150]}{'…' if len(art[j]) > 150 else ''}"
+                + _why_not(art[j], headings or [], near_misses))
 
     # quoted material need not be a whole paragraph, but must be IN the article
     for q in quoted:
@@ -602,6 +781,13 @@ def check_fidelity(prose, quoted, ep, article: list[str]):
                        f"is an invention with quotation marks round it.")
 
     lines = [f"fidelity: {matched}/{len(article)} article paragraphs reproduced verbatim"]
+    # SAY WHAT WAS RECOGNISED, not merely that nothing halted. A build that reports only
+    # a count cannot be audited, and this is the line that shows a heading was compared
+    # WORD FOR WORD rather than waved through by a declaration.
+    if elsewhere:
+        lines.append(f"          {len(elsewhere)} reproduced outside a <p>, and verified:")
+        for i in sorted(elsewhere):
+            lines.append(f"            {art[i][:52]!r} — {elsewhere[i]}")
     if omitted:
         lines.append(f"          {len(omitted)} declared omission(s): "
                      + "; ".join(article[i][:60] for i in sorted(omitted)))
@@ -723,8 +909,9 @@ def main():
             print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
                   f"named in {os.path.basename(cap_path)}", file=sys.stderr)
 
-    prose, quoted, figures = parse_body(body, src_figs)
-    report = [check_fidelity(prose, quoted, ep, article), check_figures(figures, ep)]
+    prose, quoted, figures, headings = parse_body(body, src_figs)
+    report = [check_fidelity(prose, quoted, ep, article, headings, figures),
+              check_figures(figures, ep)]
 
     if a.check_only:
         print("\n".join(report))

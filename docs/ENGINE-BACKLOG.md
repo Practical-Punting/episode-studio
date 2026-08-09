@@ -83,27 +83,41 @@ so the exclusion cannot quietly widen into "E26 switched off".
 printed staking table (3 / 1.5 / 1 units, "stakes gradually diminish as each week goes
 by"), so EP19's cards were left alone.
 
-## 📋 BEFORE-EP20 — the fidelity check should RECOGNISE a heading, not be told to ignore it
-**(EP19, 9 Aug 2026.)** `check_fidelity` walks the article's paragraphs against the
-body's **bare `<p>`** paragraphs, so any article line the body promotes to a HEADING
-reads as a paragraph that was skipped. The sanctioned answer is `omit_paragraphs`, and
-its own halt message says so — *"Most episodes need one entry: the article's own headline
-line, which is set as the h1 section heading rather than as body prose."*
+## ✅ BEFORE-EP20 #3 — LANDED. THE FIDELITY GATE RECOGNISES, IT IS NOT TOLD TO IGNORE.
+**(EP19, 9 Aug 2026.)** `check_fidelity` compared the article against the body's **bare
+`<p>`** paragraphs only, so an article line the body sets as a HEADING read as a
+paragraph that had been dropped. The sanctioned answer was `omit_paragraphs` — and
+declaring a heading "omitted" **tells the checker not to look for it**. EP19 ended with
+seven declarations, five of them verified BY HAND, which is exactly what a gate replaces.
 
-**EP19 is the first article with standalone SUB-headings as their own paragraphs**, so it
-needed six such entries where every earlier episode needed one, plus a seventh for the
-article's table (carried by figure 3).
+**NOW IT RECOGNISES BOTH SHAPES AND VERIFIES EACH:**
+- an article paragraph reproduced as a HEADING is satisfied only when the words are
+  IDENTICAL (the article's `**bold**` markers are its own markup, not part of the
+  words). This generalises past Jodie's brief — it also covers the *original* case, the
+  article's headline line set as `h1.section`, which is why **EP19's `omit_paragraphs`
+  is now EMPTY**;
+- a markdown-table paragraph is satisfied by the FIGURE that renders it, cross-checked
+  against that card's own `content` in `episode.json`: every number the table states and
+  every word of every cell must be there.
 
-🔴 **AND THAT IS A HOLE, NOT A FIX.** Declaring a heading "omitted" tells the checker
-**not to look for it** — so if the body's `<h2>` said "THE 10K PLAN", nothing would catch
-it. Seven declarations is also enough that a genuinely dropped paragraph could hide among
-them. EP19's five were verified BY HAND against the article; hand-verification is exactly
-what a gate is supposed to replace.
-**The fix:** teach `check_fidelity` that an article paragraph consisting only of a bold
-run is satisfied by an `<h2 class="rule">` whose text is IDENTICAL — verified, not
-excused — and likewise that a markdown table paragraph may be satisfied by the figure
-that renders it, cross-checked against that card's own content. Then `omit_paragraphs`
-goes back to meaning what it says: content deliberately left out.
+🔒 **AND THE HOLE IS SHUT FROM THE OTHER SIDE:** declaring a paragraph the body actually
+reproduces is now itself a HALT. `omit_paragraphs` means only "deliberately left out".
+
+📋 **Control-first, seven new cases, each good case paired with its near miss:** a
+heading one letter wrong (`A SUB HEEDING`) still halts and the message shows the exact
+difference; a heading dropped entirely halts and says what to do instead; a table whose
+figure's card has one number wrong is NOT accepted as carrying it.
+⚠️ Two bugs found by driving it rather than reading it: the cell comparison squashed
+punctuation on one side only, so `2nd-last` was hunted for inside `2nd-laststart` and
+never found; and the near-miss message used `closest()`, which compares WORD LISTS and
+scored a one-letter heading typo at 0.40 — reporting "no such heading" about a heading
+on the page. Both now use one normalisation and character-level distance.
+📌 Regression: EP16, EP17 and EP18 all still pass unchanged, and the suite went from
+**30 pass / 1 pre-existing FAIL to 38 pass / 0**. That red case had asserted the
+opposite of the documented contract ever since the `--force` trap was closed — it
+expected a hand tweak to a page still carrying the `PP-GENERATED` marker to survive,
+while the marker itself says *"To take this page over by hand, delete this line."*
+Rewritten to assert the real contract rather than left red.
 
 ## 📋 ALSO FOR THE BEFORE-EP20 BATCH — a `matrix` block for the card vocabulary
 **(Jodie, 9 Aug 2026: "it's the 2nd hand-authored table in 5 episodes, so it's worth

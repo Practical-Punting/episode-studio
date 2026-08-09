@@ -289,6 +289,17 @@ with tempfile.TemporaryDirectory() as tmp:
         ("a hand-authored page is NEVER overwritten, even with --force",
          "left exactly as it was" if after == hand else "IT WAS OVERWRITTEN"))
 
+# ⚠️ REWRITTEN — THIS CASE ASSERTED THE OPPOSITE OF THE DOCUMENTED CONTRACT, and had
+# been failing ever since. It expected a hand tweak to a page STILL CARRYING THE
+# PP-GENERATED MARKER to survive a re-run. The marker's own words are: "DO NOT
+# HAND-EDIT … To take this page over by hand, delete this line." When the --force trap
+# was closed, this page stopped being skipped on mere existence and started being
+# COMPARED against what the definition produces — so an edit that leaves the marker in
+# place is, by design, overwritten. The stale expectation was left red rather than
+# resolved, which is the worst of both: a suite nobody can read as green.
+#
+# The contract has TWO halves and both are now asserted — marker kept, page rebuilt;
+# marker deleted, page untouched (the case above).
 with tempfile.TemporaryDirectory() as tmp:
     epj, ebook = build(tmp)
     run(epj, ebook)
@@ -297,9 +308,12 @@ with tempfile.TemporaryDirectory() as tmp:
     open(out_page, "a", encoding="utf-8").write("\n<!-- a hand tweak -->\n")
     run(epj, ebook)                                # no --force
     after = open(out_page, encoding="utf-8").read()
-    (PASS if after.endswith("<!-- a hand tweak -->\n") else FAIL).append(
-        ("a hand tweak to a GENERATED page survives a re-run",
-         "survived" if after.endswith("<!-- a hand tweak -->\n") else "it was clobbered"))
+    (PASS if after == first else FAIL).append(
+        ("a tweak that KEEPS the generated marker is rebuilt from the definition",
+         "rebuilt — the definition is the source of truth"
+         if after == first else
+         "THE TWEAK SURVIVED: an edit that leaves the marker in place must not persist, "
+         "or the page and its definition can drift apart silently"))
 
 # the standing furniture is staged, byte-identical
 with tempfile.TemporaryDirectory() as tmp:
@@ -370,6 +384,78 @@ if "--ep12" in sys.argv:
                 sys.argv = argv
                 FAIL.append(("GOLDEN: EP12's shipped body passes the gate unmodified",
                              str(e).replace("\n", " ")))
+
+# ── RECOGNISE, DON'T EXCUSE (EP19, 9 Aug 2026) ──────────────────────────────────
+#
+# check_fidelity compares the article against the body's BARE <p> paragraphs, so an
+# article line the body sets as a HEADING read as a paragraph that had been dropped.
+# The sanctioned answer was omit_paragraphs — and declaring a heading "omitted" tells
+# the checker NOT TO LOOK FOR IT. EP19 ended up with seven declarations, five of them
+# verified BY HAND, which is exactly what a gate is meant to replace.
+#
+# So the gate now recognises a heading and a figure-carried table, and VERIFIES both.
+# These cases exist to stop "recognise" ever softening into "ignore": every good case
+# below is paired with the near-miss that must still halt.
+HEADING = "**A SUB-HEADING**"
+ART_H = ARTICLE.replace(
+    "How many times has it won firstup?",
+    f"{HEADING}\n\nHow many times has it won firstup?")
+BODY_H = GOOD_BODY.replace(
+    "<p>How many times",
+    f'<h2 class="rule">A SUB-HEADING</h2>\n<p>How many times')
+H1_ONLY = {"departures": ["spaced-hyphen-em-dash"],
+           "omit_paragraphs": ["TEST: FIRST-UPPERS AND THE VALUE FACTOR"]}
+
+out = ok("a heading in the article, set as a heading in the body, needs NO declaration",
+         article=ART_H, body=BODY_H, ebook_block=H1_ONLY)
+if out and "set as a heading: 'A SUB-HEADING'" not in out:
+    FAIL.append(("the recognised heading is REPORTED, so a build can be audited",
+                 f"the report does not say what it verified: {out!r}"))
+else:
+    PASS.append(("the recognised heading is REPORTED, so a build can be audited",
+                 "the report names the heading it checked"))
+
+# THE CONTROL FOR THAT PASS. One word different and it must still halt — otherwise
+# "recognised" would mean "any heading will do" and a typo would ship in 62px type.
+case("a heading whose words DIFFER is still a skipped paragraph",
+     "not the same words",
+     article=ART_H,
+     body=GOOD_BODY.replace("<p>How many times",
+                            '<h2 class="rule">A SUB HEEDING</h2>\n<p>How many times'),
+     ebook_block=H1_ONLY)
+
+# …and with no heading at all, it must say what to do rather than only that it failed.
+case("an article heading the body drops entirely still halts",
+     "no heading carrying these words",
+     article=ART_H, body=GOOD_BODY, ebook_block=H1_ONLY)
+
+# THE HOLE, CLOSED FROM THE OTHER SIDE: a declaration for something on the page is
+# now itself a halt, because it silently switches the verification off.
+case("declaring a paragraph the body REPRODUCES is refused",
+     "actually REPRODUCES",
+     article=ART_H, body=BODY_H,
+     ebook_block={"departures": ["spaced-hyphen-em-dash"],
+                  "omit_paragraphs": ["TEST: FIRST-UPPERS AND THE VALUE FACTOR",
+                                      HEADING]})
+
+# ── a markdown table, carried by the figure that renders it ─────────────────────
+TABLE = "| Last | 2nd-last | |---|---| | Win 9 pts | Win 6 pts |"
+ART_T = ARTICLE.replace("How many times has it won firstup?",
+                        f"{TABLE}\n\nHow many times has it won firstup?")
+CARD_OK = [{"id": "C1", "content": {"columns": ["Last", "2nd-last"],
+                                    "rows": [{"place": "Win",
+                                              "points": ["9 pts", "6 pts"]}]}}]
+# the same card with ONE number wrong — the figure is there, but it is not this table
+CARD_BAD = [{"id": "C1", "content": {"columns": ["Last", "2nd-last"],
+                                     "rows": [{"place": "Win",
+                                               "points": ["9 pts", "5 pts"]}]}}]
+
+ok("a table carried by its figure's card needs no declaration",
+   article=ART_T, body=GOOD_BODY, ebook_block=H1_ONLY, ep_over={"cards": CARD_OK})
+
+case("a table whose figure's card gets a number wrong still halts",
+     "does not carry",
+     article=ART_T, body=GOOD_BODY, ebook_block=H1_ONLY, ep_over={"cards": CARD_BAD})
 
 print("\nE-BOOK FIDELITY GATE — every guard must fire\n" + "=" * 76)
 for n, m in PASS:
