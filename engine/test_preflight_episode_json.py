@@ -174,6 +174,88 @@ class Prefixes(unittest.TestCase):
         self.assertIn("build.standing", blocks)
 
 
+class CardShapeIsNotAConvention(unittest.TestCase):
+    """A card's shape is chosen from the ARTICLE, never inherited from another episode.
+
+    🔴 EP19, 9 Aug 2026. Both reference episodes happened to use a `bars` card, so
+    `cards[].content.bars[]` became a convention and an episode whose article has no
+    comparison to draw was handed a BLOCKER whose only remedy is TO INVENT A BAR CHART.
+    Jodie's ruling: there is never a requirement for a bar chart.
+
+    Every case here is built in memory from a minimal episode, so it states the fault
+    exactly rather than depending on which blocks EP13/EP14 happen to use this month —
+    a fixture that drifts would quietly stop testing this.
+    """
+
+    @staticmethod
+    def card(cid, block, content, **extra):
+        c = {"id": cid, "beat": 1, "page": f"{cid}.html", "layout": "fullscreen",
+             "block": block, "job": "anchor", "eyebrow": "x", "headline": "X",
+             "headline_display": "X", "content": content, "trace": {}}
+        c.update(extra)
+        return c
+
+    @staticmethod
+    def episode(cards):
+        return {"episode": "PP-EP99", "source": "x",
+                "beats": [{"n": 1, "framing": "WIDE", "card": "C1"}],
+                "packaging": {"hook": "h"}, "build": {}, "ebook": {}, "thumbnail": {},
+                "cover": {}, "cards": cards, "broll": [], "figures": []}
+
+    def refs_using(self, block, content, **extra):
+        return [self.episode([self.card("C1", block, content, **extra)]),
+                self.episode([self.card("C2", block, copy.deepcopy(content), **extra)])]
+
+    def test_a_bar_chart_in_both_references_is_not_required_here(self):
+        refs = self.refs_using("bars", {"bars": [{"label": "90 Days", "value": "90",
+                                                  "note": "n", "tone": "hi"}],
+                                        "ask": "a", "chip": None})
+        mine = self.episode([self.card("C1", "statement", {"line": "A plain claim."})])
+        must = pf.preflight(mine, refs)["must"]
+        self.assertFalse([m for m in must if "bars" in m],
+                         f"a bar chart is being demanded because other episodes had "
+                         f"one; the only way to clear it is to invent one: {must}")
+
+    def test_a_position_rail_in_both_references_is_not_required_here(self):
+        """The sibling, found by asking rather than by waiting for it to bite."""
+        rail = {"n": 1, "of": 7, "segs": ["a", "b"]}
+        refs = self.refs_using("statement", {"line": "x"}, rail=rail)
+        mine = self.episode([self.card("C1", "statement", {"line": "z"})])
+        must = pf.preflight(mine, refs)["must"]
+        self.assertFalse([m for m in must if "rail" in m],
+                         f"an episode with no numbered spine is blocked for having no "
+                         f"position rail: {must}")
+
+    # ---- and the half that must NOT be lost ----------------------------------
+    def test_a_genuinely_missing_top_level_block_still_blocks(self):
+        """CONTROL FOR THE FIX ITSELF. If this ever passes with the thumbnail gone,
+        the exclusion has been widened past card payloads and E26 is switched off."""
+        refs = self.refs_using("statement", {"line": "x"})
+        mine = self.episode([self.card("C1", "statement", {"line": "z"})])
+        del mine["thumbnail"]
+        for r in refs:
+            r["thumbnail"] = {"l1": "a", "l2": "b", "part": "P", "hero_focus": "center"}
+        must = pf.preflight(mine, refs)["must"]
+        self.assertTrue([m for m in must if "thumbnail" in m],
+                        f"a whole missing top-level block is no longer a blocker — the "
+                        f"card-payload exclusion has been widened too far: {must}")
+
+    def test_two_cards_on_one_block_disagreeing_about_a_type_still_blocks(self):
+        """Only 'you do not have what they had' is relaxed. A type clash is still a
+        clash: that is two cards using the SAME block and disagreeing about it."""
+        refs = self.refs_using("bars", {"bars": [{"label": "L", "value": "90",
+                                                  "note": "n", "tone": "hi"}],
+                                        "ask": "a", "chip": None})
+        mine = self.episode([self.card("C1", "bars",
+                                       {"bars": [{"label": "L", "value": 90,
+                                                  "note": "n", "tone": "hi"}],
+                                        "ask": "a", "chip": None})])
+        must = pf.preflight(mine, refs)["must"]
+        self.assertTrue([m for m in must if "value" in m],
+                        f"a bar value that is an int where both references have a "
+                        f"string is no longer reported: {must}")
+
+
 if __name__ == "__main__":
     if not HAVE_DRIVE:
         print(f"NOTE: {SKIP}")

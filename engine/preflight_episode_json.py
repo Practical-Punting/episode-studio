@@ -293,6 +293,45 @@ def _is_build_written(key: str) -> bool:
     return any(key == k or key.startswith(k + ".") for k in BUILD_WRITTEN_KEYS)
 
 
+# ------------------------------------------------- keys that are A CARD'S OWN SHAPE
+#
+# 🔴 A CARD'S SHAPE IS CHOSEN PER CARD, FROM THE ARTICLE. IT IS NEVER A CONVENTION
+# INHERITED FROM ANOTHER EPISODE — and treating it as one had the machine demanding
+# pictures the article could not support.
+#
+# ══ EP19, 9 Aug 2026, and Jodie's ruling: THERE IS NEVER A REQUIREMENT FOR A BAR CHART ══
+# Both reference episodes happened to use a `bars` card, so `cards[].content.bars[]`
+# became a "convention", and an episode whose article has no comparison to draw was
+# handed a BLOCKER:
+#     "the whole 'cards[].content.bars[]' block is absent — both reference episodes
+#      have it (4 keys, e.g. cards[].content.bars[].label …)"
+# There is only one way to clear that, and it is to INVENT A BAR CHART. A gate that can
+# only be satisfied by making something up is worse than no gate.
+#
+# AND IT HAS A SIBLING, found by asking rather than waiting for it: `cards[].rail` is
+# per-card optional furniture too, so an episode with no numbered spine was blocked for
+# having no position rail. Same fault, one article away. The fix is the class, not the
+# instance: every per-card payload subtree is excluded.
+#
+# WHAT STILL GUARDS CARD CONTENT, because this must not read as "content is unchecked":
+# each block template carries its own `required`/`optional`/`lists`/`enum` schema and
+# `author_cards.validate()` enforces it, `check_trace` demands a traced sentence for
+# every figure, and `check_job` binds the declared job to the block. That is the RIGHT
+# authority — the block's own contract — rather than what a different article happened
+# to need. One source of truth, and this was the second one.
+#
+# ⚠️ ONLY THE *MISSING* TEST IS RELAXED. A key BOTH episodes carry at incompatible types
+# is still a blocker: that is two cards using the same block and disagreeing about it,
+# which no per-card freedom excuses.
+CARD_PAYLOAD_PREFIXES = ("cards[].content", "cards[].trace", "cards[].rail")
+
+
+def _is_card_payload(key: str) -> bool:
+    """True if this key is part of an individual card's own shape."""
+    return any(key == p or key.startswith(p + ".") or key.startswith(p + "[")
+               for p in CARD_PAYLOAD_PREFIXES)
+
+
 # -------------------------------------------------------------------------- report
 def preflight(j: dict, refs: list[dict]) -> dict:
     """Returns {'must': [...], 'worth': [...], 'ok': bool}. `must` is halt-worthy."""
@@ -317,7 +356,10 @@ def preflight(j: dict, refs: list[dict]) -> dict:
             must.append(f"{k} is {_fmt(mine[k])}, but both reference episodes have it "
                         f"as {_fmt(conv[k])}.")
 
-        missing = set(conv) - set(mine)
+        # A card's own payload is not a convention — see _is_card_payload above. The
+        # TYPE check (`wrong`) deliberately still sees these keys; only "you do not
+        # have what they had" is dropped.
+        missing = {k for k in set(conv) - set(mine) if not _is_card_payload(k)}
         blocks, lone = _subtree_missing(missing, set(mine))
         for root, keys in sorted(blocks.items()):
             must.append(f"the whole {root!r} block is absent — both reference episodes "

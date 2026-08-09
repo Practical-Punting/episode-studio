@@ -53,6 +53,36 @@ written in `_exit_if_code_changed`'s own docstring. **A finding in a run log is 
 with no owner.** Anything in this file that is worth keeping is worth either fixing or
 giving a failing test.
 
+## ✅ BEFORE-EP20 #9 — LANDED. A CARD TYPE IS NEVER REQUIRED BY PRECEDENT.
+**(Jodie's ruling, 9 Aug 2026: there is NEVER a requirement for a bar chart.)**
+E26 walks every key path in `episode.json`, and a key both reference episodes carry is a
+CONVENTION whose absence is a BLOCKER. Card content is walked too — so because both
+references happened to use a `bars` card, an episode whose article has no comparison to
+draw was told *"the whole `cards[].content.bars[]` block is absent"*. **The only way to
+clear that is to invent a bar chart.** A gate that can only be satisfied by making
+something up is worse than no gate.
+
+**AND IT HAD A SIBLING**, found by asking rather than by waiting for it to bite:
+`cards[].rail` is per-card optional furniture too, so an episode with no numbered spine
+was blocked for having no position rail. Fixed as a CLASS, not an instance —
+`cards[].content`, `cards[].trace` and `cards[].rail` are a card's own shape, chosen
+from the article, never inherited from another episode.
+
+⚠️ **ONLY THE *MISSING* TEST IS RELAXED.** A key both episodes carry at incompatible
+types still blocks: that is two cards using the same block and disagreeing about it,
+which no per-card freedom excuses. And card content is still guarded by the RIGHT
+authority — each block's own `required`/`optional`/`enum` schema through
+`author_cards.validate()`, plus `check_trace` and `check_job` — rather than by what a
+different article happened to need.
+
+📋 **Control-first:** with the exclusion disabled, 2 of the suite's 20 cases fail, naming
+the exact bar-chart and position-rail blockers. Two further cases guard the other
+direction: a genuinely missing top-level block and a type clash must both still block,
+so the exclusion cannot quietly widen into "E26 switched off".
+📌 **EP19's own C6 bar chart was checked and is GENUINE** — it traces to the article's
+printed staking table (3 / 1.5 / 1 units, "stakes gradually diminish as each week goes
+by"), so EP19's cards were left alone.
+
 ## 📋 BEFORE-EP20 — the fidelity check should RECOGNISE a heading, not be told to ignore it
 **(EP19, 9 Aug 2026.)** `check_fidelity` walks the article's paragraphs against the
 body's **bare `<p>`** paragraphs, so any article line the body promotes to a HEADING
