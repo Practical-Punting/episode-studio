@@ -1403,6 +1403,44 @@ def _clear_draft_attempts(d) -> None:
         pass
 
 
+FAST_DRAFT_SECS = 25       # "hitting Build starts work in seconds, not a quarter hour"
+
+
+def _a_brand_new_episode_is_waiting(provider) -> int | None:
+    """The ep_number of a QUEUED episode that has NEVER been drafted, or None.
+
+    🔴 THE POINT OF "BRAND NEW", AND IT IS A SPEND GUARD, NOT A NICETY. The drafting
+    pass runs on a 900s timer because a commission takes minutes and costs tokens. If
+    the fast path simply re-ran that pass every 25 seconds, an episode whose draft keeps
+    FAILING would be retried 36 times an hour and burn its whole attempt bound before
+    anyone looked at the board — turning "start sooner" into "give up sooner".
+
+    So the fast path fires ONLY for an episode with ZERO recorded attempts: the case
+    Jodie actually feels, which is hitting Build and watching nothing happen. Every
+    retry stays on the slow timer, where it has always been.
+
+    Cheap by construction: the same queued-list read the pass itself does, plus a file
+    stat per candidate. No commission, no network beyond the rail.
+    """
+    try:
+        for ep in rail.list_queued():
+            nn = ep.get("ep_number")
+            if not nn or ep.get("needs_look"):
+                continue
+            if (ep.get("script_snapshot") or "").strip():
+                continue
+            if (ep.get("script_doc_url") or "").strip():
+                continue
+            # ALREADY BEING WORKED, by this engine or another: leave it entirely.
+            if ep.get("claimed_by"):
+                continue
+            if _draft_attempts(provider.dir(ep)) == 0:
+                return int(nn)
+    except Exception:                                                  # noqa: BLE001
+        return None            # the slow pass will pick it up; never break the loop
+    return None
+
+
 def _draft_watch(provider):
     """THE PRE-CLAIM DRAFTING PASS — the engine writes the script it is waiting for.
 
@@ -1664,6 +1702,7 @@ def cmd_run(mock, watch):
     _s8_last = 0.0
     _gate_last = 0.0
     _draft_last = 0.0
+    _draft_fast_last = 0.0
     while True:
         changed = _code_changed()
         if changed:
@@ -1693,7 +1732,23 @@ def cmd_run(mock, watch):
                 # runs ONLY when nothing was claimable, so it can never delay work
                 # the engine could otherwise be doing; and on a long interval,
                 # because it is the one thing here that can block for minutes.
-                if not mock and time.time() - _draft_last > 900:
+                # KICK ON SUBMIT. The 900s timer is right for retries and wrong for the
+                # thing a person does: pressing Build and watching nothing happen for up
+                # to a quarter of an hour. So every FAST_DRAFT_SECS the engine asks one
+                # cheap question — is there an episode that has never been drafted at
+                # all? — and if so it starts now instead of waiting out the timer.
+                # The slow pass stays exactly as it was: it is the safety net, and it is
+                # the ONLY thing that retries. See _a_brand_new_episode_is_waiting.
+                fast = False
+                if not mock and time.time() - _draft_fast_last > FAST_DRAFT_SECS:
+                    _draft_fast_last = time.time()
+                    nn = _a_brand_new_episode_is_waiting(provider)
+                    if nn is not None:
+                        log(f"PP-EP{nn:02d} was just queued and has no script — "
+                            f"starting on it now rather than waiting for the "
+                            f"{900 // 60}-minute pass")
+                        fast = True
+                if not mock and (fast or time.time() - _draft_last > 900):
                     _draft_watch(provider)
                     _draft_last = time.time()
                 time.sleep(idle_poll)
