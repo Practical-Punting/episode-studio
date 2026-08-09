@@ -2637,7 +2637,23 @@ class RealProvider:
     # ⚖️ AND WHAT DOES NOT CHANGE: Jodie still reads it and still ticks "I've read
     # the script". The machine drafts; she stays the judge. Automation eats chores,
     # never decisions (A12).
-    def _commission_script(self, ep, d: Path):
+    def _commission_script(self, ep, d: Path, gate=None):
+        """`gate()` -> list of blocker strings, EMPTY MEANS PASS.
+
+        🔴 THE FEEDBACK LOOP, AND IT IS NOT A NEW MECHANISM. `commission_with_repair`
+        has existed since the episode.json commission was built, on the reasoning that
+        a checker that good is a set of instructions — feed it back to the writer. The
+        SCRIPT commission never used it: it called plain `commission()`, the engine ran
+        the fidelity gate afterwards, and the rejection went to the run log where the
+        writer could not see it. So each attempt started from zero, made the same
+        mistake, and burned a whole 15-minute drafting cycle doing it. EP19 lost SIX
+        drafts that way — five to one tote conversion, and the sixth to something else
+        entirely, with the writer never once told what it had done.
+
+        ⚠️ THE GATE IS INJECTED, NOT REIMPLEMENTED. It is the same callable the build
+        halts on, passed in by the caller — not a copy living here that can drift from
+        it (fault #2). With no gate supplied the behaviour is exactly as before.
+        """
         import commission as com
 
         nn = int(ep["ep_number"])
@@ -2698,7 +2714,22 @@ class RealProvider:
             "When craft pulls against fidelity, FIDELITY WINS.\n"
             "And never correct the article: not a figure that looks wrong, not a "
             "date, not a name. If something looks wrong it stands, and you say so "
-            "in what_i_saw.\n\n"
+            "in what_i_saw.\n"
+            # 🔴 IN THE BRIEF, NOT ONLY IN THE SKILL. §4B forbids this and the writer
+            # is told to read §4B — and it converted the odds anyway, on FIVE
+            # consecutive drafts, because "never correct" does not read as "never
+            # ADD" and helping an Australian tote audience feels like service, not
+            # invention. The gate rejected all five and the bound exhausted twice.
+            # A rule the reader has to go and find is not where the hand is.
+            "AND NEVER ADD A FIGURE THE ARTICLE DOES NOT STATE — CONVERSION IS "
+            "ADDITION. If the article says 8/11, say 'eight to eleven'. Do NOT also "
+            "say '$1.75', 'one dollar seventy-five', or 'in tote terms…'. Fractional "
+            "odds, decimal odds and tote prices are different notations, and "
+            "translating between them asserts an arithmetic the author never "
+            "printed. This is the single most common way this script has failed: "
+            "five drafts in a row died on one helpful tote conversion. If a decimal "
+            "price would genuinely help Dave, the article has to say it — otherwise "
+            "it does not go in Gordon's mouth.\n\n"
             # ── the one instruction in the skill that does NOT apply ───────────
             "======== ONE OVERRIDE TO THE SKILL, RULED BY JODIE ========\n"
             "The skill's section 3 Step 2 tells you to run the article through a "
@@ -2718,19 +2749,28 @@ class RealProvider:
             "  - The responsible-gambling line is word-for-word locked.\n\n"
             + com.verdict_instructions()
         )
-        return com.commission(
-            prompt=prompt,
-            place=d,
-            what="this episode's script",
-            find_artefact=find,
-            # The skills tree is added so the writer can READ it. It is still named
-            # by absolute path above — --add-dir grants access, it does not tell
-            # anybody where to look.
-            add_dirs=[REPO_DIR / "docs", skills, capture.parent],
-            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
-            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200")),
-            model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
-        )
+        def _one(followup=None):
+            return com.commission(
+                # The followup is the gate's OWN WORDS, appended verbatim. The writer
+                # is told what it actually did, not a paraphrase of it.
+                prompt=prompt + (followup or ""),
+                place=d,
+                what="this episode's script",
+                find_artefact=find,
+                # The skills tree is added so the writer can READ it. It is still named
+                # by absolute path above — --add-dir grants access, it does not tell
+                # anybody where to look.
+                add_dirs=[REPO_DIR / "docs", skills, capture.parent],
+                budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+                timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200")),
+                model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
+            )
+
+        if gate is None:
+            return _one()
+        return com.commission_with_repair(
+            attempt=_one, gate=gate, what="this episode's script",
+            attempts=int(os.environ.get("ENGINE_SCRIPT_REPAIRS", "3")))
 
     # ---- the SECOND call site: the e-book article body ----------------------
     #

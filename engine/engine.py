@@ -1441,7 +1441,18 @@ def _draft_watch(provider):
                 f"is captured — commissioning one (attempt {n} of "
                 f"{DRAFT_ATTEMPT_LIMIT})")
             try:
-                verdict = provider._commission_script(ep, d)
+                # THE GATE THE BUILD HALTS ON, HANDED TO THE WRITER'S RETRY LOOP.
+                # Same function, same arguments, same file — read fresh each round,
+                # because the writer rewrites it between rounds.
+                _cap_text = capture.read_text(encoding="utf-8")
+
+                def _fidelity_gate():
+                    p = d / "docs/spoken-words.txt"
+                    if not p.is_file():
+                        return []          # nothing written yet is commission()'s fault
+                    return script_fidelity.check(p.read_text(encoding="utf-8"), _cap_text)
+
+                verdict = provider._commission_script(ep, d, gate=_fidelity_gate)
             except com.CommissionHalt as h:
                 if h.detail:
                     log(f"   (commission detail, for the log: {com._safe(h.detail)})")
