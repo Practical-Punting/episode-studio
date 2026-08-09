@@ -80,7 +80,8 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | **script_doc_url** | text | create step / human | the script's Google Doc — single source of truth (004) |
 | **script_read** | bool | human ONLY | "I've read the script" — half the Script Gate (004) |
 | **script_snapshot / script_sha256** | text | engine | the exact text approved + rendered (004) |
-| **script_approved_at / script_locked_at** | timestamptz | engine | when the gate passed (004) |
+| **script_approved_at / script_locked_at** | timestamptz | engine | when the gate passed (004). ⚠️ Written at `script_sync`, i.e. when the BUILD re-read the text — ~2s after `started_at`. Not the approval click. |
+| **words_approved_at** | timestamptz | board | the approve-words CLICK (007). `words_approved_at` → `render_started_at` is the real "approval to render startable" interval. NULL up to EP19 — not measured, deliberately not backfilled. |
 | **script_changed_since_approval** | bool | engine | Doc edited after approval — flags, never blocks (004) |
 | **youtube_copy** | text | engine | **the DESCRIPTION ITSELF — locked by trigger (005), min 1000 chars.** Rendered straight onto the publish card, so a pointer-note is refused. Written by `pasteable_description()` |
 | **ebook_link** | text | human | public e-book URL (pasted into the YT copy at publish) |

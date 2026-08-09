@@ -1649,6 +1649,13 @@ $("lanes").addEventListener("click", async (e) => {
     const patch = {
       title, hook: val("hook"), byline: val("byline"),
       script_read: true, title_approved: true,
+      // 🕐 THE CLICK ITSELF, and it is NOT script_approved_at. That one is written
+      // by the ENGINE at script_sync when the build re-reads the text — EP19's is
+      // two seconds after started_at, so it measures the build, not the wait. The
+      // number wanted is "approval -> render startable", and with only the engine's
+      // stamp the interval collapses to roughly zero and always looks excellent.
+      // A measurement that cannot report a delay is not a measurement. (Item 11.)
+      words_approved_at: new Date().toISOString(),
     };
     // Only ever WRITE the Doc URL when there is a field for it (an episode that
     // still has a Doc). Sending "" on a rail episode would write an empty string
