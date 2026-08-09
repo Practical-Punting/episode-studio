@@ -392,27 +392,62 @@ def _contiguous(needle: str, hays: list[list[str]]) -> bool:
 
 
 # ------------------------------------------------------------------- the gate --
-def check(script_text: str, capture_text: str) -> list[str]:
-    """Blockers, in plain English. Empty means every spoken figure is the
-    article's own.
+def check(script_text: str, capture_text: str, licensed_text: str = "",
+          allowed: list | None = None) -> list[str]:
+    """Blockers, in plain English. Empty means every spoken figure is accounted for.
 
     ONE DIRECTION ONLY, and that is §0a's selection rule: THE VIDEO SELECTS, THE
     E-BOOK REPRODUCES. A figure in the article that the script leaves out is an
     omission, and omission is not alteration. A figure in the SCRIPT that is not
     in the article is an invention, and that is what this refuses.
+
+    ── THE FRAMING PROSE, AND WHY IT IS NOT A SECTION EXEMPTION ──────────────────
+    Four parts of the script are the studio's own words, not the article's: the
+    opening framing line, the transitions between beats, the midroll invitation and
+    the outro wind-down (pp-episode-script SKILL §43). A number in one of them — "part
+    two", "ten systems" — is in no article sentence, so this gate stalled the run over
+    Gordon's own storytelling.
+
+    THE OBVIOUS FIX IS THE WRONG ONE. Exempting those SECTIONS means identifying them
+    in a plain-text file of undifferentiated paragraphs, and every rule for doing that
+    ("the first beat", "the last beat") is a guess that hands back a hole in §0a: an
+    invented racing figure in the outro would walk straight through.
+
+    So nothing is exempted by LOCATION. A figure is allowed when it has a SECOND
+    APPROVED SOURCE — the episode's own packaging, which Jodie approves at the words
+    gate: the hook, the byline, the part. "Part 1" and "10 Systems" are hers, written
+    down and signed off, so Gordon may say them; they are not the studio inventing a
+    number. Anything in NEITHER the article NOR the packaging still blocks, which is
+    every racing figure that was ever the point of this gate.
+        AND IT IS DECLARED, NEVER SILENT: each allowance is appended to `allowed` and
+    logged by the caller, so "the gate passed" always comes with what it waved and why.
     """
     body = (capture_text or "").split(MARKER_BEGIN)[-1]
     if not body.strip():
         return ["the captured article has no article text to check the script "
                 "against, so no figure in the script could be verified."]
     hays = haystacks(capture_text)
+    # The approved packaging, folded exactly as the article is — same function, so
+    # "ten" matching "10" is decided in ONE place and cannot drift between the two.
+    lic = haystacks(licensed_text) if (licensed_text or "").strip() else []
     seen, out = set(), []
     for fig in figures(script_text):
         if fig in seen or _contiguous(fig, hays):
             continue
         seen.add(fig)
+        if lic and _contiguous(fig, lic):
+            if allowed is not None:
+                allowed.append(
+                    f"{fig!r} is not in the article, but it IS in this episode's "
+                    f"approved packaging — so it is the studio's own framing, not an "
+                    f"invented figure.")
+            continue
         out.append(
             f"the script says {fig!r}, and the article never states that figure. "
             "Everything Gordon says about a number has to be the article's own "
-            "number — never corrected, never rounded, never inferred.")
+            "number — never corrected, never rounded, never inferred. "
+            "(The one exception is a figure from THIS EPISODE'S APPROVED PACKAGING — "
+            "its part number, or a count that is already in the approved hook. If the "
+            "number is neither, it is the studio's invention: say it without a "
+            "figure.)")
     return out

@@ -303,6 +303,64 @@ def main():                                                            # noqa: C
           "eight to one" in F.fold("8-1"))
     check("  MIN_MATCH is untouched", A.MIN_MATCH == 0.85)
 
+    # ── THE FRAMING PROSE: A SECOND APPROVED SOURCE, NOT A SECTION EXEMPTION ──────
+    # Four parts of the script are the studio's own words (opening framing line,
+    # transitions, midroll invitation, outro). A number in one of them — "part two",
+    # "ten systems" — is in no article sentence, so this gate stalled the run over
+    # Gordon's own storytelling.
+    #
+    # 🔴 THE OBVIOUS FIX WOULD HAVE PUNCHED A HOLE IN §0a. Exempting those SECTIONS
+    # means identifying them in a plain-text file of undifferentiated paragraphs, and
+    # every rule for that ("the first beat", "the last beat") is a guess — an invented
+    # racing figure in the outro would walk straight through. So nothing is exempted by
+    # LOCATION; a figure is allowed only when it has a SECOND APPROVED SOURCE, the
+    # packaging Jodie signs off at the words gate.
+    FAKE_CAP = ("---- ARTICLE TEXT BEGINS ----\n"
+                "Most horses resuming from a spell of 60 days or more will lose at "
+                "their first run back. He was sent out at 7/4.\n"
+                "---- ARTICLE TEXT ENDS ----\n")
+    PACK = "10 Systems for Action-Hungry Punters — Part 1"
+
+    # 1. THE CONTROL: without the packaging, Gordon's own framing STALLS THE RUN.
+    framing = "Welcome to part one of ten systems. He was sent out at 7/4."
+    before = F.check(framing, FAKE_CAP)
+    check("CONTROL: framing figures block when there is no second source",
+          len(before) >= 1 and any("part one" in p or "ten" in p for p in before),
+          f"got {before}")
+
+    # 2. …and with it, they are allowed AND SAID OUT LOUD.
+    waved = []
+    after = F.check(framing, FAKE_CAP, PACK, waved)
+    check("framing figures from the approved packaging are allowed", after == [],
+          f"still blocking: {after}")
+    check("  and each allowance is DECLARED, not silent", len(waved) >= 1,
+          f"nothing was recorded as waved: {waved}")
+
+    # 3. THE HALF THAT MUST NOT BE LOST. A racing figure in NEITHER source still
+    #    blocks — this is the whole reason the gate exists, and the reason a section
+    #    exemption was refused.
+    # ⚠️ SPOKEN WORDS, NOT DIGITS. A script is what Gordon SAYS, so figures() reads
+    # number WORDS — the first draft of these cases wrote "23 per cent" and proved
+    # nothing, because no script ever contains that string.
+    invented = ("Welcome to part one. Fifth favourites showed a twenty three per cent "
+                "strike rate.")
+    still = F.check(invented, FAKE_CAP, PACK)
+    check("an invented racing figure still blocks, packaging or not",
+          any("twenty three" in p for p in still),
+          f"twenty three per cent was let through: {still}")
+
+    # 4. …including one hiding in what looks like framing. The packaging licenses the
+    #    figures IT contains, not the sentences they sit in.
+    outro = "That's part one done. Come back for the forty seven systems."
+    out2 = F.check(outro, FAKE_CAP, PACK)
+    check("a figure invented INSIDE the framing prose still blocks",
+          any("forty seven" in p for p in out2), f"forty seven was let through: {out2}")
+
+    # 5. the article's own figures are unaffected by any of this
+    check("an article figure still passes with packaging supplied",
+          F.check("He was sent out at 7/4.", FAKE_CAP, PACK) == [],
+          str(F.check("He was sent out at 7/4.", FAKE_CAP, PACK)))
+
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     for f in FAIL:
         print(f"  FAILED: {f}")

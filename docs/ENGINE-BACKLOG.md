@@ -53,6 +53,54 @@ written in `_exit_if_code_changed`'s own docstring. **A finding in a run log is 
 with no owner.** Anything in this file that is worth keeping is worth either fixing or
 giving a failing test.
 
+## ✅ BEFORE-EP20 #10 — LANDED. A SECOND APPROVED SOURCE, NOT A SECTION EXEMPTION.
+**Confirmed NOT landed before this batch** — `script_fidelity.check()` had no exemption
+of any kind. Four parts of a script are the studio's own words (opening framing line,
+transitions, midroll invitation, outro — `pp-episode-script/SKILL.md` §43), and a number
+in one of them stalled the run over Gordon's own storytelling.
+
+🔴 **THE OBVIOUS FIX WOULD HAVE PUNCHED A HOLE IN §0a, so it was refused.** Exempting
+those SECTIONS means identifying them inside a plain-text file of undifferentiated
+paragraphs, and every rule for that ("the first beat", "the last beat") is a guess that
+hands back a hole: an invented racing figure in the outro walks straight through.
+
+**So nothing is exempted by LOCATION.** A figure is allowed when it has a SECOND
+APPROVED SOURCE — this episode's own packaging (hook, byline), which Jodie signs off at
+the words gate and which is on the RAIL at drafting time, before `episode.json` exists.
+"Part 1" and "10 Systems" are her words, written down and approved, so Gordon may say
+them. A figure in NEITHER the article NOR the packaging still blocks — which is every
+racing figure this gate was ever built for.
+🔒 **AND IT IS DECLARED, NEVER SILENT:** each allowance is collected and written to the
+run log ("allowed by the approved packaging — …"), so "the gate passed" always comes
+with what it waved and why. Same principle as #3: recognise, do not excuse.
+
+📋 **Controls:** the framing figures BLOCK when no packaging is supplied (so the pass
+below is not vacuous); they are allowed when it is, and each allowance is recorded; an
+invented racing figure still blocks; and a figure invented INSIDE the framing prose
+still blocks — the packaging licenses the figures IT contains, not the sentences they
+sit in.
+⚠️ One test bug worth keeping: the first draft of those cases wrote "23 per cent" and
+proved nothing. **A script is what Gordon SAYS**, so `figures()` reads number WORDS —
+no script ever contains that string.
+📌 **Regression against real shipped scripts:** EP18 and EP19 are unchanged (0 blockers
+before and after) and nothing new was waved. EP17 carries ONE PRE-EXISTING blocker
+("one to ten") that predates this change and shipped anyway — recorded here rather than
+quietly absorbed.
+
+## 🔴 BEFORE-EP20 #7a — THE STAGE-8 RENAME IS A MACHINE CHORE WEARING A HUMAN GATE
+**(Jodie, 10 Aug 2026, on seeing EP19's close-out flag.)** A published episode whose
+folder has not been renamed raises **needs_look** — and it is not a decision, it is a
+chore. Worse, the message prints a raw command at the operator:
+> *"Run, from the repo: `python engine/rename_episode.py EP19 "<approved title>" --apply`"*
+
+**That is an A19 operator-box violation on both counts:** it badges her queue with the
+machine's own work, and it asks a person holding a browser to run a shell command they
+cannot run. Per PP-STANDARDS §WHAT DESERVES A GATE the fix is to REMOVE the halt, not to
+word it better.
+**The fix:** the rename becomes an automatic step at publish — the engine renames the
+folder, updates `drive_folder` on the rail, and clears the flag itself, silently.
+**Backlog to clear:** EP16, EP17, EP18 and EP19 all carry this flag right now.
+
 ## 🟡 BEFORE-EP20 #2 — THE NAME-VS-ID SWEEP. ONE SITE FIXED, THE REST ASSESSED HONESTLY.
 E20 asked for this on EP15 and listed the sites; nobody did it, and four episodes later
 `heygen_video_id` cost an investigation. *An id is a promise, a name is a guess.* Each

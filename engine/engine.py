@@ -1346,6 +1346,23 @@ def _draft_ledger_path(d) -> Path:
     return Path(d) / _DRAFT_LEDGER
 
 
+def _approved_packaging_text(ep) -> str:
+    """The episode's OWN approved words — the second source a spoken figure may have.
+
+    Only fields a human signed off at the words gate: the hook and the byline are the
+    approved packaging, and the episode number is the part this is. Nothing derived,
+    nothing from the build, and deliberately NOT the script itself — licensing a figure
+    against the text being checked would license everything.
+    """
+    bits = [str(ep.get("hook") or ""), str(ep.get("byline") or "")]
+    n = ep.get("ep_number")
+    if n is not None:
+        # The part number as it is actually said. EP19 is "Part 1" of its article, and
+        # the hook usually carries that already — this is the belt to its braces.
+        bits.append(f"episode {n}")
+    return " \n ".join(b for b in bits if b.strip())
+
+
 def _draft_attempts(d) -> int:
     """How many times this episode's script has already been commissioned."""
     try:
@@ -1484,11 +1501,18 @@ def _draft_watch(provider):
                 # because the writer rewrites it between rounds.
                 _cap_text = capture.read_text(encoding="utf-8")
 
+                # THE APPROVED PACKAGING, which is the studio's OWN approved words and
+                # the only second source a figure may come from. It is on the RAIL at
+                # this point — episode.json does not exist yet — and these are the
+                # fields Jodie signs off at the words gate.
+                _licensed = _approved_packaging_text(ep)
+
                 def _fidelity_gate():
                     p = d / "docs/spoken-words.txt"
                     if not p.is_file():
                         return []          # nothing written yet is commission()'s fault
-                    return script_fidelity.check(p.read_text(encoding="utf-8"), _cap_text)
+                    return script_fidelity.check(p.read_text(encoding="utf-8"),
+                                                 _cap_text, _licensed)
 
                 verdict = provider._commission_script(ep, d, gate=_fidelity_gate)
             except com.CommissionHalt as h:
@@ -1510,8 +1534,13 @@ def _draft_watch(provider):
             # bound above, so a writer that keeps inventing figures runs out of
             # goes rather than filling the box with something nobody can trust.
             try:
+                waved = []
                 problems = script_fidelity.check(
-                    text, capture.read_text(encoding="utf-8"))
+                    text, capture.read_text(encoding="utf-8"), _licensed, waved)
+                # SAY WHAT WAS WAVED. An allowance nobody reads is an exemption, and
+                # this gate's whole job is that no figure passes unaccounted for.
+                for w in waved:
+                    log(f"   fidelity: allowed by the approved packaging — {w}")
             except Exception as e:                                    # noqa: BLE001
                 log(f"   drafting pass: could not check PP-EP{int(nn):02d}'s "
                     f"figures against the article ({type(e).__name__}), so the "
