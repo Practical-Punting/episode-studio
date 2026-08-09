@@ -53,6 +53,57 @@ written in `_exit_if_code_changed`'s own docstring. **A finding in a run log is 
 with no owner.** Anything in this file that is worth keeping is worth either fixing or
 giving a failing test.
 
+## 🟡 BEFORE-EP20 #2 — THE NAME-VS-ID SWEEP. ONE SITE FIXED, THE REST ASSESSED HONESTLY.
+E20 asked for this on EP15 and listed the sites; nobody did it, and four episodes later
+`heygen_video_id` cost an investigation. *An id is a promise, a name is a guess.* Each
+site below has now been LOOKED AT rather than left on a list — with what was done.
+
+- ✅ **`_clip()`'s glob** — FIXED. It matched `*c07*.mp4` when the card already carries
+  `page`, and a clip is that page's stem. It now asks `episode.json` first; the glob
+  stays as a fallback for older episodes and SAYS SO when it fires. Control: two files
+  matching `*c07*` (a headline containing "c07" is all it takes) — before, that halted
+  claiming *"most likely C7 is marked bespoke"* about a card that had rendered perfectly.
+- ✅ **`heygen_video_id`** — fixed earlier in the batch (`a95e4a8`): resolved once, then
+  WRITTEN DOWN, and a halt rather than a silent pick when two renders share a title.
+- 🟡 **`_hero_paths`** — NOT the fault E20 named, and the real one is worse. The file
+  names (`hero-a.png` / `hero-b.png` / `hero.png`) are a fixed convention, not a guess
+  about which asset. **The guess is that the FILE matches the LEDGER**: `docs/hero-jobs.json`
+  is keyed on slot + prompt_sha (E16), and nothing checks that the png on disk came from
+  the prompt currently in `episode.json`. That is the EP15 fault in its original form —
+  *"a status field, a fresh mtime, a byte count and a 'completed' job all said the images
+  were new; only the unchanged balance told the truth."* **Deliberately not attempted in
+  this batch:** it touches the spend path, and getting it wrong either re-serves a
+  rejected cover or spends ~4 credits saying so. It needs its own controlled run.
+- 🟡 **`broll_registry_check`'s `broll-[a-z0-9-]+` regex over prose** — reads TARGET
+  NAMES out of the script's text. There is no id to use: the b-roll target IS its name,
+  chosen when the prompt is written. Making it an id means giving b-roll entries ids in
+  `episode.json` and referencing those — a schema change with no fault behind it yet.
+  **Left alone, on the standard's own rule: take an item off against a REAL fault.**
+- 🟡 **the b-roll job map keyed on target NAME in `build_state.jobs`** — same shape as
+  above and the same answer. It is keyed on a name that is itself the identifier, and
+  the double-spend guard already keys on `jobs[clip].job_id`, which IS an id.
+- ✅ **`episode_dir()` (E18)** — already resolved by NUMBER with a regex anchored to
+  `PP-EP<nn>` and guarded by tests (`test_no_hardcoded_episode_paths`, and the
+  single-digit/two-digit cases in the preflight suite). Nothing to do; re-verified.
+- ✅ **`midroll_window`'s folder scan** — checked, and it is ALREADY RIGHT: it globs
+  `PP-EP*/docs/spoken-words.txt` but orders by EPISODE NUMBER via `_ep_num`, with its
+  own docstring explaining why ("PP-EP98 is a test folder sitting beside the real
+  episodes; mtime ordering would drag it into every real episode's window"). The glob
+  only enumerates; identity comes from the number. Nothing to fix.
+  🔴 **BUT THE CHECK FOUND SOMETHING ELSE, AND IT IS FAULT #2:** `midroll_window` exists
+  TWICE — in `qc_episode.py` and in `render_ready.py` — and the two copies **have
+  already drifted** (different docstring, different import placement). Cosmetic today;
+  it is one lookup in two places, so the next real edit reaches one reader. **Not fixed
+  here:** extracting it is a shared-module refactor across the QC path and the
+  render-ready path, which is a regression surface out of proportion to a batch item.
+  Logged as its own thing rather than folded in silently.
+
+📌 **The honest summary: 4 of 7 need nothing further, 2 have no id to use and no fault
+behind them, and 1 is real and deliberately deferred** — `_hero_paths` against the
+ledger, because it sits on the spend path and getting it wrong either re-serves a
+rejected cover or spends ~4 credits proving it. Plus one NEW finding the sweep turned
+up: two drifting copies of `midroll_window`.
+
 ## ✅ BEFORE-EP20 #9 — LANDED. A CARD TYPE IS NEVER REQUIRED BY PRECEDENT.
 **(Jodie's ruling, 9 Aug 2026: there is NEVER a requirement for a bar chart.)**
 E26 walks every key path in `episode.json`, and a key both reference episodes carry is a

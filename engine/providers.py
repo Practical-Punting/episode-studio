@@ -1303,16 +1303,51 @@ class RealProvider:
         return self.run([sys.executable, self.scripts / script, *args],
                         cwd=cwd, timeout=timeout)
 
+    def _clip_from_episode_json(self, ep, cid: str, clips: Path):
+        """The clip this card NAMES, or None if episode.json cannot say.
+
+        A card's `page` is the promise: render_cards writes `<page stem>.mp4`. Reading
+        it here is the difference between "the file this card is" and "a file whose name
+        looks about right".
+        """
+        try:
+            epj = self.epjson(ep)          # the one reader, not a second copy of it
+        except Exception:                                          # noqa: BLE001
+            return None                    # no settings yet — the glob still has a job
+        card = next((c for c in epj.get("cards") or [] if c.get("id") == cid), None)
+        page = (card or {}).get("page")
+        if not page:
+            return None
+        want = clips / (Path(page).stem + ".mp4")
+        return want if want.is_file() else None
+
     def _clip(self, ep, cid: str) -> Path:
         """Map an episode.json card id (C1, TITLE, END, WARRANTY) to its
-        rendered clip in overlay/clips/ (files carry descriptive names)."""
+        rendered clip in overlay/clips/ (files carry descriptive names).
+
+        🔑 E20's SWEEP: ASK episode.json, DO NOT GUESS FROM THE FILENAME. The card
+        already carries `page`, and a clip is that page's stem with .mp4 — so the exact
+        name is KNOWN and the glob `*c07*.mp4` was a guess standing in for it. E20 wrote
+        the danger down: "a card whose page is renamed stops matching", and at 300
+        episodes a two-digit pattern is a collision waiting to happen — `*c07*` matches
+        anything with c07 anywhere in it, including a name a human chose.
+        The glob stays as a FALLBACK for episodes authored before this, and says so when
+        it fires: a silent fallback is the guess again with extra steps.
+        """
         clips = self.dir(ep) / "overlay/clips"
         exact = clips / f"{cid}.mp4"
         if exact.is_file():
             return exact
+        named = self._clip_from_episode_json(ep, cid, clips)
+        if named is not None:
+            return named
         pats = {"TITLE": "*title*.mp4", "END": "end-card*.mp4", "WARRANTY": "warranty*.mp4"}
         pat = pats.get(cid) or f"*c{int(cid[1:]):02d}*.mp4"   # C7 -> *c07*.mp4
         hits = [p for p in sorted(clips.glob(pat)) if "lowerthird" not in p.name]
+        if len(hits) == 1:
+            print(f"    ⚠️ clip for {cid} found by PATTERN {pat!r}, not by name: "
+                  f"episode.json does not give this card a `page`, or the file does not "
+                  f"match it. Works, but it is a guess — see E20.")
         if len(hits) != 1:
             # An EngineFlag, NOT a RuntimeError: a card that did not land is not a
             # transient fault, so retrying burns three full Chromium batch renders
