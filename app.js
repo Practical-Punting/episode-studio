@@ -571,12 +571,21 @@ async function openScript(id) {
   $("sc-title").textContent = (ep.ep_number != null ? "EP" + ep.ep_number + " — " : "")
     + (ep.title || "Untitled");
   $("sc-text").value = text;
-  scGrow();
   scCounts(text);
   scState("");
   scApplyLock();
   $("board").hidden = true;
   $("script").hidden = false;
+  /* 🔴 GROW AFTER IT IS ON SCREEN, NEVER BEFORE. scGrow() reads scrollHeight, and a
+   * HIDDEN element reports 0 — so growing here used to set height:0px, CSS
+   * `min-height:100%` then gave the box the wrapper's height, and `overflow:hidden`
+   * clipped everything past it. On EP19's 1,770-word script that left 4,377px of the
+   * document unreachable by any gesture: Jodie could see a middle portion and could
+   * not scroll to her own first or last line.
+   *     THE FUNCTION WAS ALWAYS RIGHT. IT WAS CALLED AT A MOMENT WHEN THE ANSWER
+   *     DID NOT EXIST YET — measuring a box the browser had not laid out.
+   * Proved in headless Chromium against the real script; a unit test cannot see it. */
+  scGrow();
   $("sc-text").focus();
   await scVersion("human", "open");
   // "Back to what Claude Code wrote" is the FIRST version, however many edits
@@ -853,13 +862,66 @@ function pauseBanner(fields, flagged) {
   $("pause-refresh").onclick = () => { UI.dirty.clear(); renderBoard(true); };
 }
 
+/* Which episodes had a script last time we looked. A script ARRIVING is the one
+ * change the pause below must not swallow — see refreshSeatedCards(). */
+let LAST_SCRIPTED = new Map();
+
+/* 🔴 A SCRIPT ARRIVING MUST REACH HER EVEN WHILE THE BOARD IS PAUSED.
+ * renderBoard() bails whenever ANY field is dirty — the C1 pause that protects her
+ * typing — and that is right. But it froze the WHOLE board, so when EP19's script
+ * seated while she had touched a hook box on another card, the card never changed and
+ * she reloaded to find it. The machine had done the work and the screen kept it secret.
+ *     THE PAUSE PROTECTS THE NODE SHE IS IN. IT WAS PROTECTING EVERY OTHER NODE TOO.
+ * So: refresh ONLY the cards whose script just arrived, and ONLY when nothing dirty
+ * lives inside them. Her card is never touched, and the fix cannot reach it by
+ * construction — it asks each card whether it contains a dirty field.
+ * Reproduced and proved in headless Chromium; the clean idle case always worked, which
+ * is why this hid. */
+function refreshSeatedCards() {
+  EPISODES.forEach((ep) => {
+    if (!ep.script_snapshot || LAST_SCRIPTED.get(ep.id)) return;
+    const node = document.querySelector('[data-card="' + CSS.escape(ep.id) + '"]');
+    if (!node) return;
+    /* ⚠️ THE CARD SHE IS TYPING IN IS USUALLY THE VERY ONE. The words gate puts the
+     * hook, byline and title boxes on the SAME card as the script, so "refresh every
+     * card except hers" — the first version of this — skipped exactly the case that
+     * sent her to the reload button. Proved by reproducing it: the dirty field was
+     * `w-hook-ep-19` and the script was EP19's.
+     * So the card IS rebuilt, and what she would have lost is put back: the typed
+     * value (restoreDrafts, which exists for this) and the caret, captured first.
+     * Losing a caret is a smaller harm than a script she cannot see. */
+    const act = document.activeElement;
+    const focusId = act && node.contains(act) ? act.id : null;
+    const at = focusId && act.selectionStart != null
+      ? [act.selectionStart, act.selectionEnd] : null;
+    node.outerHTML = cardFor(ep);
+    restoreDrafts();
+    if (focusId) {
+      const back = $(focusId);
+      if (back) {
+        back.focus();
+        if (at && back.setSelectionRange) {
+          try { back.setSelectionRange(at[0], at[1]); } catch (e) { /* not a text box */ }
+        }
+      }
+    }
+  });
+}
+
+function rememberScripts() {
+  LAST_SCRIPTED = new Map(EPISODES.map((e) => [e.id, !!e.script_snapshot]));
+}
+
 function renderBoard(force) {
   const editing = force ? [] : editingNow();
   if (editing.length) {
     pauseBanner(editing, newlyFlagged());
+    refreshSeatedCards();         // a script arriving is not "the node she is in"
+    rememberScripts();
     tickTimers();
     return;                       // the node she is in is never touched
   }
+  rememberScripts();
   pauseBanner([], []);
   rememberFlags();
   const host = $("lanes");
@@ -924,7 +986,9 @@ function cardFor(ep) {
   // so a third gate that shows the script gets the reading surface without anyone
   // remembering to widen this line.
   const readingScript = showsScript(ep);
-  let h = '<article class="card' + (nl ? " alert" : "") +
+  // data-card gives ONE card a handle, so a single card can be refreshed in place
+  // while the board is paused around somebody's typing. See renderBoard's pause branch.
+  let h = '<article data-card="' + esc(ep.id) + '" class="card' + (nl ? " alert" : "") +
           (readingScript ? " wide" : "") + '">';
 
   h += '<div class="toprow"><h3><span class="epnum">' + esc(num) + "</span> " +
