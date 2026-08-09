@@ -494,9 +494,11 @@ surfaced, and the run is recorded in the episode's run log.**
      the reader.*
      ✅ **ENFORCED, not just written:** `qc_episode.stage_deliverables` reads the built
      PDF and HARD-FAILS on that sentence, proved fail-first against EP18's own e-book
-     before it was rebuilt. **EP18 was regenerated without it (8 pages, QC PASS).**
-     🔴 **EP16 STILL CARRIES IT ON PAGE 2 and is PUBLISHED** — same fix, one command,
-     but replacing a live reader-facing file is Jodie's call, not the engine's.
+     before it was rebuilt.
+     ✅ **BOTH AFFECTED GUIDES REBUILT** — EP18 (8 pages) and EP16 (10 pages, PUBLISHED,
+     replaced on Jodie's authority 9 Aug). **All fourteen shipped e-books read page by
+     page: none mentions transcription or repairs.** The pre-rebuild PDFs are kept as
+     `.with-note.pdf.bak` beside each, which is what the guard is proved against.
 
   ⚠️ **AND THE LIMITATION, NAMED RATHER THAN GLOSSED:** `author_ebook.py`'s fidelity gate
   compares the body against the CAPTURE FILE, and the capture is written by hand. **So the

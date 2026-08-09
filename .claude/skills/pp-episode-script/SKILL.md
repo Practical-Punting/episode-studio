@@ -305,6 +305,31 @@ words you want to hear.** Never leave shorthand in the spoken track.
 | Symbols | `%  &  +  =  £` | per cent, and, plus, equals, pounds |
 | Abbrev. | `approx.` `e.g.` `etc.` | approximately, for example, and so on |
 
+> ## 🔴 KEEP ODDS AND PRICES IN THE ARTICLE'S OWN FORM. NEVER CONVERT THEM.
+> **(Jodie, 9 Aug 2026 — it cost EP19 all three drafting attempts.)**
+> The table above is about how to SAY a figure. This is about which figure exists at all.
+>
+> | the article says | ✅ say | ❌ never |
+> |---|---|---|
+> | `2/1` | *"two to one"* | *"three dollars"*, *"$3.00"* |
+> | `4/1` | *"four to one"* | *"five dollars"* |
+> | `$2 to $3` | *"two dollars to three dollars"* | *"2/1 to 1/2"*, *"1.75 to 3.25"* |
+>
+> **A conversion INVENTS A FIGURE THE ARTICLE NEVER STATES**, and the fidelity gate is
+> right to reject it — the same family as inventing data, because that is what it is.
+> Fractional and decimal odds are two different notations for the same idea, and the
+> moment you translate you are asserting an arithmetic the author did not print.
+>
+> **What it cost:** EP19's writer turned the article's `2/1`–`6/1` range into *"one
+> dollar seventy five to three dollars twenty five"* on all three attempts, the gate
+> rejected all three, the bound exhausted, and no script was written. **The gate never
+> wavered and it was never wrong.**
+>
+> ⚠️ **AND IT IS NOT A ROUNDING QUESTION.** The note below permits rounding *within* a
+> figure the article states. This forbids restating a figure in units the article never
+> used, however exact your arithmetic. **If a decimal price would genuinely help Dave,
+> the article has to say it — otherwise it does not go in Gordon's mouth.**
+
 Rounding note: it's fine to **round in speech** for flow ("seventy-point-seven") while the **card
 shows the precise figure** ("70.66") — that's intentional, not an error; just be consistent
 (the spoken value must round *to* the card value).
