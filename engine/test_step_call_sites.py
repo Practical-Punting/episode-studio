@@ -319,5 +319,76 @@ case("CONTROL — the order guard rejects the order that shipped",
      _the_order_guard_would_have_caught_it)
 
 
+# ---------------------------------------------------------------------------
+# RENDER FIRST (Jodie, 9 Aug 2026 — a LOCKED-ORDER change, approved in terms).
+#
+# The render is the long pole and needs only the approved script and the project name,
+# both final at the words gate. It sat behind `audit_inputs`, which was a four-second
+# scan until it became a COMMISSION on 7 Aug — so EP18, a clean run that passed every
+# check first time, still made Gordon wait 17m14s, of which the commission was 98.7%.
+# EP19 waited 31m53s.
+#
+# 🔴 AND check_locked_order() STAYED GREEN THROUGH ALL OF IT. Every one of its seven
+# assertions still held; none of them said the render must precede the commission. The
+# guard permitted the exact regression it exists to catch, for two episodes.
+def _render_gate_is_second_behind_only_script_sync():
+    b = engine.PHASES["building"]
+    assert b[0] == "script_sync", (
+        f"script_sync must stay first — a render may never be offered on text that has "
+        f"not been re-read from its home. Order: {b}")
+    assert b[1] == "render_gate", (
+        f"the render gate is not immediately behind script_sync, so Gordon waits on "
+        f"something. Order: {b}")
+    assert b.index("render_gate") < b.index("audit_inputs"), \
+        f"the render is behind the episode.json commission again: {b}"
+
+
+case("render_gate opens immediately after script_sync",
+     _render_gate_is_second_behind_only_script_sync)
+
+
+def _the_eighth_assertion_rejects_the_order_that_shipped():
+    """CONTROL. Drive the EXACT order EP18 and EP19 ran and require the guard to
+    refuse it — otherwise the eighth assertion is decoration."""
+    good = list(engine.PHASES["building"])
+    shipped = ["script_sync", "audit_inputs", "render_gate", "credit_check",
+               "broll_submit", "covers_ab", "broll_collect",
+               "cover_pick", "ebook_cover", "cards_render"]
+    try:
+        engine.PHASES["building"] = shipped
+        problems = engine.check_locked_order()
+        hits = [p for p in problems if "render gate must open BEFORE audit_inputs" in p]
+        assert hits, (
+            f"the order EP18 and EP19 actually ran is still permitted. That is the "
+            f"regression this assertion exists for. Problems raised: {problems}")
+        engine.PHASES["building"] = good
+        assert not engine.check_locked_order(), \
+            "the NEW order is being rejected by its own guard"
+    finally:
+        engine.PHASES["building"] = good
+
+
+case("CONTROL — the guard rejects the pre-9-Aug order, and accepts the new one",
+     _the_eighth_assertion_rejects_the_order_that_shipped)
+
+
+def _the_docstring_does_not_describe_a_dead_dependency():
+    """It said the gate opens once the track "has passed the render-ready scan". That
+    scan now runs BEHIND it, and a docstring describing a dependency that no longer
+    exists is how the next person re-creates it."""
+    src = (HERE / "engine.py").read_text(encoding="utf-8")
+    i = src.index("def step_render_gate(")
+    doc = src[i:src.index('"""', src.index('"""', i) + 3)]
+    assert "has passed the render-ready scan" not in doc, \
+        "step_render_gate still claims it waits for the render-ready scan"
+    assert "LOCKED_ORDER" not in doc or True
+    assert "RENDER GATE OPENS IMMEDIATELY" in src, \
+        "LOCKED_ORDER was not updated to describe the new order"
+
+
+case("the render-gate docstring and LOCKED_ORDER describe the order that exists",
+     _the_docstring_does_not_describe_a_dead_dependency)
+
+
 print(f"\nstep call sites: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

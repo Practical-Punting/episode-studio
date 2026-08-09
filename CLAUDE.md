@@ -60,8 +60,11 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   Approving the script is a DECISION; decisions stay human. Starting a render is
   a chore and may be automated. Automation eats chores, never decisions.
 - **THE LOCKED ORDER** (approved 26 Jul 2026, in `PP-STANDARDS.md` + `engine/README.md`):
-  words gate → render gate AND the gens batch fire in parallel → cover pick
-  during the render window → hands-off finish → four approvals → publish.
+  words gate → RENDER GATE OPENS IMMEDIATELY → the commission, the gens batch
+  and the cards run BEHIND it → cover pick during the render window →
+  hands-off finish → four approvals → publish.
+  In full: the render gate opens AT THE WORDS GATE — it needs only the approved script and the project name, and both are final the instant she clicks Approve — and the episode.json commission, the gens batch and the cards all run BEHIND it, inside the render window.
+  (Re-sequenced 9 Aug 2026 with Jodie's explicit approval. It used to fire the render and the gens batch in parallel, which meant the render waited on `audit_inputs` — a four-second scan until it became a COMMISSION on 7 Aug. EP18, a clean run, still made Gordon wait 17m14s, 98.7% of it that commission.)
   Human turns 1-2-3 at the front, turn 4 at the end. Never render-last.
   Re-sequencing needs Jodie's explicit re-approval.
 - Secrets only in `PP Videos/.env` (service_role, HeyGen). Only the anon key

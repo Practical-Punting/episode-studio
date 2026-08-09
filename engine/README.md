@@ -226,6 +226,10 @@ is a hard rule in `PP-STANDARDS.md`.
 
 Do not re-sequence without her explicit re-approval.
 
+**AMENDED 9 Aug 2026 (approved):** the render gate opens AT THE WORDS GATE — it needs only the approved script and the project name, and both are final the instant she clicks Approve — and the episode.json commission, the gens batch and the cards all run BEHIND it, inside the render window.
+(Re-sequenced 9 Aug 2026 with Jodie's explicit approval. It used to fire the render and the gens batch in parallel, which meant the render waited on `audit_inputs` — a four-second scan until it became a COMMISSION on 7 Aug. EP18, a clean run, still made Gordon wait 17m14s, 98.7% of it that commission.)
+
+
 1. Article → script + words. 2. **Words Gate** (title / hook / byline).
 3. On approval, **in parallel**: (a) the render gate opens — Gordon starts
    cooking, the LONG POLE (5-45 min), which depends only on the spoken track

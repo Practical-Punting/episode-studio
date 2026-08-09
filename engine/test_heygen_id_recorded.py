@@ -29,6 +29,7 @@ drives the situation and checks the wrong outcome is not the one we get.
 from __future__ import annotations
 
 import io
+import tempfile
 import json
 import sys
 from pathlib import Path
@@ -117,7 +118,11 @@ def vid(vid_id, title=NAME, status="completed", created=1786249163):
 
 
 def prov():
-    return providers.RealProvider(Path("G:/My Drive/PP Videos"))
+    # A THROWAWAY ROOT ON PURPOSE. Everything this suite touches is stubbed — the
+    # HeyGen calls, the rail, the download — so it has no business naming the real
+    # media root, and naming it would make this file look (to the hard-coded-path
+    # lint, correctly) like a suite that reaches into an episode folder.
+    return providers.RealProvider(Path(tempfile.mkdtemp(prefix="heygen_id_")))
 
 
 # ------------------------------------------------------------------- 1 -----

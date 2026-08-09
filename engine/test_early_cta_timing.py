@@ -19,7 +19,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 TOOL = REPO / ".claude/skills/pp-episode-production/scripts/derive_card_timings.py"
-def _ep_dir(n: int) -> pathlib.Path:
+def episode_dir(n: int) -> pathlib.Path:
     """Resolve an episode folder BY NUMBER, never by a written-out name.
 
     ⚠️ THE STAGE-8 CLOSE-OUT RENAMES EVERY PUBLISHED EPISODE'S FOLDER — PP-EP18 became
@@ -32,7 +32,7 @@ def _ep_dir(n: int) -> pathlib.Path:
     return hits[0] if hits else root / f"PP-EP{n:02d}"
 
 
-SRC = _ep_dir(18)
+SRC = episode_dir(18)
 PY = sys.executable
 
 FAILED = []

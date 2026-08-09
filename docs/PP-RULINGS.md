@@ -628,3 +628,15 @@ find.** Listed, never reconstructed.
 
 *Standards: `PP-STANDARDS.md`. Faults and evidence: `CLAUDE.md`. Worked examples:
 `EP15-run-log.md`, `EP16-run-log.md`.*
+
+## RENDER FIRST — the render gate opens at the words gate (9 August 2026)
+
+**Jodie approved this locked-order change in terms.** The render gate opens at the words gate — it needs only the approved script and the project name, and both are final the instant she clicks approve — and the episode.json commission, the gens batch and the cards all run behind it, inside the render window.
+
+**The reasoning she approved:** the render is the long pole (5-45 min) and depends only on the spoken track, which is final at the words gate. Nothing an `episode.json` fault can do changes a word Gordon says, so **no card fault can waste a render.**
+
+**The evidence:** `docs/EFFICIENCY-AUDIT-approval-to-render.md`. EP18 — a clean run, one commission, no repair — still made the longest job in the pipeline wait **17m 14s**, of which the commission was **98.7%**. EP19 waited 31m53s. Nobody re-sequenced anything: `audit_inputs` was a four-second scan until it became a commission on 7 Aug, and the render silently inherited the wait.
+
+⚠️ **This approval covers this reorder and nothing else.** Any further re-sequencing is a fresh ruling.
+
+🔒 **Guarded:** `check_locked_order()` now asserts `render_gate` before `audit_inputs`. The absence of that eighth assertion is why the regression was invisible — all seven existing rules still held while the render slid behind the commission for two episodes.

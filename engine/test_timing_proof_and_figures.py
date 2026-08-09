@@ -19,7 +19,20 @@ sys.path.insert(0, str(SCRIPTS))
 import author_cards as ac       # noqa: E402
 import qc_episode as q          # noqa: E402
 
-SRC = pathlib.Path(r"G:\My Drive\PP Videos\PP-EP18")
+def episode_dir(n: int) -> pathlib.Path:
+    """Resolve an episode folder BY NUMBER, never by a written-out name.
+
+    ⚠️ THE STAGE-8 CLOSE-OUT RENAMES EVERY PUBLISHED EPISODE'S FOLDER — PP-EP18 became
+    PP-EP18-Those-Top-6-Favourites the day the close-out was automated — so a literal
+    path is a fuse: it passes for weeks and then SKIPS, silently, the day the process
+    does the thing the standard requires of it.
+    """
+    root = pathlib.Path(r"G:\My Drive\PP Videos")
+    hits = sorted(p for p in root.glob(f"PP-EP{n:02d}*") if p.is_dir())
+    return hits[0] if hits else root / f"PP-EP{n:02d}"
+
+
+SRC = episode_dir(18)
 FAILED = []
 
 

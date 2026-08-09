@@ -257,6 +257,15 @@ never decisions.**
 The EP10 lesson: the HeyGen render was triggered near the END, and the cover pick was surfaced
 AFTER the render instead of during it — so a human waited on a machine that was waiting on a human.
 **Do not re-sequence this without Jodie's explicit re-approval.**
+
+> ### 🔴 AMENDED 9 AUGUST 2026 — RENDER FIRST. Approved by Jodie.
+> Step 3 below said the render and the gens batch fire *in parallel*. They no longer do:
+> **the render gate opens AT THE WORDS GATE — it needs only the approved script and the project name, and both are final the instant she clicks Approve — and the episode.json commission, the gens batch and the cards all run BEHIND it, inside the render window.**
+>
+> (Re-sequenced 9 Aug 2026 with Jodie's explicit approval. It used to fire the render and the gens batch in parallel, which meant the render waited on `audit_inputs` — a four-second scan until it became a COMMISSION on 7 Aug. EP18, a clean run, still made Gordon wait 17m14s, 98.7% of it that commission.)
+>
+> Nothing an `episode.json` fault can do changes a word Gordon says, so no card fault can waste a render. `check_locked_order()` now asserts it — its absence is why the render slid behind the commission for two episodes with the guard staying green.
+
 1. Paste the article → Claude Code writes the script into a Google Doc in the episode's Drive
    folder, plus the words (title / hook / byline).
 2. **HUMAN TURN 1 — Script Gate + Words Gate.** Read the Doc, edit it, tick "I've read the script",

@@ -112,10 +112,12 @@ HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 # the Words Gate — so it starts EARLY, never last, and never behind the visuals.
 LOCKED_ORDER = (
     "1 script + words · 2 SCRIPT GATE + WORDS GATE (read the script, approve "
-    "title/hook/byline) · 3 render gate AND the gens batch (b-roll + cover heroes "
-    "A/B + cards) fire IN PARALLEL · 4 cover pick WHILE Gordon renders · 5 engine "
-    "finishes hands-off · 6 master -> shot map -> assembly -> QC · 7 the four "
-    "approvals · 8 publish + Stage-8 close-out"
+    "title/hook/byline) · 3 RENDER GATE OPENS IMMEDIATELY — the render needs only the "
+    "approved script and the project name, and both are final at the words gate · "
+    "4 the episode.json commission, the gens batch (b-roll + cover heroes A/B) and the "
+    "cards all run BEHIND the render, inside its window · 5 cover pick WHILE Gordon "
+    "renders · 6 engine finishes hands-off · 7 master -> shot map -> assembly -> QC · "
+    "8 the four approvals · 9 publish + Stage-8 close-out"
 )
 
 
@@ -200,7 +202,19 @@ class OwnershipLost(Exception):
 # so the cover pick (step 4) reaches the operator while the render is still
 # running. Everything after the pick is hands-off (step 5).
 PHASES = {
-    "building":   ["script_sync", "audit_inputs", "render_gate", "credit_check",
+    # 🔴 RENDER FIRST. (Jodie, 9 Aug 2026 — a LOCKED-ORDER change, approved in terms.)
+    # The render is the long pole, 5-45 minutes, and it needs exactly two things, both
+    # final the instant she clicks Approve: the project name, and the approved script.
+    # IT DOES NOT READ episode.json — the only step in the whole building phase that
+    # does not, and the only one a human is waiting on.
+    #     It sat behind `audit_inputs`, which was a four-second scan until it became a
+    # COMMISSION on 7 Aug. The render silently inherited the wait: EP18, a clean run
+    # that passed every check first time, still made Gordon wait 17m14s, of which the
+    # commission was 98.7%. EP19 waited 31m53s. Nobody re-sequenced anything — the cost
+    # arrived inside a step that had always been cheap.
+    #     Nothing an episode.json fault can do changes a word Gordon says, so no card
+    # fault can waste a render.
+    "building":   ["script_sync", "render_gate", "audit_inputs", "credit_check",
                    "broll_submit", "covers_ab", "broll_collect",
                    "cover_pick", "ebook_cover", "cards_render"],
     "rendering":  ["heygen_download", "shot_map"],
@@ -272,6 +286,21 @@ def check_locked_order():
     if not before("render_gate", "broll_submit"):
         problems.append("the render gate must open BEFORE the gens batch fires "
                         "(the render is the long pole — it never waits on pictures)")
+    # ── THE EIGHTH ASSERTION, AND ITS ABSENCE IS THE WHOLE STORY ─────────────────
+    # 🔴 THE GUARD PERMITTED THE REGRESSION IT EXISTS TO CATCH. Nothing here ever said
+    # the render must come before the COMMISSION, so when `audit_inputs` grew from a
+    # four-second scan into a 17-32 minute commission on 7 Aug, this function stayed
+    # green while the render slid behind it. Two episodes shipped that way and nobody
+    # noticed, because every one of the seven assertions still held.
+    #     A locked order guarded by seven rules is guarded against seven things.
+    if not before("render_gate", "audit_inputs"):
+        problems.append(
+            "the render gate must open BEFORE audit_inputs — audit_inputs COMMISSIONS "
+            "episode.json (17-32 minutes, measured on EP18 and EP19) and the render "
+            "needs none of it. The render is the long pole and depends only on the "
+            "approved script, so it is offered the moment the words are locked. "
+            "Approved by Jodie 9 Aug 2026; the guard exists because the previous order "
+            "regressed silently when this step grew from a scan into a commission.")
     if "covers_ab" not in b or "covers_ab" in r:
         problems.append("the two cover heroes must be generated in the BUILDING "
                         "gens batch, not after the HeyGen master lands")
@@ -639,8 +668,18 @@ def step_audit_inputs(ctx):
 
 
 def step_render_gate(ctx):
-    """HUMAN TURN 2 opens HERE — the moment the words are locked and the spoken
-    track has passed the render-ready scan, NOT at the end of the build.
+    """HUMAN TURN 2 opens HERE — the moment the words are locked, and nothing later.
+
+    IT NEEDS EXACTLY TWO THINGS, AND BOTH ARE FINAL AT THE WORDS GATE: the project
+    name (ep_number + the approved title) and the approved script, re-read from its
+    home by script_sync immediately before. It deliberately does NOT wait for
+    episode.json, the b-roll, the covers or the cards — it is the only step in the
+    building phase that never reads episode.json, and the only one a human is
+    waiting on.
+        ⚠️ THE SENTENCE THIS REPLACES SAID "…and the spoken track has passed the
+    render-ready scan". That scan is `audit_inputs`, which now runs BEHIND this step
+    (Jodie, 9 Aug 2026), and a docstring describing a dependency that no longer
+    exists is how the next person re-creates it.
 
     The HeyGen render is the LONG POLE (5-45 min) and depends only on the spoken
     track, which is final at the Words Gate. So it starts now and cooks while the
@@ -1808,40 +1847,78 @@ def cmd_run(mock, watch):
 
 
 # --- admin commands ----------------------------------------------------------
+MOCK_RETIRED = "engine-mock-retired"
+
+# ONE definition of the mock ticket, used by BOTH the insert and the reuse path.
+# Two copies would be fault #2 with a throwaway row attached: the spine test would
+# quietly exercise a different ticket depending on whether one had been retired.
+_MOCK_FIELDS = {
+    "ep_number": 99, "title": "Mock Episode — Spine Test", "status": "queued",
+    "source_url": "https://example.com/mock-article",
+    "created_by": "engine-mock",
+    # The mock pre-passes BOTH halves of the Script Gate so the spine can be
+    # exercised. This is the only place either flag is ever set by code, and
+    # it only ever runs against a throwaway PP-EP99 ticket.
+    "title_approved": True,
+    "script_read": True,
+    # ...and pretends the human already started Gordon's render, for the same
+    # reason and in the same throwaway-ticket-only way. Without this the spine
+    # stops at awaiting_render and every step past it — assembly, QC, the
+    # thumbnail, the YouTube copy — is never exercised. This is DATA on a mock
+    # ticket, not a change to the gate: the real render gate is untouched and
+    # still waits for a human.
+    "render_started_at": "2026-07-28T00:00:00+00:00",
+    "script_doc_url": "https://docs.google.com/document/d/MOCKmockMOCKmockMOCKmock/edit",
+    "hook": "A Mock Hook",
+    "byline": "a mock byline for the spine test",
+    "notes": "Mock ticket for the engine spine test.",
+    "needs_look": False, "needs_look_message": None,
+}
+
+
 def cmd_mock_episode():
-    ep = rail.insert({
-        "ep_number": 99, "title": "Mock Episode — Spine Test", "status": "queued",
-        "source_url": "https://example.com/mock-article",
-        "created_by": "engine-mock",
-        # The mock pre-passes BOTH halves of the Script Gate so the spine can be
-        # exercised. This is the only place either flag is ever set by code, and
-        # it only ever runs against a throwaway PP-EP99 ticket.
-        "title_approved": True,
-        "script_read": True,
-        # ...and pretends the human already started Gordon's render, for the same
-        # reason and in the same throwaway-ticket-only way. Without this the spine
-        # stops at awaiting_render and every step past it — assembly, QC, the
-        # thumbnail, the YouTube copy — is never exercised. This is DATA on a mock
-        # ticket, not a change to the gate: the real render gate is untouched and
-        # still waits for a human.
-        "render_started_at": "2026-07-28T00:00:00+00:00",
-        "script_doc_url": "https://docs.google.com/document/d/MOCKmockMOCKmockMOCKmock/edit",
-        "hook": "A Mock Hook",
-        "byline": "a mock byline for the spine test",
-        "notes": "Mock ticket for the engine spine test.",
-    })
+    # REUSE A RETIRED MOCK IF THERE IS ONE. Cleanup no longer deletes (see
+    # cmd_cleanup_mock and Jodie's 10 Aug ruling), so without this every spine run
+    # would leave another PP-EP99 behind and the board would fill with them.
+    retired = next((e for e in rail.list_all()
+                    if e.get("created_by") == MOCK_RETIRED), None)
+    if retired is not None:
+        rail.set_fields(retired["id"], _MOCK_FIELDS)
+        log(f"mock ticket REUSED (a retired one was on the rail): "
+            f"PP-EP99 id={retired['id']}")
+        return
+    ep = rail.insert(dict(_MOCK_FIELDS))
     log(f"mock ticket created: PP-EP99 id={ep['id']}")
 
 
 def cmd_cleanup_mock():
+    """Retire the mock spine ticket. IT DOES NOT DELETE, AND MUST NOT.
+
+    🔒 JODIE'S RULING, 10 Aug 2026: "production code stays strictly SELECT / INSERT /
+    UPDATE, never DELETE — absolute." This used to call `rail.delete()` for every row
+    whose `created_by` was "engine-mock" — a delete driven by a FILTER, not by an id
+    this process created. One mistyped `created_by` on a real episode and its entire
+    record goes: every timestamp, every approval, every cost figure, no undo.
+        Found by test_production_never_deletes.py on its first run, which is the
+    argument for the guard existing rather than the rule being written down again.
+
+    Retiring instead of deleting also makes the mock spine RE-RUNNABLE without rows
+    multiplying: cmd_mock_episode reuses a retired ticket if it finds one.
+    """
     n = 0
     for ep in rail.list_all():
         if ep.get("created_by") == "engine-mock":
-            rail.delete(ep["id"])
+            rail.set_fields(ep["id"], {
+                "created_by": MOCK_RETIRED,
+                "status": "archived",
+                "needs_look": False, "needs_look_message": None,
+                "title": "Mock Episode — retired spine test (safe to ignore)",
+            })
             n += 1
     if MOCK_ROOT.exists():
         shutil.rmtree(MOCK_ROOT)
-    log(f"cleaned up {n} mock ticket(s) + {MOCK_ROOT}")
+    log(f"retired {n} mock ticket(s) (NOT deleted — production never deletes) "
+        f"+ removed {MOCK_ROOT}")
 
 
 def cmd_status():

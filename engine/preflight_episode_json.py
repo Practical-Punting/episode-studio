@@ -285,6 +285,14 @@ BUILD_WRITTEN_KEYS = {
     # SRT — never from estimates." Neither can exist before heygen_download.
     "build.leads",
     "build.midroll.at",
+    # …and the early e-book card, for exactly the same reason: `early_cta.at` is
+    # PRESENTER-CLOCK and is derived from the aligned SRT at shot_map, from the
+    # `anchor` phrase. It cannot exist at audit_inputs any more than the leads can.
+    # Caught by test_preflight_build_written, which greps the engine and the skill for
+    # `build[...] = ` and fails on any key missing here — the difference between a
+    # convention and a guard. Left unexempt it would report as a missing convention and
+    # HALT EVERY EPISODE at audit_inputs.
+    "build.early_cta.at",
 }
 
 
