@@ -115,6 +115,15 @@ def serve(root: pathlib.Path):
     return httpd, httpd.server_address[1]
 
 
+import os                                                             # noqa: E402
+# 🔴 BOARD_URL POINTS THIS AT THE DEPLOYED SITE. The first run of this suite served the
+# repo from a LOCAL http server and passed — against files that had never been pushed.
+# Jodie hard-reloaded the real board and saw no change, because proving a fix against
+# the files is not proving it against what she loads. "Verify the deployed bytes, not
+# the commit."
+LIVE = os.environ.get("BOARD_URL", "").rstrip("/")
+
+
 def open_board(page, port, episodes, ready='[data-act="edit-script"]'):
     # A card with no script has no Edit button, so the caller says what to wait for.
     page.add_init_script(STUB + f"\nwindow.__rows.episodes = {json.dumps(episodes)};")
@@ -122,8 +131,10 @@ def open_board(page, port, episodes, ready='[data-act="edit-script"]'):
                content_type="application/javascript", body="/* stubbed */"))
     errs = []
     page.on("pageerror", lambda e: errs.append(str(e)))
-    page.goto(f"http://127.0.0.1:{port}/index.html", wait_until="networkidle")
-    page.wait_for_selector(ready, timeout=15000)
+    url = (f"{LIVE}/index.html?cb={int(__import__('time').time())}" if LIVE
+           else f"http://127.0.0.1:{port}/index.html")
+    page.goto(url, wait_until="networkidle")
+    page.wait_for_selector(ready, timeout=20000)
     return errs
 
 
@@ -274,6 +285,7 @@ def run_refresh(page, port):
 
 
 def main():
+    print(f"\nTARGET: {LIVE + ' (THE DEPLOYED SITE)' if LIVE else 'a local server (files only)'}")
     httpd, port = serve(REPO)
     try:
         with sync_playwright() as p:

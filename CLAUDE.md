@@ -159,6 +159,19 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > numbers in plain English. **Used by the HeyGen master AND the paid Higgsfield clips
    > and heroes** — the sibling was fixed by asking whether the fault had one, rather
    > than waiting for it to bite a second time.
+   > ### 🔴 1c. A BROWSER TEST AGAINST A LOCAL SERVER PROVES THE FILES, NOT THE SITE.
+   > **(9 Aug 2026.)** The editor's clipping fix was reproduced, fixed and proved in
+   > headless Chromium — against `http://127.0.0.1` serving the working copy. **Nothing
+   > had been pushed. Thirteen commits sat local**, Jodie hard-reloaded the real board
+   > and saw the identical bug. **A green browser test is still a proxy if the browser
+   > is not loading what she loads.** Point the suite at the deployed URL (`BOARD_URL`),
+   > fetch the served bytes and check the fix is IN them, and confirm the Pages build
+   > finished on the commit you pushed. *"Confirmed LIVE in the deployed bytes. Not
+   > committed. Served."*
+   > 📌 **And `index.html` had no cache-buster at all**, so even a correct deploy could
+   > be masked by a cached `app.js`. It now carries `?v=<hash of the assets>`, stamped
+   > by `engine/stamp_assets.py` and re-checked by `engine/test_asset_stamp.py` — the
+   > hash is DERIVED, so changing app.js is what makes the check notice.
    > ### 🔴 1b. THERE ARE TWO CLOCKS, AND A TIME IS NOT A NUMBER — IT IS A NUMBER IN A FRAME.
    > **(EP18, 8 Aug 2026. Fault #1 pointed at TIME, and it shipped past every check.)**
    > `episode.json` times are **PRESENTER-CLOCK** — t=0 is Gordon's first word, because
