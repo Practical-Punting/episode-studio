@@ -1928,16 +1928,59 @@ class RealProvider:
         key = self._env("HEYGEN_API_KEY")
         vid = ep.get("heygen_video_id")
         if not vid:                        # fall back to poll-by-project-name
+            # 🔴 E20, LOGGED ON EP15 AND STILL BITING ON EP19. The rail does not record
+            # the id of the thing it PAID FOR: nothing in this repo ever wrote
+            # heygen_video_id — the schema says "engine | HeyGen id once picked up" and
+            # the engine only ever READ it. So the id stayed null on every episode, and
+            # the render was found by listing 100 videos and matching a TITLE.
+            #     It works, and it is a guess. On EP19 Jodie could see a finished render
+            # and the board showed nothing, which made a 10-second question into an
+            # investigation. The named danger is worse than that: "Part 1 / Part 2 of the
+            # same article are coming, and at 300 episodes titles will collide. The
+            # failure then is not 'not found' — it is THE WRONG EPISODE'S RENDER,
+            # silently." EP19 is a Part 1.
+            #     The backlog's ideal fix — save the id when the job is created — is not
+            # available to us: the render is started BY A HUMAN in HeyGen's own UI, which
+            # is why there is no id to save. So: resolve by name ONCE, REFUSE TO GUESS
+            # between two, and write the id down the moment it is known.
             name = ep.get("heygen_name") or ""
             req = urllib.request.Request(
                 "https://api.heygen.com/v1/video.list?limit=100", headers={"x-api-key": key})
             with urllib.request.urlopen(req, timeout=30) as r:
                 vids = json.load(r).get("data", {}).get("videos", [])
-            hit = next((v for v in vids if name and name in (v.get("video_title") or "")
-                        and v.get("status") == "completed"), None)
-            if not hit:
+            hits = [v for v in vids if name and name in (v.get("video_title") or "")
+                    and v.get("status") == "completed"]
+            if not hits:
                 raise RuntimeError(f"no completed HeyGen render named {name!r} yet")
-            vid = hit["video_id"]
+            if len(hits) > 1:
+                # TWO PAID RENDERS AND NO WAY TO TELL WHICH IS THE APPROVED ONE. Taking
+                # the newest would be a guess about which one a human meant to keep, and
+                # the cost of guessing wrong is the whole episode narrated by the wrong
+                # take. A human names it; the id then makes it permanent.
+                listed = "\n".join(
+                    f"    {v['video_id']}  created {v.get('created_at')}  "
+                    f"{(v.get('video_title') or '')[:60]!r}" for v in hits)
+                raise EngineFlag(
+                    f"There are {len(hits)} completed HeyGen renders matching "
+                    f"{name!r}, and I will not guess which one this episode should "
+                    f"use — picking wrong means the whole video is the wrong take.\n"
+                    f"{listed}\n"
+                    f"Put the right one in the episode's heygen_video_id on the rail, "
+                    f"then clear this flag. Nothing has been downloaded.")
+            vid = hits[0]["video_id"]
+            # WRITE IT DOWN NOW. This is the whole point: the next reader of this
+            # episode — a person, the board, a re-run after a crash — gets an id
+            # instead of repeating the search, and the title stops being load-bearing.
+            try:
+                import rail
+                if ep.get("id"):
+                    rail.set_fields(ep["id"], {"heygen_video_id": vid})
+                    ep["heygen_video_id"] = vid
+                    print(f"    recorded heygen_video_id={vid} on the rail "
+                          f"(resolved by title — E20)")
+            except Exception as e:                                    # noqa: BLE001
+                # Never lose a good render over bookkeeping.
+                print(f"    ⚠️ could not record heygen_video_id on the rail: {e}")
         req = urllib.request.Request(
             f"https://api.heygen.com/v1/video_status.get?video_id={vid}",
             headers={"x-api-key": key})
