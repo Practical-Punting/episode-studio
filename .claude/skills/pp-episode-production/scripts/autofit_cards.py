@@ -71,11 +71,37 @@ MAX_STEPS = 14       # 0.94^14 ~= 0.42, well past the floor; a guard, not a targ
 FLOOR_FRAC = 0.60    # never below 60% of the size the template chose
 FLOOR_PX = 16.0      # and never below legibility on a 1920x1080 card
 
+# The frame's own furniture — the eyebrow and the headline. Every card in the series
+# carries them at the same size, so they are the look of the family rather than this
+# episode's content. When a card overruns, the thing to shrink is the BLOCK type that
+# varies episode to episode, not the furniture that makes the cards look like a set.
+FURNITURE = {"eyb", "hl", "rail", "rlbl", "logo"}
+
+# LEADING TIGHTER THAN THIS IS A ONE-LINE SETTING. Anton wants tight leading at display
+# size, so .big is set at 0.86 and .price at 0.84 — beautiful on one line, and a pile-up
+# the moment the text wraps, because the second line's caps are drawn INTO the first
+# line's descender space. The frame headline is set at 0.94 and is designed to wrap over
+# two lines, which is why the threshold sits between them rather than at 1.0: the
+# template's own leading says whether wrapping was ever in the design.
+TIGHT_LEADING = 0.90
+RELAXED_LEADING = 1.02   # enough to clear Anton's caps; still tight for display type
+
 
 def selector_for(owner: str) -> str:
     """card_check's name() gives el.id or the first class, and the string alone cannot
-    say which. Emit both — the one that does not exist simply matches nothing."""
-    safe = re.sub(r"[^A-Za-z0-9_-]", "", owner)
+    say which. Emit both — the one that does not exist simply matches nothing.
+
+    🔴 THE `.split()[0]` IS LOAD-BEARING, even though name() is supposed to have done it.
+    It did not: card_check's PROBE is a RAW python string, so its `/\\s+/` reached the
+    browser doubled and split on nothing, handing back the whole className. This
+    function then stripped the SPACE rather than the second class and emitted
+    `.blabelanton` — a selector matching NO element. autofit wrote CSS, measured no
+    change, wrote smaller CSS, and finally declared the words unfittable, having never
+    once altered the page. The root cause is fixed in card_check; this split stays,
+    because a selector built from a multi-class owner must never silently miss.
+    """
+    first = owner.split()[0] if owner.split() else ""
+    safe = re.sub(r"[^A-Za-z0-9_-]", "", first)
     return f"#{safe}, .{safe}" if safe else ""
 
 
@@ -105,7 +131,7 @@ def offenders(page, url, bust=0):
     if logo:
         for r in runs:
             if cc.rects_overlap(r, logo):
-                out.append((r["owner"], r["fs"], "runs under the logo chip"))
+                out.append((r["owner"], r["fs"], "runs under the logo chip", 0))
     # text clipped inside its own scroll box — the other length failure
     for b in boxes:
         if b["clip"] and (b["overflowX"] > 2 or b["overflowY"] > 2):
@@ -113,13 +139,108 @@ def offenders(page, url, bust=0):
             for r in inside:
                 out.append((r["owner"], r["fs"],
                             f"clipped inside {b['owner']} "
-                            f"({b['overflowX']:.0f}x{b['overflowY']:.0f}px)"))
-    # de-duplicate on the shrink target, keeping the smallest size seen
+                            f"({b['overflowX']:.0f}x{b['overflowY']:.0f}px)", 0))
+
+    # ── 3. A RUN WHOSE OWN BOX EXTENDS OUTSIDE THE CARD ────────────────────────
+    # card_check's third rule, and the one this function was blind to for three
+    # episodes. EP16's run log wrote it down and it went unfixed: "card_check failed
+    # C8/C10 while autofit said '2 examined, 0 fitted, 0 still failing' on the same
+    # pages. And the halt then blames the WORDS — 'a choice between the words and the
+    # layout' — when nothing ever tried to shrink it." EP19 halted the same way on
+    # three cards at once. Same geometry as card_check's own rule, same CLIP tolerance,
+    # so the two cannot disagree about what "outside" means.
+    root = data["root"]
+    def outside(r):
+        return (r["x"] < root["x"] - cc.CLIP or r["y"] < root["y"] - cc.CLIP or
+                r["x"] + r["w"] > root["x"] + root["w"] + cc.CLIP or
+                r["y"] + r["h"] > root["y"] + root["h"] + cc.CLIP)
+
+    over = [r for r in runs if outside(r)]
+    for r in over:
+        out.append((r["owner"], r["fs"], "extends outside the card", 1))
+
+    # ⚠️ THE LINE THAT FALLS OFF THE BOTTOM IS USUALLY NOT THE ONE AT FAULT.
+    # EP19 C7: a 300px figure reading "Three to Seven" wrapped to two lines and shoved
+    # the 46px caption and the 66px payoff off the card. card_check named the caption
+    # and the payoff — the two innocent parties. Shrinking THEM to the 60% floor buys
+    # about 52px against a 267px overflow, so autofit would have ground to the floor and
+    # then blamed words that were never the problem. EP16 saw the same thing and said so:
+    # "the overflow was VERTICAL and the box was 354px wide in a 1700px area. Shortening
+    # '6-4 ON' would not have moved the bottom edge one pixel."
+    #     So when a card overruns its BOTTOM edge, the primary target is the biggest
+    # piece of BLOCK type on it — the element that owns the vertical budget — and the
+    # runs that were pushed out are demoted to secondary. The main loop only escalates
+    # to the secondaries once the primary is at its floor, which keeps a caption at its
+    # designed size whenever shrinking the figure alone is enough.
+    if any(r["y"] + r["h"] > root["y"] + root["h"] + cc.CLIP for r in runs):
+        body = [r for r in runs if r["owner"] not in FURNITURE]
+        if body:
+            tall = max(body, key=lambda r: r["fs"])
+            out.append((tall["owner"], tall["fs"],
+                        "the biggest type on a card that overruns its bottom edge", 0))
+
+    # ── 4. DISPLAY TYPE THAT HAS WRAPPED INTO ITSELF ──────────────────────────
+    # card_check cannot see this one at all, and EP19 C8 proved it: "$1.75 to $3.25" at
+    # 360px wrapped to two lines whose glyphs drew straight through each other, and
+    # card_check called the page CLEAN — every rule it has is about one element hitting
+    # ANOTHER, and here an element is hitting ITSELF. Shrinking cannot fix it either:
+    # at 0.84 leading the lines overlap at every size. The leading has to give.
+    #     Same shape as the title-card ruling of the same day — a long value is set to
+    # WRAP properly rather than halt — so this reports the owners whose leading must be
+    # relaxed, and the caller writes it alongside the measured size.
+    lines = {}
+    for r in runs:
+        lines.setdefault((r["owner"], r["text"]), []).append(r)
+    # owner -> (how many line boxes, the leading ratio it is CURRENTLY drawn at)
+    ratios = {}
+    for (owner, _text), rs in lines.items():
+        tops = sorted({round(r["y"], 1) for r in rs})
+        fs = max(r["fs"] for r in rs)
+        if len(tops) < 2 or fs <= 0:
+            ratios.setdefault(owner, (1, 1.0))
+            continue                       # one line box: the tight leading is correct
+        lh = min(t2 - t1 for t1, t2 in zip(tops, tops[1:]))
+        ratios[owner] = (len(tops), lh / fs)
+        if lh / fs < TIGHT_LEADING:
+            out.append((owner, fs,
+                        f"wrapped to {len(tops)} lines at {lh / fs:.2f} leading — "
+                        f"the lines are drawn through each other", 0))
+
+    # de-duplicate on the shrink target, keeping the smallest size and the best priority
     best = {}
-    for owner, fs, why in out:
-        if owner not in best or fs < best[owner][0]:
-            best[owner] = (fs, why)
-    return [(o, v[0], v[1]) for o, v in best.items()]
+    for owner, fs, why, prio in out:
+        cur = best.get(owner)
+        if cur is None or prio < cur[2] or (prio == cur[2] and fs < cur[0]):
+            best[owner] = (fs, why, prio)
+    return [(o, v[0], v[1], v[2]) for o, v in best.items()], ratios
+
+
+def needs_leading(ratios: dict, designed: dict) -> set:
+    """Which owners must have their leading relaxed, right now.
+
+    Two facts, from two different moments, and mixing them up cost a whole round:
+      • IS IT WRAPPED — read from the CURRENT rendering. Leading cannot change a line's
+        width, so this answer is unaffected by any repair already applied.
+      • WAS IT DESIGNED TO WRAP — read from the FIRST measurement, before autofit wrote
+        anything, because that is the only moment the template's own leading is visible.
+
+    The first attempt used the current leading for both, and it erased itself: with the
+    repair applied the element measured 1.02, "not tight", so the repair was dropped —
+    which put the overlap straight back. A repair whose justification disappears the
+    moment it works has to be judged against the design, not against itself.
+    """
+    return {o for o, (n, _r) in ratios.items()
+            if n >= 2 and designed.get(o, 1.0) < TIGHT_LEADING}
+
+
+def build_css(sizes: dict, leading) -> str:
+    """The measured stylesheet: a size for every target, and relaxed leading only for
+    those that are wrapping and were never designed to."""
+    return "\n".join(
+        f"{selector_for(o)} {{ font-size: {s:.1f}px !important;"
+        + (f" line-height: {RELAXED_LEADING} !important;" if o in leading else "")
+        + " }"
+        for o, s in sizes.items() if selector_for(o))
 
 
 def write_autofit(path: str, css: str) -> None:
@@ -183,42 +304,71 @@ def main():
 
             url = f"http://127.0.0.1:{port}/{quote(f)}"
             bust = 0
-            first = offenders(page, url, bust)
+            first, ratios = offenders(page, url, bust)
+            # THE TEMPLATE'S OWN LEADING, captured before autofit writes a single rule.
+            # After the first write it is no longer observable anywhere.
+            designed = {o: r for o, (_n, r) in ratios.items()}
             if not first:
                 continue
             if a.dry_run:
-                stuck.append((f, [(o, why) for o, _fs, why in first],
-                              {o: (fs, fs) for o, fs, _why in first}))
+                stuck.append((f, [(o, why) for o, _fs, why, _p in first],
+                              {o: (fs, fs) for o, fs, _why, _p in first}))
                 continue
 
-            original = {o: fs for o, fs, _why in first}
+            original = {o: fs for o, fs, _why, _p in first}
             sizes = dict(original)
-            why0 = {o: why for o, _fs, why in first}
+            why0 = {o: why for o, _fs, why, _p in first}
             steps = 0
             problems = first
             while problems and steps < MAX_STEPS:
                 progressed = False
-                for owner, fs, _why in problems:
-                    base = original.setdefault(owner, fs)
-                    floor = max(base * FLOOR_FRAC, FLOOR_PX)
-                    nxt = max(sizes.get(owner, fs) * STEP, floor)
-                    if nxt < sizes.get(owner, fs) - 0.01:
-                        sizes[owner] = nxt
-                        progressed = True
+                # PRIMARIES FIRST, and only fall through to the runs that were merely
+                # pushed out once every primary is at its floor. A caption keeps its
+                # designed size whenever shrinking the figure above it is enough.
+                for level in (0, 1):
+                    for owner, fs, _why, prio in problems:
+                        if prio != level:
+                            continue
+                        base = original.setdefault(owner, fs)
+                        floor = max(base * FLOOR_FRAC, FLOOR_PX)
+                        nxt = max(sizes.get(owner, fs) * STEP, floor)
+                        if nxt < sizes.get(owner, fs) - 0.01:
+                            sizes[owner] = nxt
+                            progressed = True
+                    if progressed:
+                        break
                 if not progressed:
                     break                     # everything is at its floor
-                css = "\n".join(f"{selector_for(o)} {{ font-size: {s:.1f}px !important; }}"
-                                for o, s in sizes.items() if selector_for(o))
-                write_autofit(path, css)
+                # The leading repair is NOT sticky: it is rebuilt from the LAST
+                # measurement every time. If shrinking pulls the value back onto one
+                # line, the tight display leading the template asked for comes straight
+                # back, and the card looks the way it was designed to. Leading cannot
+                # affect width, so dropping it can never re-wrap the line — no oscillation.
+                write_autofit(path, build_css(sizes, needs_leading(ratios, designed)))
                 steps += 1
                 bust += 1
-                problems = offenders(page, url, bust)
+                problems, ratios = offenders(page, url, bust)
+                for o, (_n, r) in ratios.items():
+                    designed.setdefault(o, r)     # first sighting is the design
+
+            # ONE LAST WRITE FROM THE LAST MEASUREMENT. The loop writes CSS and THEN
+            # measures, so on the winning pass it exits carrying the leading repair from
+            # the step before — and EP19 C7 ended up with `line-height:1.02` on a figure
+            # that had stopped wrapping two steps earlier. Re-emitting from the final
+            # measurement gives the template's tight display leading back the moment it
+            # is safe. Then verify, because a page nobody measured after writing is a
+            # page nobody has checked. (Relaxing leading only ever makes an element
+            # SHORTER, so this cannot re-break the fit.)
+            if not problems:
+                write_autofit(path, build_css(sizes, needs_leading(ratios, designed)))
+                bust += 1
+                problems, ratios = offenders(page, url, bust)
 
             if problems:
                 # Put the page back the way authoring left it — a half-shrunk page is
                 # worse than the original, because it hides how far off the design is.
                 write_autofit(path, "")
-                stuck.append((f, [(o, why) for o, _fs, why in problems],
+                stuck.append((f, [(o, why) for o, _fs, why, _p in problems],
                               {o: (original[o], sizes[o]) for o in sizes}))
             else:
                 fitted.append((f, steps,

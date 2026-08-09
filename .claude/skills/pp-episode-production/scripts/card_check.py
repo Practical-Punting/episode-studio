@@ -135,8 +135,15 @@ PROBE_TMPL = r"""
     }
     return {id: blockOf.get(n), el: n};
   };
+  // ⚠️ `\s+`, NOT `\\s+`. PROBE_TMPL is a RAW python string, so a doubled backslash
+  // reaches JS doubled and this regex matched a literal backslash followed by "s" —
+  // which no class name contains. name() therefore never split, and returned the WHOLE
+  // className: "blabel anton" instead of "blabel". Harmless in a message, not harmless
+  // downstream: autofit_cards.selector_for() turned that into `.blabelanton`, a
+  // selector matching nothing, so autofit "shrank" a card by writing CSS that did
+  // nothing and then reported the content unfittable. (Found on EP19, 9 Aug 2026.)
   const name = (el) => el.id || (typeof el.className === 'string' && el.className.trim()
-                 ? el.className.trim().split(/\\s+/)[0] : el.tagName.toLowerCase());
+                 ? el.className.trim().split(/\s+/)[0] : el.tagName.toLowerCase());
   const hidden = (el) => {
     for (let n = el; n && n !== document.body; n = n.parentElement) {
       const cs = getComputedStyle(n);
