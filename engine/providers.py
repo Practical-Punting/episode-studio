@@ -692,7 +692,20 @@ def _ebook_vocabulary_note() -> str:
             f"  - figures: {img}\n"
             "  - headings: h1.section, h2.rule; and blockquote for a quotation\n"
             "Anything else is refused outright — a new class is not a way round "
-            "the fidelity check.\n\n")
+            "the fidelity check.\n"
+            # 🔴 EP19, 9 Aug 2026. The body typed the Curtis Rating Plan's 3x3 grid as
+            # an HTML <table> AND placed figure-3 — the card showing that same grid —
+            # immediately underneath it. The gate refused the whole body on <td>.
+            # It is an understandable move and the vocabulary list alone does not
+            # forbid it: the article really does contain a <table>, and §0a says
+            # reproduce the article. Nothing said which ELEMENT carries a grid.
+            "⚠️ A TABLE IN THE ARTICLE IS CARRIED BY ITS FIGURE, NOT BY MARKUP. "
+            "There is no <table> in this vocabulary — no table, tr, td, th, thead "
+            "or tbody — and adding one is refused outright. Where the article "
+            "prints a grid, this episode has a CARD for it and that card is one of "
+            "the figures[]: place the <img> and let it carry the grid. Do NOT also "
+            "re-type the values as text. An episode did both, and the same nine "
+            "numbers appeared twice on the page, once in a form the gate rejects.\n\n")
     except Exception:                                  # noqa: BLE001
         return ""      # the brief is still usable; the gate still holds
 
