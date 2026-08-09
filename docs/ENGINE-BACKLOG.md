@@ -18,6 +18,56 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 9 AUG 2026
+
+## 🔴 THE BOARD ASKS FOR WORDS THE MACHINE STILL OWES **(Jodie, 9 Aug 2026, on EP19)**
+> **A queued episode with NO SCRIPT YET shows the "YOUR TURN — WORDS" chip and the
+> Words Gate.** Jodie is being told to act at the exact moment the MACHINE owes her the
+> script — the drafting pass has not run, or has run and is still writing.
+
+**It should read "Writing the script… no action needed yet" until a script exists, and
+flip to YOUR TURN — WORDS the moment one does.**
+
+**Why it matters more than a wrong label:** this is the *Job-5 fault* — a YOUR TURN chip
+with nothing to do. A queue that cries turn-taking when there is no turn to take is a
+queue she stops believing, and the one time it means it she will scroll past. It also
+sends her looking for a Doc that does not exist yet.
+
+**The state to key on already exists on the row** — `script_snapshot` (and
+`script_doc_url` for the older shape). The gate is asking `title_approved && script_read`
+(`app.js` ~line 68 / ~529) and never asking whether there is anything to READ.
+📌 **Derive it, do not add a status.** A fourth state in the 10-status contract to say
+"the machine is writing" would be a second source of truth about the same fact; the
+presence of a script is the fact.
+
+⚠️ **AND SAY WHICH MACHINE STEP IS OWING**, or the new message is only a nicer lie: if
+the drafting pass has HALTED (no capture — see the root cause below), "Writing the
+script…" is false. The run log knows; the board does not. **A19 applies: that halt is
+the studio's, not the operator's**, so the card should say *"the studio is preparing
+this one"* rather than badge her with a job she cannot do.
+
+## 🔴 NOTHING TURNS A `source_url` INTO A CAPTURE **(found chasing EP19, 9 Aug 2026)**
+EP19 sat `queued` for six minutes with a perfectly good `source_url` on the row and the
+engine idle-but-healthy. The drafting pass ran on time, reported plainly *"The article
+for this episode hasn't been captured yet, so there is nothing to write the script
+from"*, and stopped — correctly.
+
+**The hands-off chain is `source_url` → [MISSING] → drafting pass → fidelity gate →
+seat.** `assert_capture_for_script` is a PRECONDITION; nothing CREATES the capture.
+`providers.py` says so out loud: *"nobody holding a browser can capture an article"* —
+so it is the studio's step, by design (`DESIGN-the-pre-claim-drafting-pass.md` §4), and
+on EP18 it was a scratch script run by hand.
+
+**For "EP19 with zero human pastes" this is THE remaining hole.** Automating it is a
+design decision, not a tidy-up: the capture becomes the article of record that the
+fidelity gate, `check_trace` and the e-book body are compared against forever, and
+building EP19's by hand tonight needed four judgements a naive fetch would have got
+wrong — paragraph breaks that are `<br><br>`, sub-headings inline in `<b>`, a real
+`<table>` that must stay a table (the EP16 lesson), and where the article ends before
+the site furniture begins. **Jodie's call, with those costs on the table.**
+
+---
+
 # 📥 CARRIED IN WITH THE MOVE — two live items that were elsewhere in the checkpoint
 
 ## 🔴 THE RUN LOG SHOULD NOT DEPEND ON SOMEBODY REMEMBERING **(Jodie, 5 Aug 2026)**
