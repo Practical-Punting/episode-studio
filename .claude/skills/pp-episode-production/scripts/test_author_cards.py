@@ -58,9 +58,10 @@ def stat_card(**over):
 def run(card, block=None):
     blk = ac.load_block(block or card["block"])
     ac.validate(card, blk)
-    # check_job runs in main() alongside check_trace; mirror BOTH here or the suite
-    # reports green on a gate it never exercises.
-    probs = ac.check_job(card) + ac.check_trace(card, ARTICLE)
+    # check_job runs in main() alongside check_trace; mirror ALL of them here or the
+    # suite reports green on a gate it never exercises.
+    probs = (ac.check_job(card) + ac.check_trace(card, ARTICLE)
+             + ac.check_converted_odds(card))
     if probs:
         raise ac.Halt(probs[0])
     ac.render_card(card, blk, ac.load_frame(card.get("layout", "fullscreen")))
@@ -201,6 +202,57 @@ case("too few list items halts",
      lambda: run({"id": "C6", "block": "checklist", "layout": "panel-push",
                   "eyebrow": "x", "headline_display": "y",
                   "content": {"items": ["only one"]}}), "takes between")
+
+# ---- 15. a converted price never goes on a card -------------------------
+# 🔒 EP19 C8, verbatim as it shipped on 9 Aug 2026 before Jodie caught it. The card read
+# "$1.75 to $3.25" over the caption "in tote terms". Every dollar figure there is the
+# ARTICLE'S OWN bracketed gloss on its fractional odds — which is why "never add a fact
+# the article does not state" did not catch it, in the brief or in anyone's head. The
+# script brief had the rule and the spoken words were clean; the card brief did not.
+ODDS_ARTICLE = ac.norm(
+    "Look at pre-post favourites with odds in the range 8/11 to 9/4 inclusive (that is, "
+    "in tote terms, $1.75 to $3.25).The second-favourite must be at least 4/1 ($5)."
+    "Start with a bank of $1,000 and never add to it.")
+
+
+def odds_card(**over):
+    c = {"id": "C8", "block": "price", "layout": "panel-push", "job": "anchor",
+         "eyebrow": "Eight", "headline_display": "The Price Window",
+         "content": {"price": "$1.75 to $3.25", "said": "the pre-post favourite, in tote terms",
+                     "quote": "The second-favourite must be at least 4/1 ($5)."},
+         "trace": {"price": "Look at pre-post favourites with odds in the range 8/11 to "
+                            "9/4 inclusive (that is, in tote terms, $1.75 to $3.25).",
+                   "quote": "The second-favourite must be at least 4/1 ($5)."}}
+    c["content"].update(over.pop("content", {}))
+    c.update(over)
+    return c
+
+
+def run_odds(card):
+    probs = ac.check_converted_odds(card) + ac.check_trace(card, ODDS_ARTICLE)
+    if probs:
+        raise ac.Halt(probs[0])
+
+
+case("a tote conversion on a card halts", lambda: run_odds(odds_card()),
+     "tote conversion")
+
+# …and the other half of it: the FIXED card must sail through, and so must a plain
+# dollar figure the article states as money. A guard that fires on everything is a
+# guard that will be turned off.
+for name, card in (
+    ("the article's own odds pass",
+     odds_card(content={"price": "8/11 to 9/4", "said": "the pre-post favourite",
+                        "quote": "The second-favourite must be at least 4/1."})),
+    ("a plain dollar bank passes",
+     {"id": "C2", "content": {"figure": "$1,000"},
+      "trace": {"figure": "Start with a bank of $1,000 and never add to it."}}),
+):
+    try:
+        run_odds(card)
+        PASS.append((f"control: {name}", "no halt, as expected"))
+    except Exception as e:                                        # noqa: BLE001
+        FAIL.append((f"control: {name}", f"the guard fired on a good card: {e}"))
 
 print("\nNEGATIVE TESTS — every guard must fire\n" + "=" * 74)
 for n, msg in PASS:

@@ -2571,6 +2571,27 @@ class RealProvider:
             "DO NOT INVENT. Never add a fact the article does not state, never "
             "correct one it does, and never round or tidy a figure. If something "
             "looks wrong it stands, and you say so in what_i_saw.\n\n"
+            # 🔴 THE SAME RULE THE SCRIPT BRIEF CARRIES, ARRIVING HERE LATE.
+            # It was written into _commission_script after five drafts in a row died
+            # on a helpful tote conversion, and it worked: EP19's spoken words contain
+            # no dollar price at all. Nobody put it in the CARD brief, so EP19 C8
+            # shipped "$1.75 to $3.25" over the caption "in tote terms" — Jodie caught
+            # it on the finished card, 9 Aug 2026.
+            #     AND THE WORDING HAS TO DIFFER, which is why copying the script's
+            # sentence would not have saved it. The script's rule is "never ADD a
+            # figure the article does not state". Here the article DOES state the
+            # conversion, in its own brackets — so that sentence does not forbid this
+            # and a careful writer reading it would still put the dollars on the card.
+            "AND NEVER PUT A CONVERTED PRICE ON A CARD, EVEN WHEN THE ARTICLE "
+            "PRINTS THE CONVERSION ITSELF. Where the article gives odds and then "
+            "glosses them — 'odds in the range 8/11 to 9/4 inclusive (that is, in "
+            "tote terms, $1.75 to $3.25)' — the CARD carries the odds, 8/11 to 9/4. "
+            "Not the dollars, and not 'in tote terms'. A 2004 UK fraction restated "
+            "as a tote price is a number the viewer cannot check against anything "
+            "they will meet today. The trace{} entry still quotes the WHOLE "
+            "sentence, brackets and all: a trace is provenance, not words a viewer "
+            "reads. (author_cards.py fails the build on this, so a card that "
+            "converts will come back to you.)\n\n"
             + com.verdict_instructions()
         )
         if followup:

@@ -358,6 +358,56 @@ def check_trace(card, article_norm):
     return problems
 
 
+ODDS = re.compile(r"\b\d{1,3}\s*/\s*\d{1,3}\b")
+MONEY = re.compile(r"\$\s?\d")
+
+
+def check_converted_odds(card):
+    """A card may not show a price the ARTICLE gave as a conversion of its own odds.
+
+    🔒 JODIE, 9 AUG 2026, ON EP19 C8. The card read "$1.75 to $3.25" over the caption
+    "in tote terms", and the quote read "at least 4/1 ($5)". Every one of those dollar
+    figures is the article's own parenthetical gloss on its fractional odds:
+
+        "Look at pre-post favourites with odds in the range 8/11 to 9/4 inclusive
+         (that is, in tote terms, $1.75 to $3.25).The second-favourite must be at
+         least 4/1 ($5)."
+
+    The conversion never appears. A 2004 UK fraction restated as a tote dollar price is
+    a number the viewer cannot check against anything they will meet today, and it puts
+    a figure on screen that the source is only estimating. The card carries the rule the
+    way the article states it — in fractions — and the trace keeps the whole sentence,
+    parenthetical and all, because a trace is provenance and not words on a card.
+
+    ⚠️ WHY A GUARD AND NOT A LINE IN THE BRIEF. The prohibition already existed and
+    already worked: EP19's spoken script contains no dollar price anywhere. It reached
+    the SCRIPT commission and never reached the CARD commission, so the one surface
+    nobody re-read shipped the thing the rule forbids. A rule that lives in a prompt
+    protects whichever asset the prompt is for; this one now fails the build.
+
+    THE TEST IS THE TRACE, not a word list. A dollar amount is perfectly fine — a bank,
+    a stake, a season's profit. What is forbidden is a dollar amount whose OWN traced
+    sentence states the same thing in odds, because that is what a conversion IS.
+    """
+    cid = card.get("id", "<no id>")
+    trace = card.get("trace") or {}
+    problems = []
+    for key, val in walk_values(card["content"]):
+        if not isinstance(val, str) or not MONEY.search(val):
+            continue
+        sentence = trace.get(key, trace.get(key.split("[")[0])) or ""
+        if not ODDS.search(sentence):
+            continue                 # a price the article states as a price: fine
+        problems.append(
+            f"{cid}.{key} = {val!r} shows a DOLLAR price, and its own traced sentence "
+            f"states that figure as ODDS: {sentence.strip()[:120]!r}. That makes this "
+            f"the article's tote conversion, which never goes on a card. Put the "
+            f"article's own fractional odds in the content — the trace can keep the "
+            f"whole sentence, conversion and all, because a trace is provenance and "
+            f"not words a viewer reads.")
+    return problems
+
+
 def check_dead_trace(card):
     """A trace key that matches NO content key is a dead citation. (E-b)
 
@@ -773,6 +823,7 @@ def main():
             problems += check_job(c)
             problems += check_trace(c, article)
             problems += check_dead_trace(c)
+            problems += check_converted_odds(c)
             plan.append((c, blk))
         except Halt as e:
             problems.append(str(e))
