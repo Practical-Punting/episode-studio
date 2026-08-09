@@ -20,6 +20,50 @@ as they were written; check them against git before acting on one.*
 
 # 🆕 LOGGED 9 AUG 2026
 
+## ⚠️ BEFORE-EP20 RELIABILITY BATCH — "a finished render that nobody recorded"
+**(Jodie, 9 Aug 2026, on EP19.)** She could see Gordon's render finished on HeyGen while
+the board showed `heygen_video_id: null`. **Nothing had failed** — the render was
+complete, 10m05s, created 04:19:23Z, thirteen seconds before she clicked "started". The
+rail had simply never written the id down.
+
+**PART OF IT IS FIXED (`a95e4a8`), AND THE REST IS THE BATCH ITEM.** `_heygen_fetch` now
+writes the id the moment it resolves one, and refuses to choose between two completed
+renders with the same title. What is still true, and is what belongs in the batch:
+
+- 🔴 **THE ID IS STILL LEARNED LATE, NOT AT THE MOMENT OF SPEND.** E20's ideal fix —
+  save it when the job is created — is **not available**: the render is started BY A
+  HUMAN in HeyGen's own UI, so there is no creation event in our code to hang it on.
+  **The real fix is at the board:** when Jodie clicks "I've started the render", the
+  board already writes `render_started_at`; it should ALSO ask HeyGen for the newest
+  video matching this episode and write the id then — at the moment a human asserts the
+  spend happened, not twenty minutes later when a poller happens to look.
+- 🔴 **NOTHING TOLD ANYONE.** The gap was invisible for four episodes and was found by
+  Jodie looking at HeyGen, not by the system. **A paid render with no recorded id is a
+  reportable state**: the board should say "render started 3h ago, id not yet recorded"
+  rather than showing a blank.
+- 📋 **AND THE SWEEP E20 ALREADY ASKED FOR IS STILL NOT DONE** — every place we match on
+  a NAME where an id exists. It is listed under E20 below (`_clip()`'s glob,
+  `_hero_paths`, `broll_registry_check`, `episode_dir()`, `midroll_window`'s folder
+  scan, the b-roll job map). *An id is a promise, a name is a guess.*
+
+⚠️ **AND THE META-POINT, because it is the second time today.** E20 was logged on EP15
+with the correct diagnosis and the correct fix, and went unfixed until it cost an
+investigation on EP19. So did EP16's autofit note, and so did the dead-zone warning
+written in `_exit_if_code_changed`'s own docstring. **A finding in a run log is a TODO
+with no owner.** Anything in this file that is worth keeping is worth either fixing or
+giving a failing test.
+
+## 📋 ALSO FOR THE BEFORE-EP20 BATCH — a `matrix` block for the card vocabulary
+**(Jodie, 9 Aug 2026: "it's the 2nd hand-authored table in 5 episodes, so it's worth
+doing — just not while we're finishing this one.")** EP15 C12 and EP19 C12 are both
+hand-authored because no block renders a MATRIX — n columns × m rows with both axes
+labelled. Every one is a halt, a page written by hand, and a page that must fit unaided
+(autofit only touches `PP-GENERATED` pages) and must remember to load `pp-anim.js`, or
+`render_card.py` waits 60s on `window.ppDuration` and gives up silently.
+**Note for whoever builds it:** `expand_each` handles ONE list of dicts; a matrix needs a
+list of rows each holding a list of cells, so the templating needs a nested each — that
+is the actual work, not the CSS.
+
 ## 🔴 THE BOARD ASKS FOR WORDS THE MACHINE STILL OWES **(Jodie, 9 Aug 2026, on EP19)**
 > **A queued episode with NO SCRIPT YET shows the "YOUR TURN — WORDS" chip and the
 > Words Gate.** Jodie is being told to act at the exact moment the MACHINE owes her the

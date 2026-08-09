@@ -203,8 +203,19 @@ PHASES = {
                    "broll_submit", "covers_ab", "broll_collect",
                    "cover_pick", "ebook_cover", "cards_render"],
     "rendering":  ["heygen_download", "shot_map"],
-    "assembling": ["assemble_passA", "assemble_passB", "self_qc",
-                   "ebook_pdf", "thumbnail", "youtube_copy"],
+    # 🔴 self_qc RUNS AFTER THE THINGS IT CHECKS. It used to sit third, straight after
+    # the two assembly passes and BEFORE ebook_pdf and thumbnail — while its own
+    # deliverables stage hard-fails on "no e-book PDF" and "no thumbnail PNG". On a
+    # clean run it could not pass: it failed three times on EP19, on two artefacts the
+    # next two steps were about to create.
+    #     IT HID FOR TWO EPISODES because a re-run finds the PDF and the thumbnail left
+    # by the previous attempt, so QC passes on artefacts from the run before. Only EP19,
+    # assembled from nothing, ever asked the question honestly.
+    # Jodie's requirement is that the machine QCs the assembled video BEFORE EVERY HUMAN
+    # APPROVAL GATE — the gate is at the END of this phase, so QC still comes before it,
+    # and now it can see the whole delivery rather than two thirds of it.
+    "assembling": ["assemble_passA", "assemble_passB", "ebook_pdf", "thumbnail",
+                   "self_qc", "youtube_copy"],
 }
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
@@ -270,6 +281,27 @@ def check_locked_order():
         problems.append("the e-book cover page is built FROM the picked hero")
     if not before("ebook_cover", "cards_render"):
         problems.append("the end card composites the real e-book cover")
+
+    # ── THE ASSEMBLING PHASE WAS NOT CHECKED HERE AT ALL, and that is how self_qc
+    # came to run before the deliverables it hard-fails on. A step list this function
+    # does not read is a step list nothing is guarding.
+    a = PHASES["assembling"]
+
+    def a_before(x, y):
+        return x in a and y in a and a.index(x) < a.index(y)
+
+    for made in ("ebook_pdf", "thumbnail"):
+        if not a_before(made, "self_qc"):
+            problems.append(
+                f"self_qc must run AFTER {made} — its deliverables stage hard-fails on "
+                f"a missing e-book PDF and a missing thumbnail, so running it first "
+                f"fails on artefacts the very next step creates. (It did, three times, "
+                f"on EP19. It hid on earlier episodes because a RE-RUN finds the files "
+                f"left by the previous attempt.)")
+    if "self_qc" in a and a.index("self_qc") != len(a) - 1 and \
+            not a_before("self_qc", "youtube_copy"):
+        problems.append("self_qc must still come before the phase ends — the machine "
+                        "QCs the assembled episode before every human approval gate")
     for p in problems:
         log(f"!! LOCKED ORDER WARNING (step list): {p}. "
             f"LOCKED ORDER (approved 26 Jul 2026): {LOCKED_ORDER}")

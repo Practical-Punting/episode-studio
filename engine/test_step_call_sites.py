@@ -264,5 +264,60 @@ def _every_step_in_the_table_exists_and_is_callable():
 case("every step_* in engine.py exists and is callable",
      _every_step_in_the_table_exists_and_is_callable)
 
+# ---------------------------------------------------------------------------
+# AND A STEP MUST NOT RUN BEFORE THE THING IT CHECKS EXISTS.
+#
+# Same class as everything above — a call site that cannot succeed — but reached from
+# the other side: not an unbound name, an unbuilt ARTEFACT. `self_qc` sat third in the
+# assembling phase, before `ebook_pdf` and `thumbnail`, while its own deliverables stage
+# hard-fails on "no e-book PDF" and "no thumbnail PNG". On a clean run it could not
+# pass. EP19 failed it three times.
+#
+# 🔴 AND IT HID FOR TWO EPISODES, which is the part worth the test: a RE-RUN finds the
+# PDF and the thumbnail left behind by the previous attempt, so QC passes on artefacts
+# from the run before. Only an episode assembled from nothing ever asks honestly —
+# exactly the shape of "all green means nothing by itself".
+def _self_qc_runs_after_the_artefacts_it_checks():
+    a = engine.PHASES["assembling"]
+    for made in ("ebook_pdf", "thumbnail"):
+        assert a.index(made) < a.index("self_qc"), (
+            f"self_qc runs before {made}, and its deliverables stage hard-fails on a "
+            f"missing one. Order: {a}")
+    assert "self_qc" in a, "self_qc is not in the assembling phase at all"
+
+
+case("self_qc runs after ebook_pdf and thumbnail",
+     _self_qc_runs_after_the_artefacts_it_checks)
+
+
+def _the_order_guard_would_have_caught_it():
+    """CONTROL: check_locked_order must REJECT the order EP19 actually ran.
+
+    The order was wrong for two episodes and `check_locked_order` said nothing, because
+    it only ever read the building and rendering phases — a step list it does not read
+    is a step list nothing is guarding. So the guard is driven against the broken order
+    here, and against the good one, and must tell them apart.
+    """
+    good = list(engine.PHASES["assembling"])
+    broken = ["assemble_passA", "assemble_passB", "self_qc",
+              "ebook_pdf", "thumbnail", "youtube_copy"]
+    try:
+        engine.PHASES["assembling"] = broken
+        problems = engine.check_locked_order()
+        hits = [p for p in problems if "self_qc must run AFTER" in p]
+        assert len(hits) == 2, (
+            f"the order EP19 ran raised {len(hits)} self_qc problem(s), expected 2 "
+            f"(one for the PDF, one for the thumbnail). All: {problems}")
+        engine.PHASES["assembling"] = good
+        assert not [p for p in engine.check_locked_order()
+                    if "self_qc" in p], "the good order is being rejected"
+    finally:
+        engine.PHASES["assembling"] = good
+
+
+case("CONTROL — the order guard rejects the order that shipped",
+     _the_order_guard_would_have_caught_it)
+
+
 print(f"\nstep call sites: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
