@@ -143,19 +143,39 @@ def main():                                                            # noqa: C
     # the documentation of the thing it guards. Prose cannot trip an AST walk and
     # a real call cannot hide from one.
     import ast
+    # Names that exist on the rail module AND on something innocent, so a bare-name
+    # match would be a guess. `insert` is `sys.path.insert`; keep this list tiny and
+    # justified — anything on it is a name the attribute check must carry alone.
+    _NOT_RAIL = {"insert"}
     tree = ast.parse((HERE / "engine.py").read_text(encoding="utf-8"))
     node = next(n for n in ast.walk(tree)
                 if isinstance(n, ast.FunctionDef) and n.name == "_draft_watch")
-    calls = set()
+    # 🔴 THE RECEIVER MATTERS, NOT JUST THE NAME. This collected bare method names, so
+    # "never calls insert()" was matched by `sys.path.insert(0, …)` — a line that has
+    # been in _draft_watch all along and writes to nothing. A false positive that sat
+    # red is worse than no test: it trains everyone to read this suite as "1 known
+    # failure" and the real one hides behind it. What is forbidden is writing to the
+    # RAIL, so the check is now `rail.<name>` specifically.
+    calls, rail_calls = set(), set()
     for n in ast.walk(node):
         if isinstance(n, ast.Call):
             f = n.func
-            calls.add(f.id if isinstance(f, ast.Name) else
-                      f.attr if isinstance(f, ast.Attribute) else "")
+            if isinstance(f, ast.Name):
+                calls.add(f.id)
+            elif isinstance(f, ast.Attribute):
+                calls.add(f.attr)
+                if isinstance(f.value, ast.Name) and f.value.id == "rail":
+                    rail_calls.add(f.attr)
     check("the drafting pass CALLS seat_script_if_empty", "seat_script_if_empty" in calls)
     for forbidden in ("set_fields", "update_status", "checkpoint", "insert"):
-        check(f"  and never CALLS {forbidden}()", forbidden not in calls,
-              f"calls: {sorted(c for c in calls if c)}")
+        # a bare name still counts — `from rail import insert` would dodge the
+        # attribute form — but only for names the rail actually exports.
+        hit = forbidden in rail_calls or (forbidden in calls
+                                          and hasattr(__import__("rail"), forbidden)
+                                          and forbidden not in _NOT_RAIL)
+        check(f"  and never CALLS rail.{forbidden}()", not hit,
+              f"rail calls: {sorted(rail_calls)} | all calls: "
+              f"{sorted(c for c in calls if c)}")
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     for f in FAIL:

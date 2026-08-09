@@ -17,7 +17,33 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / ".claude/skills/pp-episode-production/scripts"))
 import qc_episode as q          # noqa: E402
 
-SRC = pathlib.Path(r"G:\My Drive\PP Videos\PP-EP18")
+def _ep_dir(n: int) -> pathlib.Path:
+    """Resolve an episode folder BY NUMBER, never by a written-out name.
+
+    ⚠️ THE STAGE-8 CLOSE-OUT RENAMES EVERY PUBLISHED EPISODE'S FOLDER — PP-EP18 became
+    PP-EP18-Those-Top-6-Favourites the day the close-out was automated — so a literal
+    path is a fuse: it passes for weeks and then SKIPS, silently, the day the process
+    does the thing the standard requires of it.
+    """
+    root = pathlib.Path(r"G:\My Drive\PP Videos")
+    hits = sorted(p for p in root.glob(f"PP-EP{n:02d}*") if p.is_dir())
+    return hits[0] if hits else root / f"PP-EP{n:02d}"
+
+
+SRC = _ep_dir(18)
+
+
+def _deliv(pattern: str) -> pathlib.Path:
+    """A deliverable BY SUFFIX, because the rename restems files too.
+
+    PP-EP18-ebook.pdf became PP-EP18-Those-Top-6-Favourites-ebook.pdf. A literal
+    filename is the same fuse as a literal folder, one level down.
+    """
+    hits = sorted((SRC / "output").glob("PP-EP18*" + pattern))
+    if not hits:
+        raise FileNotFoundError(f"no EP18 deliverable matching *{pattern}")
+    return hits[0]
+
 FAILED = []
 
 
@@ -48,8 +74,8 @@ def build(mutate=None):
     (tmp / "output" / "qc").mkdir(parents=True)
     (tmp / "docs").mkdir()
     shutil.copyfile(SRC / "docs/episode.json", tmp / "docs/episode.json")
-    shutil.copyfile(SRC / "output/PP-EP18-ebook.pdf", tmp / "output/PP-EP18-ebook.pdf")
-    shutil.copyfile(SRC / "output/PP-EP18-thumbnail.png",
+    shutil.copyfile(_deliv("-ebook.pdf"), tmp / "output/PP-EP18-ebook.pdf")
+    shutil.copyfile(_deliv("-thumbnail.png"),
                     tmp / "output/PP-EP18-thumbnail.png")
     if mutate:
         mutate(tmp)
@@ -110,7 +136,9 @@ print("\n=== FAIL FIRST: the reader must never be told about the transcription =
 # The fixture is EP18's OWN e-book as Hugh found it — the pre-rebuild PDF, kept as a
 # .bak precisely so this guard could be watched failing on the real artefact rather
 # than on something invented for the occasion.
-WITH_NOTE = SRC / "output/PP-EP18-ebook.with-note.pdf.bak"
+# the same fuse once more: the close-out restems this fixture too
+WITH_NOTE = next(iter(sorted((SRC / "output").glob("PP-EP18*-ebook.with-note.pdf.bak"))),
+                 SRC / "output/PP-EP18-ebook.with-note.pdf.bak")
 if WITH_NOTE.is_file():
     def _swap_in_bad_pdf(t):
         (t / "output/PP-EP18-ebook.pdf").unlink()
