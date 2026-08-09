@@ -124,8 +124,37 @@ function titleSmell(title) {
   return out;
 }
 
+/* 🔴 THE JOB-5 FAULT: A "YOUR TURN" CHIP WITH NOTHING TO DO. (Jodie, 9 Aug 2026, EP19.)
+ *
+ * A queued episode with NO SCRIPT YET showed "YOUR TURN — WORDS" and the Words Gate —
+ * at the exact moment the MACHINE owes her the script. The drafting pass has not run
+ * yet, or is still writing. She is asked to read something that does not exist, and
+ * sent looking for a Doc nobody has made.
+ *
+ * A queue that cries turn-taking when there is no turn to take is a queue she stops
+ * believing, and the one time it means it she will scroll past.
+ *
+ * So the gate now asks whether there ARE words to read. Everything else follows from
+ * that one predicate without another rule: the lane filter below already reads
+ * `wordsGatePending`, so a script-less episode moves itself out of "Your turn" and into
+ * "Waiting"; `gateFor` stops offering the Words Gate; `showsScript` stops offering a
+ * reading surface for nothing.
+ *
+ * ⚠️ KNOWN LIMIT, WRITTEN DOWN RATHER THAN GLOSSED: the board cannot tell "the studio
+ * is drafting" from "the studio tried and gave up", because the attempt ledger is a
+ * file in the episode folder and never reaches the rail. So an episode whose drafting
+ * bound is exhausted will sit here saying "Writing the script…" — a false "we're on
+ * it" replacing a false "your turn". Logged in ENGINE-BACKLOG as the follow-on: put the
+ * attempt count on the rail so this chip can tell the truth about which it is. */
+function hasWordsToRead(ep) {
+  return !!((ep.script_snapshot || "").trim() || (ep.script_doc_url || "").trim());
+}
 function wordsGatePending(ep) {
-  return ep.status === "queued" && !gatePassed(ep);
+  return ep.status === "queued" && !gatePassed(ep) && hasWordsToRead(ep);
+}
+/* Queued, ungated, and nothing written yet — the machine's turn, not hers. */
+function studioIsWriting(ep) {
+  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep);
 }
 /* The words now live in their own columns so the board can EDIT them. Older rows
  * carried them as "Byline: …" / "Hook: …" lines in notes — still read as a
@@ -970,6 +999,11 @@ function cardFor(ep) {
   // nothing is running.
   const st = engineStopped(ep)
     ? { label: "ENGINE STOPPED", cls: "alert", pct: (ep.progress_pct || 0) }
+    // The machine's turn comes FIRST, so a script-less episode can never fall through
+    // to "Your turn — words" (the Job-5 fault). `cls: "work"` on purpose: it reads as
+    // the studio busy, not as her queue, and it is not the attention class.
+    : studioIsWriting(ep)
+    ? { label: "Writing the script… no action needed yet", cls: "work", pct: 2 }
     : wordsGatePending(ep)
     ? { label: "Your turn — words", cls: "need", pct: 3 }
     : STATUS[ep.status] || { label: ep.status || "—", cls: "wait", pct: 10 };
