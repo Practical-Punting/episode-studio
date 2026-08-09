@@ -268,30 +268,55 @@ case("A1: the measured rule reproduces EP13's hand-set 150px",
 
 
 def _a_headline_too_long_for_the_design_halts():
-    """The floor is a REAL halt, and it must not be shrunk away.
+    """The floor is still a real halt — but it is now the SECOND thing tried, not the first.
 
-    Autofit's own rule: when the words are longer than the design can hold, that is a
-    human choice between the words and the layout — not something to shrink until it
-    is unreadable.
+    ⚠️ SUPERSEDED AND REWRITTEN, 9 Aug 2026. This case used to assert that a headline
+    too long for one line halted the build, on the reasoning that "the words are longer
+    than the design can hold, so it is a human choice between the words and the layout".
+    EP19 put that to Jodie for real — "10 SYSTEMS FOR ACTION-HUNGRY PUNTERS", 1423px in
+    a 1260px box — and she answered: KEEP THE WORDS, wrap to two lines, and stop
+    halting builds over it. The old assertion was not wrong about the floor; it was
+    wrong that one line was the only layout on offer.
+        WHAT SURVIVES: shrinking below the floor is still forbidden, and a title that
+        cannot fit even as two lines still stops and asks. That is what this now proves
+        — both halves of it, through the real provider entry point.
     """
-    epj = ep13_episode_json()
-    epj["cover"]["title_setup"] = "THE COMPLETE BEGINNERS"
-    epj["cover"]["title_payoff"] = "GUIDE TO STAYING SOLVENT"
-    epj["packaging"]["hook"] = "THE COMPLETE BEGINNERS GUIDE TO STAYING SOLVENT"
-    d = scratch(epj)
+    long_ = ep13_episode_json()
+    long_["cover"]["title_setup"] = "THE COMPLETE BEGINNERS"
+    long_["cover"]["title_payoff"] = "GUIDE TO STAYING SOLVENT"
+    long_["packaging"]["hook"] = "THE COMPLETE BEGINNERS GUIDE TO STAYING SOLVENT"
+    d = scratch(long_)
     providers.stage_card_furniture(d / "overlay/export")
     providers.stage_title_hero(d)
+    providers.author_missing_title(d)
+    pages = list((d / "overlay/export").glob("*title*.html"))
+    assert pages, ("a headline too long for ONE line halted the build. Jodie's 9 Aug "
+                   "ruling is that it wraps and carries on.")
+    assert "<br>" in pages[0].read_text(encoding="utf-8"), \
+        "the page was written, but on one line — so it was shrunk or clipped, not wrapped"
+
+    # …and the halt that must SURVIVE: two lines offered, neither can be made to fit.
+    word = "SUPERCALIFRAGILISTICEXPIALIDOCIOUSNESSNESS"
+    imposs = ep13_episode_json()
+    imposs["cover"]["title_setup"] = word
+    imposs["cover"]["title_payoff"] = word
+    imposs["packaging"]["hook"] = f"{word} {word}"
+    d2 = scratch(imposs)
+    providers.stage_card_furniture(d2 / "overlay/export")
+    providers.stage_title_hero(d2)
     try:
-        providers.author_missing_title(d)
-        raise AssertionError("a headline far too long for the box was authored anyway")
+        providers.author_missing_title(d2)
+        raise AssertionError(
+            "a headline no layout can hold was authored anyway — auto-fit has stopped "
+            "being a fit and started being a promise")
     except providers.EngineFlag as e:
-        assert "human choice between the words and the layout" in str(e), \
-            f"the halt does not say what the human has to decide:\n{str(e)[-300:]}"
-    assert not list((d / "overlay/export").glob("*title*.html")), \
+        assert "Two lines have already been tried" in str(e), \
+            f"the halt does not tell the human that wrapping was attempted:\n{str(e)[-300:]}"
+    assert not list((d2 / "overlay/export").glob("*title*.html")), \
         "a page was written that cannot hold its own headline"
 
 
-case("A1: a headline longer than the design can hold is a real halt, not a shrink",
+case("A1: a long headline WRAPS; only one no layout can hold is a real halt",
      _a_headline_too_long_for_the_design_halts)
 
 
@@ -532,6 +557,183 @@ def _passes_the_gate_that_now_judges_it():
 
 
 case("A1: the authored title card passes card_check", _passes_the_gate_that_now_judges_it)
+
+
+# ------------------------------------------------------------------ 2 ------
+# A LONG TITLE WRAPS; IT DOES NOT HALT THE BUILD. (Jodie, 9 Aug 2026.)
+#
+# EP19 stopped at cards_render because "10 SYSTEMS FOR ACTION-HUNGRY PUNTERS" measured
+# 1423px against a 1260px box even at the 90px floor. Her ruling: keep the words, wrap
+# to two lines. These cases are CONTROL-FIRST — each one first drives the behaviour
+# that used to halt, watches it halt, and only then asserts the fix.
+LONG_SETUP, LONG_PAYOFF = "10 SYSTEMS FOR", "ACTION-HUNGRY PUNTERS"
+LONG_HOOK = f"{LONG_SETUP} {LONG_PAYOFF}"
+
+
+def long_title_epj():
+    """EP13's episode, repackaged with EP19's over-long approved hook.
+
+    EP13's own words are kept everywhere else, so the ONLY thing under test is length.
+    """
+    epj = ep13_episode_json()
+    epj["cover"]["title_setup"] = LONG_SETUP
+    epj["cover"]["title_payoff"] = LONG_PAYOFF
+    epj["packaging"]["hook"] = LONG_HOOK
+    return epj
+
+
+def _one_line_still_cannot_hold_it():
+    """THE CONTROL. Same measurement, same words, no second line offered: it must halt.
+
+    Without this, the case below would prove only that measure_size returns a number —
+    not that it returns one for a headline that genuinely does not fit on one line.
+    """
+    import author_title_card as atc
+    try:
+        atc.measure_size(LONG_HOOK)
+    except atc.Halt as e:
+        assert "1260px box" in str(e) or "wider than" in str(e), \
+            f"it halted, but not about width — so the control proves nothing:\n{e}"
+        return
+    raise AssertionError(
+        f"{LONG_HOOK!r} was reported to FIT on one line. It measured 1423px against a "
+        f"1260px box on EP19, so either the box grew or the measurement is broken — "
+        f"and every 'it wraps' case below would then be passing on a false premise.")
+
+
+case("A1: CONTROL — the over-long hook still does not fit on one line",
+     _one_line_still_cannot_hold_it)
+
+
+def _it_wraps_instead_of_halting():
+    import author_title_card as atc
+    size, width, two_line = atc.measure_size(
+        LONG_HOOK, lines=[LONG_SETUP, LONG_PAYOFF])
+    assert two_line, "it fitted on one line, which the control just disproved"
+    assert size >= atc.FLOOR, \
+        f"it wrapped but sized to {size}px, below the {atc.FLOOR}px floor"
+    assert width * size / 100.0 <= atc.BOX + 1, (
+        f"the longer half is {width * size / 100.0:.0f}px at {size}px, wider than the "
+        f"{atc.BOX:.0f}px box — the wrap did not actually make it fit")
+
+
+case("A1: over-long hook WRAPS to two lines instead of halting",
+     _it_wraps_instead_of_halting)
+
+
+def _an_impossible_title_still_halts():
+    """The halt is MOVED, not removed.
+
+    A single unbreakable word cannot be helped by a second line, and quietly shrinking
+    it below the floor or clipping it would be worse than stopping. One unhelpable word
+    is a real human decision, and it must still reach a human.
+    """
+    import author_title_card as atc
+    word = "SUPERCALIFRAGILISTICEXPIALIDOCIOUSNESSNESS"
+    try:
+        atc.measure_size(f"{word} {word}", lines=[word, word])
+    except atc.Halt as e:
+        assert "Two lines have already been tried" in str(e), (
+            f"it halted, but the message does not tell a human that wrapping was "
+            f"attempted, so they cannot tell a fixable title from an unfixable one:\n{e}")
+        return
+    raise AssertionError(
+        f"a {len(word)}-character unbreakable word was reported to fit. Auto-fit has "
+        f"stopped being a fit and started being a promise.")
+
+
+case("A1: a title no layout can hold STILL halts", _an_impossible_title_still_halts)
+
+
+def _the_wrapped_page_really_fits_when_rendered():
+    """The PAGE, measured where a viewer sees it — not the calculation that made it.
+
+    ⚠️ card_check CANNOT JUDGE THIS, and the first version of this test found that out
+    the useful way: it ran the un-wrapped page past card_check as a control and
+    card_check PASSED it. The title card's own header comment claims `white-space:nowrap`
+    is a safety net — "a headline that still overruns cannot wrap quietly, it overflows
+    .card (which clips) and card_check hard-fails". It does not. `.inner` is a 1260px
+    column inside a 1920px card at left:110, so a 1739px headline overruns the COLUMN
+    while sitting comfortably inside the CARD. Nothing clips and nothing fails.
+        So the real net is the measurement plus this test, and the comment has been
+        corrected rather than left to be believed. (Reported to Jodie, 9 Aug 2026.)
+
+    CONTROL FIRST, in the same browser and the same loaded Anton: the page as it was
+    authored before today — nowrap, no break — must be measured as OVERRUNNING. Only
+    then does the wrapped page's fit mean anything.
+    """
+    from playwright.sync_api import sync_playwright
+
+    d = scratch(long_title_epj())
+    page = build_page(d)
+    html = page.read_text(encoding="utf-8")
+    assert "<br>" in html and "white-space:normal" in html, (
+        "the authored page has no line break in it, so nothing below is testing the "
+        "two-line path at all")
+
+    # Visual lines, NOT element rects: getClientRects() returns one rect per element and
+    # text fragment, so the span, its text, the <br> and the tail read as four "lines".
+    # Grouping by y-position is what a reader actually sees.
+    measure = """() => {
+      const t = document.getElementById('t1');
+      const inner = document.querySelector('.inner');
+      const r = new Range(); r.selectNodeContents(t);
+      const rects = [...r.getClientRects()].filter(x => x.width > 0.5);
+      const rows = new Map();
+      for (const x of rects) {
+        const k = Math.round(x.top / 8);
+        const c = rows.get(k) || {l: Infinity, r: -Infinity};
+        rows.set(k, {l: Math.min(c.l, x.left), r: Math.max(c.r, x.right)});
+      }
+      const ir = inner.getBoundingClientRect();
+      return {
+        lines: rows.size,
+        widths: [...rows.values()].map(v => Math.round(v.r - v.l)),
+        overrun: Math.round(Math.max(...rects.map(x => x.right)) - ir.right),
+        top: Math.round(document.querySelector('.eyebrow').getBoundingClientRect().top),
+        bottom: Math.round(document.getElementById('byl').getBoundingClientRect().bottom),
+      };
+    }"""
+
+    with sync_playwright() as pw:
+        b = pw.chromium.launch(headless=True, args=["--hide-scrollbars"])
+        pg = b.new_page(viewport={"width": 1920, "height": 1080})
+        try:
+            pg.goto(page.as_uri() + "?print")
+            pg.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+            pg.wait_for_timeout(500)
+            good = pg.evaluate(measure)
+            ART.mkdir(parents=True, exist_ok=True)
+            pg.screenshot(path=str(ART / "long-title-WRAPPED.png"))
+            # …now put the page back the way it was authored yesterday and re-measure.
+            pg.evaluate("""() => {
+              const t = document.getElementById('t1');
+              t.style.whiteSpace = 'nowrap';
+              t.innerHTML = t.innerHTML.replace('<br>', ' ');
+            }""")
+            pg.wait_for_timeout(150)
+            bad = pg.evaluate(measure)
+        finally:
+            b.close()
+
+    assert bad["overrun"] > 0, (
+        f"CONTROL FAILED: on one line the headline overran its column by "
+        f"{bad['overrun']}px — i.e. not at all. This measurement cannot tell a card "
+        f"that fits from one that does not, so its verdict below is worthless.")
+    assert good["lines"] == 2, \
+        f"the wrapped page renders as {good['lines']} line(s), widths {good['widths']}"
+    assert good["overrun"] <= 1, (
+        f"the wrapped headline still overruns its {1260}px column by "
+        f"{good['overrun']}px — widths {good['widths']}")
+    assert good["top"] >= 0 and good["bottom"] <= 1080, (
+        f"the second line pushed the block off the card: eyebrow top {good['top']}px, "
+        f"byline bottom {good['bottom']}px of 1080px")
+    print(f"      control overran by {bad['overrun']}px; wrapped renders "
+          f"{good['widths']} inside 1260px, block {good['top']}–{good['bottom']}px")
+
+
+case("A1: the wrapped page RENDERS as two lines inside its column",
+     _the_wrapped_page_really_fits_when_rendered)
 
 
 print(f"\ntitle card: {len(PASS)} passed, {len(FAIL)} failed")

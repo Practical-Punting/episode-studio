@@ -141,11 +141,25 @@ def check(ep):
     return head, focus
 
 
-def measure_size(headline: str):
-    """The largest 5px step at which the headline still fits the box, on one line.
+def measure_size(headline: str, lines=None):
+    """The largest 5px step at which the headline still fits the box.
 
-    Returns (size_px, width_at_100px). Anton's advance widths scale linearly with
-    font-size, so ONE measurement at a reference size answers it — no shrink loop.
+    Returns (size_px, width_at_100px, two_line). Anton's advance widths scale
+    linearly with font-size, so ONE measurement at a reference size answers it — no
+    shrink loop.
+
+    🔒 A LONG TITLE WRAPS; IT DOES NOT HALT THE BUILD. (Jodie, 9 Aug 2026.)
+    EP19's "10 SYSTEMS FOR ACTION-HUNGRY PUNTERS" measured 1423px against a 1260px box
+    even at the 90px floor, and the build stopped to ask a human to choose between the
+    words and the layout. Her answer: KEEP THE WORDS. So when one line will not hold
+    the approved hook, it breaks at the SETUP/PAYOFF boundary — the card's own
+    semantic split, white then orange — and is sized to the LONGER of the two lines.
+        THE BREAK IS NOT ARBITRARY. `title_setup` and `title_payoff` are already two
+        fields, already coloured differently, already written as two halves of a
+        sentence. The two-line form was latent in the design; nothing new is invented,
+        and nothing is shrunk below the floor or cut.
+    It halts only if even the longer HALF cannot make the floor — a title so long that
+    no layout here can hold it, which is a real human decision.
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -167,9 +181,15 @@ def measure_size(headline: str):
                     "Anton did not load, so the headline cannot be measured. Chromium "
                     "would have silently measured a fallback face and returned a "
                     "plausible wrong size. Check the network to fonts.googleapis.com.")
-            w100 = page.evaluate(
-                "t => { const s = document.getElementById('p'); s.textContent = t;"
-                "       return s.getBoundingClientRect().width; }", headline)
+            def w(t):
+                return page.evaluate(
+                    "t => { const s = document.getElementById('p'); s.textContent = t;"
+                    "       return s.getBoundingClientRect().width; }", t)
+
+            w100 = w(headline)
+            # The halves are measured in the SAME browser session and the same loaded
+            # Anton — measuring them anywhere else would be measuring a different face.
+            w_lines = [w(x) for x in (lines or []) if x]
         finally:
             b.close()
     if not w100:
@@ -180,14 +200,26 @@ def measure_size(headline: str):
     size = min(CAP, int(TARGET_FILL * BOX / w100 * 100.0 // STEP) * STEP)
     if size < FLOOR:
         size = min(CAP, int(BOX / w100 * 100.0 // STEP) * STEP)
-    if size < FLOOR:
-        raise Halt(
-            f"the headline {headline!r} is {w100 * FLOOR / 100:.0f}px wide even at the "
-            f"smallest size a title card may use ({FLOOR}px), and the box is only "
-            f"{BOX:.0f}px. This is a REAL halt and shrinking is not the answer: the "
-            f"approved packaging.hook is longer than the design can hold, so it is a "
-            f"human choice between the words and the layout.")
-    return size, w100
+    if size >= FLOOR:
+        return size, w100, False
+
+    # ── one line will not hold it: break at the setup/payoff boundary ──────────
+    if w_lines:
+        widest = max(w_lines)
+        two = min(CAP, int(TARGET_FILL * BOX / widest * 100.0 // STEP) * STEP)
+        if two < FLOOR:
+            two = min(CAP, int(BOX / widest * 100.0 // STEP) * STEP)
+        if two >= FLOOR:
+            return two, widest, True
+
+    raise Halt(
+        f"the headline {headline!r} is {w100 * FLOOR / 100:.0f}px wide on one line and "
+        f"{(max(w_lines) if w_lines else w100) * FLOOR / 100:.0f}px on its longer half, "
+        f"both wider than the {BOX:.0f}px box even at the smallest size a title card "
+        f"may use ({FLOOR}px). Two lines have already been tried. Shrinking further is "
+        f"not the answer: the approved packaging.hook is longer than the design can "
+        f"hold on any layout here, so it is a human choice between the words and the "
+        f"card.")
 
 
 def main():
@@ -223,7 +255,8 @@ def main():
     # template and substitutes, and touches nothing on disk. So the check MOVES
     # DOWN to the write, where the rendered page can be compared. A reordering,
     # not a restructure.
-    size, w100 = measure_size(head)
+    size, w100, two_line = measure_size(
+        head, lines=[cov["title_setup"], cov["title_payoff"]])
     part = cov.get("part")
     part_line = (f'  <div id="pt" class="anton pt">{esc(part)}</div>\n' if part else "")
     part_anim = ('{"sel":"#pt","kf":[{"opacity":0,"transform":"translateY(28px)"},'
@@ -241,7 +274,15 @@ def main():
                         f"<!-- type size {size}px MEASURED: {esc(head)} is {w100:.1f}px "
                         f"wide at 100px, so {TARGET_FILL:.0%} of the {BOX:.0f}px box is "
                         f"{TARGET_FILL * BOX / w100 * 100:.1f}px, stepped to {size}. Not "
-                        f"typed by hand — see author_title_card.py. -->"),
+                        f"typed by hand — see author_title_card.py."
+                        + (" TWO LINES: the hook does not fit on one at the 90px floor, "
+                           "so it breaks at the setup/payoff boundary and is sized to "
+                           "the longer half. The words are kept whole." if two_line
+                           else "") + " -->"),
+        "%%TITLE_WRAP%%": "normal" if two_line else "nowrap",
+        # A real <br> rather than letting it wrap where it likes: the break belongs at
+        # the setup/payoff seam, which is where the sentence already divides.
+        "%%TITLE_BREAK%%": "<br>" if two_line else " ",
         "%%HERO_FOCUS%%": focus,
         "%%TITLE_SIZE%%": str(size),
         "%%PART_SIZE%%": f"{size / 2:g}",

@@ -28,11 +28,24 @@
      TYPE SIZE IS MEASURED, NOT CHOSEN. EP12 set 170px for "HIDDEN ACES" and EP13 set
      150px for "THE RATINGS GAME" — that is text-length fitting done by eye, which is
      exactly what the 28 Jul ruling says is a measurement. author_title_card.py
-     measures the headline in the real Anton and writes the largest size that fits on
-     one line. `white-space:nowrap` below is the SAFETY NET, not the mechanism: a
-     headline that still overruns cannot wrap quietly, it overflows `.card` (which
-     clips) and card_check hard-fails — the same detector that already gates the
-     content cards, so there is one implementation of "too long", not two.
+     measures the headline in the real Anton and writes the largest size that fits.
+
+     A LONG TITLE WRAPS TO TWO LINES; IT DOES NOT HALT THE BUILD. (Jodie, 9 Aug 2026,
+     on EP19: "10 SYSTEMS FOR ACTION-HUNGRY PUNTERS", 1423px in a 1260px box.) When one
+     line will not hold the approved hook, it breaks at the SETUP/PAYOFF seam — this
+     card's own white/orange split, so the break is where the sentence already divides —
+     and is sized to the longer half. Not shrunk below the floor, not cut. It halts only
+     if even the longer half cannot make the floor: a title no layout here can hold,
+     which is a real human decision.
+
+     ⚠️ THERE IS NO CARD_CHECK SAFETY NET HERE, whatever this comment used to say. It
+     claimed a headline that overran would overflow `.card`, get clipped, and hard-fail
+     card_check. It does not: `.inner` is a 1260px column at left:110 inside a 1920px
+     card, so a 1739px headline overruns the COLUMN while sitting well inside the CARD.
+     Nothing clips and card_check passes it — proved by driving exactly that page past
+     card_check in engine/test_title_card.py, which waved it through. The real net is
+     the measurement above plus that test, which renders the page and measures the
+     visual lines. Do not re-add a claim that a gate is watching this unless it is.
 
      object-position IS THE ONE GENUINELY PER-IMAGE VALUE. It is authored at the
      default and the render is put in front of a human, exactly as the thumbnail crop
@@ -51,7 +64,10 @@
 .rule{width:72px;height:6px;background:#DA532C;transform-origin:left center;}
 .eyebrow .lbl{font-size:36px;font-weight:800;letter-spacing:0.24em;text-transform:uppercase;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,0.7);}
 .anton{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:0.01em;}
-.t1{margin-top:40px;font-size:%%TITLE_SIZE%%px;line-height:0.92;color:#DA532C;text-shadow:0 6px 30px rgba(0,0,0,0.6);white-space:nowrap;}
+/* white-space is set by author_title_card.py: `nowrap` for a one-line headline,
+   `normal` when a title is too long for one line and breaks at the setup/payoff
+   boundary instead of shrinking below the floor or halting the build. */
+.t1{margin-top:40px;font-size:%%TITLE_SIZE%%px;line-height:0.92;color:#DA532C;text-shadow:0 6px 30px rgba(0,0,0,0.6);white-space:%%TITLE_WRAP%%;}
 .t1 .setup{color:#fff;}
 .pt{margin-top:20px;font-size:%%PART_SIZE%%px;letter-spacing:0.05em;color:#DA532C;text-shadow:0 4px 20px rgba(0,0,0,0.65);}
 .byl{margin-top:44px;font-size:54px;font-weight:600;letter-spacing:0.01em;color:#E4E4E4;text-shadow:0 3px 16px rgba(0,0,0,0.65);}
@@ -62,7 +78,7 @@
 <div class="hero"><img src="title-hero.png" alt=""><div class="scrim"></div></div>
 <div class="inner">
   <div class="eyebrow"><div id="rule" class="rule"></div><div id="eyb" class="lbl">How to Win at Horse Racing</div></div>
-  <div id="t1" class="anton t1"><span class="setup">%%TITLE_SETUP%%</span> %%TITLE_PAYOFF%%</div>
+  <div id="t1" class="anton t1"><span class="setup">%%TITLE_SETUP%%</span>%%TITLE_BREAK%%%%TITLE_PAYOFF%%</div>
 %%PART_LINE%%
   <div id="byl" class="byl">%%BYLINE%%</div>
 </div>
