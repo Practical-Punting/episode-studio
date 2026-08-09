@@ -1261,11 +1261,17 @@ def _code_changed_exit(ctx, when: str) -> None:
     SystemExit derives from BaseException, so the `except Exception` handlers around
     the phase driver do not swallow it.
 
-    ⚠️ `rail.release()` MATTERS: exiting while still holding the lease leaves the
-    episode claimed by a worker that no longer exists, and `reclaim_stale()` cannot
-    take it back until the lease expires. Worse, releasing WITHOUT clearing ownership
-    is how an episode reaches a working status with `claimed_by: NULL` — the dead zone,
-    which nothing can pick up, ever.
+    ⚠️ LETTING GO MATTERS, AND SO DOES HOW. Exiting while still holding the lease
+    leaves the episode claimed by a worker that no longer exists, and `reclaim_stale()`
+    cannot take it back until the lease expires. But `rail.release()` is worse: it nulls
+    the owner, and a working status with `claimed_by: NULL` is the dead zone, which
+    nothing picks up, ever.
+        🔴 THAT WARNING WAS ALREADY WRITTEN HERE, IN THESE WORDS, AND THE CODE BELOW
+    CALLED release() ANYWAY. EP19, 9 Aug 2026: the guard fired while the episode was
+    flagged, the episode went ownerless at 33%, and it sat there with its flag already
+    cleared until a human asked why nothing was moving. A comment describing a trap is
+    not a guard against it. It now calls `rail.hand_back()`, which leaves a named owner
+    and an expired lease so `reclaim_stale()` takes it on the next tick.
 
     THIS IS NOT A DEPLOY PATH ON ITS OWN. The board still cannot say "this engine is
     running code older than the repo", which is E11 part 2 and the half Hugh needs,
@@ -1278,9 +1284,9 @@ def _code_changed_exit(ctx, when: str) -> None:
         "(the supervisor restarts me; nothing is in flight, nothing is lost)")
     try:
         ctx.hb.active.clear()
-        rail.release(ctx.id, WORKER)
+        rail.hand_back(ctx.id, WORKER, "exited for new code")
     except Exception as e:                                            # noqa: BLE001
-        log(f"   (could not release the lease cleanly: {e} — it will expire)")
+        log(f"   (could not hand the lease back cleanly: {e} — it will expire)")
     raise SystemExit(0)
 
 

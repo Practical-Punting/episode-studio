@@ -430,10 +430,45 @@ def flag_needs_look(id, message):
 
 
 def release(id, worker):
-    """Let go of an episode (parked at a human gate, or finished with it)."""
+    """Let go of an episode (parked at a human gate, or finished with it).
+
+    ⚠️ ONLY SAFE WHEN THE EPISODE IS ALSO LEAVING A WORKING STATUS. On a working
+    status this creates the dead zone — see hand_back() below, and use that instead.
+    """
     rows = _request("PATCH", f"?id=eq.{_q(id)}&claimed_by=eq.{_q(worker)}",
                     {"claimed_by": None, "lease_until": None, "updated_at": _now()},
                     write=True)
+    return rows[0] if rows else None
+
+
+def hand_back(id, worker, reason="exited for new code"):
+    """Let go of a WORKING episode in a state something can pick it up again.
+
+    🔴 THE DEAD ZONE, AND WHY release() IS THE WRONG CALL HERE. reclaim_stale() filters
+    `claimed_by=not.is.null`, deliberately — a null owner on a working status would
+    otherwise be indistinguishable from a row mid-claim. So an episode left at a working
+    status with claimed_by NULL is picked up by NOTHING, EVER. Not reclaim_stale (null),
+    not resume_own (not ours), not claim_next (wrong status).
+        The stale-code exit knew this — its own docstring says "releasing WITHOUT
+    clearing ownership is how an episode reaches a working status with claimed_by: NULL
+    — the dead zone, which nothing can pick up, ever" — and then called release()
+    anyway. EP18 hit it in August. EP19 hit it on 9 Aug 2026: the guard fired while the
+    episode was flagged, the episode went ownerless, and it sat at 33% with its flag
+    already cleared until a human noticed. A comment warning about a trap is not a
+    guard against it.
+
+    So ownership goes to a TOMBSTONE — this worker's name plus why it left — with a
+    lease already expired. reclaim_stale() sees a non-null owner that is not the live
+    worker, with a dead lease, and takes it on the next tick: seconds, not never. The
+    name is also readable on the board, which "NULL" never was.
+    """
+    from datetime import timedelta
+    rows = _request(
+        "PATCH", f"?id=eq.{_q(id)}&claimed_by=eq.{_q(worker)}",
+        {"claimed_by": f"{worker} ({reason})",
+         "lease_until": (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(),
+         "updated_at": _now()},
+        write=True)
     return rows[0] if rows else None
 
 
