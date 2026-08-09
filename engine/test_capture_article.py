@@ -79,8 +79,25 @@ for n, stem, url in REFS:
               "it produced a capture from a page with `l/s` and `Vs` in it")
         continue
     fresh = text.split(BEGIN, 1)[1].split(END, 1)[0].strip()
-    same = fresh == existing
-    check(f"EP{n}: article text matches the capture on disk byte-for-byte", same)
+    # 🔒 THE HEADLINE NOW OPENS THE ARTICLE TEXT (Jodie, 9 Aug 2026). EP17's and EP18's
+    # captures were written before that rule and are NOT rewritten — they are published
+    # episodes, and a capture is the article of record for the one that shipped on it
+    # ("found retrospectively does not mean fixed retrospectively"). So the comparison
+    # is: fresh == headline + the body on disk. It still bites on every other word.
+    head_line = fresh.splitlines()[0].strip()
+    expected = existing if existing.startswith(head_line) else f"{head_line}\n\n{existing}"
+    same = fresh == expected
+    check(f"EP{n}: article text matches the capture on disk (headline + body)", same)
+    # NOT an all-caps assertion — EP19's headline ends "(Part 1)" and the first version
+    # of this check failed a perfectly correct title on its own casing rule.
+    check(f"  EP{n}: the article text opens with the episode's own headline",
+          bool(head_line) and head_line == head_line.strip() and len(head_line) > 8
+          and "then take care" not in head_line, repr(head_line))
+    check(f"  EP{n}: no provenance note crossed into the article text",
+          not any(w in fresh for w in ("Captured", "capture_article", "ENCODING",
+                                       "Source:", "reproduced as printed",
+                                       "transcrib", "typographic errors")),
+          "a note ABOUT the article is not the article")
     if not same:
         a, b = existing.splitlines(), fresh.splitlines()
         print(f"          on disk {len(a)} blocks / {len(existing):,} chars;  "

@@ -762,6 +762,25 @@ def stage_deliverables(qc, episode_path, ep_dir, out_dir):
                 # carry a literal '?' glued to the front of a word mid-sentence. It is
                 # repaired at the CAPTURE, so one arriving here means the repair was
                 # missed or something downstream re-introduced it.
+                # 🔴 THE READER IS NEVER TOLD ABOUT THE TRANSCRIPTION. (Jodie, 9 Aug
+                # 2026, after Hugh found it on page 2 of EP18's guide.)
+                # SUPERSEDES PP-STANDARDS §0a-i disclosure 3, which required exactly
+                # this sentence so that anyone comparing the e-book with the website
+                # "finds an EXPLANATION rather than a DISCREPANCY". That reasoning is
+                # recorded and was hers; the new ruling is also hers and it wins.
+                # The repair audit trail stays where it belongs — in the capture, which
+                # is internal — and the guide reads as a guide, not as a lab notebook.
+                prov = re.findall(
+                    r"[^.]*?(?:reproduced as printed|typographic error|"
+                    r"when the page was (?:scanned|transcribed)|"
+                    r"nothing else has been changed)[^.]*\.", body, re.I)
+                if prov:
+                    qc.fail(
+                        "the e-book tells the READER about transcription or scan "
+                        f"repairs — {prov[0].strip()[:120]!r}. That note belongs in the "
+                        "capture, which is internal; a reader holding the guide is "
+                        "being shown our working. Remove the <p class=\"note\"> from the "
+                        "e-book body and rebuild.")
                 rogue = re.findall(r"\?[A-Za-z]\w*", body)
                 if rogue:
                     qc.fail(f"the e-book PDF contains {len(rogue)} rogue '?' glued to a "

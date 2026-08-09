@@ -476,13 +476,27 @@ surfaced, and the run is recorded in the episode's run log.**
      naming each repair and the sentence that forces it. **This is the file both
      `author_ebook.py` and `author_cards.py` check against, so the repair lives at the
      point of capture and needs NO new departure in the code.**
-  3. 🆕 **THE E-BOOK ITSELF, for the person holding it** — ONE sentence, `<p class="note">`
-     (already "editorial" in the class vocabulary, so no new mechanism):
-     > *"This 1988 article is reproduced as printed. Six typographic errors introduced
-     > when the page was scanned have been repaired; nothing else has been changed."*
-     **Jodie's reason: if anyone compares the e-book with the website they find an
-     EXPLANATION rather than a DISCREPANCY.** The build report makes us honest with
-     ourselves; this makes us honest with the reader.
+  3. ⛔ **WITHDRAWN 9 AUGUST 2026 — THE READER IS NEVER TOLD ABOUT THE TRANSCRIPTION.**
+     > ### *"It must not appear in the reader-facing e-book. The repair audit trail
+     > ### stays internal to the capture only."* **(Jodie, 9 Aug 2026.)**
+     **Hugh found it at the top of page 2 of EP18's guide:** *"This 2006 article is
+     reproduced as printed. Four typographic errors introduced when the page was
+     transcribed have been repaired; nothing else has been changed."*
+     **This clause used to REQUIRE that sentence**, and the reason recorded here was
+     hers: *if anyone compares the e-book with the website they find an EXPLANATION
+     rather than a DISCREPANCY.* **Both rulings are hers and the later one wins** — the
+     old reasoning is left standing above so nobody re-adds the note thinking it was an
+     oversight. What changed is who the guide is for: a reader holding it is being shown
+     our working, and a guide that explains its own proof-reading reads as a lab
+     notebook.
+     **Disclosures 1 and 2 are UNCHANGED** — the build report and the capture header
+     still name every repair. *We stay honest with ourselves; we stop narrating it to
+     the reader.*
+     ✅ **ENFORCED, not just written:** `qc_episode.stage_deliverables` reads the built
+     PDF and HARD-FAILS on that sentence, proved fail-first against EP18's own e-book
+     before it was rebuilt. **EP18 was regenerated without it (8 pages, QC PASS).**
+     🔴 **EP16 STILL CARRIES IT ON PAGE 2 and is PUBLISHED** — same fix, one command,
+     but replacing a live reader-facing file is Jodie's call, not the engine's.
 
   ⚠️ **AND THE LIMITATION, NAMED RATHER THAN GLOSSED:** `author_ebook.py`'s fidelity gate
   compares the body against the CAPTURE FILE, and the capture is written by hand. **So the

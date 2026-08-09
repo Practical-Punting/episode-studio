@@ -19,6 +19,17 @@ THE FOUR THINGS A NAIVE FETCH GETS WRONG (all found building EP19's by hand):
   4. the article ends at the byline; after it is the site — Recommended Article,
      Sign up for Free Tips, Next To Jump, Buy Tips
 
+🔒 THE HEADLINE GOES INSIDE THE MARKERS. (Jodie, 9 Aug 2026, from EP19.)
+An episode's own title is the article's own words, printed on the page, and usually the
+most quotable line in it. EP19 is "10 SYSTEMS FOR ACTION-HUNGRY PUNTERS (Part 1)", the
+writer naturally said "ten systems", and the fidelity gate rejected the draft TWICE —
+correctly by its own lights, because the headline sat in this header, outside the
+markers, where nothing downstream can see it.
+    ONLY THE TITLE CROSSES. Everything else here — encoding, repairs, where the article
+    ends — is a note ABOUT the article, not the article, and must never reach the script,
+    the gate or the e-book. EP18 shipped an e-book with a transcription note on page two
+    for exactly this blur.
+
 AND THE EP17 RULING: a `?` glued to the FRONT of a word mid-sentence is scan noise and
 is repaired HERE, at the capture, because the fidelity gate compares against this file.
 A `?` that ENDS a sentence is the author's and survives untouched. Every repair is
@@ -204,7 +215,13 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
     body, byline, tables, repairs = extract(page)
 
     # headline vs standfirst: the <h1> runs them together, the shouted part is the head
-    mm = re.search(r"(.*?)([A-Z0-9][A-Z0-9 '’\-()&!?,\.]{9,})$", head_txt)
+    # The <h1> runs the standfirst and the headline together. The headline is the
+    # SHOUTED run at the end — plus an optional "(Part n)", whose lowercase letters
+    # would otherwise end the all-caps run and swallow the standfirst into the title.
+    # EP19 ("…then take care10 SYSTEMS FOR ACTION-HUNGRY PUNTERS (Part 1)") is exactly
+    # that case, and it matters now the headline is traceable article text.
+    mm = re.search(r"(.*?)([A-Z0-9][A-Z0-9 '’\-&!?,\.]{9,}(?:\s*\(Part\s*\d+\))?)\s*$",
+                   head_txt)
     standfirst = (mm.group(1).strip() if mm else "").strip()
     headline = (mm.group(2).strip() if mm else head_txt).strip()
 
@@ -266,6 +283,8 @@ both are restored here. A plain tag-strip runs the whole article into one block.
 ---
 
 ---- ARTICLE TEXT BEGINS ----
+
+{headline}
 
 {body}
 

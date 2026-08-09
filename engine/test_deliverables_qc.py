@@ -106,6 +106,26 @@ check("a flat placeholder is caught (by size)", said(r, "not a finished"), str(r
 # Mean luma is reported as a note instead; the assertion below is that it is REPORTED,
 # not that it judges.
 
+print("\n=== FAIL FIRST: the reader must never be told about the transcription ===\n")
+# The fixture is EP18's OWN e-book as Hugh found it — the pre-rebuild PDF, kept as a
+# .bak precisely so this guard could be watched failing on the real artefact rather
+# than on something invented for the occasion.
+WITH_NOTE = SRC / "output/PP-EP18-ebook.with-note.pdf.bak"
+if WITH_NOTE.is_file():
+    def _swap_in_bad_pdf(t):
+        (t / "output/PP-EP18-ebook.pdf").unlink()
+        shutil.copyfile(WITH_NOTE, t / "output/PP-EP18-ebook.pdf")
+    r = build(_swap_in_bad_pdf)
+    check("EP18's e-book AS HUGH FOUND IT is caught",
+          said(r, "tells the READER about transcription"), str(r.fails)[:220])
+    check("  and it quotes the sentence back",
+          any("reproduced as printed" in f for f in r.fails), str(r.fails)[:200])
+    check("  and it says where the note belongs instead",
+          any("capture, which is internal" in f for f in r.fails))
+else:
+    check("the pre-rebuild EP18 e-book is available as a fixture", False,
+          f"{WITH_NOTE.name} not found — the guard has not been watched failing")
+
 print("\n=== and the real, untouched deliverables must be SILENT ===\n")
 r = build()
 check("EP18's shipped PDF and thumbnail raise NO failures", not r.fails, str(r.fails))
