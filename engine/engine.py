@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import os
 import shutil
 import socket
@@ -1570,27 +1571,88 @@ def _draft_watch(provider):
         log(f"drafting pass skipped ({e})")
 
 
+STAGE8_FLAG_MARK = "(Stage-8 close-out)"
+
+
+def _approved_title(ep, d):
+    """The title the folder should carry — episode.json first, the rail as backup."""
+    try:
+        pack = json.loads((d / "docs/episode.json").read_text(encoding="utf-8")
+                          ).get("packaging") or {}
+        for k in ("title", "ebook_title", "youtube_title"):
+            if (pack.get(k) or "").strip():
+                return pack[k].split("|")[0].strip()
+    except Exception:                                                 # noqa: BLE001
+        pass
+    return (ep.get("hook") or "").strip()
+
+
 def _stage8_watch():
-    """Stage-8 rename watchdog (EP10 lesson, 25 Jul 2026): a PUBLISHED episode
-    whose local folder still carries the bare PP-EP<NN> name missed its
-    close-out rename. Flag it in plain English — once per pass, never rename
-    automatically (Drive sync + open files make that a human-timed step)."""
+    """Stage-8 close-out: rename a published episode's folder. AUTOMATICALLY.
+
+    ⚠️ REWRITTEN 10 Aug 2026, AND THE OLD DOCSTRING IS THE POINT. It said: "Flag it in
+    plain English — once per pass, never rename automatically (Drive sync + open files
+    make that a human-timed step)." That reasoning produced a **needs_look that is not a
+    decision** — a machine chore sitting in Jodie's queue — and it printed a raw shell
+    command at her:
+
+        Run, from the repo: python engine/rename_episode.py EP19 "<title>" --apply
+
+    An A19 operator-box violation twice over: it badges her queue with the studio's own
+    work, and it asks a person holding a browser to run a command they cannot run.
+    PP-STANDARDS §WHAT DESERVES A GATE: remove the halt, do not word it better.
+    (Jodie, 10 Aug 2026.)
+
+    THE OLD WORRY IS HANDLED RATHER THAN OBEYED. A Drive sync or an open file can make
+    a rename fail — so a failure is LOGGED AND RETRIED next pass, never converted into a
+    human instruction. The rename tool is idempotent (the current folder name is its
+    source of truth), so retrying is free and re-running converges.
+
+    🔒 IT ONLY EVER CLEARS ITS OWN FLAG. A needs_look raised by anything else is a human
+    being asked a real question, and this must never wipe one — so the message has to
+    carry STAGE8_FLAG_MARK before it is touched.
+    """
     try:
         for ep in rail.list_all():
             nn = ep.get("ep_number")
-            if ep.get("status") != "published" or not nn or ep.get("needs_look"):
+            if ep.get("status") != "published" or not nn:
                 continue
+            mine = STAGE8_FLAG_MARK in (ep.get("needs_look_message") or "")
+            if ep.get("needs_look") and not mine:
+                continue          # somebody is being asked a real question — leave it
             bare = PP_VIDEOS / f"PP-EP{int(nn):02d}"
-            if bare.is_dir():
-                rail.flag_needs_look(
-                    ep["id"],
-                    f"PP-EP{int(nn):02d} is published but its folder was never "
-                    "renamed (Stage-8 close-out). Run, from the repo: python "
-                    "engine/rename_episode.py "
-                    f"EP{int(nn):02d} \"<approved title>\" --apply, then clear this flag.")
-                log(f"stage-8 watchdog: flagged PP-EP{int(nn):02d} (published, folder not renamed)")
+            if not bare.is_dir():
+                if mine:          # already renamed; the flag is just stale
+                    rail.set_fields(ep["id"], {"needs_look": False,
+                                               "needs_look_message": None})
+                    log(f"stage-8: PP-EP{int(nn):02d} was already renamed — flag cleared")
+                continue
+            title = _approved_title(ep, bare)
+            if not title:
+                log(f"stage-8: PP-EP{int(nn):02d} has no approved title in episode.json "
+                    f"or on the rail, so the folder cannot be named. Left as it is.")
+                continue
+            r = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("rename_episode.py")),
+                 f"EP{int(nn):02d}", title, "--apply"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=600)
+            if r.returncode != 0 or bare.is_dir():
+                # Drive had it locked, or a file was open. Say so and try again next
+                # pass — never hand it to a human as a command.
+                log(f"stage-8: PP-EP{int(nn):02d} could not be renamed this pass "
+                    f"(retrying next time): {(r.stderr or r.stdout).strip()[-200:]}")
+                continue
+            new = next((p for p in PP_VIDEOS.glob(f"PP-EP{int(nn):02d}-*") if p.is_dir()),
+                       None)
+            fields = {"needs_look": False, "needs_look_message": None}
+            if new is not None:
+                fields["drive_folder"] = new.name
+            rail.set_fields(ep["id"], fields)
+            log(f"stage-8: PP-EP{int(nn):02d} renamed to {new.name if new else '?'} "
+                f"and closed out — no flag raised (it is a chore, not a decision)")
     except Exception as e:
-        log(f"stage-8 watchdog skipped ({e})")
+        log(f"stage-8 close-out skipped ({e})")
 
 
 def cmd_run(mock, watch):
