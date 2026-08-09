@@ -99,6 +99,112 @@ for slot in (at.SLOT_TITLE_TAG, at.SLOT_L1, at.SLOT_L2, at.SLOT_PART,
     (PASS if n == 1 else FAIL).append(
         (f"slot occurs exactly once: {slot[:38]}…", f"found {n}"))
 
+# ── THE COPY BLOCK MUST CLEAR THE LOGO CHIP ─────────────────────────────────────
+# 🔴 EP19 WOULD HAVE SHIPPED A BROKEN THUMBNAIL, and nothing was watching. Its payoff
+# is "ACTION-HUNGRY PUNTERS" — 21 characters where the slot's own placeholder is "Key
+# word" and EP11's was "HIDDEN ACES". At the tuned 150px it wrapped to THREE lines in
+# the 660px copy box: "Part 1" collided with the logo chip by 40px across the chip's
+# whole width, and the strapline landed at 719->791 on a 720px canvas, entirely off the
+# picture. card_check does not look at thumbnails and autofit only touches card pages,
+# so the only human check is a needs_look flag that asks about the HERO CROP — a person
+# shown a broken thumbnail and asked about something else.
+#
+# CONTROL FIRST, both ways: the long payoff must be seen to BREAK the layout before the
+# fit runs, and a short one must be left completely alone. A fitter that shrinks
+# everything is as wrong as one that shrinks nothing.
+def _the_copy_block_clears_the_logo():
+    import json
+    import shutil
+    import subprocess
+    import tempfile
+
+    from playwright.sync_api import sync_playwright
+
+    HERE_ = os.path.dirname(os.path.abspath(__file__))
+    ASSETS_ = os.path.join(os.path.dirname(HERE_), "assets")
+
+    def author(l1, l2, part):
+        d = tempfile.mkdtemp(prefix="thumbfit_")
+        # the hero and the logo must be real files or nothing lays out
+        shutil.copyfile(os.path.join(ASSETS_, "marketing-hero.png"),
+                        os.path.join(d, "hero.png"))
+        ep = {"episode": "PP-EP99",
+              "packaging": {"hook": f"{l1} {l2}",
+                            "byline": "If you must have a go at lots of races, then take care",
+                            "ebook_title": f"{l1} {l2} — {part}"},
+              "thumbnail": {"l1": l1, "l2": l2, "part": part,
+                            "strap_break_after": "lots", "hero_focus": "center"}}
+        j = os.path.join(d, "episode.json")
+        with open(j, "w", encoding="utf-8") as fh:
+            json.dump(ep, fh)
+        r = subprocess.run([sys.executable, os.path.join(HERE_, "author_thumbnail.py"),
+                            j, d, "--force"],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=900)
+        assert r.returncode == 0, f"authoring failed:\n{(r.stdout + r.stderr)[-600:]}"
+        page = [f for f in os.listdir(d) if f.endswith("-thumbnail.html")][0]
+        return d, os.path.join(d, page), r.stdout
+
+    def measure(path, unfitted=False):
+        with sync_playwright() as pw:
+            b = pw.chromium.launch(headless=True, args=["--hide-scrollbars"])
+            pg = b.new_page(viewport={"width": at.W, "height": at.H})
+            try:
+                pg.goto("file:///" + path.replace("\\", "/"))
+                pg.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+                if unfitted:      # strip the measured block: the layout as authored
+                    pg.evaluate("() => { for (const s of document.querySelectorAll('style'))"
+                                "  s.textContent = s.textContent.split('PP-THUMB-FIT')[0]; }")
+                    pg.wait_for_timeout(150)
+                pg.wait_for_timeout(200)
+                return pg.evaluate("""() => {
+                  const g = s => { const e = document.querySelector(s); if (!e) return null;
+                    const b = e.getBoundingClientRect();
+                    return {t: Math.round(b.top), b: Math.round(b.bottom)}; };
+                  return {part: g('.part'), strap: g('.strap'), logo: g('.logo')};
+                }""")
+            finally:
+                b.close()
+
+    # 1. THE CONTROL — EP19's real payoff, with the fit stripped back out.
+    d, page, out = author("10 SYSTEMS FOR", "ACTION-HUNGRY PUNTERS", "Part 1")
+    raw = measure(page, unfitted=True)
+    bottom = max(raw["part"]["b"], raw["strap"]["b"])
+    assert bottom > raw["logo"]["t"], (
+        f"CONTROL FAILED: at the tuned sizes this copy block ends at {bottom}px against "
+        f"a logo chip at {raw['logo']['t']}px — it does not collide, so this is not the "
+        f"case that broke EP19 and the fit below proves nothing.")
+
+    # 2. …and fitted, it clears.
+    fit = measure(page)
+    bottom = max(fit["part"]["b"], fit["strap"]["b"])
+    assert bottom <= fit["logo"]["t"] - at.FIT_GAP, (
+        f"the fitted copy block still ends at {bottom}px against a chip at "
+        f"{fit['logo']['t']}px")
+    assert fit["strap"]["b"] <= at.H, (
+        f"the strapline ends at {fit['strap']['b']}px on a {at.H}px canvas — off the "
+        f"picture, which is how EP19's shipped")
+    assert at.FIT_MARK in open(page, encoding="utf-8").read(), \
+        "the page carries no measured block, so the sizes were not written down"
+    shutil.rmtree(d, ignore_errors=True)
+
+    # 3. A SHORT PAYOFF IS LEFT ALONE. EP11's own words: the tuned design must survive.
+    d2, page2, out2 = author("Hidden", "Aces", "Part 2")
+    assert at.FIT_MARK not in open(page2, encoding="utf-8").read(), (
+        "a short payoff was shrunk anyway — the tuned type sizes are the design and a "
+        "fitter that touches everything will be turned off")
+    assert "not needed" in out2, f"expected 'not needed' in the report, got: {out2!r}"
+    shutil.rmtree(d2, ignore_errors=True)
+
+
+try:
+    _the_copy_block_clears_the_logo()
+    PASS.append(("a long payoff is FITTED so the copy clears the logo; a short one is not",
+                 "control collides, fitted clears, short payoff untouched"))
+except Exception as e:                                        # noqa: BLE001
+    FAIL.append(("a long payoff is FITTED so the copy clears the logo; a short one is not",
+                 f"{type(e).__name__}: {e}"))
+
 print("\nTHUMBNAIL NEGATIVE TESTS — every guard must fire\n" + "=" * 74)
 for n, m in PASS:
     print(f"  ✓ {n}\n      {m[:110]}")

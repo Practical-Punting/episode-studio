@@ -110,6 +110,92 @@ def strap_html(ep, th):
     return esc(" ".join(parts[:i + 1])) + "<br>" + esc(" ".join(parts[i + 1:]))
 
 
+# ── THE COPY BLOCK MUST FIT ABOVE THE LOGO ───────────────────────────────────
+# 🔴 EP19, 9 Aug 2026, AND IT WOULD HAVE SHIPPED. The template's type sizes are tuned
+# for a SHORT payoff — the slot's own placeholder is "Key word", and EP11's was
+# "HIDDEN ACES". EP19's is "ACTION-HUNGRY PUNTERS": 21 characters, which wrapped to
+# THREE lines in the 660px copy box and pushed everything below it down 264px. Measured
+# on the authored page: "Part 1" ran 597->663 against a logo chip at 623->680, a 40px
+# collision across the chip's whole width, and the strapline landed at 719->791 on a
+# 720px canvas — entirely off the picture.
+#     NOTHING WOULD HAVE CAUGHT IT. card_check does not look at thumbnails, autofit only
+# touches card pages, and the needs_look flag asks about the HERO CROP — so a human is
+# shown a broken thumbnail and asked a question about something else. This is the title
+# card's ruling (Jodie, same day: a long approved title AUTO-FITS, it does not halt)
+# applied to the one other place the approved title is set large.
+#     THE WHOLE BLOCK SCALES BY ONE FACTOR, not just the offending line. l1, l2 and the
+# part line are a designed hierarchy — the payoff is bigger than the setup — and
+# shrinking only l2 would invert it. The strapline keeps its size: it is body copy at
+# 29px, not display type.
+FIT_STEP = 0.94        # 6% a pass, small enough to stop just past the edge
+FIT_FLOOR = 0.55       # never below 55% of the tuned sizes
+FIT_GAP = 8            # clear air between the copy block and the logo chip
+FIT_MARK = "/* == PP-THUMB-FIT (measured, not hand-set) == */"
+
+
+def fit_copy(path: str) -> str:
+    """Render the authored page and step the copy block down until it clears the logo.
+
+    Returns a one-line report. Measured in a real browser at the real canvas size,
+    because the wrap point is the whole question and no arithmetic here knows it.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:                                       # noqa: BLE001
+        return "type fit SKIPPED — no Playwright; the copy block was not measured"
+
+    base = {"l1": 96.0, "l2": 150.0, "part": 75.0}
+    measure = """() => {
+      const r = s => { const e = document.querySelector(s);
+                       if (!e) return null; const b = e.getBoundingClientRect();
+                       return {t: b.top, b: b.bottom}; };
+      return {part: r('.part'), strap: r('.strap'), logo: r('.logo'), l2: r('.l2')};
+    }"""
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True, args=["--hide-scrollbars"])
+        pg = br.new_page(viewport={"width": W, "height": H})
+        try:
+            k, steps, m = 1.0, 0, None
+            while steps <= 12:
+                pg.goto("file:///" + os.path.abspath(path).replace("\\", "/")
+                        + f"?fit={steps}")
+                pg.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+                pg.wait_for_timeout(120)
+                m = pg.evaluate(measure)
+                if not m["logo"]:
+                    return "type fit SKIPPED — no logo chip on this page to clear"
+                # The strapline shares the logo's x-range, so the whole block sits ABOVE
+                # the chip; the part line is checked too for the case with no strap.
+                bottom = max(x["b"] for x in (m["part"], m["strap"]) if x)
+                if bottom <= m["logo"]["t"] - FIT_GAP:
+                    break
+                nxt = k * FIT_STEP
+                if nxt < FIT_FLOOR:
+                    raise Halt(
+                        f"the thumbnail copy cannot be made to fit above the logo chip "
+                        f"even at {FIT_FLOOR:.0%} of the tuned type sizes: the block "
+                        f"still reaches {bottom:.0f}px against a chip at "
+                        f"{m['logo']['t']:.0f}px. thumbnail.l1/l2 are the approved "
+                        f"packaging, so this is a human choice between the words and "
+                        f"the layout, not something to shrink away.")
+                k = nxt
+                steps += 1
+                css = (f"{FIT_MARK}\n"
+                       + " ".join(f".{sel}{{font-size:{px * k:.1f}px !important}}"
+                                  for sel, px in base.items()))
+                src = open(path, encoding="utf-8").read()
+                src = re.sub(re.escape(FIT_MARK) + r".*?(?=</style>)", "", src, flags=re.S)
+                open(path, "w", encoding="utf-8", newline="\n").write(
+                    src.replace("</style>", css + "\n</style>", 1))
+        finally:
+            br.close()
+    if k == 1.0:
+        return "type fit: not needed — the copy block already clears the logo chip"
+    return (f"type fit: copy block scaled to {k:.0%} of the tuned sizes in {steps} "
+            f"step(s) — l2 {base['l2'] * k:.0f}px — so the strapline and the part line "
+            f"clear the logo chip. MEASURED on the rendered page, not chosen.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_json")
@@ -158,16 +244,41 @@ def main():
     # packaging change could never reach the thumbnail — and the halt would look
     # identical before and after the fix. Nothing to keep in sync, and it cannot
     # go stale, because the comparison IS the definition.
-    if os.path.exists(out) and not a.force:
-        if open(out, encoding="utf-8").read() == page:
-            print("· thumbnail left alone: unchanged — episode.json still says the same thing")
-            return
-        print("~ thumbnail re-authored — its definition changed")
-    open(out, "w", encoding="utf-8", newline="\n").write(page)
-
+    # THE LOGO IS STAGED FIRST because the fit measures against it — the copy block has
+    # to clear the chip, and a chip that is not on the page yet cannot be cleared.
     logo = os.path.join(a.out_dir, "pp-logo-on-dark.png")
     if not os.path.exists(logo):
         shutil.copyfile(os.path.join(ASSETS, "pp-logo-on-dark.png"), logo)
+
+    # ⚠️ FIT BEFORE COMPARING, or the --force trap above reopens by the back door: the
+    # fit rewrites the file, so a page compared BEFORE fitting never equals the page on
+    # disk, every run reports "re-authored", and the comparison stops meaning anything.
+    # So the fitted page is built beside the target and only then compared.
+    # ⚠️ IT MUST END .html AND MUST NOT CONTAIN "thumbnail".
+    #   .html — Chromium renders a file:// URL by extension, and a page served as plain
+    #     text has no elements at all: the first version of this used ".fitting" and the
+    #     fit reported "no logo chip on this page to clear" on a page that has one.
+    #   not "thumbnail" — `existing_pages` above globs *thumbnail*.html, so a crash that
+    #     left this behind would make the next run think a second thumbnail page exists.
+    #   same directory — hero.png and the logo are relative, and they must resolve.
+    tmp = os.path.join(a.out_dir, ".pp-copyfit.html")
+    open(tmp, "w", encoding="utf-8", newline="\n").write(page)
+    try:
+        report = fit_copy(tmp)
+        page = open(tmp, encoding="utf-8").read()
+    except BaseException:
+        # A halt here means the words genuinely do not fit. Leave no half-fitted page
+        # behind for the next run to mistake for a finished one.
+        os.remove(tmp)
+        raise
+    if os.path.exists(out) and not a.force:
+        if open(out, encoding="utf-8").read() == page:
+            os.remove(tmp)
+            print("· thumbnail left alone: unchanged — episode.json still says the same thing")
+            return
+        print("~ thumbnail re-authored — its definition changed")
+    os.replace(tmp, out)
+    print(f"  {report}")
     print(f"authored {out} ({W}x{H}, hero_focus={focus})")
 
 
