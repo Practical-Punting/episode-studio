@@ -12,6 +12,7 @@ Run: python engine/test_supervisor_heartbeat.py
 import datetime as dt
 import pathlib
 import sys
+import tempfile
 import types
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -81,6 +82,16 @@ check("the status set is taken from rail.WORKING, not retyped",
 print("\n=== start(): who gets restarted, and who is left alone ===\n")
 
 calls = []
+
+# 🔴 A TEST MUST NOT WRITE INTO THE OPERATIONAL LOG. The first run of this suite put
+# five fabricated supervisor lines into engine/logs/engine-2026-08-09.log — including
+# "engine running (pid 4242)" and "engine.stopped is present" — and hours later, while
+# diagnosing why EP19 had not started, those lines were the newest thing in the file and
+# read as a live engine being held back. They were mine.
+#     A DIAGNOSIS IS ONLY AS GOOD AS THE LOG, AND A TEST THAT WRITES TO IT IS LYING TO
+#     THE NEXT PERSON WHO READS IT — who is usually you, at one in the morning.
+_TEST_LOG = pathlib.Path(tempfile.mkdtemp(prefix="pp-sv-log-")) / "supervisor-test.log"
+sv.log_path = lambda *_a, **_k: _TEST_LOG
 
 
 def real_ago(secs):
