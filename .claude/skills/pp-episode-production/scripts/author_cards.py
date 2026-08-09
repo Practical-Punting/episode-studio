@@ -208,16 +208,59 @@ def validate(card, blk):
                     if not re.match(r"^\d+(\.\d+)?$", str(it.get(k, ""))):
                         raise Halt(f"card {cid}: {name}[{i}].{k} = {it.get(k)!r} must be a bare "
                                    f"number — it sets a bar length, not a caption.")
+                # A field that is ITSELF A LIST — the cells of a row.
+                cs = spec.get("cells")
+                if cs:
+                    cells = it.get(cs["field"])
+                    if not isinstance(cells, list):
+                        raise Halt(f"card {cid}: {name}[{i}].{cs['field']} must be a list "
+                                   f"of cell values, got {type(cells).__name__}")
+                    for j, cell in enumerate(cells, 1):
+                        if cell is not None and not isinstance(cell, str):
+                            raise Halt(f"card {cid}: {name}[{i}].{cs['field']}[{j}] must be "
+                                       f"a string or null")
+
+    # ── A GRID WHOSE ROWS AND COLUMNS DISAGREE IS A GRID THAT LIES ──────────────
+    # The one integrity rule a matrix has, and the reason it is worth a block rather
+    # than a hand-authored page. EP19 C12's own note says why: with three columns by
+    # three rows, "a viewer could not tell which figure belongs to which run" if the
+    # axes stop lining up. A row one cell short does not look broken — it looks like a
+    # different, wrong answer, silently shifted a column to the left.
+    grid = schema.get("grid")
+    if grid:
+        cols = content.get(grid["columns"]) or []
+        for i, row in enumerate(content.get(grid["rows"]) or [], 1):
+            cells = (row or {}).get(grid["cells"]) or []
+            if len(cells) != len(cols):
+                raise Halt(
+                    f"card {cid}: row {i} ({(row or {}).get('label')!r}) has {len(cells)} "
+                    f"cell(s) but there are {len(cols)} columns "
+                    f"({', '.join(map(str, cols))}). Every row must line up with every "
+                    f"column: a short row does not look broken on the card, it silently "
+                    f"shifts every value one column to the left and states something the "
+                    f"article never said. Write null for a deliberately empty cell.")
 
 
 def walk_values(content):
-    """Yield (dotted_key, value) for every leaf string in content."""
+    """Yield (dotted_key, value) for every leaf string in content.
+
+    🔴 IT RECURSES INTO A LIST INSIDE AN ITEM, and it must. `matrix` holds
+    rows[].cells[] — the grid's actual numbers — and without this every one of them
+    would be yielded as a LIST, which check_trace skips (`not isinstance(val, str)`)
+    and assert_measured_items_show_a_figure never sees. The block would have shipped
+    nine untraced figures on a card whose entire purpose is nine figures, and every
+    gate would have said yes. Found while building the block, not after.
+    """
     for k, v in content.items():
         if isinstance(v, list):
             for i, it in enumerate(v, 1):
                 if isinstance(it, dict):
                     for kk, vv in it.items():
-                        yield f"{k}[{i}].{kk}", vv
+                        if isinstance(vv, list):
+                            for j, cell in enumerate(vv, 1):
+                                yield f"{k}[{i}].{kk}[{j}]", cell
+                        else:
+                            yield f"{k}[{i}].{kk}", vv
                 else:
                     yield f"{k}[{i}]", it
         else:
@@ -243,7 +286,10 @@ JOB_BLOCKS = {
     # pointing at one outcome IS a relationship, and C3's two lists of what stands
     # between ability and result is the same shape." SUBJECT TO THE LIST QUALIFIER
     # below — a list earns `relate` only when it shows what the items connect TO.
-    "relate": {"compare", "steps", "bars", "ratio", "slate", "checklist"},
+    # `matrix` is the most relating block there is: it states every row AGAINST every
+    # column, and the relationship IS the card — a form-points grid says nine things
+    # about how placing and recency combine, none of which survives being listed.
+    "relate": {"compare", "steps", "bars", "ratio", "slate", "checklist", "matrix"},
     "orient": {"steps", "slate"},
     # `locate` is the rail modifier — it rides on any block, so it constrains none.
     "locate": None,
@@ -513,6 +559,40 @@ def esc(v):
     return out
 
 
+EACH_OPEN = re.compile(r"<!--@each ([\w.]+)-->")
+EACH_CLOSE = "<!--@endeach-->"
+
+
+def _first_each(tpl):
+    """The first TOP-LEVEL each region: (before, name, body, after), or None.
+
+    🔴 DEPTH-COUNTED, NOT A NON-GREEDY REGEX, and that is the whole reason a matrix
+    could not be templated before. The old expansion was
+    `re.sub(r"<!--@each (\\w+)-->(.*?)<!--@endeach-->", …)`: with one loop inside
+    another, `(.*?)` stops at the INNER `<!--@endeach-->`, so the outer region ends in
+    the middle of itself and the leftover close tag lands in the page. A grid is rows
+    each holding cells — nesting is not an exotic case, it is the shape of the thing —
+    and this is why EP15 C12 and EP19 C12 were both hand-authored instead.
+    """
+    m = EACH_OPEN.search(tpl)
+    if not m:
+        return None
+    depth, pos, close_at = 1, m.end(), None
+    while depth:
+        nxt_open = EACH_OPEN.search(tpl, pos)
+        nxt_close = tpl.find(EACH_CLOSE, pos)
+        if nxt_close < 0:
+            raise Halt(f"template has <!--@each {m.group(1)}--> with no matching "
+                       f"<!--@endeach-->")
+        if nxt_open and nxt_open.start() < nxt_close:
+            depth += 1
+            pos = nxt_open.end()
+        else:
+            depth -= 1
+            close_at, pos = nxt_close, nxt_close + len(EACH_CLOSE)
+    return tpl[:m.start()], m.group(1), tpl[m.end():close_at], tpl[pos:]
+
+
 def expand_each(tpl, content, blk, anim=False):
     """Expand <!--@each name--> ... <!--@endeach--> regions.
 
@@ -521,12 +601,18 @@ def expand_each(tpl, content, blk, anim=False):
     {{DELAY}}                 — stagger delay from the block's declared base+step
     {{WIDTH}}                 — a length in px PROPORTIONAL to the item's numeric
                                 field, so a bar cannot misstate the ratio it draws
+
+    NESTED: inside an item, `<!--@each ITEM.field-->` walks a LIST held by that item —
+    the cells of a row. Its body uses {{CELL}} and {{J}} (1-based). The names are
+    deliberately different from {{ITEM}} and {{I}} rather than shadowing them: a
+    template where the same token means the row in one line and the cell in the next
+    is a template nobody can read, and this one draws a grid where getting the column
+    wrong misstates which figure belongs to which run.
     """
     lists = blk["schema"].get("lists", {})
     anim_spec = blk["schema"].get("anim", {}) if anim else {}
 
-    def one(m):
-        name, body = m.group(1), m.group(2)
+    def one(name, body):
         items = content.get(name)
         if items is None:
             return ""
@@ -540,8 +626,28 @@ def expand_each(tpl, content, blk, anim=False):
         chunks = []
         for i, it in enumerate(items, 1):
             piece = body
+            # THE ITEM'S OWN LISTS FIRST, while `it` is in scope. Walking the region
+            # again afterwards would have lost which row each cell belongs to.
+            while True:
+                found = _first_each(piece)
+                if not found or not found[1].startswith("ITEM."):
+                    break
+                pre, iname, ibody, post = found
+                cells = (it or {}).get(iname.split(".", 1)[1]) if isinstance(it, dict) else None
+                out = []
+                for j, cell in enumerate(cells or [], 1):
+                    c = ibody
+                    if isinstance(cell, dict):
+                        for k, v in cell.items():
+                            c = c.replace("{{CELL." + k + "}}", esc(v))
+                    else:
+                        c = c.replace("{{CELL}}", esc(cell))
+                    out.append(c.replace("{{J}}", str(j)))
+                piece = pre + "".join(out) + post
             if isinstance(it, dict):
                 for k, v in it.items():
+                    if isinstance(v, (list, dict)):
+                        continue            # a nested list is drawn by its own each
                     piece = piece.replace("{{ITEM." + k + "}}", esc(v))
                 if scale:
                     w = round(float(it[scale["field"]]) / span * scale["span"])
@@ -556,7 +662,18 @@ def expand_each(tpl, content, blk, anim=False):
                                           str(step["base2"] + (i - 1) * step["step2"]))
             chunks.append(piece)
         return "".join(chunks)
-    return re.sub(r"<!--@each (\w+)-->(.*?)<!--@endeach-->", one, tpl, flags=re.S)
+
+    out, rest = [], tpl
+    while True:
+        found = _first_each(rest)
+        if not found:
+            out.append(rest)
+            break
+        before, name, body, after = found
+        out.append(before)
+        out.append(one(name, body))
+        rest = after
+    return "".join(out)
 
 
 def fill(tpl, content):

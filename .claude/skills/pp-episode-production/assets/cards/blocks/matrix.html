@@ -1,0 +1,71 @@
+<!--@schema
+{
+  "precedent": ["EP15 c12", "EP19 c12"],
+  "note": "A MATRIX: n columns by m rows, BOTH AXES LABELLED. It exists because two episodes in five had to hand-author one. EP19 C12's own note is the argument: the article's 3x3 form-points grid could not be drawn by any other block without losing something that matters - `steps` gives three rungs reading '9 / 6 / 3' with the column headings gone, so a viewer cannot tell which figure belongs to which run; `slate` caps at four cells against nine; `chips` flattens it into a row and reproduces the exact failure the capture file warns about. A hand-authored page also gets NOTHING for free: it must remember to load pp-anim.js and call ppInit or render_card waits 60s on window.ppDuration and gives up silently, and autofit will not touch it because it carries no PP-GENERATED marker. Through the vocabulary it gets all of that.",
+  "required": [],
+  "optional": ["foot"],
+  "lists": {
+    "columns": {"min": 2, "max": 4},
+    "rows": {"min": 2, "max": 5, "fields": ["label", "cells"],
+             "cells": {"field": "cells", "min": 2, "max": 4}}
+  },
+  "grid": {"columns": "columns", "rows": "rows", "cells": "cells"},
+  "anim": {"rows": {"base": 1500, "step": 350}},
+  "fit": {
+    "cell_size": [".mcell", "font-size"],
+    "label_size": [".mplace", "font-size"],
+    "column_size": [".mx th", "font-size"],
+    "foot_size": [".mfoot", "font-size"]
+  }
+}
+-->
+<!--@css-->
+/* Sized from EP19 C12, which was hand-authored, rendered and measured against
+   card_check before this block existed — so these are numbers that shipped, not
+   numbers chosen here. The table does NOT take margin-top:auto: that is what pushed
+   EP15's C12 into the logo chip and out through the panel floor. It flows from the
+   top and the card keeps its bottom band for the logo. */
+.mx{margin-top:44px;width:100%;border-collapse:collapse;table-layout:fixed;}
+.mx th{font-size:30px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;
+  color:#9A9A9A;text-align:center;padding:0 0 18px 0;border-bottom:3px solid #3A3A3A;}
+.mx th.corner{text-align:left;width:290px;}
+/* the row label is the OTHER AXIS, so it is set like a heading and not like a value */
+.mplace{font-family:'Anton','Barlow',sans-serif;font-weight:400;text-transform:uppercase;
+  letter-spacing:0.01em;font-size:62px;color:#C9C9C9;text-align:left;
+  border-bottom:2px solid #2B2B2B;padding:16px 0;}
+.mcell{font-family:'Anton','Barlow',sans-serif;font-weight:400;font-size:82px;
+  line-height:1.0;color:#DA532C;text-align:center;border-bottom:2px solid #2B2B2B;
+  padding:16px 0;}
+.mfoot{margin-top:34px;font-size:40px;font-weight:600;font-style:italic;color:#8F8F8F;
+  max-width:1400px;line-height:1.2;}
+<!--@print-->
+body.print .mx th{color:#777;border-bottom:2px solid #cfcfcf;font-size:22px}
+body.print .mplace{color:#1e1e1e;font-size:38px;border-bottom:1px solid #e6e6e6;padding:10px 0}
+body.print .mcell{color:#DA532C;font-size:44px;border-bottom:1px solid #e6e6e6;padding:10px 0}
+body.print .mfoot{color:#555;font-size:24px}
+<!--@markup-->
+  <table class="mx">
+    <thead>
+      <tr id="mxhead"><th class="corner"></th>
+<!--@each columns-->
+<th>{{ITEM}}</th>
+<!--@endeach-->
+      </tr>
+    </thead>
+    <tbody>
+<!--@each rows-->
+      <tr id="mr{{I}}"><td class="mplace">{{ITEM.label}}</td>
+<!--@each ITEM.cells-->
+<td class="mcell">{{CELL}}</td>
+<!--@endeach-->
+      </tr>
+<!--@endeach-->
+    </tbody>
+  </table>
+  <div class="mfoot" id="mfoot">{{foot}}</div>
+<!--@anim-->
+ {"sel":"#mxhead","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":1150,"easing":"ease-out"}},
+<!--@each rows-->
+ {"sel":"#mr{{I}}","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":540,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#mfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":3000,"easing":"ease-out"}}

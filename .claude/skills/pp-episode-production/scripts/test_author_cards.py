@@ -254,6 +254,107 @@ for name, card in (
     except Exception as e:                                        # noqa: BLE001
         FAIL.append((f"control: {name}", f"the guard fired on a good card: {e}"))
 
+# ---- 16. the MATRIX block — n columns x m rows, both axes labelled ------------
+# 🔴 EP15 C12 AND EP19 C12 WERE BOTH HAND-AUTHORED because no block drew a grid, and a
+# hand-authored page gets nothing for free: it must remember pp-anim.js or render_card
+# waits 60s on window.ppDuration and gives up silently, and autofit will not touch it.
+MATRIX_ARTICLE = ac.norm(
+    "Take each race in turn and award form points for the last three runs of each "
+    "horse. | Last start | 2nd-last start | 3rd-last start | | Win 9 pts | Win 6 pts | "
+    "Win 3 pts | | 2nd 6 pts | 2nd 4 pts | 2nd 2 pts | | 3rd 3 pts | 3rd 2 pts | "
+    "3rd 1 pt |")
+
+
+def matrix_card(**over):
+    c = {"id": "C12", "block": "matrix", "layout": "fullscreen", "job": "relate",
+         "eyebrow": "Twelve", "headline_display": "The Form Points",
+         "content": {
+             "columns": ["Last start", "2nd-last start", "3rd-last start"],
+             "rows": [{"label": "Win", "cells": ["9 pts", "6 pts", "3 pts"]},
+                      {"label": "2nd", "cells": ["6 pts", "4 pts", "2 pts"]},
+                      {"label": "3rd", "cells": ["3 pts", "2 pts", "1 pt"]}],
+             "foot": None},
+         "trace": {"columns": "| Last start | 2nd-last start | 3rd-last start |",
+                   "rows": "| Win 9 pts | Win 6 pts | Win 3 pts | | 2nd 6 pts | "
+                           "2nd 4 pts | 2nd 2 pts | | 3rd 3 pts | 3rd 2 pts | 3rd 1 pt |"}}
+    c["content"].update(over.pop("content", {}))
+    c.update(over)
+    return c
+
+
+def run_matrix(card):
+    blk = ac.load_block("matrix")
+    ac.validate(card, blk)
+    probs = ac.check_job(card) + ac.check_trace(card, MATRIX_ARTICLE)
+    if probs:
+        raise ac.Halt(probs[0])
+    return ac.render_card(card, blk, ac.load_frame("fullscreen"))
+
+
+try:
+    page = run_matrix(matrix_card())
+    cells = page.count('class="mcell"')
+    leftovers = [x for x in ("{{", "@each", "@endeach") if x in page]
+    if cells == 9 and not leftovers:
+        PASS.append(("control: a 3x3 matrix renders through the vocabulary",
+                     f"9 cells, both axes, no template leftovers"))
+    else:
+        FAIL.append(("control: a 3x3 matrix renders through the vocabulary",
+                     f"{cells} cells, leftovers {leftovers}"))
+except Exception as e:                                        # noqa: BLE001
+    FAIL.append(("control: a 3x3 matrix renders through the vocabulary", f"halted: {e}"))
+
+# THE RULE THAT MAKES IT WORTH A BLOCK. A short row does not look broken on the card —
+# it silently shifts every value one column left and states something the article never
+# said. EP19 C12's own note: "a viewer could not tell which figure belongs to which run".
+case("a row with fewer cells than there are columns halts",
+     lambda: run_matrix(matrix_card(content={
+         "rows": [{"label": "Win", "cells": ["9 pts", "6 pts", "3 pts"]},
+                  {"label": "2nd", "cells": ["6 pts", "4 pts"]},
+                  {"label": "3rd", "cells": ["3 pts", "2 pts", "1 pt"]}]})),
+     "shifts every value one column")
+
+# EVERY CELL IS A FIGURE AND MUST BE TRACEABLE. Before walk_values recursed into a
+# nested list, all nine were yielded as one LIST — which check_trace skips, because it
+# only looks at strings. The block would have shipped nine untraced numbers on a card
+# whose whole purpose is nine numbers, with every gate saying yes.
+try:
+    seen = [k for k, v in ac.walk_values(matrix_card()["content"])
+            if isinstance(v, str) and any(ch.isdigit() for ch in v)]
+    grid = [k for k in seen if ".cells[" in k]
+    (PASS if len(grid) == 9 else FAIL).append(
+        ("every one of the nine grid values is visible to trace-or-halt",
+         f"{len(grid)} cells walked: {grid[:3]}…" if len(grid) == 9 else
+         f"only {len(grid)} of 9 cells are walked — the rest escape the trace gate"))
+except Exception as e:                                        # noqa: BLE001
+    FAIL.append(("every one of the nine grid values is visible to trace-or-halt", str(e)))
+
+case("a cell figure with no traced sentence halts",
+     lambda: run_matrix(matrix_card(
+         content={"rows": [{"label": "Win", "cells": ["9 pts", "6 pts", "3 pts"]},
+                           {"label": "2nd", "cells": ["6 pts", "4 pts", "2 pts"]},
+                           {"label": "3rd", "cells": ["3 pts", "2 pts", "99 pts"]}]})),
+     "do NOT appear in its own traced sentence")
+
+# THE NESTED-EACH ENGINE IS LOAD-BEARING, and this is the control that proves it.
+# The old expansion was a single non-greedy regex: with a loop inside a loop, `(.*?)`
+# stops at the INNER <!--@endeach-->, so the outer region ends inside itself. Run that
+# old pattern over the real matrix template and it must produce a BROKEN page —
+# otherwise the depth-counting parser is not what is making this work.
+try:
+    import re as _re
+    blk = ac.load_block("matrix")
+    old = _re.sub(r"<!--@each (\w+)-->(.*?)<!--@endeach-->", lambda m: "",
+                  blk["markup"], flags=_re.S)
+    (PASS if "@endeach" in old or "{{ITEM" in old else FAIL).append(
+        ("control: the OLD one-level regex mangles a nested template",
+         "it leaves a stray @endeach / unexpanded {{ITEM}} — which is why a grid "
+         "could not be templated before"
+         if ("@endeach" in old or "{{ITEM" in old) else
+         "the old regex handled it cleanly, so the new parser proves nothing"))
+except Exception as e:                                        # noqa: BLE001
+    FAIL.append(("control: the OLD one-level regex mangles a nested template", str(e)))
+
 print("\nNEGATIVE TESTS — every guard must fire\n" + "=" * 74)
 for n, msg in PASS:
     print(f"  ✓ {n}\n      {msg[:110]}")

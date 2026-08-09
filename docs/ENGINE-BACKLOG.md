@@ -119,16 +119,46 @@ expected a hand tweak to a page still carrying the `PP-GENERATED` marker to surv
 while the marker itself says *"To take this page over by hand, delete this line."*
 Rewritten to assert the real contract rather than left red.
 
-## 📋 ALSO FOR THE BEFORE-EP20 BATCH — a `matrix` block for the card vocabulary
-**(Jodie, 9 Aug 2026: "it's the 2nd hand-authored table in 5 episodes, so it's worth
-doing — just not while we're finishing this one.")** EP15 C12 and EP19 C12 are both
-hand-authored because no block renders a MATRIX — n columns × m rows with both axes
-labelled. Every one is a halt, a page written by hand, and a page that must fit unaided
-(autofit only touches `PP-GENERATED` pages) and must remember to load `pp-anim.js`, or
-`render_card.py` waits 60s on `window.ppDuration` and gives up silently.
-**Note for whoever builds it:** `expand_each` handles ONE list of dicts; a matrix needs a
-list of rows each holding a list of cells, so the templating needs a nested each — that
-is the actual work, not the CSS.
+## ✅ BEFORE-EP20 #4 — LANDED. A `matrix` BLOCK, SO A GRID NEVER NEEDS HAND-AUTHORING.
+**(Jodie, 9 Aug 2026: "the 2nd hand-authored table in 5 episodes, so it's worth doing.")**
+EP15 C12 and EP19 C12 were both written by hand because no block drew *n* columns by
+*m* rows with BOTH AXES LABELLED. EP19 C12's own note is the argument: `steps` gives
+three rungs reading "9 / 6 / 3" with the column headings gone, so a viewer cannot tell
+which figure belongs to which run; `slate` caps at four cells against nine; `chips`
+flattens it into a row. And a hand-authored page gets NOTHING for free — it must
+remember `pp-anim.js`/`ppInit` or `render_card` waits 60s on `window.ppDuration` and
+gives up silently, and autofit will not touch it (no `PP-GENERATED` marker).
+
+**THE ACTUAL WORK WAS THE NESTED EACH, exactly as the note predicted.** `expand_each`
+was one non-greedy regex, so with a loop inside a loop `(.*?)` stopped at the INNER
+`<!--@endeach-->` and the outer region ended in the middle of itself. It is now a
+depth-counting parser; inside an item, `<!--@each ITEM.field-->` walks that item's own
+list with `{{CELL}}` and `{{J}}` — deliberately different tokens from `{{ITEM}}`/`{{I}}`
+rather than shadowing them.
+
+🔴 **AND A HOLE FOUND WHILE BUILDING IT, NOT AFTER.** `walk_values` did not recurse into
+a list held by an item, so `rows[].cells[]` — the grid's nine actual numbers — were
+yielded as a single LIST, which `check_trace` skips because it only inspects strings.
+**The block would have shipped nine untraced figures on a card whose entire purpose is
+nine figures, with every gate saying yes.** Fixed in the same commit.
+
+**THE ONE RULE A MATRIX HAS:** every row must have exactly as many cells as there are
+columns. A short row does not look broken — it silently shifts every value one column
+left and states something the article never said.
+
+📋 **Controls:** a short row halts; a cell figure with no traced sentence halts; all nine
+cells are proved visible to the trace walk; and the OLD one-level regex is run against
+the real template and must produce a MANGLED page — otherwise the new parser is not what
+is making this work.
+📌 **Regression, the strong kind:** every card of every episode on disk was re-rendered
+and compared with the page that shipped — **83/87 byte-identical, and the same 83/87 on
+the unmodified baseline**, so the rewrite changes nothing that already existed. (The
+four are EP13 pages predating the position rail's addition to the frame.) EP19's C12
+renders through the block identically to the hand-authored page and passes `card_check`.
+⚠️ **Noticed in passing, NOT fixed:** `write_autofit` removes the previous measured
+block but not the newline after it, so each pass leaves a blank line — EP19 C8 carries
+nine. Cosmetic, but it means a fitted page never equals its own freshly-rendered
+definition. Logged here rather than folded silently into an unrelated commit.
 
 ## 🔴 THE BOARD ASKS FOR WORDS THE MACHINE STILL OWES **(Jodie, 9 Aug 2026, on EP19)**
 > **A queued episode with NO SCRIPT YET shows the "YOUR TURN — WORDS" chip and the
