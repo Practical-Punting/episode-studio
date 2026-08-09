@@ -99,7 +99,7 @@ import preflight_episode_json                  # E26 — the config pre-flight (
 import script_fidelity                         # the drafting pass's own gate
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
-                       assert_capture_for_script)
+                       assert_capture_for_script, find_capture, SKILL_DIR)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -1394,6 +1394,31 @@ def _draft_watch(provider):
             # wherever one exists). EP01-EP16 are not drafted into.
             if (ep.get("script_doc_url") or "").strip():
                 continue
+            # THE CAPTURE STEP — the last hole in the hands-off chain (9 Aug 2026).
+            # EP19 sat queued with a perfectly good source_url on the row and no
+            # capture on disk, because `assert_capture_for_script` is a PRECONDITION
+            # and nothing CREATED one. A19 already says this stop is the studio's and
+            # not Jodie's; the honest conclusion is that the studio should do it.
+            #
+            # 🔴 IT PLACES A CAPTURE OR IT REFUSES — never a best-effort article of
+            # record. The capture is what script_fidelity, check_trace and the e-book
+            # body are measured against for the life of the episode, so a subtly wrong
+            # one does not fail: it redefines the truth and every downstream check then
+            # agrees with it. `capture_article` recognises the page or raises, and its
+            # refusal lands in the run log like any other studio-side stop.
+            if not find_capture(provider.pp, nn) and (ep.get("source_url") or "").strip():
+                try:
+                    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+                    import capture_article as cap
+                    dest, _txt = cap.build(ep["source_url"], nn, provider.pp, write=True)
+                    log(f"drafting pass: PP-EP{int(nn):02d} — captured the article from "
+                        f"its source_url -> {Path(dest).name}")
+                except Exception as e:                              # noqa: BLE001
+                    # RUN LOG ONLY (A19). A page we cannot read is the studio's
+                    # problem, and badging her queue with it would ask for something
+                    # nobody holding a browser can do.
+                    log(f"drafting pass: PP-EP{int(nn):02d} — could not capture the "
+                        f"article, so nothing was written: {e}")
             try:
                 capture = assert_capture_for_script(provider.pp, nn)
             except EngineFlag as f:
