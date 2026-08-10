@@ -44,6 +44,23 @@ import sys
 import urllib.request
 
 CONTAINER = '<div class="well-content"><div class="text">'
+# 🔴 THE TWO DIVS ARE NO LONGER ADJACENT, AND THE LITERAL BROKE ON EVERY RECENT PAGE.
+# (10 Aug 2026.) PP now embeds the finished YouTube episode on its own article page —
+# EP19's page carries an <iframe> for M6irQAag7uU, the video this studio published —
+# so `<div class="well-content"><div class="text">` stopped matching and the tool
+# refused EP17, EP18 and EP19 outright. Nothing about the article changed; something
+# was added ABOVE it, which is exactly what a page is allowed to do.
+#     So the container is matched STRUCTURALLY: the first `.text` inside
+# `.well-content`, whatever sits between them. A literal that assumes two tags touch is
+# a literal that breaks the first time anyone edits the page.
+CONTAINER_RE = re.compile(
+    r'<div class="well-content"[^>]*>.*?<div class="text"[^>]*>', re.S | re.I)
+
+
+def find_container(page):
+    """(end_of_opening_tags, start_of_container) or (None, None)."""
+    m = CONTAINER_RE.search(page)
+    return (m.end(), m.start()) if m else (None, None)
 FURNITURE = ("Recommended Article", "Sign up for Free Tips", "Next To Jump",
              "Buy Tips", "Insights into national thoroughbred racing")
 MIN_WORDS = 300
@@ -81,25 +98,67 @@ def table_to_md(tbl_html):
             + "\n".join("| " + " | ".join(r) + " |" for r in rows[1:]))
 
 
+def _container_end(frag):
+    """Offset of the `</div>` that closes the article container, or None.
+
+    DEPTH-COUNTED, because the article contains divs of its own and the FIRST `</div>`
+    would cut it off mid-sentence. `frag` starts immediately after the opening
+    `.well-content > .text`, so depth begins at 1.
+    """
+    depth = 1
+    for m in re.finditer(r"<div\b|</div\s*>", frag, re.I):
+        depth += 1 if m.group(0).lower().startswith("<div") else -1
+        if depth == 0:
+            return m.start()
+    return None
+
+
 def extract(page):
     """(body_markdown, byline, tables, repairs) or raise Unrecognised."""
-    if CONTAINER not in page:
+    start, _ = find_container(page)
+    if start is None:
         raise Unrecognised(
-            f"the article container {CONTAINER!r} is not on this page. Every PP article "
-            "captured so far uses it; this page is built differently, and guessing which "
-            "part of it is the article would put an invented article of record under the "
-            "whole episode.")
-    frag = page[page.index(CONTAINER):]
+            "the article container (a `.text` div inside `.well-content`) is not on this "
+            "page. Every PP article captured so far uses it; this page is built "
+            "differently, and guessing which part of it is the article would put an "
+            "invented article of record under the whole episode.")
+    frag = page[start:]
+
+    # ── WHERE THE ARTICLE ENDS ────────────────────────────────────────────────
+    #
+    # 🔴 THE BOUND IS THE CONTAINER'S OWN CLOSING TAG, not the byline. (EP20, 10 Aug
+    # 2026.) It used to REQUIRE a `By <Name>` byline and refuse the page without one:
+    #
+    #     "no byline of the form 'By <Name>' was found, so there is no reliable mark
+    #      for where the article ENDS."
+    #
+    # That is true of the a-z-of-betting features, which all sign off "By Mr Money".
+    # It is NOT true of the professional-punters pieces — the Bill Benter article
+    # carries no byline at all — and EP20 sat refused on every kick-on-submit tick.
+    #
+    # The container already says where the article ends: `.well-content > .text` is the
+    # article, and everything after its closing </div> is the site. Counting to that
+    # close is STRUCTURAL — it does not depend on the author having signed their name,
+    # and it is the same answer the byline gave on the pages that have one.
+    #
+    # THE BYLINE STAYS, as an EARLIER cut and as provenance. On an a-z page the sign-off
+    # sits inside the container, so cutting at the byline is still right and still what
+    # happens — this only changes what occurs when there ISN'T one. A page with no
+    # byline gets `byline = None`, and the capture says so plainly rather than inventing
+    # an author: the article of record must never claim a name the page does not give.
+    end = _container_end(frag)
+    if end is None:
+        raise Unrecognised(
+            "the article container never closes on this page, so there is no reliable "
+            "mark for where the article ENDS. Everything after the container is the "
+            "site's own furniture, and including it would put 'Next To Jump' inside the "
+            "article of record.")
+    frag = frag[:end]
 
     m = re.search(r"By\s+([A-Z][A-Za-z.'\- ]{2,40})\s*<", frag)
-    if not m:
-        raise Unrecognised(
-            "no byline of the form 'By <Name>' was found, so there is no reliable mark "
-            "for where the article ENDS. Everything after the byline on these pages is "
-            "the site's own furniture, and including it would put 'Next To Jump' inside "
-            "the article of record.")
-    byline = m.group(1).strip()
-    frag = frag[:m.start()]
+    byline = m.group(1).strip() if m else None
+    if m:
+        frag = frag[:m.start()]
 
     tables = re.findall(r"<table.*?</table>", frag, re.S | re.I)
     for i, t in enumerate(tables):
@@ -143,9 +202,10 @@ def extract(page):
     leaked = [f for f in FURNITURE if f in body]
     if leaked:
         raise Unrecognised(
-            f"site furniture reached the article text — {leaked}. The byline cut did not "
-            "hold on this page, so the boundary between the author and the site is not "
-            "where this reader thinks it is.")
+            f"site furniture reached the article text — {leaked}. The bound did not hold "
+            "on this page, so the boundary between the author and the site is not where "
+            "this reader thinks it is. (The bound is the container's closing tag, and "
+            "the byline when the page carries one — this page's article runs past both.)")
     if "@@" in body:
         raise Unrecognised("an internal marker survived into the body; the extraction "
                            "did not complete cleanly.")
@@ -225,8 +285,19 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
     standfirst = (mm.group(1).strip() if mm else "").strip()
     headline = (mm.group(2).strip() if mm else head_txt).strip()
 
-    foot = re.search(r"(PRACTICAL PUNTING[^<]{0,40})", page[page.index(CONTAINER):], re.I)
+    # 🔴 THE MASTHEAD IS ALL CAPS, AND `re.I` MADE IT SWALLOW PROSE. EP19's footer is
+    # "PRACTICAL PUNTING - MAY 2004"; the Benter page has no footer at all, and with
+    # re.I this matched the body sentence "Practical Punting writer counted 660
+    # Australian horse rac…" and printed it as the dateline. A capture that states a
+    # false provenance line is the same class of fault as a capture with furniture in
+    # it — episode.json's `source` quotes this.
+    #     It must also carry a DATE. A masthead without one is not a dateline, and
+    #     "" is the honest answer for a page that does not give one.
+    _, cstart = find_container(page)
+    foot = re.search(r"(PRACTICAL PUNTING[^<]{0,40})", page[cstart:])
     dateline = re.sub(r"\s+", " ", foot.group(1)).strip() if foot else ""
+    if dateline and not re.search(r"\d{4}", dateline):
+        dateline = ""
 
     print(f"\nheadline   : {headline!r}")
     print(f"standfirst : {standfirst!r}")
@@ -235,6 +306,22 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
     print(f"body       : {len(body.split()):,} words, {len(body):,} chars")
     print(f"tables kept: {len(tables)}")
     print(f"rogue '?' repaired: {len(repairs)} {repairs[:6]}")
+
+    # THE PAGE'S OWN AUTHORSHIP, STATED HONESTLY. A professional-punters piece carries
+    # no byline; the article of record must never claim a name the page does not give,
+    # because episode.json's `source` quotes this line as provenance.
+    by_line = (f"By {byline} — {dateline}" if byline
+               else f"{dateline}" if dateline
+               else "")
+    by_note = (f'cut at the byline **"By {byline}"**' if byline
+               else "bounded by the article container's own closing tag — **this page "
+                    "carries no byline**, which is normal for the professional-punters "
+                    "pieces and is why the bound is structural rather than textual")
+    author_note = (f"**Author: {byline}**, named in the article's own byline."
+                   if byline else
+                   "**No author is named on this page.** The professional-punters pieces "
+                   "are unsigned; nothing here invents one, and episode.json must not "
+                   "either.")
 
     rep = ("**Zero rogue `?` on this page** — checked, not assumed."
            if not repairs else
@@ -248,10 +335,13 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
            "Flattened they read as unreadable prose and the figures stop tracing "
            "(the EP16 lesson).")
 
+    # An empty standfirst rendered as a bare `****`. Not every page has one, and a
+    # header full of empty markup is a header nobody reads.
+    stand_line = f"**{standfirst}**\n" if standfirst else ""
+
     text = f"""# {headline}
 
-**{standfirst}**
-By {byline} — {dateline}
+{stand_line}{by_line}
 
 Source: {url}
 Captured {dt.date.today().strftime('%-d %B %Y') if sys.platform != 'win32' else dt.date.today().strftime('%d %B %Y').lstrip('0')} by `capture_article.py`.
@@ -273,7 +363,7 @@ without error.** Verified against the raw bytes, not through a reader.
 
 ## WHERE THE ARTICLE ENDS
 
-The body is cut at the byline **"By {byline}"**. Everything after it on these pages is
+The body is {by_note}. Everything after it on these pages is
 the site — Recommended Article, Sign up for Free Tips, Next To Jump, Buy Tips — and the
 capture refuses to place itself if any of that reaches the article text.
 

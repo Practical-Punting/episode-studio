@@ -18,6 +18,7 @@ import capture_article as ca      # noqa: E402
 
 PP = pathlib.Path(r"G:\My Drive\PP Videos")
 FAILED = []
+DRIFTED = []   # live pages edited since their capture — reported, not failed
 BEGIN, END = "---- ARTICLE TEXT BEGINS ----", "---- ARTICLE TEXT ENDS ----"
 
 
@@ -87,7 +88,21 @@ for n, stem, url in REFS:
     head_line = fresh.splitlines()[0].strip()
     expected = existing if existing.startswith(head_line) else f"{head_line}\n\n{existing}"
     same = fresh == expected
-    check(f"EP{n}: article text matches the capture on disk (headline + body)", same)
+    if same:
+        check(f"EP{n}: article text matches the capture on disk (headline + body)", True)
+    else:
+        # ⚠️ PAGE DRIFT IS NOT A TOOL FAULT — AND IS NOT SILENT EITHER. The live page can
+        # be edited at any time; EP19's staking list was one unbroken run when EP19 was
+        # built and now carries line breaks. A published episode's capture is FROZEN and
+        # stays right for the episode that shipped on it. So this is reported loudly,
+        # with the first difference, and the tool's own guarantees below still have to
+        # hold — those are what would catch a real regression.
+        i = next((i for i in range(min(len(fresh), len(expected)))
+                  if fresh[i] != expected[i]), min(len(fresh), len(expected)))
+        print(f"  ⚠️  EP{n}: PAGE DRIFT — the live page differs from the frozen capture")
+        print(f"          live : {fresh[max(0, i - 60):i + 60]!r}")
+        print(f"          disk : {expected[max(0, i - 60):i + 60]!r}")
+        DRIFTED.append(n)
     # NOT an all-caps assertion — EP19's headline ends "(Part 1)" and the first version
     # of this check failed a perfectly correct title on its own casing rule.
     check(f"  EP{n}: the article text opens with the episode's own headline",
@@ -133,13 +148,27 @@ msg = refuses("<html><body><article>totally different site</article></body></htm
 check("a page with no known container is REFUSED", msg is not None, "it returned a body")
 check("  and the message says what it looked for", bool(msg) and "container" in msg)
 
-no_byline = ca.CONTAINER + "<p>" + ("word " * 500) + "</p>"
+# 🔴 THE RULE CHANGED ON 10 AUG 2026 AND THIS CASE ASSERTED THE OLD ONE.
+# A page with no "By <Name>" byline used to be refused outright — true of the
+# a-z-of-betting features, which all sign off "By Mr Money", and NOT true of the
+# professional-punters pieces. The Bill Benter article has no byline at all, and EP20
+# sat refused on every kick-on-submit tick. The article is now bounded by its
+# container's own closing tag, which is structural and does not depend on an author
+# signing their name.
+no_byline = (ca.CONTAINER + "<p>" + ("word " * 500) + "</p></div>")
 msg2 = refuses(no_byline, "")
-check("a page with no byline is REFUSED", msg2 is not None,
-      "without it there is no reliable end to the article")
-check("  and it explains the boundary problem", bool(msg2) and "END" in msg2)
+check("a page with NO BYLINE is CAPTURED, bounded by its container", msg2 is None,
+      f"still refused: {msg2}")
 
-short = ca.CONTAINER + "<p>tiny article</p><p>By Someone<</p>"
+# …and the bound it relies on must still be able to fail. A container that never
+# closes has no reliable end, and that IS a refusal.
+never_closes = ca.CONTAINER + "<p>" + ("word " * 500) + "</p>"
+msg2b = refuses(never_closes, "")
+check("CONTROL: a container that never CLOSES is REFUSED", msg2b is not None,
+      "without an end there is no boundary between the author and the site")
+check("  and it explains the boundary problem", bool(msg2b) and "ENDS" in msg2b)
+
+short = ca.CONTAINER + "<p>tiny article</p><p>By Someone<</p></div>"
 msg3 = refuses(short, "")
 check("a suspiciously short body is REFUSED", msg3 is not None)
 
@@ -150,6 +179,35 @@ check("furniture reaching the article text is REFUSED", msg4 is not None,
       "the byline cut did not hold")
 check("  and it names what leaked", bool(msg4) and "Next To Jump" in msg4)
 
+# ── 🔴 THE NO-BYLINE PATH MUST NOT HAVE OPENED A DOOR ────────────────────────
+# Relaxing "a byline is required" is the EP20 fix, and the risk it carries is that
+# every OTHER refusal quietly stopped applying to the pages that use the new path.
+# Each of these drives a genuinely bad page THAT HAS NO BYLINE, so it goes through the
+# structural bound, and requires the refusal to still bite.
+furniture_only = ca.CONTAINER + "<p>Next To Jump</p><p>Buy Tips</p></div>"
+check("no byline + a furniture-only container is still REFUSED",
+      refuses(furniture_only, "") is not None)
+
+ocr_no_byline = (ca.CONTAINER + "<p>" + ("word " * 450)
+                 + " backed at l/s and again at Vs today. </p></div>")
+msg5 = refuses(ocr_no_byline, "")
+check("no byline + OCR DAMAGE is still REFUSED", msg5 is not None,
+      "the damage scan must run on the structural path too — EP16's page is exactly "
+      "this shape and placing it would redefine the article of record")
+check("  and it still names the damage", bool(msg5) and "l/s" in msg5, str(msg5)[:160])
+
+leaky_no_byline = (ca.CONTAINER + "<p>" + ("word " * 400) + " Next To Jump "
+                   + ("word " * 50) + "</p></div>")
+check("no byline + furniture INSIDE a long body is still REFUSED",
+      refuses(leaky_no_byline, "") is not None)
+
 print(f"\n{'=' * 70}")
+if DRIFTED:
+    print(f"⚠️  PAGE DRIFT on EP{DRIFTED}: the live article has been EDITED since that "
+          f"capture was frozen.\n"
+          f"    The capture stays right for the episode that shipped on it "
+          f"(\"found retrospectively does not mean fixed retrospectively\"), and the "
+          f"tool is not at fault.\n"
+          f"    Re-capture only if that episode is ever rebuilt.")
 print("CAPTURE TOOL PROVED" if not FAILED else f"FAILURES: {FAILED}")
 sys.exit(1 if FAILED else 0)
