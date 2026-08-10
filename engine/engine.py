@@ -1357,7 +1357,7 @@ def acquire():
 # Same shape as check_page_images (ask the PAGE what images it needs) and
 # test_preflight_build_written (grep the CODE for what the build writes).
 # See CLAUDE.md fault #7.
-SKILL_SCRIPTS = (ENGINE_DIR.parent / ".claude/skills").resolve()
+REPO_DIR = ENGINE_DIR.parent.resolve()
 
 
 def _watched_files() -> set[Path]:
@@ -1368,6 +1368,16 @@ def _watched_files() -> set[Path]:
     author_ebook, qc_episode, derive_card_timings — and none of them lived in
     ENGINE_DIR, so a change to any of them never triggered the stale-code exit. The
     running engine kept them in memory indefinitely.
+
+    THE BOUNDARY IS THE REPO, NOT A LIST OF FOLDERS. The first fix named engine/ and
+    .claude/skills/ explicitly, which is a list somebody must remember to extend the
+    day a module moves or a new directory appears — the same shape as every stale list
+    this studio has been bitten by. Anything imported FROM THIS REPO is code the engine
+    runs, and that is the whole rule.
+        📌 SCRIPTS RUN AS SUBPROCESSES NEED NO WATCHING and are deliberately not here:
+    render_cards_batch, card_check, author_cards and the rest are a fresh interpreter
+    every time, so they cannot go stale. Staleness is only possible for a module held
+    in THIS process's memory, which is exactly what sys.modules lists.
         It bit immediately: capture_article was fixed and pushed, and EP20 went on
     being refused every 25 seconds with the OLD message — "no byline of the form
     'By <Name>' was found" — from a module that no longer said that. The board looked
@@ -1392,7 +1402,7 @@ def _watched_files() -> set[Path]:
             continue
         if p.suffix != ".py":
             continue
-        if p.parent == ENGINE_DIR or p.is_relative_to(SKILL_SCRIPTS):
+        if p.is_relative_to(REPO_DIR):
             files.add(p)
     return files
 
@@ -1528,6 +1538,94 @@ def _approved_packaging_text(ep) -> str:
         # the hook usually carries that already — this is the belt to its braces.
         bits.append(f"episode {n}")
     return " \n ".join(b for b in bits if b.strip())
+
+
+STUCK_AFTER = 3          # consecutive failures of one task before the board is told
+
+
+def _failure_ledger(d):
+    return _draft_ledger_path(d).with_name(".task-failures.json")
+
+
+def _note_failure(d, task: str, reason: str) -> int:
+    """Count a CONSECUTIVE failure of `task`, and return the new count.
+
+    🔴 THE SILENT FOREVER-RETRY, AND WHY THIS EXISTS. (Jodie, 11 Aug 2026, from EP20.)
+    A studio-side stop went to the run log and nowhere else — A19: "a page we cannot
+    read is the studio's problem, and badging her queue with it would ask for something
+    nobody holding a browser can do." Correct for ONE failure. EP20 hit it every
+    twenty-five seconds for hours: the capture refused, the kick-on-submit fired again,
+    the capture refused again, and the board showed a serene "Writing the script…" the
+    whole time.
+
+    ⚠️ A19 IS NOT BEING OVERTURNED, IT IS BEING BOUNDED. Its point is that Jodie should
+    not be handed work she cannot do. But an episode that will never progress is worse
+    INVISIBLE than badged: she loses nothing by not being told once, and she loses the
+    episode by never being told. So the first couple of failures stay in the run log,
+    and a task that keeps failing says so — plainly, with the real reason, and saying
+    whose job the fix is.
+
+    On disk beside the draft ledger, so it survives a restart: a counter that resets
+    when the process does is a counter that never reaches its bound.
+    """
+    p = _failure_ledger(d)
+    try:
+        book = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:                                                 # noqa: BLE001
+        book = {}
+    entry = book.get(task) or {}
+    n = int(entry.get("consecutive", 0)) + 1
+    book[task] = {"consecutive": n,
+                  "last_reason": str(reason)[:600],
+                  "last_at": datetime.now(timezone.utc).isoformat()}
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(book, indent=2) + "\n", encoding="utf-8", newline="\n")
+    except OSError:
+        pass                      # a counter we cannot write is not worth a crash
+    return n
+
+
+def _clear_failures(d, task: str) -> None:
+    """It worked. CONSECUTIVE means consecutive — a success resets the count."""
+    p = _failure_ledger(d)
+    try:
+        book = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:                                                 # noqa: BLE001
+        return
+    if book.pop(task, None) is not None:
+        try:
+            p.write_text(json.dumps(book, indent=2) + "\n", encoding="utf-8",
+                         newline="\n")
+        except OSError:
+            pass
+
+
+def _flag_stuck(ep, d, task: str, what: str, reason: str, whose: str) -> bool:
+    """After STUCK_AFTER consecutive failures, tell the board. Returns True if flagged.
+
+    The message is the shape Jodie asked for — "I couldn't do X, here's why" — and it
+    says whose job the fix is, because most of these are the studio's and she should
+    not be left wondering what she is meant to click.
+    """
+    n = _note_failure(d, task, reason)
+    if n < STUCK_AFTER:
+        return False
+    try:
+        rail.flag_needs_look(
+            ep["id"],
+            f"I could not {what}, and I have now tried {n} times. I have stopped "
+            f"retrying so this does not sit here looking busy.\n\n"
+            f"WHY IT FAILED (the last attempt, verbatim):\n{str(reason)[:700]}\n\n"
+            f"{whose}\n"
+            f"Nothing has been written and nothing has been spent. Clearing this flag "
+            f"makes the studio try again.")
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not raise the stuck flag: {e})")
+        return False
+    log(f"   PP-EP{int(ep.get('ep_number') or 0):02d}: {task} has failed {n} times in a "
+        f"row — flagged on the board and no longer retrying")
+    return True
 
 
 def _draft_attempts(d) -> int:
@@ -1671,14 +1769,26 @@ def _draft_watch(provider):
                     sys.path.insert(0, str(SKILL_DIR / "scripts"))
                     import capture_article as cap
                     dest, _txt = cap.build(ep["source_url"], nn, provider.pp, write=True)
+                    _clear_failures(provider.dir(ep), "capture")
                     log(f"drafting pass: PP-EP{int(nn):02d} — captured the article from "
                         f"its source_url -> {Path(dest).name}")
                 except Exception as e:                              # noqa: BLE001
-                    # RUN LOG ONLY (A19). A page we cannot read is the studio's
-                    # problem, and badging her queue with it would ask for something
-                    # nobody holding a browser can do.
+                    # THE RUN LOG FIRST, THE BOARD IF IT KEEPS FAILING. A19 says a page
+                    # we cannot read is the studio's problem and Jodie should not be
+                    # handed work she cannot do — right for one failure, wrong for a
+                    # hundred. EP20 refused every 25 seconds for hours behind a serene
+                    # "Writing the script…". See _note_failure for the full reasoning.
                     log(f"drafting pass: PP-EP{int(nn):02d} — could not capture the "
                         f"article, so nothing was written: {e}")
+                    if _flag_stuck(
+                            ep, provider.dir(ep), "capture",
+                            "capture this episode's article from its source_url",
+                            e,
+                            "THIS ONE IS THE STUDIO'S TO FIX, not yours — the page is "
+                            "laid out in a way the capture tool does not recognise. It "
+                            "is on the board because an episode that cannot start "
+                            "should not look like one that is working."):
+                        continue
             try:
                 capture = assert_capture_for_script(provider.pp, nn)
             except EngineFlag as f:
@@ -1694,6 +1804,32 @@ def _draft_watch(provider):
                     "spent on it. This one is the studio's to look at — the run "
                     f"log above says what went wrong each time, and clearing "
                     f"{_DRAFT_LEDGER} in the episode folder is what starts it again.")
+                # 🔴 AND SAY SO ON THE BOARD, ONCE. The bound stops the spending, which
+                # is what it is for — but until now it also stopped the TELLING: the
+                # episode sat queued for ever, the card said "Writing the script…", and
+                # the only record was a run-log line nobody is watching. An episode that
+                # has given up must not be indistinguishable from one that is working.
+                #     Guarded so it flags ONCE rather than on every pass: needs_look is
+                # already set on the second visit, and this branch is reached every
+                # 900s until a human acts.
+                if not ep.get("needs_look"):
+                    last = ""
+                    try:
+                        last = json.loads(_draft_ledger_path(d).read_text(
+                            encoding="utf-8")).get("note", "")
+                    except Exception:                                 # noqa: BLE001
+                        pass
+                    rail.flag_needs_look(
+                        ep["id"],
+                        f"I could not write this episode's script. I tried "
+                        f"{done} times and have stopped, so nothing more is spent.\n\n"
+                        f"THE LAST THING I WAS DOING: {last or 'commissioning the script'}\n"
+                        f"The run log for this episode says what went wrong on each "
+                        f"attempt.\n\n"
+                        f"THIS ONE IS THE STUDIO'S TO SORT OUT, not yours. It is on the "
+                        f"board because an episode that has given up should not look "
+                        f"like one that is still working. Clearing this flag does NOT "
+                        f"restart it — the attempt ledger does that.")
                 continue
 
             n = _record_draft_attempt(d, "commissioning the script")

@@ -152,7 +152,18 @@ function hasWordsToRead(ep) {
 function wordsGatePending(ep) {
   return ep.status === "queued" && !gatePassed(ep) && hasWordsToRead(ep);
 }
-/* Queued, ungated, and nothing written yet — the machine's turn, not hers. */
+/* Queued, ungated, and nothing written yet — the machine's turn, not hers.
+ *
+ * 📌 A RAISED FLAG ALREADY OUTRANKS THIS, in two places: the chip renders
+ * `nl ? "Needs a look" : st.label`, and stageLine() checks needs_look before any step
+ * label. So when the studio gives up after three failures (11 Aug 2026) and raises a
+ * real flag, the card stops claiming work is happening without this function knowing
+ * anything about it.
+ *     A `&& !ep.needs_look` clause was added here and then REMOVED, because a control
+ * showed it changed nothing — and a clause that looks load-bearing and is not is how
+ * the next person misreads which layer owns a rule. The property is pinned by a
+ * behavioural case in test_board_words_chip instead, so a future refactor of either
+ * layer still has to keep it true. */
 function studioIsWriting(ep) {
   return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep);
 }

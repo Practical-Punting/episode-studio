@@ -77,6 +77,12 @@ ROWS = [
     row(21, script_snapshot="Gordon says something."),
     # an older episode whose words live in a Doc — also her turn (A5)
     row(22, script_doc_url="https://docs.google.com/document/d/x"),
+    # 🔴 THE STUDIO HAS GIVEN UP: queued, no script, AND FLAGGED. "Writing the
+    # script…" here would be a worse lie than the chip it replaced — it says there
+    # is nothing to do while nothing is happening. (11 Aug 2026.)
+    row(23, needs_look=True,
+        needs_look_message="I could not capture this episode's article, and I have "
+                           "now tried 3 times. I have stopped retrying."),
 ]
 
 
@@ -133,7 +139,7 @@ def render_and_read():
             pg.wait_for_timeout(2000)
             return pg.evaluate("""() => {
               const out = {};
-              for (const n of [20, 21, 22]) {
+              for (const n of [20, 21, 22, 23]) {
                 const card = document.querySelector(`[data-card$="id${n}"], [data-card="id${n}"]`)
                           || [...document.querySelectorAll('article')].find(
                                a => a.textContent.includes('PP-EP' + n));
@@ -191,6 +197,29 @@ if e20 and e21 and e22:
     case("CONTROL: an episode whose words live in a Doc still says 'Your turn'",
          "Your turn — words" in e22["text"],
          f"A5 — a Doc keeps its transport: {e22['text'][:200]}")
+
+
+# ── A STUDIO THAT HAS GIVEN UP MUST NOT LOOK BUSY ────────────────────────────
+# 🔴 THE SECOND HALF OF THE SAME LESSON. Replacing a false "YOUR TURN" with a false
+# "the studio is working" would be a worse trade: a turn chip at least makes her look.
+# When the studio has failed the same task three times it raises a real flag and STOPS
+# retrying, and the card must stop claiming that work is happening.
+#     📌 THE BOARD ALREADY DOES THIS, in the chip (`nl ? "Needs a look" : st.label`) and
+# again in stageLine(). A `&& !ep.needs_look` clause was added to studioIsWriting() and
+# then removed once a control showed it changed nothing. These cases stay: they pin the
+# PROPERTY rather than one implementation of it, so a refactor of either layer still has
+# to keep a given-up episode from looking busy.
+e23 = seen.get("23")
+if e23:
+    case("a FLAGGED script-less episode does NOT claim the studio is writing",
+         "Writing the script" not in e23["text"],
+         f"it still says work is happening while nothing is: {e23['text'][:200]}")
+    case("  …it says it needs a look", "needs a look" in e23["text"].lower(),
+         e23["text"][:220])
+    case("  …and it still does not badge her with a WORDS turn",
+         "Your turn — words" not in e23["text"], e23["text"][:200])
+else:
+    case("the flagged episode rendered at all", False, "EP23 card not found")
 
 print(f"\nwords chip: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

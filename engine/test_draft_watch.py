@@ -63,6 +63,7 @@ class Rail:
         self.seated = []
         self.seat_returns = seat_returns
         self.forbidden = []
+        self.flagged = []
 
     def list_queued(self):
         return list(self.queued)
@@ -88,8 +89,12 @@ class Rail:
     def set_fields(self, *a, **k):
         self._no("set_fields")
 
-    def flag_needs_look(self, *a, **k):
-        self._no("flag_needs_look")
+    def flag_needs_look(self, id, message):
+        # NO LONGER A FAULT — it is BOUNDED. A19 forbade this pass from badging Jodie's
+        # queue at all; from 11 Aug 2026 it may, but only after repeated failure of the
+        # same task. So it is recorded rather than refused, and the cases assert WHEN.
+        self.flagged.append((id, message))
+        return {"id": id}
 
     def reclaim_stale(self, *a, **k):
         self._no("reclaim_stale")
@@ -243,7 +248,15 @@ def main():                                                            # noqa: C
     # thing it guards is a guard that gets deleted. So it reads the CALLS, from the
     # syntax tree: prose cannot trip it and a real call cannot hide from it.
     calls = _calls_made(HERE / "engine.py", "_draft_watch")
-    for forbidden in ("claim_next", "claim", "update_status", "flag_needs_look",
+    # ⚠️ `flag_needs_look` CAME OFF THIS LIST ON 11 AUG 2026, and the rule it enforced
+    # was BOUNDED rather than dropped. A19 said this pass may never badge Jodie's queue,
+    # because every stop it produces is the studio's. That is right for ONE failure and
+    # wrong for a hundred: EP20's capture refused every twenty-five seconds for hours
+    # while the board showed a serene "Writing the script…". The new rule is that it may
+    # flag only after REPEATED failure, and the behavioural cases below hold it to that —
+    # one failure must still be silent. An AST ban cannot express "after three", so the
+    # proof moved from the syntax tree to the behaviour, which is where it belongs.
+    for forbidden in ("claim_next", "claim", "update_status",
                       "reclaim_stale", "release", "delete", "set_fields",
                       "checkpoint", "progress"):
         check(f"  it never CALLS {forbidden}()", forbidden not in calls,
@@ -434,6 +447,60 @@ def main():                                                            # noqa: C
     run_pass(Rail([episode(18)]), gp)
     check("the ledger is gone after a successful seat",
           not engine._draft_ledger_path(gp.dir({"ep_number": 18})).exists())
+
+    # ── A TASK THAT KEEPS FAILING SAYS SO. ONE THAT FAILS ONCE DOES NOT. ─────────
+    #
+    # 🔴 EP20, 10-11 Aug 2026. The capture refused, the kick-on-submit fired again
+    # twenty-five seconds later, it refused again — for hours — and the board showed
+    # "Writing the script… no action needed yet" the whole time. Every refusal went to
+    # the run log and nowhere else, under A19: "a page we cannot read is the studio's
+    # problem, and badging her queue with it would ask for something nobody holding a
+    # browser can do."
+    #
+    # A19 is bounded, not overturned. Jodie loses nothing by not being told ONCE; she
+    # loses the episode by never being told. So: quiet at first, then plain.
+    print("\n-- a task that keeps failing raises a REAL flag; one failure does not --")
+    ppf = pp_tree()                      # no capture on disk -> capture is attempted
+    provf = Provider(ppf)
+    row = episode(21, source_url="https://example.invalid/unreadable")
+
+    import capture_article as _cap_mod   # noqa: F401  (imported by the pass itself)
+    prev_build = _cap_mod.build
+
+    def always_refuses(url, n, pp, write=False):
+        raise _cap_mod.Unrecognised("the article container is not on this page")
+
+    _cap_mod.build = always_refuses
+    try:
+        rails = []
+        for i in range(1, engine.STUCK_AFTER + 1):
+            rr = Rail([episode(21, source_url="https://example.invalid/unreadable")])
+            run_pass(rr, provf)
+            rails.append(rr)
+            if i < engine.STUCK_AFTER:
+                check(f"  failure {i} of {engine.STUCK_AFTER}: still SILENT, run log only",
+                      not rr.flagged,
+                      f"it badged her queue on failure {i}: {rr.flagged}")
+        last = rails[-1]
+        check(f"  failure {engine.STUCK_AFTER}: the board is TOLD", bool(last.flagged),
+              "the pass gave up quietly again — an episode that cannot start must not "
+              "look like one that is working")
+        msg = last.flagged[0][1] if last.flagged else ""
+        check("    and it says what it could not do", "could not capture" in msg, msg[:160])
+        check("    and gives the real reason back", "container is not on this page" in msg,
+              msg[:200])
+        check("    and says whose job the fix is", "STUDIO'S TO FIX" in msg, msg[:200])
+        check("    and says nothing was spent", "nothing has been spent" in msg.lower(),
+              msg[:200])
+
+        # …and a success wipes the slate: CONSECUTIVE has to mean consecutive.
+        engine._clear_failures(provf.dir({"ep_number": 21}), "capture")
+        rr = Rail([episode(21, source_url="https://example.invalid/unreadable")])
+        run_pass(rr, provf)
+        check("  a success resets the count — the next failure is silent again",
+              not rr.flagged, f"it flagged immediately after a reset: {rr.flagged}")
+    finally:
+        _cap_mod.build = prev_build
 
     print("\n-- the human gate is untouched --")
     check("claim_next still requires both halves of the Script Gate",
