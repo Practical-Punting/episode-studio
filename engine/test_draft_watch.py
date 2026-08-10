@@ -370,9 +370,17 @@ def main():                                                            # noqa: C
     vi = src_c.split("def verdict_instructions")[1].split("\ndef ")[0]
     check("  verdict_instructions() reads VERDICT_SCHEMA['required']",
           "VERDICT_SCHEMA['required']" in vi or 'VERDICT_SCHEMA["required"]' in vi)
-    check("  and every OTHER call site uses the same text",
-          psrc_count(HERE / "providers.py", "com.verdict_instructions()") == 4,
-          f"{psrc_count(HERE / 'providers.py', 'com.verdict_instructions()')} call sites")
+    # 📌 DERIVED, NOT COUNTED. This used to assert `== 4`, and adding a fifth
+    # commission (the cover re-brief, 11 Aug 2026) turned it red for doing the right
+    # thing — the new call site DID use the shared text. A magic number cannot tell
+    # "someone hand-rolled their own instructions" from "the file grew", which is the
+    # only thing worth knowing here. Both counts move together or this fails.
+    _n_com = psrc_count(HERE / "providers.py", "com.commission(")
+    _n_vi = psrc_count(HERE / "providers.py", "com.verdict_instructions()")
+    check("  and every OTHER call site uses the same text", _n_com == _n_vi,
+          f"{_n_com} commissions but {_n_vi} use the shared verdict text — one of "
+          f"them has hand-rolled its own, which is how the schema and the brief "
+          f"drifted apart in the first place")
 
     print("\n-- 🔴 THE FIDELITY GATE, AS WIRED: A BAD FIGURE IS NOT SEATED --")
     # The module has its own suite. This proves the ENGINE runs it, on the way

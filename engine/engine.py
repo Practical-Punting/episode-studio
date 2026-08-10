@@ -816,14 +816,21 @@ def step_covers_ab(ctx):
 
 
 def _open_a_new_cover_round(ctx, row):
-    """Record the rejection, archive the pair, and open the next round. SPENDS NOTHING.
+    """Record the rejection, archive the pair, open the next round — AND MAKE THE PAIR.
 
-    Everything here is bookkeeping. The new pictures arrive when the STUDIO writes
-    fresh prompts into episode.json — a human decision, which is the whole point of
-    Option B: "automation eats chores, never decisions." A mechanically-jittered prompt
-    would be a probabilistic dodge of a hash collision, and when it failed it would fail
-    QUIETLY, re-offering rejected pictures as fresh ones. That is the EP15 shape exactly,
-    re-armed and reachable from a button.
+    ⚠️ THIS SPENDS. Two 2k stills per round. It used to spend nothing, and the docstring
+    here argued that was right: the new pictures would arrive "when the STUDIO writes
+    fresh prompts into episode.json — a human decision." That reasoning was half sound
+    and wholly broken in practice. Nobody was ever going to hand-edit episode.json while
+    she waited, so the button recorded a wish and answered it never. EP20 hung at a board
+    showing the pictures she had just rejected.
+
+    The real objection was never to REGENERATING — it was to JITTERING: nudging the old
+    prompt until the sha moved, which is a probabilistic dodge of a hash collision that
+    fails quietly by re-offering rejected pictures as fresh ones. That is the EP15 shape.
+    So the decision is still made by a writer, not by a random seed: `regenerate_covers`
+    commissions a genuine re-brief FROM HER NOTE, and REFUSES prompts that came back
+    unchanged. Automation eats the chore; her words still make the decision.
     """
     rnd = int(row.get("cover_round") or 1)
     history = list(row.get("cover_rounds") or [])
@@ -849,6 +856,48 @@ def _open_a_new_cover_round(ctx, row):
         "cover_more_requested_at": None,   # consumed; the button is live again
         "cover_more_note": None,
     })
+
+    # ── AND NOW ACTUALLY MAKE THE NEW PAIR ────────────────────────────────────
+    #
+    # 🔴 THIS IS WHAT WAS MISSING, AND IT HUNG EP20. Opening the round advanced the
+    # counter, archived the old pair and cleared the request — and then nothing
+    # generated anything. `covers_ab` had already run in the gens batch and never runs
+    # again, so the board went on showing the SAME REJECTED COVERS and waited for a pick
+    # that was never coming. Jodie sat on it for ten minutes with no sign anything was
+    # wrong. A button that records a wish is not a button that answers it.
+    #
+    # ⚠️ IT SAYS IT IS WORKING BEFORE IT STARTS. This takes minutes — a writer re-briefs
+    # the prompts, then two 2k stills are generated — and a silent gap here is the same
+    # fault in a smaller window.
+    rail.progress(ctx.id, "Making fresh covers from your notes — a minute or two", 33)
+    set_step_label(ctx, "Making fresh covers from your notes. You can still pick one of "
+                        "the earlier pairs while this runs.")
+    try:
+        # 📌 THE ROUND IS PASSED EXPLICITLY, not read back off the rail. The publish path
+        # is versioned BY THE ROUND (`cover-A-r2.png`), and `ep_set` falls back to the
+        # STALE row if the update returns nothing — which would silently write round 2
+        # to round 1's bare path and overwrite the image the archived a_url points at.
+        a_url, b_url = ctx.provider.regenerate_covers(
+            {**ctx.ep, "cover_round": rnd + 1}, note, history)
+    except Exception as e:                                            # noqa: BLE001
+        # NEVER HANG. The old pair is still on the board and still pickable, so this is
+        # not an emergency — but she asked for something and must be told it did not
+        # happen, rather than waiting on covers that are not coming.
+        log(f"   cover round {rnd + 1}: could not generate a fresh pair — {e}")
+        rail.flag_needs_look(
+            ctx.id,
+            f"I could not make the fresh covers you asked for.\n\n"
+            f"WHY:\n{str(e)[:700]}\n\n"
+            f"The covers already on the board are still there and still yours to pick — "
+            f"nothing has been lost. This one is the studio's to sort out. Clearing this "
+            f"flag lets the build carry on with the covers you have.")
+        rail.progress(ctx.id, "Waiting on you — pick a cover (A or B)", 33)
+        return
+    ctx.ep_set({"cover_a_url": a_url, "cover_b_url": b_url})
+    rail.progress(ctx.id, "Waiting on you — pick a cover (A or B)", 33)
+    set_step_label(ctx, "")
+    log(f"   cover round {rnd + 1} is on the board — a fresh pair, written from her "
+        f"note rather than jittered")
     # A GENTLE, NON-BLOCKING NUDGE — never a halt. After a few rounds it is worth
     # saying out loud that the brief may be the problem rather than the pictures, but
     # nothing about that is Jodie's fault and nothing should stop because of it.

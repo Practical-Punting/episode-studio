@@ -1436,6 +1436,92 @@ class RealProvider:
             shutil.copyfile(active, a)
         return a, b, active
 
+    def _commission_cover_prompts(self, ep, d: Path, note: str, rejected=()):
+        """Write TWO NEW hero prompts from Jodie's note, and put them in episode.json.
+
+        The rejected prompts are kept as `_rejected_hero_*_prompt` — deliberately, and
+        for a mechanical reason as well as a record-keeping one: the hero ledger is
+        keyed on slot + prompt sha (E16), so a later prompt that drifted back towards a
+        rejected one would silently re-serve a picture she has already turned down.
+        """
+        import commission as com
+        epj_path = d / "docs/episode.json"
+        epj = json.loads(epj_path.read_text(encoding="utf-8"))
+        cover = epj.setdefault("cover", {})
+        old_a, old_b = cover.get("hero_a_prompt"), cover.get("hero_b_prompt")
+        rnd = int((ep or {}).get("cover_round") or 1)
+
+        capture = find_capture(self.pp, ep["ep_number"])
+        prior = "\n".join(
+            f"  round {r.get('round')}: {r.get('note') or '(no note given)'}"
+            for r in (rejected or []) if isinstance(r, dict))
+
+        prompt = (
+            f"Write TWO NEW cover-hero image prompts for this episode, round {rnd}.\n\n"
+            f"WHY YOU ARE BEING ASKED. The previous pair was REJECTED BY JODIE. This is "
+            f"not a variation exercise: if the direction was wrong, a re-worded version "
+            f"of the wrong direction is still wrong. Read what she asked for and answer "
+            f"THAT.\n\n"
+            f"WHAT SHE SAID THIS ROUND:\n  {note or '(no note given)'}\n\n"
+            + (f"WHAT SHE SAID IN EARLIER ROUNDS — her notes COMPOUND, so honour all of "
+               f"them:\n{prior}\n\n" if prior else "")
+            + f"THE PROMPTS SHE TURNED DOWN, so you do not drift back to them:\n"
+              f"  A: {old_a}\n  B: {old_b}\n\n"
+            + (f"THE ARTICLE, so the picture is about this episode: {capture}\n\n"
+               if capture else "")
+            + "THE HOUSE RULES, which are not negotiable and must be inside BOTH "
+              "prompts:\n"
+              "  · photoreal, portrait 2:3, present day, bright natural daylight\n"
+              "  · TURF ONLY — no dirt or sand, no US signage\n"
+              "  · hats varied (A15a): Akubra-style in a range of natural colours, no "
+              "two neighbours the same\n"
+              "  · Australian crowd mix (A15) where people are shown\n"
+              "  · NO TEXT, NO WORDS, NO LETTERING, NO NUMERALS, NO LOGOS, NO BRAND "
+              "NAMES anywhere in the image\n"
+              "  · clear open space in the upper third for a title\n"
+              "  · A and B must be TWO DIFFERENT COMPOSITIONS, not two takes of one\n\n"
+            + f"WRITE THEM INTO {epj_path} as cover.hero_a_prompt and "
+              f"cover.hero_b_prompt, leaving every other key in that file exactly as it "
+              f"is. Do not touch any other file.\n\n"
+            + com.verdict_instructions())
+
+        def find():
+            try:
+                c = json.loads(epj_path.read_text(encoding="utf-8")).get("cover") or {}
+            except Exception:                                          # noqa: BLE001
+                return None
+            a, b = c.get("hero_a_prompt"), c.get("hero_b_prompt")
+            # THE ARTEFACT IS "TWO PROMPTS THAT ARE ACTUALLY NEW". A writer that
+            # returned the old ones would otherwise pass, and the ledger would then
+            # hand back the rejected pictures for £0 — the exact EP15 failure.
+            if not (a and b) or a == b:
+                return None
+            if a == old_a or b == old_b:
+                return None
+            return epj_path
+
+        com.commission(
+            prompt=prompt, place=d, find_artefact=find,
+            what=f"two fresh cover prompts for round {rnd}, from Jodie's notes",
+            add_dirs=[str(self.pp / "docs")],
+            timeout=com.TIMEOUT_S, log=print)
+
+        back = json.loads(epj_path.read_text(encoding="utf-8"))["cover"]
+        if old_a and not back.get("_rejected_hero_a_prompt"):
+            back["_rejected_hero_a_prompt"] = old_a
+            back["_rejected_hero_b_prompt"] = old_b
+        back["_prompts_why"] = (
+            f"REWRITTEN for cover round {rnd} from Jodie's own note: "
+            f"{note or '(no note given)'}. The rejected prompts are kept above because "
+            f"the hero ledger is keyed on slot + prompt sha (E16) — a later prompt that "
+            f"drifted back towards one of them would silently re-serve a picture she "
+            f"has already turned down.")
+        epj = json.loads(epj_path.read_text(encoding="utf-8"))
+        epj["cover"] = back
+        epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
+                            encoding="utf-8", newline="\n")
+        return back.get("hero_a_prompt"), back.get("hero_b_prompt")
+
     def _cover_prompts(self, ep):
         c = self.epjson(ep).get("cover") or {}
         a, b = c.get("hero_a_prompt"), c.get("hero_b_prompt")
@@ -1871,8 +1957,24 @@ class RealProvider:
         d = self.dir(ep)
         hero_a, hero_b, active = self._hero_paths(ep)
         pick = hero_b if str(choice).strip().upper() == "B" else hero_a
+        # 🔴 A MISSING PICK MUST HALT, NOT SHRUG. This used to be a bare `if
+        # pick.is_file()`, and the else-branch was silence: `hero.png` kept whatever it
+        # already held, so the book was built from the WRONG PICTURE and nothing said
+        # so. Round 2 made that reachable — the paths are versioned per round, so
+        # between opening a round and the heroes landing, `hero-b-r2.png` does not
+        # exist, and a pick of B would have quietly published A. She chose a cover; the
+        # one thing we may not do is give her the other one and say nothing.
+        #     Round 1 keeps the old tolerance ONLY where the active hero is already
+        # there: every episode up to EP14 predates the A/B pair and hero.png IS the
+        # cover, so halting them would break a path that has always worked.
         if pick.is_file():
             shutil.copyfile(pick, active)          # hero.png = the picked hero
+        elif not (int((ep or {}).get("cover_round") or 1) <= 1 and active.is_file()):
+            raise EngineFlag(
+                f"You picked cover {str(choice).strip().upper()}, but the picture it "
+                f"was made from ({pick.name}) isn't on disk, so I can't build the "
+                f"cover from it. I've stopped rather than quietly use the other one. "
+                f"Clearing this flag will retry.")
         src = d / "ebook/cover-src/cover.html"
         cover = d / "ebook/cover.png"
         # Author the page if it is missing. This is the halt that stopped EP12
@@ -2244,8 +2346,62 @@ class RealProvider:
         shutil.copyfile(hero_a, a)
         shutil.copyfile(hero_b, b)
         folder = ep_folder(ep)
-        return (self._publish_asset(a, f"{folder}/cover-A.png"),
-                self._publish_asset(b, f"{folder}/cover-B.png"))
+        # 🔴 THE STORAGE PATH IS VERSIONED TOO, and forgetting this would have been the
+        # quietest fault in the feature. The hero FILES were versioned per round, but
+        # both rounds still published to `<folder>/cover-A.png` — so opening round 2
+        # would overwrite the image that round 1's archived `a_url` still points at, and
+        # the "earlier rounds, still yours to pick" tiles would silently become the NEW
+        # pictures. Jodie would be choosing between two copies of the same pair while
+        # the board told her they were different. That is the EP15 shape again.
+        sfx = self._round_suffix(ep)
+        return (self._publish_asset(a, f"{folder}/cover-A{sfx}.png"),
+                self._publish_asset(b, f"{folder}/cover-B{sfx}.png"))
+
+    @staticmethod
+    def _round_suffix(ep) -> str:
+        """"" for round 1, "-r2" after — matching the hero filenames on disk."""
+        rnd = int((ep or {}).get("cover_round") or 1)
+        return "" if rnd <= 1 else f"-r{rnd}"
+
+    def regenerate_covers(self, ep, note: str = "", rejected=()):
+        """A GENUINELY FRESH PAIR for the current cover round. Spends ~4 credits.
+
+        🔴 WHAT WAS MISSING, AND WHY THE BUTTON HUNG. (EP20, 11 Aug 2026.) Opening a
+        new round advanced the counter, archived the old pair and cleared the request —
+        and then nothing generated anything. `covers_ab` had already run in the gens
+        batch and never runs again, so the board went on showing the SAME REJECTED
+        COVERS and waited for a pick that was never going to come. Jodie sat on a hang.
+
+        THE PROMPTS ARE RE-WRITTEN FROM HER WORDS, NOT JITTERED. The design note is
+        explicit that a mechanical variation answers a question she is not asking: "if
+        the pair was rejected because the DIRECTION is wrong, a jittered version of the
+        wrong direction is still wrong." So her note goes to a writer with the article
+        and the rejected prompts, and it comes back with two new compositions. A new
+        prompt is also a new sha, which is what lets the E16 ledger spend at all.
+        """
+        d = self.dir(ep)
+        rnd = int((ep or {}).get("cover_round") or 1)
+        self._commission_cover_prompts(ep, d, note, rejected)
+        hero_a, hero_b, _active = self._hero_paths(ep)
+        want = [(k, p) for k, p in (("hero_A", hero_a), ("hero_B", hero_b))
+                if not p.is_file()]
+        if want:
+            self._generate_heroes(ep, want)
+        for p in (hero_a, hero_b):
+            if not p.is_file():
+                raise EngineFlag(
+                    f"round {rnd}'s cover hero {p.name} was not produced, so there is "
+                    f"nothing new to show. Nothing has been changed on the board — the "
+                    f"previous covers are still there to pick.")
+        a, b = d / f"thumbnail/cover-A{self._round_suffix(ep)}.png", \
+            d / f"thumbnail/cover-B{self._round_suffix(ep)}.png"
+        a.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(hero_a, a)
+        shutil.copyfile(hero_b, b)
+        folder = ep_folder(ep)
+        sfx = self._round_suffix(ep)
+        return (self._publish_asset(a, f"{folder}/cover-A{sfx}.png"),
+                self._publish_asset(b, f"{folder}/cover-B{sfx}.png"))
 
     # WHAT EACH KIND OF FILE IS, ASKED OF THE FILE ITSELF. A caller-supplied MIME
     # would be a list somebody maintains, and the one that mattered would be the
