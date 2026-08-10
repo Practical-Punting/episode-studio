@@ -41,17 +41,42 @@ class WatchListIsDerived(unittest.TestCase):
         for name in ("engine.py", "providers.py", "rail.py"):
             self.assertIn(name, watched)
 
-    def test_nothing_outside_the_engine_directory_is_watched(self):
-        """Scope: the engine's own code, not every module Python has loaded.
+    def test_nothing_outside_this_repo_is_watched(self):
+        """Scope: THIS REPO's code, not every module Python has loaded.
 
-        Without the parent-directory filter this would watch the whole stdlib and
-        every site-package — thousands of stats per poll, and a pip install would
-        restart the engine.
+        Without a scope filter this would watch the whole stdlib and every
+        site-package — thousands of stats per poll, and a pip install would restart
+        the engine. That reasoning is unchanged; only the boundary moved.
+
+        ⚠️ IT USED TO ASSERT `p.parent == ENGINE_DIR`, and that rule is what let the
+        skill's scripts go unwatched — see the case below.
         """
+        repo = ENGINE_DIR.parent
         for p in engine._watched_files():
-            self.assertEqual(ENGINE_DIR, p.parent,
-                             f"{p} is outside ENGINE_DIR and should not be watched")
+            self.assertTrue(p.is_relative_to(repo),
+                            f"{p} is outside the repo and should not be watched")
             self.assertEqual(".py", p.suffix)
+
+    def test_the_skill_scripts_the_engine_imports_are_watched(self):
+        """🔴 EP20: capture_article was fixed, pushed, and the engine went on refusing
+        the article every 25 seconds with the OLD message — because the watch list only
+        covered ENGINE_DIR and the skill's scripts live elsewhere. The running process
+        held yesterday's module in memory indefinitely. That is E11's exact concern —
+        "this engine is running code older than the repo" — for half the codebase.
+
+        Imported here the way the engine imports them, then asserted watched.
+        """
+        import sys as _s
+        skill = (ENGINE_DIR.parent / ".claude/skills/pp-episode-production/scripts")
+        _s.path.insert(0, str(skill))
+        import capture_article                                       # noqa: F401
+        watched = engine._watched_files()
+        names = {p.name for p in watched}
+        self.assertIn("capture_article.py", names,
+                      "a skill script the engine imports is not watched, so fixing it "
+                      "does not reach a running engine until something else restarts it")
+        self.assertTrue(any(p.name == "capture_article.py"
+                            and p.is_relative_to(skill) for p in watched))
 
     def test_a_changed_mtime_is_detected_and_named(self):
         """End to end, on a real file, without touching anything that matters."""

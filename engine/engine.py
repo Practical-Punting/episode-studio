@@ -1357,8 +1357,30 @@ def acquire():
 # Same shape as check_page_images (ask the PAGE what images it needs) and
 # test_preflight_build_written (grep the CODE for what the build writes).
 # See CLAUDE.md fault #7.
+SKILL_SCRIPTS = (ENGINE_DIR.parent / ".claude/skills").resolve()
+
+
 def _watched_files() -> set[Path]:
-    """Every .py the engine has actually imported from ENGINE_DIR, plus itself."""
+    """Every .py the engine has actually imported FROM THIS REPO, plus itself.
+
+    🔴 IT USED TO BE `p.parent == ENGINE_DIR`, AND THAT MISSED HALF THE CODEBASE.
+    (EP20, 10 Aug 2026.) The engine imports the skill's scripts too — capture_article,
+    author_ebook, qc_episode, derive_card_timings — and none of them lived in
+    ENGINE_DIR, so a change to any of them never triggered the stale-code exit. The
+    running engine kept them in memory indefinitely.
+        It bit immediately: capture_article was fixed and pushed, and EP20 went on
+    being refused every 25 seconds with the OLD message — "no byline of the form
+    'By <Name>' was found" — from a module that no longer said that. The board looked
+    like a broken fix; the engine was simply running yesterday's code, which is E11's
+    exact concern ("this engine is running code older than the repo") for every file
+    outside one directory.
+
+    THE SCOPE FILTER STAYS, and the original reasoning for it is untouched: watching
+    every loaded module would watch the whole stdlib and every site-package —
+    thousands of stats per poll, and a pip install would restart the engine. The scope
+    is simply the REPO rather than one folder inside it, which is what "the engine's
+    own code" always meant.
+    """
     files = {Path(__file__).resolve()}
     for mod in list(sys.modules.values()):
         f = getattr(mod, "__file__", None)
@@ -1368,7 +1390,9 @@ def _watched_files() -> set[Path]:
             p = Path(f).resolve()
         except (OSError, ValueError):
             continue
-        if p.suffix == ".py" and p.parent == ENGINE_DIR:
+        if p.suffix != ".py":
+            continue
+        if p.parent == ENGINE_DIR or p.is_relative_to(SKILL_SCRIPTS):
             files.add(p)
     return files
 
