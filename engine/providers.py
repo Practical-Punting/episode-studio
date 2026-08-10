@@ -32,6 +32,7 @@ import sys
 import time
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import check_page_images                       # the general "does every <img> resolve"
@@ -1411,10 +1412,26 @@ class RealProvider:
     def _hero_paths(self, ep):
         """hero-a.png / hero-b.png are the two OPTIONS; hero.png is whichever one
         is currently ACTIVE (what cover.html draws). Older episodes only have
-        hero.png + hero-b.png — hero.png IS option A there, so adopt it."""
+        hero.png + hero-b.png — hero.png IS option A there, so adopt it.
+
+        🔴 VERSIONED FROM ROUND 2 ON. The paths used to be fixed literals, so a second
+        round of covers OVERWROTE THE FIRST — and if Jodie saw round 2 and preferred one
+        of the originals, they were gone. Round 1 keeps the bare names (every shipped
+        episode has them, and nothing may be renamed underneath a published book);
+        round N > 1 gets `hero-a-rN.png`. (Batch item 13, 10 Aug 2026.)
+            This is also what lets a fresh round SPEND AT ALL. make_covers_ab only
+        generates heroes that are MISSING, so with fixed names the files were always
+        already there and a regeneration was a silent no-op returning the rejected pair
+        — the EP15 shape. New round, new paths, genuinely absent files.
+        """
         src = self.dir(ep) / "ebook/cover-src"
-        a, b, active = src / "hero-a.png", src / "hero-b.png", src / "hero.png"
-        if active.is_file() and not a.is_file():
+        rnd = int((ep or {}).get("cover_round") or 1)
+        sfx = "" if rnd <= 1 else f"-r{rnd}"
+        a, b = src / f"hero-a{sfx}.png", src / f"hero-b{sfx}.png"
+        active = src / "hero.png"
+        # The adopt-hero.png fallback is a ROUND-1 story only: it exists for EP01-EP14,
+        # which predate the A/B pair. A later round must never inherit an older file.
+        if rnd <= 1 and active.is_file() and not a.is_file():
             src.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(active, a)
         return a, b, active
@@ -1456,6 +1473,45 @@ class RealProvider:
         becomes a trap. (E16)
         """
         return f"{slot}:{hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]}"
+
+    def record_cover_rejection(self, ep):
+        """Jodie asked for different covers. Write the rejection down — E16 PART 2.
+
+        🔴 UNTIL NOW A REJECTION WAS A CONVENTION THE CODE COULD NOT SEE. The backlog
+        says it in those words: "moving a file aside is a convention the code cannot
+        see." EP15 is what that costs — two heroes were looked at and rejected, the
+        files were moved aside, the engine re-downloaded the same two pictures, and the
+        board offered them again with nothing to say they had been turned down. Jodie
+        picked one in good faith.
+            A click on "ask for different ones" is the first moment in the whole
+        pipeline where she says "not these" in a form the machine can store. So it is
+        stored in two places, each doing a different job:
+          · the LEDGER entry gets `rejected: true` + when — so nothing downstream can
+            ever re-offer that exact prompt's output as fresh;
+          · the RAIL's cover_rounds keeps the pair, its URLs and her reason — so the
+            history survives and her notes COMPOUND into the next round's prompts.
+
+        Returns the round number just rejected. Writes no PNG and spends nothing.
+        """
+        rnd = int((ep or {}).get("cover_round") or 1)
+        ledger = self.dir(ep) / "docs/hero-jobs.json"
+        if ledger.is_file():
+            book = json.loads(ledger.read_text(encoding="utf-8"))
+            now = datetime.now(timezone.utc).isoformat()
+            touched = 0
+            for key, entry in book.items():
+                if not isinstance(entry, dict) or entry.get("rejected"):
+                    continue
+                entry["rejected"] = True
+                entry["rejected_at"] = now
+                entry["rejected_round"] = rnd
+                touched += 1
+            if touched:
+                ledger.write_text(json.dumps(book, indent=2) + "\n",
+                                  encoding="utf-8", newline="\n")
+                print(f"    recorded {touched} rejected hero(es) in the ledger "
+                      f"(round {rnd}) — E16 part 2")
+        return rnd
 
     def _generate_heroes(self, ep, want):
         """Fire the missing heroes, checkpointing each job id into

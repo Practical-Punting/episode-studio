@@ -379,3 +379,16 @@ footer{margin:34px 0 0;font-size:12.5px;color:#b3aca3;}
 }
 .sc-foot .mini{margin-left:auto;}
 
+
+/* ── "Neither — ask for different ones" (batch item 13, Option B) ─────────────
+   A ghost button, deliberately: it must never compete with the orange primary
+   action. Choosing a cover is the job; asking for others is the escape hatch. */
+.askmore{margin-top:14px;}
+.askmore .ghost{width:100%;padding:11px 14px;}
+.askbox{margin-top:10px;display:grid;gap:8px;}
+.askbox textarea{font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid #DDD;
+  border-radius:10px;resize:vertical;width:100%;box-sizing:border-box;}
+/* Earlier rounds stay on the card and stay TAPPABLE — dimmed, never disabled, because
+   a request for different covers is not a veto on the ones already offered. */
+.covers.dim{margin-top:8px;opacity:0.72;}
+.covers.dim:hover,.covers.dim:focus-within{opacity:1;}

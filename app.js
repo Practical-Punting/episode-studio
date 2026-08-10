@@ -1384,10 +1384,67 @@ function gateCover(ep) {
   const cooking = (ep.status === "building" || ep.status === "rendering")
     ? " Gordon’s render is still cooking — answering now keeps the build hands-off."
     : "";
+  // ── EVERY EARLIER PAIR STAYS SELECTABLE ────────────────────────────────────
+  // A request is not a veto. If round 2 lands and she prefers one of the originals,
+  // they must still be there and still be tappable — the old fixed hero paths
+  // OVERWROTE round 1, which is the fault this whole feature had to fix first.
+  const past = (ep.cover_rounds || []).filter((r) => r && (r.a_url || r.b_url));
+  const older = past.length
+    ? '<div class="g-hint" style="margin-top:14px">Earlier rounds — still yours to pick:</div>'
+      + past.map((r) =>
+          '<div class="covers dim">'
+          + oneOf(ep, "A", r.a_url, r.round) + oneOf(ep, "B", r.b_url, r.round)
+          + "</div>"
+          + (r.note ? '<p class="g-hint">You said: ' + esc(r.note) + "</p>" : "")).join("")
+    : "";
+
+  // ── "NEITHER — ASK FOR DIFFERENT ONES": FREE, REPEATABLE, NEVER A HALT ─────
+  // A ghost button so it never competes with the orange primary action. The click
+  // costs nothing; the spend is a separate deliberate act by the studio when it
+  // writes fresh prompts. Nothing flags, nothing goes red, Gordon keeps rendering.
+  const asked = ep.cover_more_requested_at;
+  const rnd = ep.cover_round || 1;
+  // A GENTLE NUDGE AFTER A FEW ROUNDS, and it is a sentence, not a block. If the
+  // direction keeps missing, the brief is likelier to be the problem than the
+  // pictures — but that is information, not a gate.
+  const nudge = rnd >= 3
+    ? '<p class="g-hint">This is round ' + rnd + ". If the direction still isn’t right, "
+      + "the brief may be worth a look rather than more pictures — no rush either way.</p>"
+    : "";
+  const askBlock = asked
+    ? '<p class="g-hint">✓ Asked for different covers — ' + esc(ago(asked)) +
+      " ago. Nothing is stuck, and the two above are still yours to pick.</p>"
+    : '<div class="askmore">' +
+      '<button class="ghost" data-act="cover-more-open" data-ep="' + ep.id + '">' +
+      "Neither — ask for different ones</button>" +
+      '<div class="askbox" id="askbox-' + ep.id + '" hidden>' +
+      '<label class="g-hint" for="askwhy-' + ep.id + '">Anything you’d change? ' +
+      "(optional)</label>" +
+      '<textarea id="askwhy-' + ep.id + '" rows="2" ' +
+      'placeholder="e.g. no grandstand crowds, and keep it on turf"></textarea>' +
+      '<button class="btn" data-act="cover-more" data-ep="' + ep.id + '">Send</button>' +
+      "</div></div>";
+
   return '<div class="gate"><h4>Your turn — pick the cover</h4>' +
     '<p class="g-hint">Tap the one you want. The e-book cover and the end card are ' +
     "built from your pick." + cooking + "</p>" +
-    '<div class="covers">' + one("A", ep.cover_a_url) + one("B", ep.cover_b_url) + "</div></div>";
+    '<div class="covers">' + one("A", ep.cover_a_url) + one("B", ep.cover_b_url) + "</div>" +
+    older + nudge + askBlock + "</div>";
+}
+
+/* A tile from an EARLIER round. It carries the round number in its pick value so the
+   handler can tell "cover A of round 1" from "cover A of round 3" — the pick used to
+   be a bare 'A' | 'B', which cannot name a pair once there is more than one. */
+function oneOf(ep, letter, url, round) {
+  const safe = safeUrl(url);
+  const val = letter + (round > 1 ? String(round) : "");
+  const chosen = ep.cover_choice === val;
+  return '<button class="cover' + (chosen ? " chosen" : "") + '" ' +
+    'data-act="cover" data-ep="' + ep.id + '" data-pick="' + val + '">' +
+    (safe ? '<img src="' + esc(safe) + '" alt="Cover ' + letter + ' round ' + round + '">'
+          : '<div class="noimg">No cover ' + letter + "</div>") +
+    '<div class="cv-l">' + (chosen ? "✓ " : "") + "Cover " + letter +
+    " · round " + round + "</div></button>";
 }
 
 function gateApprove(ep) {
@@ -1763,6 +1820,32 @@ $("lanes").addEventListener("click", async (e) => {
     if (await writeEpisode(id, patch, id + ":cover", btn))
       toast("toast", "Cover " + pick + " chosen" +
         (patch.status ? " — assembling." : " — noted for assembly."), true);
+    return;
+  }
+
+  /* ── "NEITHER — ASK FOR DIFFERENT ONES" (Option B) ────────────────────────
+   * Opening the box is not sending. Jodie can change her mind between the two,
+   * and a one-tap irreversible request on a spend-adjacent action is exactly the
+   * shape this studio avoids. */
+  if (act === "cover-more-open") {
+    const box = $("askbox-" + id);
+    if (box) { box.hidden = false; ($("askwhy-" + id) || {}).focus?.(); }
+    return;
+  }
+
+  if (act === "cover-more") {
+    // 🔴 THE CLICK COSTS NOTHING. It records a REQUEST — the first moment in the
+    // whole pipeline where "not these" is stored in a form the machine can see
+    // (E16 part 2; until now it was a file moved aside, "a convention the code
+    // cannot see"). The studio writes fresh prompts as a separate, deliberate act.
+    // Nothing halts: the episode does not flag, does not go red, and Gordon keeps
+    // rendering. The two tiles above stay tappable, because a request is not a veto.
+    const why = ($("askwhy-" + id)?.value || "").trim();
+    const patch = { cover_more_requested_at: new Date().toISOString() };
+    if (why) patch.cover_more_note = why;
+    if (await writeEpisode(id, patch, id + ":covermore", btn))
+      toast("toast", "Asked for different covers — nothing is stuck, and you can " +
+                     "still pick one of these.", true);
     return;
   }
 

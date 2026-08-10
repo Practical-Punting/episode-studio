@@ -815,15 +815,71 @@ def step_covers_ab(ctx):
     return {"a": a, "b": b}
 
 
+def _open_a_new_cover_round(ctx, row):
+    """Record the rejection, archive the pair, and open the next round. SPENDS NOTHING.
+
+    Everything here is bookkeeping. The new pictures arrive when the STUDIO writes
+    fresh prompts into episode.json — a human decision, which is the whole point of
+    Option B: "automation eats chores, never decisions." A mechanically-jittered prompt
+    would be a probabilistic dodge of a hash collision, and when it failed it would fail
+    QUIETLY, re-offering rejected pictures as fresh ones. That is the EP15 shape exactly,
+    re-armed and reachable from a button.
+    """
+    rnd = int(row.get("cover_round") or 1)
+    history = list(row.get("cover_rounds") or [])
+    note = (row.get("cover_more_note") or "").strip()
+    # EVERY PAIR IS KEPT. Round 1's URLs stay here so the board can still offer them and
+    # so the next prompts can be written knowing what was turned down and why. Her
+    # reasons COMPOUND: round 3 is written having read the notes from 1 and 2.
+    history.append({
+        "round": rnd,
+        "a_url": row.get("cover_a_url"),
+        "b_url": row.get("cover_b_url"),
+        "requested_at": row.get("cover_more_requested_at"),
+        "note": note or None,
+        "rejected_at": datetime.now(timezone.utc).isoformat(),
+    })
+    try:
+        ctx.provider.record_cover_rejection(row)     # E16 part 2, on the ledger
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not mark the hero ledger rejected: {e})")
+    ctx.ep_set({
+        "cover_round": rnd + 1,
+        "cover_rounds": history,
+        "cover_more_requested_at": None,   # consumed; the button is live again
+        "cover_more_note": None,
+    })
+    # A GENTLE, NON-BLOCKING NUDGE — never a halt. After a few rounds it is worth
+    # saying out loud that the brief may be the problem rather than the pictures, but
+    # nothing about that is Jodie's fault and nothing should stop because of it.
+    nudge = ("  (that is round %d — if the direction still is not right, the BRIEF may "
+             "be worth a look rather than more pictures)" % rnd) if rnd >= 3 else ""
+    log(f"   cover round {rnd} turned down{' — ' + note if note else ''}. "
+        f"Round {rnd + 1} is open; fresh prompts are the studio's to write, and "
+        f"nothing has been spent.{nudge}")
+
+
 def step_cover_pick(ctx):
     """HUMAN TURN 3. Both heroes have existed since the gens batch, so the board
     has been showing this pick for the whole b-roll collect — normally the answer
     is already in and this step just reads it. If it isn't, we wait here (status
     stays 'building', heartbeat live) rather than ping-ponging the status."""
     waited = 0
+    asked_seen = None
     while True:
         ctx.check_alive()
-        choice = (ctx.refresh().get("cover_choice") or "").strip().upper()
+        row = ctx.refresh()
+        # ── "NEITHER — ASK FOR DIFFERENT ONES" (Option B, batch item 13) ──────────
+        # A FREE SIGNAL, AND IT HALTS NOTHING. The click costs £0; the spend is a
+        # separate, deliberate act by the studio when it writes fresh prompts. So this
+        # records the rejection, opens the next round, and CARRIES ON WAITING — the old
+        # tiles stay tappable, because a request is not a veto and she may still change
+        # her mind. Nothing flags, nothing goes red, Gordon keeps rendering.
+        asked = row.get("cover_more_requested_at")
+        if asked and asked != asked_seen:
+            asked_seen = asked
+            _open_a_new_cover_round(ctx, row)
+        choice = (row.get("cover_choice") or "").strip().upper()
         if choice in ("A", "B"):
             ctx.stamp("cover_picked_at")
             log(f"   cover {choice} picked — building the cover page from it")
