@@ -20,6 +20,62 @@ as they were written; check them against git before acting on one.*
 
 # 🆕 LOGGED 9 AUG 2026
 
+## ✅ THE BEFORE-EP20 BATCH — CLOSED 10 AUGUST 2026. 13 of 13 items answered.
+
+| # | item | commit |
+|---|---|---|
+| 1 | `heygen_video_id` recorded at resolution + refuses to guess | `a95e4a8` |
+| 2 | name-vs-id sweep — `_clip` fixed, every other site assessed | `9e50b09` |
+| 3 | fidelity gate RECOGNISES headings/figures | `4e9cf0b` |
+| 4 | `matrix` block + the nested each | `90482f3` |
+| 5 | **RENDER FIRST** + the missing 8th locked-order assertion | `b977dae` |
+| 6 | commission-aware watchdog + the engine's own label | `f19787b` |
+| 7 | board stops asking for words the machine owes | `33ac69d` |
+| 7a | Stage-8 rename automatic at publish | `38553eb` |
+| 8 | kick on submit (~25s, not 15 min) | `2d7eede` |
+| 9 | bar-chart false blocker **and its `cards[].rail` sibling** | `7babdbf` |
+| 10 | framing prose = a second APPROVED source | `007509e` |
+| 11 | `words_approved_at` (migration 007, live) | `5ba4cac` |
+| 12 | thumbnail redesign — **CLOSED BY JODIE**, no work | — |
+| 13 | cover button, Option B + E16 part 2 | `8f76fcc` |
+
+**Also landed on the way, each found by a guard rather than by review:**
+`cmd_cleanup_mock` deleted rail rows by FILTER (Jodie's never-delete ruling, now a
+gate) · `build.early_cta.at` unexempt in `BUILD_WRITTEN_KEYS`, which would have halted
+EVERY episode at `audit_inputs` · four suites resolving EP18 by bare name, which went
+SILENT the moment the stage-8 rename fired · two stale test doubles (`test_draft_watch`,
+`test_commission_repair`) that had nothing to do with the drafting pass.
+
+---
+
+## 🟡 STILL OPEN AFTER THE BATCH — named, not implied
+
+- 🔴 **`test_capture_article` — 5 failures, NOT investigated.** The capture tool and its
+  test were untouched by this batch (git confirms). The page fetches fine (110,541
+  bytes, HTTP 200) and the tool then refuses it, consistent with the structure/OCR
+  refusals added before the batch. **Either the tool is now too strict for
+  practicalpunting.com.au's current markup, or the test predates those refusals.** It
+  matters because a capture is the article of record for tracing — worth a session of
+  its own.
+- 🟡 **`test_board_pause` 19/2** — fails identically against the pre-batch `app.js` and
+  says so itself: *"STRUCTURAL ONLY — the caret/undo proof needs a browser and a
+  session."* A real browser proof of caret/undo is the missing half.
+- 🟡 **`_hero_paths` never checks the PNG against the ledger's `prompt_sha`.** The EP15
+  fault in original form. Deferred all batch because it sits on the spend path; #13's
+  versioned paths make a fresh round safe, but this specific check is still absent.
+- 🟡 **E16's ledger is STILL UNPROVED AGAINST A MOVING BALANCE.** Its own entry says so.
+  A spending guard is only proved by watching the number change; ~4 credits buys that.
+- 🟡 **The board cannot tell "studio drafting" from "studio gave up"** — the attempt
+  ledger is a file in the episode folder and never reaches the rail, so an exhausted
+  episode reads "Writing the script…". Put the attempt count on the rail.
+- 🟡 **`midroll_window` exists TWICE** (`qc_episode.py`, `render_ready.py`) and the
+  copies have already drifted.
+- 🟡 **`write_autofit` leaves a blank line per pass** — a fitted page never equals its
+  own freshly-rendered definition.
+- 🟡 **#13's remaining half:** the actual regeneration into round-N paths runs when the
+  studio writes fresh prompts. That is Option B's design, not a gap — but nobody has
+  driven a real second round end to end yet.
+
 ## ⚠️ BEFORE-EP20 RELIABILITY BATCH — "a finished render that nobody recorded"
 **(Jodie, 9 Aug 2026, on EP19.)** She could see Gordon's render finished on HeyGen while
 the board showed `heygen_video_id: null`. **Nothing had failed** — the render was
