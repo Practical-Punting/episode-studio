@@ -110,7 +110,7 @@ class Provider:
     def dir(self, ep):
         return self.pp / f"PP-EP{int(ep['ep_number']):02d}"
 
-    def _commission_script(self, ep, d):
+    def _commission_script(self, ep, d, gate=None):
         self.commissioned.append(int(ep["ep_number"]))
         out = Path(d) / "docs/spoken-words.txt"
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -164,7 +164,14 @@ def _calls_made(path: Path, func: str) -> set[str]:
             if isinstance(f, ast.Name):
                 out.add(f.id)
             elif isinstance(f, ast.Attribute):
+                # ⚠️ THE RECEIVER IS PART OF THE NAME. Bare method names made
+                # `sys.path.insert(0, …)` — a line that writes to nothing — read as the
+                # rail's `insert`, so "seat_script_if_empty is the ONLY rail write"
+                # failed on a call that touches no rail. What these checks forbid is
+                # writing to the RAIL, so the rail's own calls are recorded as such.
                 out.add(f.attr)
+                if isinstance(f.value, ast.Name) and f.value.id == "rail":
+                    out.add(f"rail.{f.attr}")
     return out
 
 
@@ -245,10 +252,11 @@ def main():                                                            # noqa: C
     print("\n-- 🔴 I2: THE WORDS REACH THE RAIL ONLY THROUGH THE GUARD --")
     check("it calls seat_script_if_empty", "seat_script_if_empty" in calls,
           f"calls: {sorted(calls)}")
+    # asked of the RAIL calls, so sys.path.insert cannot masquerade as rail.insert
     check("  which is the ONLY rail write it makes",
-          {c for c in calls if c in ("seat_script_if_empty", "set_fields", "insert",
-                                     "update_status", "checkpoint")}
-          == {"seat_script_if_empty"})
+          {c.split(".", 1)[1] for c in calls if c.startswith("rail.")}
+          & {"set_fields", "insert", "update_status", "checkpoint", "delete"} == set(),
+          f"rail calls: {sorted(c for c in calls if c.startswith('rail.'))}")
     r2 = Rail([episode(18)], seat_returns="none")
     prov2 = Provider(pp)
     lines2 = run_pass(r2, prov2)
@@ -383,7 +391,7 @@ def main():                                                            # noqa: C
     pp_b = pp_tree("EP18-source-article-a-real-one.md")
 
     class Failing(Provider):
-        def _commission_script(self, ep, d):
+        def _commission_script(self, ep, d, gate=None):
             self.commissioned.append(int(ep["ep_number"]))
             import commission as C3
             raise C3.CommissionHalt("the writer fell over", detail="deterministic")
@@ -406,7 +414,7 @@ def main():                                                            # noqa: C
     pp_c = pp_tree("EP18-source-article-a-real-one.md")
 
     class Crashing(Provider):
-        def _commission_script(self, ep, d):
+        def _commission_script(self, ep, d, gate=None):
             self.commissioned.append(int(ep["ep_number"]))
             raise KeyboardInterrupt("killed mid-commission")
 

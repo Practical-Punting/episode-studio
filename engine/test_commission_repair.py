@@ -245,7 +245,18 @@ def main():                                                            # noqa: C
           not any("differ from the last two episodes" in b for b in blockers))
 
     print("\n-- a clean file gives an empty list, so the loop can end --")
-    (place / "docs/episode.json").write_text(json.dumps({"cards": []}), encoding="utf-8")
+    # "Clean" now includes NAMING THE CAPTURE — the gate refuses an episode.json
+    # whose `source` does not, because the figure-tracing regime is switched off
+    # when it cannot be read. A bare {"cards": []} stopped being a clean file the
+    # day that check landed, and this fixture was never updated.
+    (tmp / "docs").mkdir(parents=True, exist_ok=True)
+    (tmp / "docs/EP99-source-article-test.md").write_text(
+        "---- ARTICLE TEXT BEGINS ----\nSome words.\n"
+        "---- ARTICLE TEXT ENDS ----\n", encoding="utf-8")
+    (place / "docs/episode.json").write_text(json.dumps({
+        "source": "Test article. Verbatim source: "
+                  "docs/EP99-source-article-test.md",
+        "cards": []}), encoding="utf-8")
     engine.log = quiet
     pj.ep_dir = no_references
     try:
@@ -258,6 +269,16 @@ def main():                                                            # noqa: C
     place2 = tmp / "PP-EP98"
     (place2 / "docs").mkdir(parents=True)
     (place2 / "docs/spoken-words.txt").write_text("Some words.\n", encoding="utf-8")
+    # A REAL CAPTURE, because the gate now (rightly) refuses an episode.json
+    # whose `source` does not name one: "the whole figure-tracing regime is
+    # switched off when this cannot be read". The passing attempt below names
+    # it, exactly as a real episode.json does. Without this the "passing"
+    # attempt is rejected too and the loop exhausts — which reads as a broken
+    # repair loop and is really a fixture nobody updated when the gate grew.
+    (tmp / "docs").mkdir(parents=True, exist_ok=True)
+    (tmp / "docs/EP98-source-article-test.md").write_text(
+        "---- ARTICLE TEXT BEGINS ----\nSome words.\n"
+        "---- ARTICLE TEXT ENDS ----\n", encoding="utf-8")
     seen = {"attempts": [], "gates": 0}
 
     class Ctx2(Ctx):
@@ -268,14 +289,16 @@ def main():                                                            # noqa: C
         def dir(self, ep):
             return place2
 
-        def _commission_episode_json(self, ep, d, *, followup=None):
+        def _commission_episode_json(self, ep, d, *, followup=None, on_start=None):
             seen["attempts"].append(followup)
             src = FIXTURE if len(seen["attempts"]) == 1 else None
             if src:
                 shutil.copyfile(src, d / "docs/episode.json")
             else:
-                (d / "docs/episode.json").write_text(json.dumps({"cards": []}),
-                                                     encoding="utf-8")
+                (d / "docs/episode.json").write_text(json.dumps({
+                    "source": "Test article. Verbatim source: "
+                              "docs/EP98-source-article-test.md",
+                    "cards": []}), encoding="utf-8")
             return verdict()
 
     real_gate = engine._epjson_gate
@@ -321,7 +344,7 @@ def main():                                                            # noqa: C
         def dir(self, ep):
             return place4
 
-        def _commission_episode_json(self, ep, d, *, followup=None):
+        def _commission_episode_json(self, ep, d, *, followup=None, on_start=None):
             tries["n"] += 1
             shutil.copyfile(FIXTURE, d / "docs/episode.json")   # never fixes it
             return verdict()
