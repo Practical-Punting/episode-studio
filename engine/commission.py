@@ -57,6 +57,22 @@ import time
 from pathlib import Path
 
 
+# ── THE COMMISSION TIMEOUTS — ONE DEFINITION, READ BY BOTH THE RUNNER AND THE ALARM ──
+#
+# 🔴 THEY LIVE HERE BECAUSE TWO THINGS NEED THEM AND MUST NEVER DISAGREE: providers.py
+# passes them to subprocess.run, and engine.py derives the WATCHDOG BUDGET from them.
+# They were four separate `os.environ.get(…, "1800")` calls, which is the same value in
+# several places with the fix reaching one reader (fault #2) — and it would drift the
+# day somebody raised a timeout and left the alarm where it was.
+#
+# ⚠️ THE ALARM MUST AGREE WITH THE BOUND. An alarm that fires while the studio is still
+# deliberately waiting is not an alarm; it is the board calling a working writer stuck,
+# which is what EP18 and EP19 both did.
+TIMEOUT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900"))
+TIMEOUT_EPJSON_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "1800"))
+TIMEOUT_SCRIPT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200"))
+
+
 def _safe(s) -> str:
     """Flatten text that the engine's log stream cannot encode.
 
@@ -589,7 +605,7 @@ def _artefact_or_halt(find, started: float, what: str) -> Path:
 def commission(*, prompt: str, place: Path, find_artefact, what: str,
                add_dirs=(), tools=DEFAULT_TOOLS, budget_usd: float = 5.0,
                timeout: int = 900, model: str | None = None,
-               runner=subprocess.run, log=print) -> dict:
+               runner=subprocess.run, log=print, on_start=None) -> dict:
     """Commission an author. Return the verdict; raise CommissionHalt otherwise.
 
     `find_artefact` is a zero-argument callable returning the produced file (or
@@ -622,6 +638,17 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
     # of the work, not only its finish, and who it is waiting on.
     log(f"    commissioning {what} — a writer is working, up to {timeout}s, "
         f"capped at ${budget_usd:.2f}", flush=True)
+    # …AND THE SAME SENTENCE WHERE A HUMAN CAN SEE IT. The run log is the studio's;
+    # the board is Jodie's, and it was reading a step NAME ("Checking the inputs") for
+    # twenty minutes while a writer worked normally. `on_start` lets the caller put the
+    # engine's own words on the card. Optional, so nothing that does not pass it
+    # changes at all.
+    if on_start:
+        try:
+            on_start(f"{what} — a writer is working. This normally takes "
+                     f"15-25 minutes; nothing is stuck.")
+        except Exception:                                            # noqa: BLE001
+            pass          # a label is never worth failing a commission over
 
     try:
         r = runner(argv, input=prompt, capture_output=True, text=True,

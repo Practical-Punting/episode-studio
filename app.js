@@ -297,7 +297,8 @@ function stepState(ep) {
   const cur = (ep.build_state || {}).current;
   if (!cur || !cur.started_at) return null;          // nothing in flight to judge
   const ran = Date.now() - new Date(cur.started_at).getTime();
-  const out = { step: cur.step || "this step", ran: ran, budget: cur.budget_s };
+  const out = { step: cur.step || "this step", ran: ran, budget: cur.budget_s,
+                label: cur.label || null };
 
   // A finished episode is never stuck, whatever marker was left behind.
   if (DONE_STATUSES.indexOf(ep.status) !== -1) return { ...out, state: "working" };
@@ -322,7 +323,10 @@ function stepState(ep) {
  * left alone for compatibility and is no longer read anywhere on the board. */
 const STEP_LABELS = {
   script_sync: "Reading the script Doc", audit_inputs: "Checking the inputs",
-  render_gate: "Waiting for the HeyGen render to be started",
+  // ⚠️ AN INSTRUCTION, NOT A DESCRIPTION. Under the render-first order (9 Aug) this is
+  // the FIRST thing Jodie sees after approving the words, and "Waiting for the HeyGen
+  // render to be started" is passive — it reads like the machine waiting on itself.
+  render_gate: "Render ready — start it in HeyGen",
   credit_check: "Checking the credit budget", broll_submit: "Ordering the b-roll",
   broll_collect: "Collecting the b-roll", covers_ab: "Building the two cover options",
   cover_pick: "Waiting on your cover pick", ebook_cover: "Building the e-book cover",
@@ -348,6 +352,12 @@ function stageLine(ep) {
     return "Paused — needs a look" +
       (ss && STEP_LABELS[ss.step] ? " (" + STEP_LABELS[ss.step] + ")" : "");
   }
+  // THE ENGINE'S OWN SENTENCE WINS OVER THE STEP NAME. `label` is set by the engine
+  // when it knows something the step name cannot say — "a writer is working, this
+  // normally takes 15-25 minutes" beats "Checking the inputs", which is what the card
+  // said for 1029s on EP18 and 1907s on EP19 while nothing was wrong. Falls back to
+  // STEP_LABELS whenever a step sets none, so no step regresses.
+  if (ss && ss.state === "working" && ss.label) return ss.label;
   if (ss && STEP_LABELS[ss.step]) return STEP_LABELS[ss.step];
   return st.label;
 }

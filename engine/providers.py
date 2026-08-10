@@ -2566,7 +2566,7 @@ class RealProvider:
             find_artefact=find,
             add_dirs=[REPO_DIR / "docs"],
             budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
-            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
+            timeout=com.TIMEOUT_S,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
 
@@ -2588,7 +2588,8 @@ class RealProvider:
     # resume, so the writer that fixes the file has never seen the instructions
     # that produced it. Building the follow-up here keeps the brief in one home;
     # commission.py knows what the checks SAID and nothing about episode.json.
-    def _commission_episode_json(self, ep, d: Path, *, followup: str | None = None):
+    def _commission_episode_json(self, ep, d: Path, *, followup: str | None = None,
+                                 on_start=None):
         import commission as com
         import preflight_episode_json as pj
 
@@ -2728,7 +2729,9 @@ class RealProvider:
             # ⚠️ 1800 IS A BOUND WITH MARGIN, NOT A MEASUREMENT OF THE TYPICAL
             # CASE. One observation sets a floor, not a distribution. If a second
             # run lands near it, raise it on that evidence rather than on nerves.
-            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "1800")),
+            timeout=com.TIMEOUT_EPJSON_S,
+            # the board's own sentence while the writer works (#6)
+            on_start=on_start,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
         return verdict
@@ -2874,7 +2877,7 @@ class RealProvider:
                 # anybody where to look.
                 add_dirs=[REPO_DIR / "docs", skills, capture.parent],
                 budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
-                timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200")),
+                timeout=com.TIMEOUT_SCRIPT_S,
                 model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
             )
 
@@ -2976,7 +2979,7 @@ class RealProvider:
             # and it passed" would be a report, and this whole mechanism exists
             # because a report is not an artefact.
             budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
-            timeout=int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900")),
+            timeout=com.TIMEOUT_S,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
         # 🔴 THE FOURTH GATE, AND IT IS THE ONE THAT MATTERS HERE.

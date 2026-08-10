@@ -580,9 +580,14 @@ def _commission_epjson_with_repair(ctx, d):
     """
     import commission as com
 
+    # THE BOARD GETS THE ENGINE'S OWN SENTENCE, not the step name. This is the step
+    # that ran 1029s on EP18 and 1907s on EP19 while the card said "Stuck — Checking
+    # the inputs", and under the render-first order it is the first thing Jodie sees
+    # after approving. Only the LABEL is re-stamped per attempt; the clock is not.
     return com.commission_with_repair(
         attempt=lambda followup: ctx.provider._commission_episode_json(
-            ctx.ep, d, followup=followup),
+            ctx.ep, d, followup=followup,
+            on_start=lambda text: set_step_label(ctx, text)),
         gate=lambda: _epjson_gate(ctx),
         what="this episode's settings and cards",
         attempts=EPJSON_ATTEMPTS,
@@ -867,6 +872,27 @@ def step_ebook_cover(ctx):
 # not a performance target. `None` means the step waits on a human BY DESIGN and must
 # never raise one: heygen_download polls until Jodie has run the render, which can
 # legitimately take days with no flag up.
+import commission as _com        # for the derived commission budgets below
+
+# 🔴 A STEP THAT COMMISSIONS IS ALLOWED WHAT THE COMMISSION IS ALLOWED — DERIVED,
+# NEVER TYPED. `audit_inputs` had no entry here at all, so it fell to the 900s default
+# while the commission it runs is bounded at EPJSON_ATTEMPTS x 1800s = 5400s. ITS ALARM
+# WAS SET TO ONE SIXTH OF ITS OWN BOUND, and the board read that number straight off the
+# row:
+#     EP18  audit_inputs ran 1029s  -> "Stuck — Checking the inputs" for 2m 09s
+#     EP19  audit_inputs ran 1907s  -> "Stuck — Checking the inputs" for 16m 47s
+# Two out of two, and BOTH EPISODES WERE FINE. Once the render moves in front of this
+# step (see PHASES), that lie is the first thing Jodie sees after approving — so moving
+# the render without this would trade a delay for a lie.
+#
+# ⚠️ IT IS THE SAME TRADE JODIE ALREADY TOOK, in EPJSON_ATTEMPTS' own words: "a writer
+# that thrashes costs about ninety minutes before the engine gives up… which is
+# genuinely stuck and should flag anyway." The alarm now agrees with the bound.
+# +300s of headroom covers the gates and the file writes either side of the commission.
+def _commission_budget(attempts: int, timeout_s: int) -> int:
+    return attempts * timeout_s + 300
+
+
 STEP_BUDGET_S = {
     "heygen_download": None,      # waits for Jodie's HeyGen render — no flag, no alarm
     "cover_pick":      None,      # waits for a human choice
@@ -877,6 +903,11 @@ STEP_BUDGET_S = {
     "broll_collect":   40 * 60,   # Higgsfield queue, 7 clips
     "ebook_build":     20 * 60,
     "self_qc":         20 * 60,
+    # the three steps that COMMISSION. Each reads the bound its own commission runs
+    # under, from commission.py — the one place those timeouts are defined.
+    "audit_inputs":    _commission_budget(EPJSON_ATTEMPTS, _com.TIMEOUT_EPJSON_S),
+    "ebook_pdf":       _commission_budget(1, _com.TIMEOUT_S),
+    "youtube_copy":    _commission_budget(1, _com.TIMEOUT_S),
 }
 DEFAULT_STEP_BUDGET_S = 15 * 60
 
@@ -888,6 +919,22 @@ def mark_step_started(ctx, name):
         "started_at": datetime.now(timezone.utc).isoformat(),
         "budget_s": STEP_BUDGET_S.get(name, DEFAULT_STEP_BUDGET_S),
     }
+    ctx.save()
+
+
+def set_step_label(ctx, text: str):
+    """Put the engine's OWN sentence on the in-flight marker, for the board to show.
+
+    🔴 IT RE-STAMPS THE LABEL AND NEVER `started_at`. Resetting the clock on each
+    commission attempt would make a genuinely wedged writer invisible for ever — which
+    is the exact fault the watchdog was built for (EP14: three and a half days on
+    assemble_passB behind a healthy six-second heartbeat). The outer clock keeps running
+    against the derived budget, always.
+    """
+    cur = ctx.state.get("current")
+    if not cur:
+        return                      # not in a step: nothing to label
+    cur["label"] = text
     ctx.save()
 
 
