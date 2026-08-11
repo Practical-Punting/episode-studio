@@ -38,6 +38,17 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from author_cards import Halt, esc                            # noqa: E402
+import packaging_gate as pg                                   # noqa: E402
+
+
+def pack_hook(ep):
+    """The headline's words. SEATED FROM THE RAIL by the engine before authoring —
+    see providers.seat_packaging_from_rail. Here it is simply the approved title."""
+    return ((ep.get("packaging") or {}).get("hook") or "").strip()
+
+
+def pack_byline(ep):
+    return ((ep.get("packaging") or {}).get("byline") or "").strip()
 
 for _s in (sys.stdout, sys.stderr):
     try:
@@ -81,8 +92,15 @@ def check(ep, th):
                    "strap line. The thumbnail carries the approved words verbatim.")
 
     # THE WORDS GATE, same as the cover. Every asset uses the locked packaging.
+    # ⚠️ CASE-FOLDED, AS THE TITLE CARD'S IDENTICAL GATE ALWAYS WAS (11 Aug 2026).
+    # This one compared raw strings while author_title_card compared `.upper()`, and
+    # nothing noticed while `packaging.hook` was written in capitals BY THE SAME PASS
+    # that wrote l1 and l2. The moment the hook started coming from the RAIL — where
+    # a title is sentence case, "Bill Benter Professional Gambler" — the two gates
+    # disagreed and this one halted a correct thumbnail. The headline is set in caps
+    # by the design; the comparison is about WORDS, not keystrokes.
     hook = f"{th['l1']} {th['l2']}".strip()
-    if pack.get("hook") and hook != pack["hook"].strip():
+    if pack.get("hook") and hook.upper() != pack["hook"].strip().upper():
         raise Halt(f"the thumbnail headline {hook!r} does not match the approved "
                    f"packaging.hook {pack['hook']!r}. The words were locked at the words "
                    f"gate; the thumbnail does not get to differ from them.")
@@ -229,6 +247,19 @@ def main():
     page = tpl
     for slot, val in subs.items():
         page = page.replace(slot, val)
+
+    # 🔴 GRADE THE PAGE, NOT THE FIELDS IT WAS BUILT FROM. `check()` above compares
+    # episode.json values with each other; this reads the finished markup and asks
+    # what each ZONE actually says. EP20 passed every field comparison and still put
+    # the byline in the headline with an invented sentence underneath, because both
+    # halves of every comparison came out of the same file in the same pass.
+    #     The engine runs the same gate against the RAIL, which is stronger. This one
+    # runs on a hand invocation too, where there is no rail to hand.
+    faults = pg.page_faults("thumbnail", page, pack_hook(ep), pack_byline(ep),
+                            ((ep.get("packaging") or {}).get("ebook_title") or ""))
+    if faults:
+        raise Halt("the authored thumbnail does not carry the approved packaging:\n  - "
+                   + "\n  - ".join(faults))
 
     os.makedirs(a.out_dir, exist_ok=True)
     stem = (ep.get("episode") or "ep").lower().replace("pp-", "")

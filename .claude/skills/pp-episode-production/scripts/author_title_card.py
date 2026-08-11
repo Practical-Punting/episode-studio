@@ -65,6 +65,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from author_cards import Halt, esc                            # noqa: E402
+import packaging_gate as pg                                   # noqa: E402
 
 for _s in (sys.stdout, sys.stderr):
     try:
@@ -300,6 +301,20 @@ def main():
     if "%%" in page:
         raise Halt(f"unfilled slots left in the title card: "
                    f"{sorted(set(re.findall('%%[A-Z_]+%%', page)))}")
+
+    # 🔴 GRADE THE PAGE, NOT THE FIELDS IT WAS BUILT FROM. `check()` above compares
+    # episode.json values with each other and EP20 passed it while carrying the byline
+    # as its headline and an invented sentence beneath. Both halves of every one of
+    # those comparisons came out of the same file, written in the same pass.
+    #     The engine runs this same gate against the RAIL, which is the stronger test.
+    # This one also covers a hand invocation, where there is no rail to hand.
+    faults = pg.page_faults("title_card", page,
+                            (pack.get("hook") or "").strip(),
+                            (pack.get("byline") or "").strip(),
+                            (pack.get("ebook_title") or "").strip())
+    if faults:
+        raise Halt("the authored title card does not carry the approved packaging:\n  - "
+                   + "\n  - ".join(faults))
 
     # Compare the rendered page against what is there. Identical means there was
     # nothing to do; different means the cover or packaging changed and the card

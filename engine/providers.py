@@ -458,6 +458,129 @@ def stage_title_hero(ep_dir: Path) -> str:
     return f"title hero staged from the picked cover hero ({src.name} -> {dst.name})"
 
 
+def _split_headline(title: str) -> tuple[str, str]:
+    """Break a title into the WHITE setup and the ORANGE payoff.
+
+    ⚠️ THE WORDS ARE THE RAIL'S AND ARE NEVER TOUCHED. The only thing decided here is
+    WHERE the line breaks, which is layout, and a human may move it by editing
+    cover.title_setup / title_payoff — the seating below leaves a split alone when it
+    already reproduces the title exactly. The default is the word boundary nearest the
+    middle by character count, so a two-line headline is balanced rather than lopsided.
+    """
+    words = str(title or "").upper().split()
+    if len(words) < 2:
+        raise EngineFlag(
+            f"the rail's title {title!r} is a single word, and the title card and "
+            f"thumbnail both split the headline into a white half and an orange half. "
+            f"Set cover.title_setup / cover.title_payoff (and thumbnail.l1 / l2) by "
+            f"hand — this is a layout choice on an unusual title, not something to "
+            f"guess at.")
+    best, gap = 1, None
+    for i in range(1, len(words)):
+        d = abs(len(" ".join(words[:i])) - len(" ".join(words[i:])))
+        if gap is None or d < gap:
+            best, gap = i, d
+    return " ".join(words[:best]), " ".join(words[best:])
+
+
+def seat_packaging_from_rail(ep, ep_dir: Path) -> str:
+    """🔴 THE RAIL IS THE HOME; episode.json IS THE DERIVED CACHE. (11 Aug 2026.)
+
+    EP20's rail said title="Bill Benter Professional Gambler" and byline="The power of
+    'deep state' handicapping" — both right. The thumbnail put the BYLINE in the big
+    headline and, underneath it, a sentence that appears in NO rail field: "The method
+    used by shrewd computer geeks to make millions of dollars on Hong Kong racing". The
+    title card had the same scramble. Both are the first thing a viewer sees.
+
+    NOTHING CAUGHT IT BECAUSE EVERY CHECK WAS INSIDE ONE FILE. The builders' own words
+    gate asks whether `thumbnail.l1 + l2` equals `packaging.hook` — and both of those
+    are episode.json, written in the same pass by the same writer. The file agreed with
+    itself perfectly. That is the EP16 name fault again, and the memory already names
+    it: A CONSISTENCY CHECK PROVES SAMENESS, NEVER CORRECTNESS.
+
+    So the packaging is now SEATED from the rail before anything is authored, exactly
+    the way the spoken words are (`_script_from_rail`): one home, one derivation, and
+    the file is allowed to be a cache of it rather than a second opinion about it.
+
+    It rewrites only what it must. A split that already reproduces the title verbatim
+    is LEFT ALONE, so a human who moved the line break keeps their break.
+    """
+    title = (ep.get("title") or "").strip()
+    byline = (ep.get("byline") or "").strip()
+    if not title:
+        raise EngineFlag(
+            "the rail has no title for this episode, and the title IS the headline on "
+            "the thumbnail and the title card. Nothing has been authored. Set it on the "
+            "board and clear this flag.")
+    p = ep_dir / "docs/episode.json"
+    epj = json.loads(p.read_text(encoding="utf-8"))
+    pack = epj.setdefault("packaging", {})
+    cov = epj.setdefault("cover", {})
+    th = epj.setdefault("thumbnail", {})
+    changed = []
+
+    if (pack.get("hook") or "").strip() != title:
+        changed.append(f"packaging.hook {pack.get('hook')!r} -> {title!r}")
+        pack["hook"] = title
+    if (pack.get("byline") or "").strip() != byline:
+        changed.append(f"packaging.byline {str(pack.get('byline'))[:60]!r} -> {byline!r}")
+        pack["byline"] = byline
+
+    setup, payoff = _split_headline(title)
+    for block, ka, kb, what in ((cov, "title_setup", "title_payoff", "cover"),
+                                (th, "l1", "l2", "thumbnail")):
+        joined = " ".join(x for x in (block.get(ka), block.get(kb)) if x).strip()
+        # Case and spacing only — the split is layout, the WORDS are the test.
+        if joined.upper() != title.upper():
+            changed.append(f"{what}.{ka}/{kb} {joined[:48]!r} -> {setup!r} + {payoff!r}")
+            block[ka], block[kb] = setup, payoff
+
+    # The strap's break word must be a word of the byline it now carries, or the
+    # thumbnail halts on a break point that no longer exists.
+    brk = th.get("strap_break_after")
+    if brk and brk.lower() not in [w.strip(".,;:—-").lower() for w in byline.split()]:
+        changed.append(f"thumbnail.strap_break_after {brk!r} -> null "
+                       f"(not a word of the rail's byline)")
+        th["strap_break_after"] = None
+
+    if not changed:
+        return "packaging already carries the rail's words — nothing re-seated"
+    p.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return ("re-seated the packaging FROM THE RAIL (the rail is the home, this file is "
+            "the cache): " + "; ".join(changed))
+
+
+def assert_packaging_carries_the_rail(ep, ep_dir: Path) -> str:
+    """Grade the BUILT pages against the two fields on the rail. Raises, or reports.
+
+    ⚠️ THIS IS THE ONE THAT WOULD HAVE CAUGHT EP20, and it is deliberately not the
+    same check the builders run. They grade a page against `packaging.*`, which
+    catches a builder bug and works for a hand run; this grades the same page against
+    the RAIL, which catches the packaging itself being wrong. The seating above is
+    supposed to make the two identical — and a check that trusts its own repair to
+    have worked is not a check.
+    """
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+    import packaging_gate as pg
+    # The part's own approved source is the rail TITLE — a series episode carries its
+    # position in its name ("Each-Way Betting Forever! — Part 2"). Passed explicitly
+    # rather than left to the default so the rail stays the only vocabulary here.
+    res = pg.check_episode(ep_dir, ep.get("title") or "", ep.get("byline") or "",
+                           ep.get("title") or "")
+    if res["blockers"]:
+        raise EngineFlag(
+            "The thumbnail or the title card is not carrying the words on the rail. "
+            "Nothing has been published and nothing spent.\n"
+            "The words on the RAIL are the approved ones — the fix is in "
+            "docs/episode.json, never on the board:\n"
+            + "\n".join(f"  - {b}" for b in res["blockers"]),
+            blockers=res["blockers"])
+    if not res["checked"]:
+        return "packaging gate: nothing built yet to grade"
+    return (f"packaging gate: {len(res['checked'])} page(s) carry the rail's title and "
+            f"byline verbatim, and no word that is in neither")
+
+
 def author_missing_title(ep_dir: Path) -> str:
     """Author overlay/export/<ep>-title.html when it does not exist yet.
 
@@ -2005,6 +2128,11 @@ class RealProvider:
         stage_card_furniture(export)
         # 1b. the title card's photograph — a file copy, not a decision (A1)
         print(f"    {stage_title_hero(d)}")
+        # 1c. THE WORDS COME FROM THE RAIL, and they are seated BEFORE anything is
+        #     authored — not compared afterwards. EP20's title card carried the byline
+        #     as its headline and an invented sentence beneath it, and every existing
+        #     check passed because all of them lived inside episode.json.
+        print(f"    {seat_packaging_from_rail(ep, d)}")
         # 2. author whatever is missing; hand-authored pages are left alone
         author_missing_cards(d)
         # 2a. and the TITLE card, which used to be hand-made on every episode and
@@ -2014,6 +2142,9 @@ class RealProvider:
         #     size is a measurement, not a judgement (design §11), so it should never
         #     be a halt. Hand-authored pages are left alone here too.
         print(f"    {autofit_cards(d)}")
+        # 2b-ii. …and the title card must say what the RAIL says. Graded on the BUILT
+        #        page, because the page is what becomes the picture a viewer sees.
+        print(f"    {assert_packaging_carries_the_rail(ep, d)}")
         # 2c. EVERY IMAGE A PAGE ASKS FOR MUST EXIST — checked HERE, before a single
         #     clip is rendered, because a page that cannot find its image renders ALT
         #     TEXT on a grey box and nothing downstream notices. EP15 shipped the end
@@ -2639,6 +2770,9 @@ class RealProvider:
 
     def build_thumbnail(self, ep) -> str:
         d = self.dir(ep)
+        # THE WORDS COME FROM THE RAIL. Seated before authoring, graded after — see
+        # seat_packaging_from_rail for what EP20 shipped without this.
+        print(f"    {seat_packaging_from_rail(ep, d)}")
         # Author it if it is missing — the third of the four halts Hugh could not
         # clear. It used to say "stage it, then clear this flag" to a browser.
         author_missing_thumbnail(d)
@@ -2669,6 +2803,11 @@ class RealProvider:
         # the PAGE references the logo, which it does whether or not the horse is
         # there. Checking the markup is not checking the artefact. Same lesson as
         # the midroll luma probe.
+        #
+        # …and the words on it must be the RAIL's words. Graded here, on the authored
+        # page, BEFORE a pixel is rendered — EP20's thumbnail put the byline in the
+        # headline and an invented sentence underneath, and it reached a human.
+        print(f"    {assert_packaging_carries_the_rail(ep, d)}")
         # A3 — DO THE COPY, DO NOT ASK A HUMAN TO DO IT.
         #
         # This used to raise a flag reading "It should be copied from
