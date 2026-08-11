@@ -221,6 +221,36 @@ def main():
     check("  the measured-figure assert takes NO page, so it is honestly a data check",
           "def assert_measured_items_show_a_figure(card, blk)" in src)
 
+    # 🔴 THE SWEEP, AS A PROPERTY RATHER THAN AS A CLAIM. Every `raise Halt` in the
+    # authoring code must live in a function the pre-flight actually reaches. Written
+    # down, this was a paragraph in a commit message that would rot; derived from the
+    # source, a halt added in a NEW function fails this case on the day it is written.
+    # That is the difference between a lesson recorded and a lesson enforced.
+    NAMED = {"load_block", "load_frame", "validate"}          # called directly
+    LISTY = {"check_job", "check_trace", "check_dead_trace",
+             "check_converted_odds", "check_mix"}             # return problem lists
+    REH = {"esc", "_first_each", "expand_each", "fill", "fit_css", "apply_rail",
+           "render_card", "assert_no_invented_text",
+           "assert_measured_items_show_a_figure"}             # reached by the rehearsal
+    CAPTURE = {"source_article_text"}                         # capture_reference_faults
+    reached = NAMED | LISTY | REH | CAPTURE
+    import re as _re
+    fn, orphans, sites = None, [], 0
+    for line in src.splitlines():
+        m = _re.match(r"def (\w+)", line)
+        if m:
+            fn = m.group(1)
+        if "raise Halt" in line and not line.strip().startswith("#"):
+            sites += 1
+            if fn not in reached:
+                orphans.append(fn)
+    check(f"all {sites} `raise Halt` sites live in a function the pre-flight reaches",
+          not orphans,
+          f"no commission route to: {sorted(set(orphans))} — add it to the pre-flight, "
+          f"or to this set with a reason")
+    check("  and there are enough of them for that to mean something", sites >= 30,
+          f"only {sites} found — has the file moved?")
+
     print(f"\npreflight rehearsal: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0
 
