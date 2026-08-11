@@ -172,16 +172,65 @@ def authoring_faults(epj: dict, article_norm: str | None) -> list[str]:
             out += [f"{cid}: {p}" for p in ac.check_dead_trace(c)]
         except Exception as e:
             out.append(f"{cid}: {e}")
+        try:
+            out += [f"{cid}: {p}" for p in ac.check_converted_odds(c)]
+        except Exception as e:
+            out.append(f"{cid}: {e}")
         if article_norm is not None:
             try:
                 out += [f"{cid}: {p}" for p in ac.check_trace(c, article_norm)]
             except Exception as e:
                 out.append(f"{cid}: {e}")
+        # THE REHEARSAL. Everything above is a NAMED check; this is the rest of them.
+        # See rehearsal_faults for why the coverage is derived rather than listed.
+        if not [x for x in out if x.startswith(cid + ":")]:
+            out += rehearsal_faults(ac, c, blk)
     try:
         out += ac.check_mix(cards)
     except Exception as e:
         out.append(str(e))
     return out
+
+
+def rehearsal_faults(ac, card, blk) -> list[str]:
+    """AUTHOR THE CARD IN MEMORY AND THROW THE PAGE AWAY. (11 Aug 2026)
+
+    🔴 THE SWEEP THAT CLOSED THE CLASS. Calling author_cards' named validators
+    covered the checks that RETURN a list of problems, and silently missed every
+    condition that halts LATER — inside the substitution itself, or in the two
+    asserts that run once a page exists. EP20 walked into one on 11 Aug:
+
+        C5's bars[1] drew a bar of length 16 and captioned it "variables", so the
+        finished card would have shown a bar and a dangling word with no number in
+        front of it. EP18 C9 shipped exactly that shape. `assert_measured_items_
+        show_a_figure` had existed since 8 Aug and caught it — AT cards_render,
+        after the cover pick, seven paid clips and Gordon's render. Run against
+        the same file, this pre-flight returned ZERO blockers. MEASURED, not
+        assumed: that is the control in test_preflight_rehearsal.py.
+
+    So the pre-flight now does what `author_cards.main` does, minus the write. Not
+    a longer list of checks — THE SAME ACT. A halt condition added to the authoring
+    code tomorrow is graded at the commission today, without anyone remembering to
+    add it here, which is the property the schema half of this module already had
+    and the render half did not (CLAUDE.md fault #7).
+
+    ⚠️ IT IS SKIPPED WHEN THE CARD ALREADY HAS A FAULT, on purpose. A card that
+    failed `validate` fails again inside `fill` in different words, and the same
+    fault twice in one report is how a repair writer is sent chasing two things.
+
+    ⚠️ AND IT NEEDS NOTHING THAT DOES NOT EXIST YET — no rendered page, no staged
+    hero, no browser, no SRT. It is episode.json plus the block and frame templates
+    out of the repo. That is what makes it legal here and `autofit_cards` not
+    (see layout_is_not_here).
+    """
+    try:
+        frame = ac.load_frame(card.get("layout", "fullscreen"))
+        page = ac.render_card(card, blk, frame)
+        ac.assert_no_invented_text(page, card, frame, blk)
+        ac.assert_measured_items_show_a_figure(card, blk)
+    except Exception as e:
+        return [_readable(card.get("id", "?"), e)]
+    return []
 
 
 # ------------------------------------------------------------------ the cues

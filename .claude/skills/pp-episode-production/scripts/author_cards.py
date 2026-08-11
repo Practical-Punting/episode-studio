@@ -135,6 +135,23 @@ def digit_runs(s):
     return re.findall(r"\d+(?:\.\d+)?", s)
 
 
+# A figure a viewer can READ is not always a digit. EP17 C3 captions its bars
+# "Sixteen per cent" / "Ten per cent" / "Five per cent" — the strike rates, spelled
+# out, which is a figure on the screen by any reading of the word. See
+# assert_measured_items_show_a_figure for what this is used for and what it costs.
+NUMBER_WORDS = (
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen "
+    "fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty "
+    "sixty seventy eighty ninety hundred thousand million billion"
+).split()
+NUMBER_WORD_RE = re.compile(r"\b(" + "|".join(NUMBER_WORDS) + r")\b", re.I)
+
+
+def shows_a_figure(s):
+    """Does this string put a quantity in front of a viewer — in digits OR in words?"""
+    return bool(re.search(r"\d", s) or NUMBER_WORD_RE.search(s))
+
+
 # ---------------------------------------------------------------- validation
 
 def validate(card, blk):
@@ -434,6 +451,21 @@ def check_converted_odds(card):
     THE TEST IS THE TRACE, not a word list. A dollar amount is perfectly fine — a bank,
     a stake, a season's profit. What is forbidden is a dollar amount whose OWN traced
     sentence states the same thing in odds, because that is what a conversion IS.
+
+    ⚠️ AND A CONVERSION HAS A DIRECTION (11 Aug 2026). "Odds present in the sentence"
+    was too coarse and it fired on EP18 C4, an episode that shipped and is right:
+
+        "favourites had an average dividend of $2.80 (about 7/4) but showed a
+         dramatic 25 per cent loss on turnover"
+
+    There the DOLLAR is the article's own figure and the ODDS are its parenthetical
+    gloss — the exact mirror of EP19 C8's "8/11 to 9/4 inclusive (that is, in tote
+    terms, $1.75 to $3.25)". The card must carry whichever the article states in its
+    OWN VOICE, and the gloss is what stays behind. So the test is now WHERE the money
+    sits: a dollar figure the sentence states outside its brackets is the article's,
+    and one that appears only inside them is the conversion. Found by running this
+    check over every shipped episode before wiring it into the commission — a wrong
+    halt there costs three repair cycles, not one line in a run log.
     """
     cid = card.get("id", "<no id>")
     trace = card.get("trace") or {}
@@ -444,6 +476,12 @@ def check_converted_odds(card):
         sentence = trace.get(key, trace.get(key.split("[")[0])) or ""
         if not ODDS.search(sentence):
             continue                 # a price the article states as a price: fine
+        # The sentence with every parenthetical removed = what the article says in
+        # its own voice. A figure surviving there was never a gloss on anything.
+        plain = re.sub(r"\([^)]*\)", " ", sentence)
+        mine = digit_runs(val.replace(",", ""))
+        if any(d in plain.replace(",", "") for d in mine):
+            continue                 # the article's OWN dollar figure — EP18 C4
         problems.append(
             f"{cid}.{key} = {val!r} shows a DOLLAR price, and its own traced sentence "
             f"states that figure as ODDS: {sentence.strip()[:120]!r}. That makes this "
@@ -676,13 +714,41 @@ def expand_each(tpl, content, blk, anim=False):
     return "".join(out)
 
 
+# An element whose WHOLE body is one placeholder. Nothing else can match: the
+# per-item tokens ({{ITEM}}, {{CELL}}, {{I}}) are gone by the time fill() runs,
+# because expand_each has already replaced them.
+BARE_SLOT = re.compile(r"<(\w+)(?:\s[^>]*)?>\s*\{\{(\w+)\}\}\s*</\1>")
+
+
 def fill(tpl, content):
-    """Replace {{key}} with the escaped content value. Unresolved token = halt."""
+    """Replace {{key}} with the escaped content value. Unresolved token = halt.
+
+    🔴 AN EMPTY SLOT MUST NOT DRAW A BOX (11 Aug 2026, EP20 C5). `null` renders an
+    empty string, which is right for a line of text and WRONG for a decorated one:
+    `bars` ends with `<div class="chip">{{chip}}</div>` and .chip is a pill with a
+    background, a border and 14px of padding. With `chip: null` the finished card
+    showed a small empty grey lozenge in the bottom-left corner — a thing on screen
+    that nobody wrote, which is the fabrication rule from the other direction.
+
+    IT WAS NEVER SEEN BECAUSE EVERY EARLIER `bars` CARD HAD THREE BARS and the pill
+    was pushed off the bottom edge. EP20's has two, so it landed in shot. That is the
+    shape of this whole class: not a new fault, a fault whose first VISIBLE instance
+    happened to be episode twenty.
+
+    The rule is derived, not a list of class names: an element whose entire body is
+    one placeholder has nothing to show when that placeholder is null, so it is
+    removed rather than emptied. It cannot touch a `bars` bar or a `ratio` column —
+    those carry no placeholder and ARE the picture. pp-anim.js skips a selector that
+    matches nothing (`if (el)`), and ppDuration is computed from the spec rather than
+    from the elements, so clip lengths do not move.
+    """
     def one(m):
         k = m.group(1)
         if k not in content:
             raise Halt(f"template wants {{{{{k}}}}} but content has no key {k!r}")
         return esc(content[k])
+    tpl = BARE_SLOT.sub(lambda m: "" if content.get(m.group(2), "") is None
+                        else m.group(0), tpl)
     out = re.sub(r"\{\{(\w+)\}\}", one, tpl)
     leftover = re.findall(r"\{\{[\w.]+\}\}", out)
     if leftover:
@@ -805,8 +871,14 @@ def visible_text(page):
     return norm(re.sub(r"<[^>]+>", " ", html.unescape(body))).lower()
 
 
-def assert_measured_items_show_a_figure(page, card, blk):
+def assert_measured_items_show_a_figure(card, blk):
     """🔴 THE OTHER HALF OF THE GUARD, AND THE ONE THAT WAS MISSING.
+
+    🔵 IT TAKES NO PAGE, AND THAT IS WHY IT CAN RUN AT THE COMMISSION. It used to
+    accept one and compute `visible_text(page)` into a variable nothing ever read —
+    so it LOOKED like a render-time check and was filed with the two that genuinely
+    are. It is pure episode.json, it always was, and preflight_cards calls it at
+    audit_inputs on the strength of that (11 Aug 2026).
 
     `assert_no_invented_text` proves nothing appears that is not in the file. NOTHING
     proved the reverse — that a number the card is ABOUT reaches the screen at all.
@@ -827,10 +899,24 @@ def assert_measured_items_show_a_figure(page, card, blk):
 
     Which fields are measurement-only is read from the BLOCK'S OWN SCHEMA (`numeric`),
     so a block added tomorrow is covered without anyone listing it here.
+
+    ⚠️ A FIGURE SPELLED OUT IS STILL A FIGURE (11 Aug 2026). The first version tested
+    for a DIGIT, and on EP17 C3 — win counts drawn as bars, captioned "Sixteen per
+    cent" / "Ten per cent" / "Five per cent" — it reported a card that shows three
+    figures as showing none. That is precisely the shape the paragraph above BLESSES:
+    the measurement is the picture, the note is the number. It surfaced when this
+    check was wired into the commission, where a wrong halt costs three repair
+    cycles rather than one look at a run log.
+        THE COST OF THE WIDENING, NAMED: a caption that merely contains the word
+    "one" or "hundred" as prose now counts as showing a figure, so a genuinely empty
+    caption could slip through on a coincidence. That is the cheaper mistake. A guard
+    that halts a good episode is the version somebody switches off (CLAUDE.md 4a),
+    and the four real catches — EP14 C8, EP17 (none), EP18 C9, EP20 C5 — all still
+    fire, because "lengths behind the leader", "per cent profit on turnover" and
+    "variables" contain no number in any spelling.
     """
     content = card.get("content") or {}
     lists = (blk.get("schema") or {}).get("lists", {})
-    seen = visible_text(page)
     for name, spec in lists.items():
         numeric = set(spec.get("numeric", []))
         if not numeric:
@@ -842,7 +928,7 @@ def assert_measured_items_show_a_figure(page, card, blk):
             if not measured:
                 continue                 # nothing being measured, nothing to show
             shown = [v for k, v in item.items()
-                     if k not in numeric and isinstance(v, str) and re.search(r"\d", v)]
+                     if k not in numeric and isinstance(v, str) and shows_a_figure(v)]
             if shown:
                 continue
             label = item.get("label") or item.get("k") or f"{name}[{i}]"
@@ -957,7 +1043,7 @@ def main():
         frame_tpl = load_frame(c.get("layout", "fullscreen"))
         page = render_card(c, blk, frame_tpl)
         assert_no_invented_text(page, c, frame_tpl, blk)
-        assert_measured_items_show_a_figure(page, c, blk)
+        assert_measured_items_show_a_figure(c, blk)
         out = os.path.join(a.out_dir, c["page"])
         if os.path.exists(out):
             existing = open(out, encoding="utf-8").read()

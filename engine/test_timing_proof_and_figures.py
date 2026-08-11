@@ -97,6 +97,12 @@ BARS_BLOCK = ac.load_block("bars")
 FRAME = ac.load_frame("fullscreen")
 
 
+# 🔵 THE PAGE IS STILL RENDERED AND IT IS NO LONGER PASSED IN (11 Aug 2026). The
+# assert took a `page` and never read it — it computed `visible_text(page)` into a
+# variable nothing used — so it LOOKED like a render-time check and was filed with
+# the ones that are. It is pure episode.json, which is what lets preflight_cards run
+# it at the commission instead of meeting it at cards_render (EP20 C5). Rendering is
+# kept here anyway: it proves these shapes still author, which is a real thing to know.
 def render(notes):
     card = {"id": "C9", "block": "bars", "layout": "fullscreen",
             "eyebrow": "Nine", "headline": "IN TOWN", "headline_display": "In Town",
@@ -110,7 +116,7 @@ def render(notes):
 # FAIL FIRST: EP18's shipped C9 — the number lives only in the bar's WIDTH
 card, page = render(["per cent profit on turnover", "per cent profit on turnover"])
 try:
-    ac.assert_measured_items_show_a_figure(page, card, BARS_BLOCK)
+    ac.assert_measured_items_show_a_figure(card, BARS_BLOCK)
     caught = None
 except ac.Halt as e:
     caught = str(e)
@@ -124,7 +130,7 @@ check("  and explains that `value` only sets the bar length",
 card2, page2 = render(["5 per cent profit on turnover", "12 per cent profit on turnover"])
 ok = True
 try:
-    ac.assert_measured_items_show_a_figure(page2, card2, BARS_BLOCK)
+    ac.assert_measured_items_show_a_figure(card2, BARS_BLOCK)
 except ac.Halt as e:
     ok = False
     print(f"        {e}")
@@ -138,7 +144,7 @@ check("the corrected card PASSES", ok)
 card3, page3 = render(["26% strike rate", "10% strike rate"])
 ok3 = True
 try:
-    ac.assert_measured_items_show_a_figure(page3, card3, BARS_BLOCK)
+    ac.assert_measured_items_show_a_figure(card3, BARS_BLOCK)
 except ac.Halt as e:
     ok3 = False
     print(f"        {e}")
