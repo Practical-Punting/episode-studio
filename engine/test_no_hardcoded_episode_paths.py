@@ -54,6 +54,17 @@ def case(name, fn):
         print(f"  !!  {name}\n      {e}")
 
 
+# A line that builds a folder under a TEMPORARY root. The docstring above already
+# rules these out — "what makes a literal a fuse is that it reaches the REAL
+# filesystem" — but the scope was the whole FILE, so a suite that does both was judged
+# by its Drive half. test_web_copies.py is exactly that: it reads EP20's real pictures
+# AND invents PP-EP98/PP-EP99 under a tempdir to exercise the slug and the halt.
+# ⚠️ NARROWED ON THE LINE, NEVER ON THE FILE. A file-level opt-out would switch the
+# lint off for every literal in a suite that happens to use a tempdir once.
+TEMP_ROOT = re.compile(r"\b(td|tmp\w*|temp\w*|tmpdir|tmp_path)\b\s*(?=[/)\],])"
+                       r"|tempfile\.|mkdtemp|TemporaryDirectory")
+
+
 def scan(src, label="<source>"):
     """The predicate, on ONE source string. Importable, so it can be run against the
     versions of these files in git HEAD — proving a lint against the source you just
@@ -64,7 +75,7 @@ def scan(src, label="<source>"):
     for i, line in enumerate(src.splitlines(), 1):
         if line.lstrip().startswith(("#", "//", "*")):
             continue                                       # a docstring may quote one
-        if LITERAL.search(line):
+        if LITERAL.search(line) and not TEMP_ROOT.search(line):
             hits.append(f"{label}:{i}  {line.strip()[:88]}")
     return hits
 
@@ -93,6 +104,18 @@ def _the_lint_can_actually_fail():
             r'    SHIPPED = episode_dir(14) / "output/PP-EP14-youtube.txt"']
     for g in good:
         assert not LITERAL.search(g), f"the pattern false-positives on legal code: {g}"
+    # THE TEMP-ROOT NARROWING, both directions. A folder the suite invents under a
+    # tempdir is not a fuse — no rename can reach it — but the SAME literal against
+    # the Drive still is, and that is the half worth proving.
+    temp_ok = [r'        small_ep = Path(td) / "PP-EP99"',
+               r'    ep = Path(tempfile.mkdtemp()) / "PP-EP23"',
+               r'        bare = tmp / "PP-EP98"']
+    for g in temp_ok:
+        assert scan(f'"PP Videos"\n{g}', "x") == [], \
+            f"the lint still fires on a synthetic temp folder: {g}"
+    assert scan('"PP Videos"\n' + r'    ep = Path(r"G:\My Drive\PP Videos\PP-EP13")',
+                "x") != [], \
+        "the temp-root narrowing has gutted the lint — the real fuse no longer fires"
     # the scope test, run over the REAL suites: at least one is in range, or the lint
     # is scanning nothing at all and its silence means nothing.
     in_range = [p.name for p in HERE.glob("test_*.py")

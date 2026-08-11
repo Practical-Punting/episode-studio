@@ -229,8 +229,11 @@ PHASES = {
     # Jodie's requirement is that the machine QCs the assembled video BEFORE EVERY HUMAN
     # APPROVAL GATE — the gate is at the END of this phase, so QC still comes before it,
     # and now it can see the whole delivery rather than two thirds of it.
+    # `web_copies` sits after `thumbnail` because it needs BOTH full-size pictures
+    # — the one that step writes, and the e-book cover from `ebook_cover`. It is
+    # additive and never fails the build (Jodie, 11 Aug 2026).
     "assembling": ["assemble_passA", "assemble_passB", "ebook_pdf", "thumbnail",
-                   "self_qc", "youtube_copy"],
+                   "web_copies", "self_qc", "youtube_copy"],
 }
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
@@ -251,6 +254,7 @@ STEP_LABEL = {
     "self_qc":        "Checking my own work (QC)",
     "ebook_pdf":      "Building the e-book PDF",
     "thumbnail":      "Building the thumbnail",
+    "web_copies":     "Making the low-res web copies",
     "youtube_copy":   "Saving the YouTube copy",
 }
 
@@ -1149,6 +1153,16 @@ def step_thumbnail(ctx):
     return {"thumbnail": out}
 
 
+def step_web_copies(ctx):
+    """The two low-res pictures Hugh puts on the website (Jodie, 11 Aug 2026).
+
+    Placed AFTER `thumbnail` because it needs both full-size pictures — the thumbnail
+    that step writes, and the e-book cover from `ebook_cover` much earlier. It is
+    additive: two new names in output/, nothing existing touched.
+    """
+    return {"report": ctx.provider.build_web_copies(ctx.ep, ctx.provider.dir(ctx.ep))}
+
+
 def step_youtube_copy(ctx):
     """The copy needs no web address — it needs to BE on the card.
 
@@ -1177,7 +1191,7 @@ STEP_FNS = {name: fn for name, fn in [
     ("assemble_passA", step_assemble_passA),
     ("assemble_passB", step_assemble_passB), ("self_qc", step_self_qc),
     ("ebook_pdf", step_ebook_pdf), ("thumbnail", step_thumbnail),
-    ("youtube_copy", step_youtube_copy),
+    ("web_copies", step_web_copies), ("youtube_copy", step_youtube_copy),
 ]}
 
 

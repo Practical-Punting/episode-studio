@@ -254,6 +254,38 @@ def author_missing_thumbnail(ep_dir: Path) -> str:
     return (r.stdout or "").strip()
 
 
+# EP20 ONWARDS (Jodie, 11 Aug 2026). Earlier episodes are published and are not
+# touched — and the gate is a NUMBER rather than a "does the file exist" test, so
+# re-running an old episode for any other reason cannot quietly add files to it.
+WEB_COPIES_FROM_EP = 20
+
+
+def build_web_copies(ep, ep_dir: Path) -> str:
+    """Low-res JPEGs of the thumbnail and the e-book cover, for Hugh's website.
+
+    ADDITIVE ONLY. It reads the two full-size pictures and writes two new names
+    beside them; `test_web_copies.py` hashes the whole episode folder before and
+    after to prove nothing else moves by a byte.
+
+    ⚠️ IT NEVER FAILS THE BUILD. These are a convenience for the website, not a
+    deliverable the episode depends on — an episode that is otherwise finished must
+    not stop at its approvals because a resize did not work. It says what went wrong
+    in the run log and the build carries on.
+    """
+    n = int(ep.get("ep_number") or 0)
+    if n < WEB_COPIES_FROM_EP:
+        return (f"web copies: skipped — EP{n:02d} is before EP{WEB_COPIES_FROM_EP} "
+                f"and published episodes are left exactly as they are")
+    r = subprocess.run(
+        [sys.executable, str(SKILL_DIR / "scripts/web_copies.py"), str(ep_dir)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    out = (r.stdout or "").strip()
+    if r.returncode:
+        return ("web copies: NOT made — " + (r.stderr or r.stdout).strip()[-400:]
+                + "\n    (the episode is unaffected; these are a website convenience)")
+    return out or "web copies: nothing reported"
+
+
 def thumbnail_placement_review(ep_dir: Path, png: Path):
     """Raise the ONE clearable flag this step is meant to raise.
 
