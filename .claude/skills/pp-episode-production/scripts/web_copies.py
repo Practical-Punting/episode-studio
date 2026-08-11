@@ -54,18 +54,36 @@ class Halt(Exception):
 
 
 def episode_slug(ep_dir: Path) -> str:
-    """'PP-EP20' from the folder name, however the folder is suffixed.
+    """The stem this episode's deliverables are named with.
 
-    Read off the DIRECTORY rather than passed in, because the stage-8 close-out
-    renames published folders and a caller holding an old name would write the
-    files under it.
+    🔴 IT IS THE WHOLE FOLDER NAME, NOT 'PP-EPnn'. (Fixed 11 Aug 2026, during the
+    EP2-EP19 backfill.) `providers.ep_folder` is the one definition of how a
+    deliverable is named, and every file in output/ follows it — so a PUBLISHED
+    episode, whose folder the stage-8 close-out has renamed, carries
+    `PP-EP18-Those-Top-6-Favourites-thumbnail.png`, not `PP-EP18-thumbnail.png`.
+
+    This function used to truncate to the `PP-EPnn` prefix and invent a name of its
+    own. It worked on EP20 — whose folder had not been renamed yet — and found
+    NOTHING on all sixteen published episodes, reporting them as "no thumbnail" when
+    every one of them has one. A second definition of a shared value, drifting from
+    the first, which is the fault this repo names most often.
     """
-    m = re.match(r"(PP-EP\d+)", ep_dir.name)
-    if not m:
+    if not re.match(r"PP-EP\d+", ep_dir.name):
         raise Halt(f"{ep_dir.name!r} is not an episode folder — expected a name "
-                   f"starting 'PP-EPnn', so there is no episode number to name these "
+                   f"starting 'PP-EPnn', so there is no episode to name these "
                    f"files after.")
-    return m.group(1)
+    return ep_dir.name
+
+
+def full_size_thumbnail(ep_dir: Path) -> Path:
+    """The finished thumbnail, FOUND rather than assumed.
+
+    Globbed so the naming cannot drift out from under this script again — and
+    `-lowres` is excluded so a re-run never feeds its own output back in.
+    """
+    hits = [p for p in sorted((ep_dir / "output").glob("*-thumbnail.png"))
+            if "lowres" not in p.name]
+    return hits[-1] if hits else ep_dir / "output" / f"{episode_slug(ep_dir)}-thumbnail.png"
 
 
 def shrink(src: Path, dst: Path) -> str:
@@ -102,8 +120,11 @@ def targets(ep_dir: Path) -> list[tuple[Path, Path]]:
     """(source, destination) for each copy. Sources are READ ONLY."""
     slug = episode_slug(ep_dir)
     out = ep_dir / "output"
+    thumb = full_size_thumbnail(ep_dir)
+    # The low-res copy takes ITS OWN source's name, so the pair always sits beside
+    # the full-size file it came from rather than beside a name this script guessed.
     return [
-        (out / f"{slug}-thumbnail.png", out / f"{slug}-thumbnail-lowres.jpg"),
+        (thumb, out / (thumb.stem + "-lowres.jpg")),
         (ep_dir / "ebook/cover.png", out / f"{slug}-cover-lowres.jpg"),
     ]
 
