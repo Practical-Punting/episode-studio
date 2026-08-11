@@ -314,6 +314,54 @@ def main():
         check("  running it twice changes nothing the second time",
               "nothing re-seated" in again, again[:80])
 
+    print("\n-- THE E-BOOK COVER PUTS THE PART INSIDE THE TITLE (EP21) --")
+    # 🔴 The title card and the thumbnail keep the series part in an element of its
+    # own, so the headline zone never sees it. `author_cover.build_title` appends it
+    # INTO `<div class="title">` — as a <span class="part"> on a short title, or
+    # inline after `<br>&mdash;` on a long one (EP10's shape). The headline capture
+    # swallowed it, so the gate read "TRACK SECRETS Part 1" against a title field of
+    # "TRACK SECRETS" and flagged 'part' and '1' as words from nowhere — the very
+    # words the rail's title carries.
+    #     EP21 IS THE FIRST "PART X" EPISODE THROUGH THIS GATE. It was written for
+    # EP20, which has no part, so this path had never once run.
+    import author_cover as _ac
+    T21, B21 = "Track Secrets", "The Track Picks The Winner"
+    EB21, ATTR21 = "Track Secrets Part 1", f"{B21} · {pg.COVER_ATTRIBUTION}"
+
+    def cover21(setup="TRACK", payoff="SECRETS", sub=B21, attr=ATTR21,
+                part="Part 1", inline=False):
+        t = _ac.build_title({"title_setup": setup, "title_payoff": payoff,
+                             "part": part, "part_inline": inline})
+        return f'<div class="subtitle">{sub}</div><div class="byline">{attr}</div>' + t
+
+    z = pg.zones_from_page("ebook_cover", cover21())
+    check("the part is lifted OUT of the headline zone",
+          z["headline"] == "TRACK SECRETS" and z["part"] == "Part 1",
+          f"headline={z['headline']!r} part={z['part']!r}")
+    zi = pg.zones_from_page("ebook_cover", cover21(inline=True))
+    check("  and out of the INLINE form too (EP10's shape)",
+          zi["headline"] == "TRACK SECRETS" and zi["part"] == "Part 1",
+          f"headline={zi['headline']!r} part={zi['part']!r}")
+    zn = pg.zones_from_page("ebook_cover", cover21(setup="BILL BENTER",
+                                                   payoff="PROFESSIONAL GAMBLER",
+                                                   part=None))
+    check("  a cover with NO part is untouched (EP20)",
+          zn["headline"] == "BILL BENTER PROFESSIONAL GAMBLER" and not zn["part"])
+    check("EP21's cover PASSES", not pg.page_faults("ebook_cover", cover21(),
+                                                    T21, B21, EB21),
+          f"{pg.page_faults('ebook_cover', cover21(), T21, B21, EB21)[:1]}")
+    check("  the inline form passes too",
+          not pg.page_faults("ebook_cover", cover21(inline=True), T21, B21, EB21))
+    print("  -- and it did NOT go soft on a part episode --")
+    for name, page in [
+        ("an invented word in the headline", cover21(payoff="SECRETS TODAY")),
+        ("an invented subtitle", cover21(sub="Barrier draw secrets revealed")),
+        ("an invented part", cover21(part="Chapter Nine")),
+        ("a tampered attribution", cover21(attr="by somebody else")),
+    ]:
+        check(f"    {name} is REFUSED",
+              pg.page_faults("ebook_cover", page, T21, B21, EB21) != [])
+
     print("\n-- A PART EPISODE SAYS ITS PART ONCE --")
     # 🔴 EP21, 11 Aug 2026, caught on a COPY before an artefact was built. The rail
     # title is "Track Secrets Part 1"; `cover.part` also carries "Part 1"; and

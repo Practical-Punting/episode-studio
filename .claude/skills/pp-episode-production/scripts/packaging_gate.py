@@ -124,6 +124,22 @@ def fold(s: str) -> str:
     return norm(s or "").lower()
 
 
+# 🔴 THE E-BOOK COVER PUTS THE SERIES PART INSIDE THE TITLE. (EP21, 12 Aug 2026.)
+# The title card and the thumbnail both keep it in an element of its own — `#pt` and
+# `.part` — so the headline zone never sees it. `author_cover.build_title` does not:
+# it appends the part INTO `<div class="title">`, in one of two shapes,
+#     <span class="part">Part 1</span>          (a short title, its own line)
+#     <br>&mdash; Part 1                        (a long title, kept inline — EP10)
+# so the headline capture swallowed it. The gate then read the headline as
+# "TRACK SECRETS Part 1" against a title field of "TRACK SECRETS" and flagged 'part'
+# and '1' as words from nowhere — the very words the rail's title carries.
+#
+# EP21 IS THE FIRST "PART X" EPISODE THROUGH THIS GATE. It was written for EP20,
+# which has no part, so this path had never once run.
+COVER_PART_SPLIT = re.compile(
+    r'<span class="part">|<br\s*/?>\s*(?:&mdash;|&#8212;|—|–)\s*', re.I)
+
+
 def zones_from_page(kind: str, page: str) -> dict:
     """Pull every text zone out of a BUILT page. Missing zone -> ''. """
     out = {}
@@ -134,6 +150,15 @@ def zones_from_page(kind: str, page: str) -> dict:
             if m:
                 parts.append(_text(m.group(1)))
         out[zone] = norm(" ".join(x for x in parts if x))
+    if kind == "ebook_cover":
+        m = re.search(ZONES[kind]["headline"][0], page, re.S)
+        if m:
+            bits = COVER_PART_SPLIT.split(m.group(1), maxsplit=1)
+            out["headline"] = norm(_text(bits[0]))
+            # The part is graded in its OWN zone, against its own approved source —
+            # exactly as it is on the thumbnail and the title card.
+            if len(bits) > 1:
+                out["part"] = norm(_text(bits[1]))
     return out
 
 
