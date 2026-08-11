@@ -41,6 +41,13 @@ LOGO = ASSETS / "video-logo-chip.png"
 MUSIC = PP / "PP-EP01-The-Trifecta-Mistake/music" / \
     "ES_Sleeves Full of Aces - Alexandra Woodward.mp3"
 
+def episode_dir(n: int) -> Path:
+    """BY NUMBER, never by a written-out name — stage-8 renames published folders,
+    and this suite reaches into a real one for its readings."""
+    hits = sorted(p for p in PP.glob(f"PP-EP{n:02d}*") if p.is_dir())
+    return hits[0] if hits else PP / f"PP-EP{n:02d}"
+
+
 PASS, FAIL = [], []
 
 
@@ -81,7 +88,7 @@ def main():
         return 1
 
     print("-- THE READINGS, off EP20's shipped film --")
-    ep20 = next(iter(sorted((PP / "PP-EP20/output").glob("*FINAL.mp4"))), None)
+    ep20 = next(iter(sorted((episode_dir(20) / "output").glob("*FINAL.mp4"))), None)
     if ep20 and ep20.is_file():
         total = ef.probe(ep20)["dur"]
         end_card = ef.brightish(ep20, total - 20)
