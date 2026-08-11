@@ -34,6 +34,7 @@ ASSETS = HERE.parent / ".claude/skills/pp-episode-production/assets"
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(SCRIPTS))
 
+import providers  # noqa: E402
 import packaging_gate as pg                                     # noqa: E402
 
 PP = Path(os.environ.get("PP_VIDEOS_DIR", str(Path("G:/My Drive") / "PP Videos")))
@@ -312,6 +313,46 @@ def main():
             {"title": TITLE, "byline": BYLINE}, d)
         check("  running it twice changes nothing the second time",
               "nothing re-seated" in again, again[:80])
+
+    print("\n-- A PART EPISODE SAYS ITS PART ONCE --")
+    # 🔴 EP21, 11 Aug 2026, caught on a COPY before an artefact was built. The rail
+    # title is "Track Secrets Part 1"; `cover.part` also carries "Part 1"; and
+    # check_one_name composes the card as setup + payoff + " - " + part. Seating the
+    # WHOLE title into the split gave "TRACK SECRETS PART 1 - Part 1".
+    check("the part is lifted off the name",
+          providers._split_part("Track Secrets Part 1") == ("Track Secrets", "Part 1"))
+    check("  an em dash before it too (EP16's shape)",
+          providers._split_part("Each-Way Betting Forever! — Part 2")
+          == ("Each-Way Betting Forever!", "Part 2"))
+    check("  and a title with no part is left whole (EP20)",
+          providers._split_part("Bill Benter Professional Gambler")
+          == ("Bill Benter Professional Gambler", None))
+    with tempfile.TemporaryDirectory() as td2:
+        d2 = Path(td2)
+        (d2 / "docs").mkdir()
+        (d2 / "docs/episode.json").write_text(json.dumps(
+            {"title": "x",
+             "packaging": {"hook": "x", "byline": "y", "ebook_title": "x",
+                           "youtube_title": "x"},
+             "cover": {"title_setup": "X", "title_payoff": "Y", "part": None,
+                       "byline": "z"},
+             "thumbnail": {"l1": "X", "l2": "Y", "strap_break_after": None}}),
+            encoding="utf-8")
+        providers.seat_packaging_from_rail(
+            {"title": "Track Secrets Part 1", "byline": "The Track Picks The Winner"}, d2)
+        seated2 = json.loads((d2 / "docs/episode.json").read_text(encoding="utf-8"))
+        check("the hook drops the part", seated2["packaging"]["hook"] == "Track Secrets",
+              seated2["packaging"]["hook"])
+        check("  cover.part carries it instead", seated2["cover"]["part"] == "Part 1")
+        check("  the ebook and YouTube keep the FULL name",
+              seated2["packaging"]["ebook_title"] == "Track Secrets Part 1"
+              and seated2["packaging"]["youtube_title"].startswith("Track Secrets Part 1 |"))
+        check("  and the episode is called ONE thing",
+              not ytl.check_one_name(seated2), f"{ytl.check_one_name(seated2)[:1]}")
+    check("a separating dash is typography, not a different name",
+          ytl._fold("TRACK SECRETS - Part 1") == ytl._fold("Track Secrets Part 1"))
+    check("  but two genuinely different names still differ",
+          ytl._fold("Hidden Aces") != ytl._fold("Squeeze Those Odds"))
 
     print("\n-- the engine actually RUNS it, and seats the words first --")
     prov = (HERE / "providers.py").read_text(encoding="utf-8")

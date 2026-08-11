@@ -144,8 +144,19 @@ def derive_from(epj: dict) -> str:
 # and all three passed while disagreeing with each other.
 
 def _fold(s: str) -> str:
-    """Compare NAMES, not typography: case, dash flavour and spacing are noise here."""
+    """Compare NAMES, not typography: case, dash flavour and spacing are noise here.
+
+    ⚠️ A DASH BETWEEN WORDS IS A SEPARATOR, AND IT IS NOISE TOO (11 Aug 2026).
+    The title card is composed as `setup + payoff + " - " + part`, so an episode whose
+    rail title reads "Track Secrets Part 1" — no dash — was reported as being called
+    two different things, purely because the card puts a hyphen where the title has a
+    space. EP16 only escaped it by having an em dash in its own name.
+        Both sides get the same treatment, so this cannot make two DIFFERENT names
+    agree: it folds "Each-Way" and "Each Way" together, which are the same name, and
+    nothing else. Caught on a copy of EP21's file before an artefact was built.
+    """
     s = re.sub(r"[‐-―−-]+", "-", (s or ""))
+    s = re.sub(r"\s*-\s*", " ", s)            # a separating dash reads as a space
     return re.sub(r"\s+", " ", s).strip(" -").upper()
 
 

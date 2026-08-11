@@ -537,6 +537,30 @@ def stage_title_hero(ep_dir: Path) -> str:
     return f"title hero staged from the picked cover hero ({src.name} -> {dst.name})"
 
 
+_PART_TAIL = re.compile(r"\s*[—–\-:·]?\s*\b(Part\s+\d+)\s*$", re.I)
+
+
+def _split_part(title: str) -> tuple[str, str | None]:
+    """('Each-Way Betting Forever!', 'Part 2') — the NAME, and its series position.
+
+    🔴 THE PART LIVES ON ITS OWN LINE, AND ONLY ONCE. (EP21, 11 Aug 2026.)
+    `cover.part` already carries the series position, and `check_one_name` recomposes
+    the title card as setup + payoff + " - " + part. So if the split swallows the part
+    as well, the card reads "TRACK SECRETS PART 1 - Part 1" and the name gate fails —
+    caught on a COPY of EP21's file before a single artefact was built.
+
+    The convention is read off EP16 and EP19, not invented: `title` and
+    `packaging.ebook_title` carry the FULL name including the part, while
+    `packaging.hook` and the setup/payoff split carry the name WITHOUT it.
+        EP16  title 'Each-Way Betting Forever! — Part 2'
+              hook  'EACH-WAY BETTING FOREVER!'      part 'Part 2'
+    """
+    m = _PART_TAIL.search(title or "")
+    if not m:
+        return (title or "").strip(), None
+    return title[:m.start()].strip(), m.group(1).strip()
+
+
 def _split_headline(title: str) -> tuple[str, str]:
     """Break a title into the WHITE setup and the ORANGE payoff.
 
@@ -598,19 +622,25 @@ def seat_packaging_from_rail(ep, ep_dir: Path) -> str:
     th = epj.setdefault("thumbnail", {})
     changed = []
 
-    if (pack.get("hook") or "").strip() != title:
-        changed.append(f"packaging.hook {pack.get('hook')!r} -> {title!r}")
-        pack["hook"] = title
+    # THE NAME WITHOUT ITS PART, because `cover.part` says the part on its own line.
+    # Swallowing it here as well makes the title card read "... PART 1 - Part 1".
+    name, part = _split_part(title)
+    if (pack.get("hook") or "").strip() != name:
+        changed.append(f"packaging.hook {pack.get('hook')!r} -> {name!r}")
+        pack["hook"] = name
     if (pack.get("byline") or "").strip() != byline:
         changed.append(f"packaging.byline {str(pack.get('byline'))[:60]!r} -> {byline!r}")
         pack["byline"] = byline
+    if (cov.get("part") or None) != part:
+        changed.append(f"cover.part {cov.get('part')!r} -> {part!r}")
+        cov["part"] = part
 
-    setup, payoff = _split_headline(title)
+    setup, payoff = _split_headline(name)
     for block, ka, kb, what in ((cov, "title_setup", "title_payoff", "cover"),
                                 (th, "l1", "l2", "thumbnail")):
         joined = " ".join(x for x in (block.get(ka), block.get(kb)) if x).strip()
         # Case and spacing only — the split is layout, the WORDS are the test.
-        if joined.upper() != title.upper():
+        if joined.upper() != name.upper():
             changed.append(f"{what}.{ka}/{kb} {joined[:48]!r} -> {setup!r} + {payoff!r}")
             block[ka], block[kb] = setup, payoff
 
