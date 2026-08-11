@@ -193,6 +193,37 @@ def _pairs(n: int) -> str:
     return f"{int_words(a)} {int_words(b)}"
 
 
+# The three ways a four-figure number is said aloud. EVERY ONE IS OFFERED, because
+# the notation cannot tell you which the writer meant: 1988 is a year, 1600 is a
+# distance, 2210 is a circumference, and they are said differently.
+READINGS = ("cardinal", "pairs", "hundreds")
+
+
+def _hundreds(n: int) -> str:
+    """2210 -> "twenty two hundred and ten"; 1250 -> "twelve hundred and fifty".
+
+    🔴 THE READING THAT JAMMED EP21. (11 Aug 2026.) The article says "more than
+    2210 m in circumference" and "the 1200 m and 1250m journeys". `_pairs` reads
+    those as "twenty two ten" and "twelve fifty" — the YEAR reading — and
+    `int_words` as "two thousand two hundred and ten". The way an Australian
+    actually says a race distance is NEITHER: it is "twenty two hundred and ten".
+
+    So the drafting pass wrote the article's own figures, correctly, and the gate
+    called them inventions three times. The writer refused to mangle Hugh's
+    measurements and halted — which was the right call, and cost the episode a
+    drafting cycle. It would have done that to EVERY episode with a four-figure
+    distance in it, which is most of them.
+
+    ⚠️ IT IS A READING, NOT A CONVERSION, and that distinction is the whole safety
+    argument. This turns the article's DIGITS into words a person would say; it
+    never turns one figure into a different figure. `6/4` is untouched by it —
+    fractional odds are locked (Jodie, 9 Aug 2026) and nothing here can reach them,
+    because this only ever fires on a bare four-digit integer.
+    """
+    a, b = n // 100, n % 100
+    return f"{int_words(a)} hundred" + (f" and {int_words(b)}" if b else "")
+
+
 def _decimals(s: str) -> str:
     """3.9 -> "three point nine". NEVER "three" and "nine" separately.
 
@@ -207,7 +238,7 @@ def _decimals(s: str) -> str:
     return re.sub(r"(?<![\d$.])(\d+)\.(\d+)(?!\d)", one, s)
 
 
-def fold(text: str, frac=_frac_named, pairs: bool = False,
+def fold(text: str, frac=_frac_named, reading: str = "cardinal",
          ordinal_dates: bool = False) -> str:
     """The article, written the way it is SAID.
 
@@ -226,25 +257,45 @@ def fold(text: str, frac=_frac_named, pairs: bool = False,
     # no pair, so the article never says "twenty one hundred TO twenty three
     # hundred" and EP13's approved script was called a liar for saying it.
     s = re.sub(r"\b(\d[\d,]*)\s*-\s*(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), pairs)
+               lambda m: (_num_readings(int(m.group(1).replace(",", "")), reading)
                           + " to "
-                          + _num_readings(int(m.group(2).replace(",", "")), pairs)
+                          + _num_readings(int(m.group(2).replace(",", "")), reading)
                           + " " + UNITS[m.group(3)]), s)
     s = re.sub(r"\b(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), pairs)
+               lambda m: (_num_readings(int(m.group(1).replace(",", "")), reading)
                           + " " + UNITS[m.group(2)]), s)
     s = _decimals(s)
-    if pairs:
+    if reading in ("pairs", "hundreds"):
         # OFFERED AS AN EXTRA READING, NEVER AS A REPLACEMENT — see haystacks().
-        s = re.sub(r"\b(\d{4})\b", lambda m: _pairs(int(m.group(1))), s)
+        fn = _pairs if reading == "pairs" else _hundreds
+        # 🔴 MONEY FIRST, AND THE BARE RULE MUST NOT REACH INSIDE IT. `$1250` was
+        # becoming "$twelve hundred and fifty" — `spoken_form` then no longer
+        # recognises it as money, so the word "dollars" was silently dropped and a
+        # script saying "twelve hundred and fifty DOLLARS" matched nothing. The unit
+        # is put on here instead, where the reading is chosen.
+        s = re.sub(r"\$\s?(\d{4})\b",
+                   lambda m: fn(int(m.group(1))) + " dollars", s)
+        s = re.sub(r"(?<![$\d.,])\b(\d{4})\b", lambda m: fn(int(m.group(1))), s)
     s = re.sub(r"\b(\d+)\s*/\s*(\d+)\b", frac, s)
     s = re.sub(r"\b(\d+)\s*-\s*(\d+)\s*\bON\b", _odds_on, s, flags=re.I)
     s = re.sub(r"\b(\d+)\s*-\s*(\d+)\b", _odds, s)
     return spoken_form(s)
 
 
-def _num_readings(n: int, pairs: bool) -> str:
-    return _pairs(n) if (pairs and 1000 <= n <= 9999) else int_words(n)
+def _num_readings(n: int, reading: str) -> str:
+    """The one reading this pass is offering, for a number carrying a UNIT.
+
+    `1600m` is "sixteen hundred metres" (pairs), "sixteen hundred metres"
+    (hundreds) or "one thousand six hundred metres" (cardinal) — all three are
+    things people say, so all three are offered across the passes rather than one
+    being chosen here.
+    """
+    if 1000 <= n <= 9999:
+        if reading == "pairs":
+            return _pairs(n)
+        if reading == "hundreds":
+            return _hundreds(n)
+    return int_words(n)
 
 
 def haystacks(capture_text: str) -> list[list[str]]:
@@ -267,13 +318,17 @@ def haystacks(capture_text: str) -> list[list[str]]:
         ("seven to four"). The notation cannot tell you which it is — EP16's
         `1/9` is a probability and EP18's `7/4` is a price — so all three are
         offered and the script may legitimately say any of them.
+      · `2210` reads "twenty two ten" (pairs), "twenty two hundred and ten"
+        (hundreds) AND "two thousand two hundred and ten" (cardinal). The
+        HUNDREDS reading is how a distance is actually said and it was the one
+        missing — see `_hundreds` for the episode it cost.
     """
     src = source_text(capture_text)
     out = []
     for frac in (_frac_named, _frac_in, _frac_odds):
-        for pairs in (False, True):
+        for reading in READINGS:
             for odates in (False, True):
-                s = fold(src, frac, pairs=pairs, ordinal_dates=odates)
+                s = fold(src, frac, reading=reading, ordinal_dates=odates)
                 out.append(norm_words(s))
                 # A UNIT SAID ONCE FOR A PAIR. "$400 to $200" is read "four
                 # hundred dollars to two hundred"; "2100m to 2300m" is read
