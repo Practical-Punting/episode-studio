@@ -65,6 +65,12 @@ for _s in (sys.stdout, sys.stderr):
 # than "that zone is not any rail field", which would be true but unhelpful.
 SERIES_EYEBROW = "How to Win at Horse Racing"
 
+# The e-book cover's attribution line is standing furniture in the same way. Every
+# episode's `cover.byline` is the approved byline followed by this exact suffix —
+# EP16, EP17, EP18 and EP19 all carry it to the character. It is written here so the
+# suffix's own words are approved vocabulary and do not read as an invention.
+COVER_ATTRIBUTION = "from the Practical Punting archives · with Gordon"
+
 # Where each zone lives in each page. The class and id names are part of the template
 # contract — the same contract author_thumbnail and author_title_card substitute into.
 ZONES = {
@@ -80,7 +86,24 @@ ZONES = {
         "part":     [r'<div[^>]*class="[^"]*\bpt\b[^"]*"[^>]*>(.*?)</div>'],
         "sub":      [r'<div id="byl"[^>]*>(.*?)</div>'],
     },
+    # ⚠️ THE E-BOOK COVER HAS NO EYEBROW AND IT HAS A THIRD TEXT ZONE. Its `.byline`
+    # is the ATTRIBUTION — the approved byline plus the standing suffix — and it is a
+    # different thing from `.subtitle`, which is the byline alone. EP20 carried the
+    # invented sentence in BOTH, so the same wrong copy appeared on the cover twice.
+    # Added 11 Aug 2026 when Jodie asked for the cover to be re-rendered: it goes on
+    # Hugh's website, so it has to be as right as the other two.
+    "ebook_cover": {
+        "headline": [r'<div class="title">(.*?)</div>'],
+        "part":     [r'<span class="part">(.*?)</span>'],
+        "sub":      [r'<div class="subtitle">(.*?)</div>'],
+        "attribution": [r'<div class="byline">(.*?)</div>'],
+    },
 }
+
+# Which zones a page is expected to HAVE. A kind that has no eyebrow must not be
+# failed for the eyebrow being empty — and, just as important, a kind that HAS one
+# must not quietly stop being checked because a template rename lost the match.
+HAS_EYEBROW = {"thumbnail", "title_card"}
 
 
 def _text(fragment: str) -> str:
@@ -132,15 +155,28 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
     EP12 fixture is exactly that shape (hook "Hidden Aces", part "Part 2").
     """
     bad = []
-    what = "thumbnail" if kind == "thumbnail" else "title card"
+    what = {"thumbnail": "thumbnail", "title_card": "title card",
+            "ebook_cover": "e-book cover"}[kind]
 
     # 1 — the eyebrow is the series line and is not per-episode text at all.
-    if fold(zones.get("eyebrow")) != fold(SERIES_EYEBROW):
+    #     Only two of the three kinds have one; the e-book cover has none.
+    if kind in HAS_EYEBROW and fold(zones.get("eyebrow")) != fold(SERIES_EYEBROW):
         bad.append(
             f"{what}: the eyebrow reads {zones.get('eyebrow')!r} and it must be the "
             f"fixed series line {SERIES_EYEBROW!r}. That zone is a template literal — "
             f"if episode data has reached it, something is substituting where it "
             f"should be copying.")
+
+    # 1b — the e-book cover's attribution: the approved byline, then the standing
+    #      suffix, and nothing else. EP20 had the invented sentence here AS WELL as in
+    #      the subtitle, so the same wrong copy appeared on one cover twice.
+    if kind == "ebook_cover":
+        want = f"{byline} · {COVER_ATTRIBUTION}" if byline else COVER_ATTRIBUTION
+        if fold(zones.get("attribution")) != fold(want):
+            bad.append(
+                f"{what}: the attribution line reads {zones.get('attribution')!r} and it "
+                f"must be {want!r} — the approved byline, then the standing suffix every "
+                f"episode carries. It is not a second place to describe the episode.")
 
     # 2 — the headline IS the title. Not the byline, not a hook written for it.
     if fold(zones.get("headline")) != fold(title):
@@ -164,7 +200,11 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
     # that catches the fault nobody predicted.
     allowed = set(_words(SERIES_EYEBROW)) | set(_words(title)) | set(_words(byline))
     for zone, text in zones.items():
-        ok = allowed | (set(_words(part_source)) if zone == "part" else set())
+        ok = set(allowed)
+        if zone == "part":
+            ok |= set(_words(part_source))
+        if zone == "attribution":
+            ok |= set(_words(COVER_ATTRIBUTION))
         stray = [w for w in _words(text) if w not in ok]
         if stray:
             bad.append(
@@ -191,6 +231,9 @@ def built_pages(ep_dir: Path) -> dict:
     for p in sorted((ep_dir / "overlay/export").glob("*-title.html")):
         found["title_card"] = p
         break
+    p = ep_dir / "ebook/cover-src/cover.html"
+    if p.is_file():
+        found["ebook_cover"] = p
     return found
 
 

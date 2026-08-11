@@ -42,6 +42,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from author_cards import Halt, esc                            # noqa: E402
+import packaging_gate as pg                                   # noqa: E402
 
 for _s in (sys.stdout, sys.stderr):
     try:
@@ -114,8 +115,15 @@ def check(ep, cover):
     # THE WORDS GATE, ENFORCED. All downstream assets use the locked packaging
     # verbatim — that is the EP08 rework lesson. If the cover's hook does not
     # reassemble into packaging.hook, the cover has drifted from what was approved.
+    # ⚠️ CASE-FOLDED, as author_title_card's identical gate always was, and as the
+    # thumbnail's now is (11 Aug 2026). All three compared the same two things and one
+    # of them disagreed about case. It never showed while `packaging.hook` was written
+    # in capitals BY THE SAME PASS that wrote title_setup/title_payoff; the moment the
+    # hook started coming from the RAIL — where a title is sentence case — this halted
+    # a correct cover. The cover sets its title in caps by design; the comparison is
+    # about WORDS, not keystrokes.
     hook = " ".join(x for x in (cover["title_setup"], cover["title_payoff"]) if x).strip()
-    if pack.get("hook") and hook != pack["hook"].strip():
+    if pack.get("hook") and hook.upper() != pack["hook"].strip().upper():
         raise Halt(f"the cover title {hook!r} does not match the approved "
                    f"packaging.hook {pack['hook']!r}. The words were locked at the words "
                    f"gate; the cover does not get to differ from them.")
@@ -169,6 +177,19 @@ def main():
     page = tpl
     for slot, val in subs.items():
         page = page.replace(slot, val)
+
+    # 🔴 GRADE THE PAGE, NOT THE FIELDS IT WAS BUILT FROM — the same gate the thumbnail
+    # and the title card run, and here for the same reason. EP20's cover carried the
+    # invented strap line TWICE: once as the subtitle and once in front of the standing
+    # attribution. `check()` above passed it, because every value it compares comes out
+    # of this one file. This cover goes on Hugh's website (Jodie, 11 Aug 2026).
+    faults = pg.page_faults("ebook_cover", page,
+                            ((ep.get("packaging") or {}).get("hook") or "").strip(),
+                            ((ep.get("packaging") or {}).get("byline") or "").strip(),
+                            (ep.get("packaging") or {}).get("ebook_title") or "")
+    if faults:
+        raise Halt("the authored e-book cover does not carry the approved packaging:\n  - "
+                   + "\n  - ".join(faults))
 
     os.makedirs(a.out_dir, exist_ok=True)
     out = os.path.join(a.out_dir, "cover.html")

@@ -535,6 +535,43 @@ def seat_packaging_from_rail(ep, ep_dir: Path) -> str:
             changed.append(f"{what}.{ka}/{kb} {joined[:48]!r} -> {setup!r} + {payoff!r}")
             block[ka], block[kb] = setup, payoff
 
+    # THE E-BOOK COVER'S ATTRIBUTION is the approved byline plus a standing suffix —
+    # EP16, EP17, EP18 and EP19 all carry it to the character, so it is DERIVED here
+    # rather than typed per episode. EP20 had the invented strap in front of it, which
+    # put the same wrong sentence on one cover twice.
+    # ── ONE NAME EVERYWHERE A VIEWER LOOKS ──────────────────────────────────────
+    # `check_one_name` compares FOUR places an episode is named, and seating only the
+    # hook left three of them behind. It caught EP20 at `youtube_copy` on 11 Aug —
+    # correctly, and that is the check earning its keep for the second time.
+    #     THE CONVENTION IS EP16-EP19's, READ OFF THEM RATHER THAN INVENTED: the rail's
+    # TITLE is the episode's NAME and goes in all four; `packaging.byline` is the short
+    # promise line and is a different thing. EP20's writer had them the other way round,
+    # which is the whole fault. ⚠️ youtube_title.py's docstring still describes the
+    # EP11-EP13 measurement, where the YouTube title came from the byline; its CODE
+    # derives from the name, and the code is what runs.
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+    import youtube_title as _yt
+    if (epj.get("title") or "").strip() != title:
+        changed.append(f"title {str(epj.get('title'))[:40]!r} -> {title!r}")
+        epj["title"] = title
+    if (pack.get("ebook_title") or "").strip() != title:
+        changed.append(f"packaging.ebook_title {str(pack.get('ebook_title'))[:40]!r} "
+                       f"-> {title!r}")
+        pack["ebook_title"] = title
+    # The channel line lives in youtube_title.py and nowhere else — asked for rather
+    # than repeated here, so the house form stays a one-line change in one file.
+    want_yt = _yt.derive(title)
+    if (pack.get("youtube_title") or "").strip() != want_yt:
+        changed.append(f"packaging.youtube_title {str(pack.get('youtube_title'))[:40]!r} "
+                       f"-> {want_yt!r}")
+        pack["youtube_title"] = want_yt
+
+    import packaging_gate as _pg
+    want_attr = f"{byline} · {_pg.COVER_ATTRIBUTION}" if byline else _pg.COVER_ATTRIBUTION
+    if (cov.get("byline") or "").strip() != want_attr:
+        changed.append(f"cover.byline {str(cov.get('byline'))[:52]!r} -> {want_attr!r}")
+        cov["byline"] = want_attr
+
     # The strap's break word must be a word of the byline it now carries, or the
     # thumbnail halts on a break point that no longer exists.
     brk = th.get("strap_break_after")
@@ -2739,6 +2776,13 @@ class RealProvider:
         way `youtube_copy` does, and carries on.
         """
         d = self.dir(ep)
+        # THE COVER GOES IN THIS PDF, AND THIS PDF GOES ON HUGH'S WEBSITE. Graded here,
+        # against the rail, BEFORE a byte is published — EP20's cover carried the
+        # invented strap line twice, once as the subtitle and once in front of the
+        # standing attribution, and the e-book shipped with it (Jodie, 11 Aug 2026).
+        # It is the same call the card and thumbnail paths make; the gate reads all
+        # three artefacts, so whichever step runs first says so.
+        print(f"    {assert_packaging_carries_the_rail(ep, d)}")
         print(f"    figures: {render_ebook_figures(d)}")
         if not (d / "ebook/body.html").is_file():
             import commission as com

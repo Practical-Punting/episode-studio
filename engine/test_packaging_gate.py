@@ -87,6 +87,20 @@ def title_page(setup, payoff, byline, part=None):
                .replace("%%BYLINE%%", byline))
 
 
+def cover_page(setup, payoff, subtitle, attribution, part=None):
+    tpl = (ASSETS / "ebook-cover-template.html").read_text(encoding="utf-8")
+    import author_cover as ac
+    title = f'<span class="w">{setup}</span> {payoff}' if setup else payoff
+    if part:
+        title += f'<span class="part">{part}</span>'
+    return (tpl.replace(ac.SLOT_TITLE, f'<div class="title">{title}</div>')
+               .replace(ac.SLOT_SUBTITLE, f'<div class="subtitle">{subtitle}</div>')
+               .replace(ac.SLOT_BYLINE, f'<div class="byline">{attribution}</div>'))
+
+
+ATTR = f"{BYLINE} · {pg.COVER_ATTRIBUTION}"
+
+
 def main():
     print("-- CONTROL: EP20 exactly as it was built, graded against the rail --")
     bad_thumb = thumbnail_page("THE POWER OF", "'DEEP STATE' HANDICAPPING", INVENTED)
@@ -167,13 +181,50 @@ def main():
                                                    BYLINE), TITLE, BYLINE)
     check("  and the headline's capitals are styling, not a difference", not b, f"{b[:1]}")
 
+    print("\n-- THE E-BOOK COVER, which has no eyebrow and a THIRD text zone --")
+    # It goes on Hugh's website (Jodie, 11 Aug 2026), so it is graded like the others.
+    # EP20 carried the invented strap TWICE: as the subtitle, and in front of the
+    # standing attribution — the same wrong sentence on one cover in two places.
+    bad_cover = cover_page("THE POWER OF", "'DEEP STATE' HANDICAPPING", INVENTED,
+                           f"{INVENTED} · {pg.COVER_ATTRIBUTION}")
+    b = pg.page_faults("ebook_cover", bad_cover, TITLE, BYLINE)
+    joined = " ".join(b)
+    check("CONTROL: the cover EP20 shipped FAILS", len(b) >= 3, f"only {len(b)}")
+    check("  the headline is not the title field", "the big headline reads" in joined)
+    check("  the subtitle is not the byline field", "the line under the headline" in joined)
+    check("  and the ATTRIBUTION is called out on its own",
+          "the attribution line reads" in joined)
+    good_cover = cover_page("BILL BENTER", "PROFESSIONAL GAMBLER", BYLINE, ATTR)
+    check("the corrected cover PASSES", not pg.page_faults("ebook_cover", good_cover,
+                                                           TITLE, BYLINE),
+          f"{pg.page_faults('ebook_cover', good_cover, TITLE, BYLINE)[:1]}")
+    check("  a missing eyebrow is not held against it",
+          not any("eyebrow" in x for x in
+                  pg.page_faults("ebook_cover", good_cover, TITLE, BYLINE)),
+          "the cover has no eyebrow zone at all")
+    check("  but the thumbnail is STILL failed for a missing one",
+          any("eyebrow" in x for x in pg.page_faults(
+              "thumbnail",
+              thumbnail_page("BILL BENTER", "PROFESSIONAL GAMBLER", BYLINE)
+              .replace("How to Win at Horse Racing", ""), TITLE, BYLINE)),
+          "if this passes, HAS_EYEBROW has switched the check off for everyone")
+    check("  the standing suffix alone is not enough — the byline must lead it",
+          pg.page_faults("ebook_cover",
+                         cover_page("BILL BENTER", "PROFESSIONAL GAMBLER", BYLINE,
+                                    pg.COVER_ATTRIBUTION), TITLE, BYLINE) != [])
+    check("  and the suffix's words do NOT leak into the subtitle",
+          pg.page_faults("ebook_cover",
+                         cover_page("BILL BENTER", "PROFESSIONAL GAMBLER",
+                                    "from the Practical Punting archives", ATTR),
+                         TITLE, BYLINE) != [])
+
     print("\n-- THE BUILT EP20 PAGES, as they now stand on disk --")
     d = episode_dir(20)
     if d.is_dir() and (d / "thumbnail").is_dir():
-        res = pg.check_episode(d, TITLE, BYLINE)
-        check("both pages were found and graded", len(res["checked"]) == 2,
+        res = pg.check_episode(d, TITLE, BYLINE, TITLE)
+        check("all three pages were found and graded", len(res["checked"]) == 3,
               f"{res['checked']}")
-        check("  and both carry the rail's words", not res["blockers"],
+        check("  and all three carry the rail's words", not res["blockers"],
               f"{res['blockers'][:1]}")
     else:
         check("EP20 is on this machine to grade", False)
@@ -196,6 +247,72 @@ def main():
           "if this ever passes, the two gates have become the same check")
     assert b_pack is not None
 
+    print("\n-- ONE NAME EVERYWHERE A VIEWER LOOKS --")
+    # `check_one_name` compares FOUR places an episode is named and it caught EP20 at
+    # youtube_copy on 11 Aug: seating only the hook had left three of them behind.
+    # The convention is read off EP16-EP19, not invented — the rail's TITLE is the
+    # episode's NAME and goes in all four; the byline is the promise line, a different
+    # thing. EP20's writer had them the other way round, which was the whole fault.
+    import tempfile
+    import providers
+    import youtube_title as ytl
+    # ⚠️ THE FIXTURE IS EP20 AT 07:57Z ON 11 AUG, NOT A TIDY INVENTION. The pictures
+    # had been corrected and the three NAME fields had not, which is the exact state
+    # check_one_name halted on — and a fixture that is internally consistent proves
+    # nothing here, because the whole failure mode is fields disagreeing.
+    SCRAMBLED = {
+        "title": "The Power of 'Deep State' Handicapping",
+        "packaging": {"hook": TITLE,
+                      "byline": BYLINE,
+                      "ebook_title": "The Power of 'Deep State' Handicapping",
+                      "youtube_title": "The Power of 'Deep State' Handicapping "
+                                       "| How to Win at Horse Racing"},
+        "cover": {"title_setup": "BILL BENTER", "title_payoff": "PROFESSIONAL GAMBLER",
+                  "byline": f"{INVENTED} · {pg.COVER_ATTRIBUTION}"},
+        "thumbnail": {"l1": "BILL BENTER", "l2": "PROFESSIONAL GAMBLER",
+                      "strap_break_after": "geeks"},
+    }
+    faults = ytl.check_one_name(SCRAMBLED)
+    check("CONTROL: the file EP20 halted on IS called different things", len(faults) == 1)
+    check("  and the halt names the title card against the other three",
+          bool(faults) and "BILL BENTER PROFESSIONAL GAMBLER" in faults[0]
+          and "Deep State" in faults[0])
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        (d / "docs").mkdir()
+        (d / "docs/episode.json").write_text(json.dumps(SCRAMBLED), encoding="utf-8")
+        said = providers.seat_packaging_from_rail(
+            {"title": TITLE, "byline": BYLINE}, d)
+        seated = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+        check("  seating from the rail settles all four", not ytl.check_one_name(seated))
+        for where, got in ytl.episode_names(seated).items():
+            check(f"    {where.split('(')[0].strip()} = the rail's title",
+                  pg.fold(got) == pg.fold(TITLE), f"{got!r}")
+        check("  the YouTube title takes the house form from youtube_title.py",
+              seated["packaging"]["youtube_title"] == ytl.derive(TITLE))
+        check("  the BYLINE is not overwritten with the name — it is a different thing",
+              seated["packaging"]["byline"] == BYLINE)
+        check("  the cover attribution is the byline plus the standing suffix",
+              seated["cover"]["byline"] == f"{BYLINE} · {pg.COVER_ATTRIBUTION}")
+        check("  the strap break word is dropped when it is not in the new byline",
+              seated["thumbnail"]["strap_break_after"] is None,
+              "'geeks' is not a word of the rail's byline; a stale break halts the build")
+        # NOT a count. Every field that actually moved must be NAMED in the sentence
+        # that goes in the run log — that is the property a magic number stands in for,
+        # and the number would go stale the moment a fixture changes by one field.
+        moved = [k for k in ("title", "ebook_title", "youtube_title", "cover.byline",
+                             "strap_break_after")
+                 if str(SCRAMBLED.get(k) or "") != str(seated.get(k) or "")
+                 or k not in SCRAMBLED]
+        check("  and it NAMES every field it moved",
+              all(k.split(".")[-1] in said for k in moved), f"{said[:160]}")
+        check("    including the ones a reader would not have predicted",
+              "youtube_title" in said and "strap_break_after" in said)
+        again = providers.seat_packaging_from_rail(
+            {"title": TITLE, "byline": BYLINE}, d)
+        check("  running it twice changes nothing the second time",
+              "nothing re-seated" in again, again[:80])
+
     print("\n-- the engine actually RUNS it, and seats the words first --")
     prov = (HERE / "providers.py").read_text(encoding="utf-8")
     live = [ln for ln in prov.splitlines() if not ln.strip().startswith("#")]
@@ -203,8 +320,11 @@ def main():
     check("render_cards seats the packaging from the rail",
           src.count("seat_packaging_from_rail(ep, d)") >= 2,
           "both the title card path and the thumbnail path")
-    check("  and both paths grade the built page against the rail",
-          src.count("assert_packaging_carries_the_rail(ep, d)") >= 2)
+    check("  and every path that builds one grades it against the rail",
+          src.count("assert_packaging_carries_the_rail(ep, d)") >= 3,
+          "cards/title, thumbnail, AND the e-book — the PDF goes on Hugh's website")
+    check("  the cover's attribution is DERIVED from the byline, not typed per episode",
+          "COVER_ATTRIBUTION" in src, "EP16-EP19 all carry it to the character")
     check("  the seating reads the rail's OWN fields, not episode.json's",
           'ep.get("title")' in src and 'ep.get("byline")' in src)
     for script in ("author_thumbnail.py", "author_title_card.py"):
