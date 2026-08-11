@@ -3005,8 +3005,7 @@ class RealProvider:
         try:
             return ef.append(Path(final), self.logo, self.music)
         except Exception as e:                                     # noqa: BLE001
-            return (f"end frame: NOT appended — {str(e)[-300:]}
-"
+            return (f"end frame: NOT appended — {str(e)[-300:]}\n"
                     "    (self_qc refuses to pass an episode without it, so this "
                     "cannot ship unnoticed)")
 
