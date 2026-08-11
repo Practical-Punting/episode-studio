@@ -708,10 +708,14 @@ def assert_packaging_carries_the_rail(ep, ep_dir: Path) -> str:
     """
     sys.path.insert(0, str(SKILL_DIR / "scripts"))
     import packaging_gate as pg
-    # The part's own approved source is the rail TITLE — a series episode carries its
-    # position in its name ("Each-Way Betting Forever! — Part 2"). Passed explicitly
-    # rather than left to the default so the rail stays the only vocabulary here.
-    res = pg.check_episode(ep_dir, ep.get("title") or "", ep.get("byline") or "",
+    # ⚠️ THE HEADLINE IS THE NAME WITHOUT ITS PART, and the part is graded in its own
+    # zone against the FULL title. Passing the whole title as the headline's target
+    # failed every "Part X" episode: the builders compose the headline from
+    # `packaging.hook`, which the seating deliberately strips the part off (EP16's
+    # convention), so the gate was asking the picture to say something the design puts
+    # on a separate line. EP21 was the first series episode to reach it.
+    name, _part = _split_part(ep.get("title") or "")
+    res = pg.check_episode(ep_dir, name, ep.get("byline") or "",
                            ep.get("title") or "")
     if res["blockers"]:
         raise EngineFlag(
@@ -2310,6 +2314,13 @@ class RealProvider:
                 f"Clearing this flag will retry.")
         src = d / "ebook/cover-src/cover.html"
         cover = d / "ebook/cover.png"
+        # 🔴 SEAT THE WORDS BEFORE AUTHORING, HERE TOO. `ebook_cover` runs BEFORE
+        # `cards_render` in the building phase, and the seating lived only in
+        # cards_render and build_thumbnail — so the e-book cover was authored from
+        # whatever the commission had written and only the OTHER TWO artefacts ever
+        # got the rail's words. EP21 built a cover carrying an invented strapline
+        # while its title card and thumbnail were correct (12 Aug 2026).
+        print(f"    {seat_packaging_from_rail(ep, d)}")
         # Author the page if it is missing. This is the halt that stopped EP12
         # first and the second of the four Hugh could not clear: it used to say
         # "stage one, then clear this flag" to a browser operator.
