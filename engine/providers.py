@@ -1483,6 +1483,9 @@ class MockProvider:
         self._work()
         return None
 
+    def append_end_frame(self, final) -> str:
+        return "end frame: [mock] not appended (no real film to join it to)"
+
     def build_web_copies(self, ep) -> str:
         """Low-res web copies. Real work in BOTH providers, like render_cards — it is
         local Pillow on two PNGs, so faking it would leave the additive claim unproved
@@ -2858,6 +2861,15 @@ class RealProvider:
                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
                 "-movflags", "+faststart", "-map_metadata", "-1", "-dn", final]
         self.run(cmd, cwd=d)
+        # 🔴 THE PLAIN END FRAME, APPENDED AFTER THE WARRANTY SLIDE (11 Aug 2026).
+        # YouTube draws its end-screen boxes over the last 15-20s and the operator
+        # does not choose where. Until now the warranty slide WAS the last thing on
+        # screen — measured on EP20: warranty from ~427s to the final frame at 435.72 —
+        # so the boxes would sit on the responsible-gambling text and the support
+        # number. That is the one thing this channel cannot cover.
+        #     APPENDED TO THE FINISHED FILE, never woven into the graph above, so the
+        # warranty's fade, hold and timing are untouched by construction.
+        print(f"    {self.append_end_frame(final)}")
         # A7 — SHIP THE SRT A VIEWER ACTUALLY READS, AND SHIP THE GOOD ONE.
         #
         # This said `renders/generated.srt` — the CONSTRUCTED file, interpolated from
@@ -2983,6 +2995,20 @@ class RealProvider:
         if not master.is_file():
             return                      # nothing landed; the caller has bigger problems
         listen_to_the_master(d, master)
+
+    def append_end_frame(self, final) -> str:
+        """The plain branded tail YouTube's end screens sit on. Additive; never fails
+        the build here — qc_episode is what refuses to ship without it, so a resize
+        problem does not lose a finished assembly."""
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import end_frame as ef
+        try:
+            return ef.append(Path(final), self.logo, self.music)
+        except Exception as e:                                     # noqa: BLE001
+            return (f"end frame: NOT appended — {str(e)[-300:]}
+"
+                    "    (self_qc refuses to pass an episode without it, so this "
+                    "cannot ship unnoticed)")
 
     def build_web_copies(self, ep) -> str:
         """Low-res web copies. Real work in BOTH providers, like render_cards — it is

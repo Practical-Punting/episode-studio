@@ -792,6 +792,49 @@ def stage_deliverables(qc, episode_path, ep_dir, out_dir):
                             f"{'no' if not blank else len(blank)} blank page(s)")
                 doc.close()
 
+    # ------------------------------------------------------- the plain end frame
+    # 🔴 YOUTUBE'S END-SCREEN BOXES MUST NOT LAND ON THE SUPPORT LINE. They are drawn
+    # over the last 15-20s and the operator does not choose where. Before this, the
+    # warranty slide ran to the final frame — measured on EP20, warranty from ~427s to
+    # 435.72 — so the boxes covered the responsible-gambling text and
+    # "call 1800 858 858". A plain charcoal-and-logo frame is appended after it.
+    #
+    # MEASURED ON THE PICTURE, not on a marker file beside it, because the film is
+    # what gets uploaded. The discriminator is the fraction of markedly-bright pixels,
+    # and the three real readings off EP20 are an order of magnitude apart:
+    #     end card 0.2155 · warranty slide 0.0645 · plain end frame 0.0046
+    # so the 0.02 limit sits with a 14x margin below it and 3.2x above.
+    finals = sorted(_g.glob(os.path.join(ep_dir, "output", "*FINAL.mp4")))
+    if finals:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import end_frame as _ef
+            from pathlib import Path as _P
+            fp = _P(finals[-1])
+            total = _ef.probe(fp)["dur"]
+            # Plain at 1s from the end, and STILL plain MIN_SECONDS back — that is
+            # what makes this a length check and not just a last-frame check.
+            tail_ok = _ef.looks_plain(fp, total - 1.0)
+            long_enough = tail_ok and _ef.looks_plain(fp, total - _ef.MIN_SECONDS + 0.5)
+            if not tail_ok:
+                qc.fail(
+                    "the video does not end on the plain branded frame — the last "
+                    "thing on screen is still the warranty slide, so YouTube's "
+                    "end-screen boxes will be drawn over the responsible-gambling "
+                    "text and the support number. Append the end frame "
+                    "(end_frame.py) and re-run.")
+            elif not long_enough:
+                qc.fail(
+                    f"the plain end frame is SHORTER than {_ef.MIN_SECONDS:.0f}s, so "
+                    f"YouTube's end-screen boxes — which occupy the last 15-20s — "
+                    f"would still overlap the warranty slide. Rebuild the tail.")
+            else:
+                qc.note(f"plain end frame present and at least "
+                        f"{_ef.MIN_SECONDS:.0f}s long (film {total:.1f}s)")
+        except Exception as e:                                     # noqa: BLE001
+            qc.fail(f"could not check the plain end frame on {os.path.basename(finals[-1])} "
+                    f"— {type(e).__name__}: {str(e)[:160]}")
+
     # ------------------------------------------------------------ the thumbnail
     thumbs = sorted(_g.glob(os.path.join(ep_dir, "output", "*thumbnail*.png")))
     if not thumbs:
