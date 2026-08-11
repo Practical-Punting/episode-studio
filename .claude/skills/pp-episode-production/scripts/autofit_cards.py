@@ -105,11 +105,31 @@ def selector_for(owner: str) -> str:
     return f"#{safe}, .{safe}" if safe else ""
 
 
-def offenders(page, url, bust=0):
+def _line_boxes(runs):
+    """(owner, text) -> the DISTINCT line-box tops that run is drawn on.
+
+    One definition, shared by the wrapped-run rule and the leading check below, so
+    the two can never disagree about what "wrapped" means.
+    """
+    tops = {}
+    for r in runs:
+        tops.setdefault((r["owner"], r["text"]), set()).add(round(r["y"], 1))
+    return {k: sorted(v) for k, v in tops.items()}
+
+
+def offenders(page, url, bust=0, shrinking=()):
     """Which text runs are in trouble, and what should shrink.
 
     Uses card_check's PROBE so the geometry is the checker's, not a second opinion.
     Returns [(owner, current_font_size, why)].
+
+    ⚠️ `shrinking` IS ACCEPTED AND DELIBERATELY UNUSED FOR NOW. Chasing a wrapped run
+    PAST the point the card regains its room — to force it back onto one line — broke
+    EP19 C8: its price value is DESIGNED to wrap ("a long value is set to WRAP properly
+    rather than halt", 9 Aug 2026) and cannot be un-wrapped at any legible size, so the
+    loop ground to the floor and halted a card that fits. The codebase's answer to a
+    designed wrap is to relax its LEADING, not to shrink it away. Un-wrapping is
+    therefore pursued only while the card is genuinely out of room.
 
     ⚠️ `bust` IS NOT OPTIONAL DECORATION. Re-loading the SAME url after rewriting the
     file serves Chromium's cached copy, so every re-measure reported the ORIGINAL font
@@ -128,9 +148,11 @@ def offenders(page, url, bust=0):
     runs, boxes, logo = data["runs"], data["boxes"], data["logo"]
 
     out = []
+    hit_logo = False
     if logo:
         for r in runs:
             if cc.rects_overlap(r, logo):
+                hit_logo = True
                 out.append((r["owner"], r["fs"], "runs under the logo chip", 0))
     # text clipped inside its own scroll box — the other length failure
     for b in boxes:
@@ -172,12 +194,46 @@ def offenders(page, url, bust=0):
     # runs that were pushed out are demoted to secondary. The main loop only escalates
     # to the secondaries once the primary is at its floor, which keeps a caption at its
     # designed size whenever shrinking the figure alone is enough.
-    if any(r["y"] + r["h"] > root["y"] + root["h"] + cc.CLIP for r in runs):
+    off_bottom = any(r["y"] + r["h"] > root["y"] + root["h"] + cc.CLIP for r in runs)
+    # ⚠️ THE LOGO CHIP COUNTS AS A BOTTOM EDGE. C18 never passed the card's own
+    # boundary — its lowest run ended at 985px on a 1080px card — it collided with
+    # the chip. Same vertical squeeze, same cure, so the rules below fire for both.
+    # Scoped to the CARD-EDGE case alone, the wrapped-run rule sat there and never ran.
+    if off_bottom or hit_logo:
         body = [r for r in runs if r["owner"] not in FURNITURE]
         if body:
             tall = max(body, key=lambda r: r["fs"])
             out.append((tall["owner"], tall["fs"],
-                        "the biggest type on a card that overruns its bottom edge", 0))
+                        "the biggest type on a card that overruns its bottom edge"
+                        if off_bottom else
+                        "the biggest type on a card whose lower rows reach the logo", 0))
+        # ── AND A RUN THAT HAS WRAPPED COSTS A WHOLE LINE OF HEIGHT ────────────
+        # 🔴 EP21 C18, 12 Aug 2026. "the biggest type" is the right primary on a
+        # stacked card and the WRONG one in a table, where a row is as tall as its
+        # tallest cell. C18's four Sydney tracks overran the bottom by 96.7px and the
+        # only wrapped run on the page was the ROW LABEL "Warwick Farm" — 360px of
+        # text in a 290px column, two line boxes, making its row 220px against 127px
+        # for the other three. `mcell` was the biggest type at 82px, so autofit
+        # shrank THAT, all the way to the 60% floor, and the overlap did not move a
+        # pixel. It then blamed the words — and the words were already as tight as
+        # they go, every cell on one line.
+        #     Un-wrapping a run is the cheapest vertical win there is: it removes an
+        # entire line box rather than trimming a few pixels off every line. So a
+        # wrapped run is a PRIMARY target alongside the biggest type.
+        #
+        # ⚠️ DERIVED, NOT NAMED. It says nothing about matrices or row labels — it
+        # asks which runs wrapped. Any block's long label, in any card, is covered by
+        # it, and each shrinks through its own block's declared fit key (`.mplace` is
+        # `label_size` in the matrix's own fit map). Furniture is excluded exactly as
+        # above: the frame headline is DESIGNED to wrap over two lines.
+        for (owner, text), tops in _line_boxes(runs).items():
+            if owner in FURNITURE or len(tops) < 2:
+                continue
+            fs = max(r["fs"] for r in runs
+                     if r["owner"] == owner and r["text"] == text)
+            out.append((owner, fs,
+                        f"wrapped onto {len(tops)} lines on a card that is out of "
+                        f"vertical room — un-wrapping it frees a whole line", 0))
 
     # ── 4. DISPLAY TYPE THAT HAS WRAPPED INTO ITSELF ──────────────────────────
     # card_check cannot see this one at all, and EP19 C8 proved it: "$1.75 to $3.25" at
@@ -188,14 +244,10 @@ def offenders(page, url, bust=0):
     #     Same shape as the title-card ruling of the same day — a long value is set to
     # WRAP properly rather than halt — so this reports the owners whose leading must be
     # relaxed, and the caller writes it alongside the measured size.
-    lines = {}
-    for r in runs:
-        lines.setdefault((r["owner"], r["text"]), []).append(r)
     # owner -> (how many line boxes, the leading ratio it is CURRENTLY drawn at)
     ratios = {}
-    for (owner, _text), rs in lines.items():
-        tops = sorted({round(r["y"], 1) for r in rs})
-        fs = max(r["fs"] for r in rs)
+    for (owner, _text), tops in _line_boxes(runs).items():
+        fs = max(r["fs"] for r in runs if r["owner"] == owner)
         if len(tops) < 2 or fs <= 0:
             ratios.setdefault(owner, (1, 1.0))
             continue                       # one line box: the tight leading is correct
@@ -347,7 +399,7 @@ def main():
                 write_autofit(path, build_css(sizes, needs_leading(ratios, designed)))
                 steps += 1
                 bust += 1
-                problems, ratios = offenders(page, url, bust)
+                problems, ratios = offenders(page, url, bust, set(sizes))
                 for o, (_n, r) in ratios.items():
                     designed.setdefault(o, r)     # first sighting is the design
 
