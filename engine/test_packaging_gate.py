@@ -44,6 +44,17 @@ BYLINE = "The power of 'deep state' handicapping"
 INVENTED = ("The method used by shrewd computer geeks to make millions of dollars "
             "on Hong Kong racing")
 
+def episode_dir(n: int) -> Path:
+    """Resolve an episode folder BY NUMBER, never by a written-out name.
+
+    The stage-8 close-out renames every published episode's folder, so a literal is a
+    fuse. `test_no_hardcoded_episode_paths` caught this suite on its first full run,
+    correctly — it had `PP.glob("PP-EP20*")` inline.
+    """
+    hits = sorted(p for p in PP.glob(f"PP-EP{n:02d}*") if p.is_dir())
+    return hits[0] if hits else PP / f"PP-EP{n:02d}"
+
+
 PASS, FAIL = [], []
 
 
@@ -157,8 +168,8 @@ def main():
     check("  and the headline's capitals are styling, not a difference", not b, f"{b[:1]}")
 
     print("\n-- THE BUILT EP20 PAGES, as they now stand on disk --")
-    d = next((p for p in PP.glob("PP-EP20*") if p.is_dir()), None)
-    if d and (d / "thumbnail").is_dir():
+    d = episode_dir(20)
+    if d.is_dir() and (d / "thumbnail").is_dir():
         res = pg.check_episode(d, TITLE, BYLINE)
         check("both pages were found and graded", len(res["checked"]) == 2,
               f"{res['checked']}")
