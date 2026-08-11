@@ -286,7 +286,7 @@ def build_web_copies(ep, ep_dir: Path) -> str:
     return out or "web copies: nothing reported"
 
 
-def thumbnail_placement_review(ep_dir: Path, png: Path):
+def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     """Raise the ONE clearable flag this step is meant to raise.
 
     Placement is the craft: the template's own header says VIEW the hero first,
@@ -308,7 +308,7 @@ def thumbnail_placement_review(ep_dir: Path, png: Path):
     seen.parent.mkdir(parents=True, exist_ok=True)
     seen.write_text("a human has looked at the thumbnail placement\n", encoding="utf-8")
     raise EngineFlag(
-        f"Have a look at the thumbnail: {png}\n"
+        f"Have a look at the thumbnail: {url or png}\n"
         "It is built at the standard placement (text upper-left over the scrim), which "
         "is what EP11 and EP12 both used. What needs your eye is the HERO CROP — whether "
         "the horses are framed well and every line of text is clear of them.\n"
@@ -1420,6 +1420,16 @@ class MockProvider:
         return {"status": "ok", "what_i_saw": "mock run — no writer was called",
                 "unread_sources": []}
 
+    def publish_thumbnail_preview(self, ep) -> str | None:
+        """Mock: a plausible https URL, nothing uploaded — the same shape as
+        publish_artefact, and present so the step cannot AttributeError here."""
+        self._work()
+        return (f"https://mock.invalid/episode-assets/{ep_folder(ep)}/"
+                "thumbnail-preview.png")
+
+    def thumbnail_placement_review_for(self, ep, url=None):
+        return None
+
     def build_web_copies(self, ep) -> str:
         """Low-res web copies. Real work in BOTH providers, like render_cards — it is
         local Pillow on two PNGs, so faking it would leave the additive claim unproved
@@ -1442,15 +1452,11 @@ class MockProvider:
         except RuntimeError as e:
             raise EngineFlag(f"Mock thumbnail render failed: {str(e)[-700:]}")
         print(f"    [mock] {report}")
-        # Exercise the REAL flag path, then stand in for the human who looks at
-        # it — the same shape as cover_pick's auto-pick. The flag is raised and
-        # cleared here so the spine is proved end to end rather than skipped.
-        try:
-            thumbnail_placement_review(d, out)
-        except EngineFlag as flag:
-            print(f"    [mock] needs_look raised as designed: {str(flag).splitlines()[0]}")
-            print("    [mock] no human here — auto-confirming the placement to exercise "
-                  "the spine")
+        # 🔴 THE REVIEW MOVED OUT TO step_thumbnail (11 Aug 2026), so the mock no
+        # longer raises it from in here either — see RealProvider.build_thumbnail for
+        # why. The spine is still exercised end to end: the STEP calls
+        # thumbnail_placement_review_for(), and the mock's answers to that and to
+        # publish_thumbnail_preview() stand in for the human and the bucket.
         return str(out)
 
     def save_youtube_copy(self, ep) -> str:
@@ -2893,6 +2899,30 @@ class RealProvider:
         self.py("build_ebook.py", src, out, cwd=d, timeout=600)
         return str(out)
 
+    def publish_thumbnail_preview(self, ep) -> str | None:
+        """Put the finished thumbnail where a BROWSER can open it.
+
+        Same mechanism and same reason as publish_title_preview: the flag used to
+        carry `G:\My Drive\...\PP-EP20-thumbnail.png`, which nobody without this
+        machine can open. Returns None rather than raising — a missing preview must
+        not become a second failure on top of the first.
+        """
+        png = self.dir(ep) / "output" / f"{ep_folder(ep)}-thumbnail.png"
+        if not png.is_file():
+            return None
+        try:
+            return self._publish_asset(png, f"{ep_folder(ep)}/thumbnail-preview.png")
+        except Exception:                                          # noqa: BLE001
+            return None
+
+    def thumbnail_placement_review_for(self, ep, url=None):
+        """Raise the placement review for this episode's thumbnail, if it has one."""
+        d = self.dir(ep)
+        png = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
+        if not png.is_file():
+            return
+        thumbnail_placement_review(d, png, url)
+
     def build_web_copies(self, ep) -> str:
         """Low-res web copies. Real work in BOTH providers, like render_cards — it is
         local Pillow on two PNGs, so faking it would leave the additive claim unproved
@@ -2961,7 +2991,13 @@ class RealProvider:
         out = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         self.py("render_still.py", pages[0], out, "1280", "720", cwd=d, timeout=300)
-        thumbnail_placement_review(d, out)      # look at the picture, then clear
+        # 🔴 THE REVIEW IS NO LONGER RAISED FROM IN HERE, and that is the same change
+        # step_cards_render made for the title card on 3 Aug: a step that raises before
+        # it returns never gets to RECORD anything, so the preview existed only as a
+        # path inside the flag's prose and the board had nothing of its own to show.
+        # It showed the title card's picture instead — for a flag whose own words say
+        # "the thumbnail" (Jodie, 11 Aug 2026, reported twice).
+        #     The caller now publishes this PNG, saves the URL, and only then raises.
         return str(out)
 
     # -- the commission: the machine needs an AUTHOR, not an operator ---------

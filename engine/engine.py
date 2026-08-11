@@ -1148,9 +1148,22 @@ def step_ebook_pdf(ctx):
 
 
 def step_thumbnail(ctx):
+    """Build it, publish the preview, SAVE the URL, and only THEN ask for the look.
+
+    THE ORDER IS THE SAME POINT step_cards_render MAKES, and the thumbnail had never
+    been given it: the review used to be raised from inside `build_thumbnail`, so the
+    step never returned and nothing was ever recorded. The board had only the title
+    card's preview to show, and showed it — beside a flag that says "the thumbnail"
+    (Jodie, 11 Aug 2026, reported twice).
+    """
     out = ctx.provider.build_thumbnail(ctx.ep)
+    url = ctx.provider.publish_thumbnail_preview(ctx.ep)
+    if url:
+        ctx.state["thumbnail_preview_url"] = url
+        ctx.save()                       # saved BEFORE the flag, or it is lost
+    ctx.provider.thumbnail_placement_review_for(ctx.ep, url)
     ctx.ep_set({"thumbnail_url": ctx.provider.publish_artefact(ctx.ep, out)})
-    return {"thumbnail": out}
+    return {"thumbnail": out, "preview": url}
 
 
 def step_web_copies(ctx):
@@ -1279,6 +1292,12 @@ def flag_and_wait(ctx, name, message):
     """Set the red flag (status unchanged), then wait — heartbeat stays LIVE the
     whole time, so the board shows a paused-but-alive engine, never a dead one."""
     log(f"!! NEEDS A LOOK [{name}]: {message}")
+    # WHICH FLAG IS UP, so the board can show the picture belonging to THIS one.
+    # It showed `title_preview_url` for every flag, so "Have a look at the thumbnail"
+    # rendered the TITLE CARD (Jodie, 11 Aug 2026, reported twice). One field for two
+    # artefacts; the board now asks by step.
+    ctx.state["flag_step"] = name
+    ctx.save()
     rail.flag_needs_look(ctx.id, message)
     rail.progress(ctx.id, f"Paused — needs a look ({STEP_LABEL[name]})",
                   ctx.ep.get("progress_pct") or 0)
@@ -1303,6 +1322,10 @@ def flag_and_wait(ctx, name, message):
         ep = ctx.refresh()
         if not ep.get("needs_look"):
             log(f"   flag cleared — retrying {name}")
+            # No flag, no picture. Left behind, it would put a stale preview beside
+            # whatever the NEXT flag turns out to be about.
+            if ctx.state.pop("flag_step", None) is not None:
+                ctx.save()
             return
 
 

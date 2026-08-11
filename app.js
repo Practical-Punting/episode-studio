@@ -270,10 +270,31 @@ function engineStopped(ep) {
   return { since: beat, age: age };
 }
 
-/* The picture the current flag is asking about, if the engine published one.
- * build_state is jsonb and already there — no schema change for a preview URL. */
+/* The picture the CURRENT flag is asking about, if the engine published one.
+ * build_state is jsonb and already there — no schema change for a preview URL.
+ *
+ * 🔴 THE LABEL AND THE PICTURE MUST AGREE. (Jodie, 11 Aug 2026 — reported twice.)
+ * This returned `title_preview_url` whatever flag was up, so the flag that says
+ * "Have a look at the THUMBNAIL" showed the TITLE CARD. Two artefacts, one field.
+ *
+ * The step that raised the flag is recorded in `build_state.flag_step`, so the board
+ * asks for the picture belonging to THAT flag rather than for the only one it knew
+ * about. A flag whose step has no picture (shot_map, audit_inputs, a retry) now shows
+ * NOTHING, which matters as much as the swap: a stale picture beside an unrelated flag
+ * is exactly how this fault reads to the person looking at it. */
+const FLAG_PREVIEW = {
+  cards_render: "title_preview_url",
+  thumbnail: "thumbnail_preview_url",
+};
+
 function previewFor(ep) {
   const bs = ep.build_state || {};
+  if (bs.flag_step) {
+    const key = FLAG_PREVIEW[bs.flag_step];
+    return key ? safeUrl(bs[key] || "") : "";
+  }
+  /* Built before flag_step existed (EP18, EP19 and earlier): the title card's preview
+   * was the only one ever published, so it is the only thing it can have meant. */
   return safeUrl(bs.title_preview_url || "");
 }
 
