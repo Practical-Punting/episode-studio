@@ -26,6 +26,7 @@ Nothing here touches the live rail, the network, or a running engine.
 """
 import ast
 import builtins
+import re
 import sys
 from pathlib import Path
 
@@ -263,6 +264,59 @@ def _every_step_in_the_table_exists_and_is_callable():
 
 case("every step_* in engine.py exists and is callable",
      _every_step_in_the_table_exists_and_is_callable)
+
+
+# 🔴 AND EVERY METHOD THOSE STEPS CALL MUST EXIST ON BOTH PROVIDERS.
+#
+# THE CHECK ABOVE PROVES THE STEPS EXIST AND NEVER LOOKED AT WHAT THEY CALL — which
+# is the half this suite was credited with covering. MockProvider.publish_artefact's
+# own docstring says it is "present so a step that publishes cannot NameError on the
+# mock path — the exact fault test_step_call_sites.py exists to catch". It could not
+# have caught it.
+#
+# EP20, 11 Aug 2026: `step_web_copies` called `ctx.provider.build_web_copies(...)` and
+# the function had been written at MODULE level in providers.py. Every suite was green
+# — 57 of them — because nothing anywhere resolved a step's call against a provider.
+# It surfaced as an AttributeError three retries deep, mid-rebuild, on a paused
+# episode, on the one step that had just been added.
+#
+# Derived from the SOURCE of engine.py, so a step added tomorrow is covered without
+# anyone extending a list.
+CALL = re.compile(r"ctx\.provider\.(\w+)\s*\(")
+
+
+def _every_provider_call_resolves():
+    src = Path(engine.__file__).read_text(encoding="utf-8")
+    wanted = sorted(set(CALL.findall(src)))
+    assert len(wanted) >= 10, (
+        f"only found {len(wanted)} ctx.provider calls — the regex has stopped "
+        f"matching and this check is passing on nothing")
+    missing = []
+    for name in wanted:
+        for cls in (providers.MockProvider, providers.RealProvider):
+            if not callable(getattr(cls, name, None)):
+                missing.append(f"{cls.__name__}.{name}")
+    assert not missing, (
+        "a step calls a provider method that does not exist — it will AttributeError "
+        "at run time, on whichever provider is missing it:\n      "
+        + "\n      ".join(missing)
+        + "\n      (a module-level function in providers.py is NOT a provider method)")
+
+
+def _the_provider_call_check_can_fail():
+    """CONTROL. A guard that has never been seen to fire is a guess."""
+    fake = "    x = ctx.provider.definitely_not_a_real_method(ctx.ep)\n"
+    assert CALL.findall(fake) == ["definitely_not_a_real_method"], \
+        "the regex does not even find the call it is meant to find"
+    assert not callable(getattr(providers.RealProvider,
+                                "definitely_not_a_real_method", None)), \
+        "the control name exists on the provider — pick another"
+
+
+case("every provider method a step calls exists on BOTH providers",
+     _every_provider_call_resolves)
+case("  CONTROL — that check finds a bogus call and knows it is bogus",
+     _the_provider_call_check_can_fail)
 
 # ---------------------------------------------------------------------------
 # AND A STEP MUST NOT RUN BEFORE THE THING IT CHECKS EXISTS.

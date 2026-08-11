@@ -1160,7 +1160,7 @@ def step_web_copies(ctx):
     that step writes, and the e-book cover from `ebook_cover` much earlier. It is
     additive: two new names in output/, nothing existing touched.
     """
-    return {"report": ctx.provider.build_web_copies(ctx.ep, ctx.provider.dir(ctx.ep))}
+    return {"report": ctx.provider.build_web_copies(ctx.ep)}
 
 
 def step_youtube_copy(ctx):

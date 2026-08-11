@@ -1377,6 +1377,55 @@ class MockProvider:
             raise EngineFlag(f"Mock e-book build failed: {str(e)[-700:]}")
         return str(out)
 
+    # ── THE FIVE THE MOCK COULD NOT ANSWER (11 Aug 2026) ────────────────────
+    # Found by test_step_call_sites' new "every provider method a step calls exists
+    # on BOTH providers" case, which was added after step_web_copies called a method
+    # that existed only at module level. These five were ALREADY missing and had been
+    # for as long as their call sites existed: a mock run reaching any of them
+    # AttributeErrors, which is EP15's fault exactly — the fault this suite was born
+    # for. They are answered here in the mock's own idiom: real enough to have a
+    # checkable output path, cheap enough to cost nothing.
+
+    def dir(self, ep) -> Path:
+        """Same contract as the real one: where this episode's folder is."""
+        return self.root / ep_folder(ep)
+
+    def broll_contact(self, ep, files) -> str:
+        self._work()
+        return self._artifact(ep_folder(ep), "output/qc/broll-contact.png",
+                              f"contact sheet of {len(list(files))} b-roll still(s)")
+
+    def record_cover_rejection(self, ep):
+        """A rejection is a RECORD, not a convention (E16 part 2) — so the mock
+        writes one rather than returning nothing and letting the caller believe it."""
+        self._work()
+        return self._artifact(ep_folder(ep), "ebook/cover-src/.rejected",
+                              "the pair on offer was turned down")
+
+    def regenerate_covers(self, ep, note: str = "", rejected=()):
+        self._work()
+        f = ep_folder(ep)
+        self._artifact(f, "ebook/cover-src/hero-a.png", "regenerated hero A")
+        self._artifact(f, "ebook/cover-src/hero-b.png", "regenerated hero B")
+        return (self._artifact(f, "thumbnail/cover-A.png", "fresh cover option A"),
+                self._artifact(f, "thumbnail/cover-B.png", "fresh cover option B"))
+
+    def _commission_episode_json(self, ep, d: Path, *, followup=None, on_start=None):
+        """The mock does not run a writer. It returns a CONFORMING verdict so the
+        repair loop's own shape is exercised, and it never pretends to have written
+        a file it did not write — the caller's freshness check would catch that."""
+        self._work()
+        if on_start:
+            on_start("writing this episode's settings (mock)")
+        return {"status": "ok", "what_i_saw": "mock run — no writer was called",
+                "unread_sources": []}
+
+    def build_web_copies(self, ep) -> str:
+        """Low-res web copies. Real work in BOTH providers, like render_cards — it is
+        local Pillow on two PNGs, so faking it would leave the additive claim unproved
+        on the only path the mock exercises."""
+        return build_web_copies(ep, self.dir(ep))
+
     def build_thumbnail(self, ep) -> str:
         """Real authoring and a real render, like the cover and the cards."""
         self.maybe_fail("thumbnail")
@@ -2843,6 +2892,12 @@ class RealProvider:
         out = d / "output" / f"{ep_folder(ep)}-ebook.pdf"
         self.py("build_ebook.py", src, out, cwd=d, timeout=600)
         return str(out)
+
+    def build_web_copies(self, ep) -> str:
+        """Low-res web copies. Real work in BOTH providers, like render_cards — it is
+        local Pillow on two PNGs, so faking it would leave the additive claim unproved
+        on the only path the mock exercises."""
+        return build_web_copies(ep, self.dir(ep))
 
     def build_thumbnail(self, ep) -> str:
         d = self.dir(ep)

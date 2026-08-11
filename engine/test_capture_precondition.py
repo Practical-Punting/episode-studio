@@ -112,10 +112,20 @@ def main():                                                            # noqa: C
           n_glob == 1, f"found {n_glob} in code — a second lookup will drift")
     body = src.split("def find_capture")[1].split("\ndef ")[0]
     check("  and that once is inside find_capture", "-source-article-" in body)
-    epj = src.split("def _commission_episode_json")[1].split("\n    def ")[0]
+    # ⚠️ THE REAL PROVIDER'S COPY, NAMED. This used to take the FIRST
+    # `def _commission_episode_json` in the file, which was the only one — until
+    # MockProvider grew the method on 11 Aug 2026 and the split silently started
+    # inspecting the MOCK, whose whole job is to commission nothing. The case went red
+    # for a reason that had nothing to do with what it is about.
+    #     A test that identifies its subject by "the first one in the file" is a test
+    # whose subject can change under it without anybody touching either.
+    real = src.split("class RealProvider")[1]
+    epj = real.split("def _commission_episode_json")[1].split("\n    def ")[0]
     check("  the episode.json commission calls the shared lookup",
           "find_capture(" in epj)
     check("  and no longer globs for itself", "-source-article-" not in epj)
+    check("  (and it is the REAL provider's copy being read, not the mock's)",
+          "class MockProvider" not in real and "com.commission(" in epj)
 
     print("\n-- 🔴 EP01 DOES NOT MATCH EP10 (fault #0a, closed by the pattern) --")
     both = tree("EP01-source-article-the-first-one.md",
