@@ -917,6 +917,18 @@ def assert_measured_items_show_a_figure(card, blk):
     """
     content = card.get("content") or {}
     lists = (blk.get("schema") or {}).get("lists", {})
+    # 🔴 EVERY OFFENDING ITEM, IN ONE MESSAGE. (EP21, 11 Aug 2026.)
+    # This used to `raise` on the FIRST one, and that turned a bounded repair loop
+    # into whack-a-mole. EP21's C9 had BOTH bars unlabelled; the writer was told only
+    # about "Randwick", fixed it, resubmitted, was told about "Rosehill", and the
+    # three attempts ran out on ONE CARD. The engine then halted saying — correctly —
+    # that retrying would not help.
+    #     EP20's C5 was the same shape and only survived because a human fixed both
+    # bars by hand while looking at the one it named.
+    # The rule was already written down, in _epjson_gate: "The writer gets every
+    # complaint at once." A checker that reports one fault per attempt cannot be used
+    # inside a loop with three attempts.
+    bad = []
     for name, spec in lists.items():
         numeric = set(spec.get("numeric", []))
         if not numeric:
@@ -932,14 +944,24 @@ def assert_measured_items_show_a_figure(card, blk):
             if shown:
                 continue
             label = item.get("label") or item.get("k") or f"{name}[{i}]"
-            raise Halt(
-                f"card {card.get('id')}: {name}[{i}] ({label!r}) is drawn as a "
-                f"measurement of {measured[0]!r} and shows NO figure anywhere a viewer "
-                f"can read it. `{name}.{sorted(numeric)[0]}` sets the bar LENGTH only — "
-                "it is never rendered as text — so the number reaches the screen solely "
-                "through this item's other fields, and none of them has one. EP18 C9 "
-                'shipped exactly this: two bars and "per cent profit on turnover" with '
-                'nothing in front. Its notes became "5 per cent profit on turnover".')
+            bad.append(f"{name}[{i}] ({label!r}), drawn as a measurement of "
+                       f"{measured[0]!r}")
+    if bad:
+        one = len(bad) == 1
+        lead = ("this item is drawn as a measurement and shows NO figure anywhere a "
+                "viewer can read it" if one else
+                f"these {len(bad)} items are drawn as measurements and show NO figure "
+                f"anywhere a viewer can read them")
+        raise Halt(
+            f"card {card.get('id')}: {lead} — " + "; ".join(bad) + ". "
+            "A list's numeric field sets the bar LENGTH only — it is never rendered as "
+            "text — so the number reaches the screen solely through the item's other "
+            "fields, and none of them has one. EP18 C9 shipped exactly this: two bars "
+            'and "per cent profit on turnover" with nothing in front. Its notes became '
+            '"5 per cent profit on turnover". '
+            + ("" if one else "FIX THEM ALL: they are listed together on purpose, "
+                              "because fixing one and resubmitting spends an attempt "
+                              "and comes straight back."))
 
 
 def assert_no_invented_text(page, card, frame_tpl, blk):
