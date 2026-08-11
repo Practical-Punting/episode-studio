@@ -286,6 +286,53 @@ def build_web_copies(ep, ep_dir: Path) -> str:
     return out or "web copies: nothing reported"
 
 
+def listen_to_the_master(ep_dir: Path, master: Path):
+    """🔊 THE ONE MINUTE THAT WOULD HAVE SAVED EP20. (Jodie, 11 Aug 2026.)
+
+    EP20's HeyGen render came back with a bad voice. She had listened to the PREVIEW
+    before generating — which was fine — and nobody heard the GENERATED file until the
+    whole episode was built and sitting at its approvals. It cost a full re-render and
+    a complete re-assembly.
+
+    🚫 AND THERE IS DELIBERATELY NO AUTOMATED AUDIO CHECK HERE, WHICH IS THE POINT.
+    The bad take was measured against EP18 and EP19 afterwards: integrated loudness
+    within 0.5 LUFS, true peak within 0.3 dB, loudness range, bitrate, sample rate,
+    channels — and every spectral band from 0 to 20 kHz within 1 dB. **Nothing in the
+    signal distinguished it.** The defect was the PERFORMANCE. A threshold check could
+    not have fired, and a check that cannot fire is worse than none: it prints
+    "audio OK" and trains everyone to stop listening.
+
+    So this is a HUMAN gate, and it is the sanctioned use of `needs_look` — a real
+    decision, asked at the cheap moment. One minute here against a 25-minute build,
+    seven paid clips and a re-render there.
+
+    Flags ONCE, like the two placement reviews: the marker records that a human has
+    listened, so clearing the flag lets the step through instead of asking forever. The
+    marker is named after the master's SIZE AND MTIME, so a NEW master — a re-render,
+    exactly EP20's case — asks again rather than inheriting the last one's approval.
+    """
+    st = master.stat()
+    seen = ep_dir / "renders" / f".listened-{st.st_size}-{int(st.st_mtime)}"
+    if seen.exists():
+        return
+    seen.parent.mkdir(parents=True, exist_ok=True)
+    seen.write_text("a human has listened to this master\n", encoding="utf-8")
+    raise EngineFlag(
+        "Listen to Gordon's downloaded render and confirm the voice sounds right "
+        "before we build.\n"
+        f"  {master}\n"
+        "It is about a minute of your time and it is the cheapest minute in the whole "
+        "build: everything after this — the shot map, both assembly passes, the e-book "
+        "and QC — takes about half an hour, and all of it is wasted if the take is "
+        "wrong.\n"
+        "⚠️ THE PREVIEW YOU APPROVED BEFORE GENERATING IS NOT THIS FILE. EP20's preview "
+        "was fine and the generated take was not, and nothing in the audio measurements "
+        "could tell them apart — loudness, peak, bitrate and the whole spectrum matched "
+        "the good episodes. Only an ear can hear it.\n"
+        "Sounds right? Clear this flag and the build carries on. Sounds wrong? Re-render "
+        "it in HeyGen, save the new file, and say so — nothing here is wasted yet.")
+
+
 def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     """Raise the ONE clearable flag this step is meant to raise.
 
@@ -1428,6 +1475,12 @@ class MockProvider:
                 "thumbnail-preview.png")
 
     def thumbnail_placement_review_for(self, ep, url=None):
+        return None
+
+    def listen_to_the_master(self, ep) -> None:
+        """The mock has no ears and no human. It stands in for both, the same way it
+        auto-answers the cover pick — the STEP is still exercised."""
+        self._work()
         return None
 
     def build_web_copies(self, ep) -> str:
@@ -2903,9 +2956,9 @@ class RealProvider:
         """Put the finished thumbnail where a BROWSER can open it.
 
         Same mechanism and same reason as publish_title_preview: the flag used to
-        carry `G:\My Drive\...\PP-EP20-thumbnail.png`, which nobody without this
-        machine can open. Returns None rather than raising — a missing preview must
-        not become a second failure on top of the first.
+        carry a `G:` path on this machine's Drive, which nobody without this machine
+        can open. Returns None rather than raising — a missing preview must not
+        become a second failure on top of the first.
         """
         png = self.dir(ep) / "output" / f"{ep_folder(ep)}-thumbnail.png"
         if not png.is_file():
@@ -2922,6 +2975,14 @@ class RealProvider:
         if not png.is_file():
             return
         thumbnail_placement_review(d, png, url)
+
+    def listen_to_the_master(self, ep) -> None:
+        """Ask the human to LISTEN, once per master. See listen_to_the_master()."""
+        d = self.dir(ep)
+        master = d / "renders/presenter-master.mp4"
+        if not master.is_file():
+            return                      # nothing landed; the caller has bigger problems
+        listen_to_the_master(d, master)
 
     def build_web_copies(self, ep) -> str:
         """Low-res web copies. Real work in BOTH providers, like render_cards — it is

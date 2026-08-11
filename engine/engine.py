@@ -217,7 +217,10 @@ PHASES = {
     "building":   ["script_sync", "render_gate", "audit_inputs", "credit_check",
                    "broll_submit", "covers_ab", "broll_collect",
                    "cover_pick", "ebook_cover", "cards_render"],
-    "rendering":  ["heygen_download", "shot_map"],
+    # 🔊 listen_check SITS BETWEEN THE DOWNLOAD AND EVERYTHING EXPENSIVE, on purpose.
+    # A bad HeyGen take measures perfect (EP20, 11 Aug 2026), so the only detector is
+    # an ear — and the cheapest place to use it is before the shot map.
+    "rendering":  ["heygen_download", "listen_check", "shot_map"],
     # 🔴 self_qc RUNS AFTER THE THINGS IT CHECKS. It used to sit third, straight after
     # the two assembly passes and BEFORE ebook_pdf and thumbnail — while its own
     # deliverables stage hard-fails on "no e-book PDF" and "no thumbnail PNG". On a
@@ -248,6 +251,7 @@ STEP_LABEL = {
     "ebook_cover":    "Rendering the e-book cover from your pick",
     "cards_render":   "Rendering the motion cards",
     "heygen_download": "Fetching the HeyGen master",
+    "listen_check":   "Waiting on you — listen to Gordon's render",
     "shot_map":       "Building the shot map",
     "assemble_passA": "Assembling — base motion (pass A)",
     "assemble_passB": "Assembling — cards + audio (pass B)",
@@ -1004,6 +1008,7 @@ def _commission_budget(attempts: int, timeout_s: int) -> int:
 
 STEP_BUDGET_S = {
     "heygen_download": None,      # waits for Jodie's HeyGen render — no flag, no alarm
+    "listen_check":    None,      # waits for a human to LISTEN — a flag, and no alarm
     "cover_pick":      None,      # waits for a human choice
     "render_gate":     None,      # waits for the render to be started
     "assemble_passA":  45 * 60,   # EP14 measured ~15 min at 688s of video
@@ -1113,6 +1118,21 @@ def step_heygen_download(ctx):
         time.sleep(60)
 
 
+def step_listen_check(ctx):
+    """🔊 A HUMAN LISTENS TO THE MASTER BEFORE A MINUTE OF BUILD IS SPENT.
+
+    Sits between the download and the shot map because that is where it is cheap:
+    everything after it — the shot map, both assembly passes, the e-book and QC — is
+    about half an hour, and all of it is wasted on a bad take. EP20 paid that twice.
+
+    There is no automated audio check and there must not be: the bad take measured
+    identical to EP18 and EP19 on every signal statistic there is. See
+    providers.listen_to_the_master for the numbers and the reasoning.
+    """
+    ctx.provider.listen_to_the_master(ctx.ep)
+    return {"listened": True}
+
+
 def step_shot_map(ctx):
     return {"shot_map": ctx.provider.build_shot_map(ctx.ep)}
 
@@ -1200,7 +1220,8 @@ STEP_FNS = {name: fn for name, fn in [
     ("broll_submit", step_broll_submit), ("covers_ab", step_covers_ab),
     ("broll_collect", step_broll_collect), ("cover_pick", step_cover_pick),
     ("ebook_cover", step_ebook_cover), ("cards_render", step_cards_render),
-    ("heygen_download", step_heygen_download), ("shot_map", step_shot_map),
+    ("heygen_download", step_heygen_download),
+    ("listen_check", step_listen_check), ("shot_map", step_shot_map),
     ("assemble_passA", step_assemble_passA),
     ("assemble_passB", step_assemble_passB), ("self_qc", step_self_qc),
     ("ebook_pdf", step_ebook_pdf), ("thumbnail", step_thumbnail),
