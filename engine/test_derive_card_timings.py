@@ -190,5 +190,69 @@ with tempfile.TemporaryDirectory() as td:
           "CARD-CARD overlap CC/END" in out,
           "fixing the position must not blind the check")
 
+# ══ A3 — "card over Gordon's face" applies itself ════════════════════════════
+# A panel-push card whose window crosses into an MCU beat. WIDE is the only lawful
+# answer and the tool already knows which beats — it used to halt so somebody could
+# retype it. TWO of EP23's four halts were this.
+print("\nA3 — the WIDE fix applies itself instead of halting")
+
+WIDE_BEATS = [(1, 0.35, 10.0, "MCU"), (2, 10.0, 25.0, "WIDE"), (3, 25.0, 40.0, "MCU"),
+              (4, 40.0, 48.0, "MCU"), (5, 48.0, 63.0, "MCU")]
+WIDE_SRT = [(0.35, 10.0, "opening words for the first beat of this test episode"),
+            (10.0, 20.0, "second beat words carry on for a while here"),
+            (20.0, 25.0, "delta cue phrase and more words after it"),
+            (25.0, 40.0, "third beat words run along here too"),
+            (40.0, 48.0, "fourth beat words"),
+            (48.0, 63.0, "fifth beat words the outro")]
+# CD enters 23.0, holds 10.0 -> exits 33.0: spans beat 2 (WIDE, ok) and beat 3 (MCU, bad)
+WIDE_CARDS = [{"id": "CD", "beat": 2, "cue": "delta cue phrase", "items": 2,
+               "layout": "panel-push"}]
+
+with tempfile.TemporaryDirectory() as td:
+    root = build_episode(td, beats=WIDE_BEATS, cards=WIDE_CARDS, srt=WIDE_SRT,
+                         # the ask sits in beat 1 so the chip clears CD's window entirely —
+                         # this fixture is on trial for framing, nothing else
+                         build={"midroll": {"ask": ["opening words", "test episode"]}})
+    out = run(root)                                   # no flag -> the old behaviour
+    check("without --apply-wide it still reports the problem",
+          "SHOT PLAN CD" in out and "beats [3]" in out, out[-500:])
+
+with tempfile.TemporaryDirectory() as td:
+    root = build_episode(td, beats=WIDE_BEATS, cards=WIDE_CARDS, srt=WIDE_SRT,
+                         # the ask sits in beat 1 so the chip clears CD's window entirely —
+                         # this fixture is on trial for framing, nothing else
+                         build={"midroll": {"ask": ["opening words", "test episode"]}})
+    out = run(root, "--apply-wide")
+    check("with --apply-wide it does NOT halt on it", "SHOT PLAN CD" not in out, out[-600:])
+    check("it says which beat it changed and why",
+          "beats[3].framing = WIDE" in out and "CD" in out, out[-600:])
+    check("it re-derives after applying", "re-deriving" in out)
+    check("and the run then passes", "ALL CHECKS PASS" in out, out[-500:])
+    epj = json.loads((pathlib.Path(root) / "docs/episode.json").read_text(encoding="utf-8"))
+    got = {b["n"]: b["framing"] for b in epj["beats"]}
+    check("beat 3 is WIDE on disk", got[3] == "WIDE", str(got))
+    check("it widened ONLY what was needed — beat 4 is untouched", got[4] == "MCU", str(got))
+    check("and beat 1 is untouched", got[1] == "MCU", str(got))
+
+# 🔒 IT MUST NOT SILENCE THE HALT THAT IS A REAL DECISION.
+with tempfile.TemporaryDirectory() as td:
+    root = build_episode(
+        td,
+        beats=[(1, 0.35, 10.0, "MCU"), (2, 10.0, 25.0, "WIDE"), (3, 25.0, 33.0, "MCU"),
+               (4, 33.0, 48.0, "MCU"), (5, 48.0, 63.0, "MCU")],
+        cards=[{"id": "CA", "beat": 2, "cue": "alpha cue phrase", "items": 2},
+               {"id": "CB", "beat": 3, "cue": "bravo cue phrase", "items": 2}],
+        srt=[(0.35, 10.0, "opening words for the first beat of this test episode"),
+             (10.0, 24.0, "second beat words carry on for a while here"),
+             (24.0, 25.0, "alpha cue phrase"),
+             (25.0, 30.0, "third beat words run along here too"),
+             (30.0, 33.0, "bravo cue phrase"),
+             (33.0, 48.0, "fourth beat words"),
+             (48.0, 63.0, "fifth beat words the outro")])
+    out = run(root, "--apply-wide")
+    check("a genuine card-card overlap STILL halts under --apply-wide",
+          "CARD-CARD overlap CA/CB" in out and "PROBLEM(S)" in out,
+          "auto-applying the mechanical fix must not wave through a decision")
+
 print("\n" + ("ALL PASS" if not FAILED else f"{len(FAILED)} FAILED: {FAILED}"))
 sys.exit(1 if FAILED else 0)

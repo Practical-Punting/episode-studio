@@ -479,7 +479,16 @@ def derive_timings(ep_dir: Path) -> str:
          # says anything. It then halted the build so a human could copy the number in.
          # EP22 halted on FOUR in one run, EP21 on one; every one was applied verbatim.
          # Only the confirmed-available case is applied; anything else still halts.
-         str(ep_dir), "--write", "--apply-broll"],
+         #
+         # 🔴 --apply-wide: THE SAME ARGUMENT, FOR THE OTHER HALT THAT WAS NEVER A
+         # DECISION. A panel-push card must have WIDE for its whole window — the rule
+         # has no second option — and the tool already computes exactly which beats are
+         # wrong. It then stopped so somebody could retype MCU as WIDE. TWO of EP23's
+         # four halts were this, and neither was thinking: beat 7 because the aligned SRT
+         # moved C3's cue past a beat boundary, beat 32 because C21 was changed to
+         # panel-push and framing was never re-derived. Widening a beat cannot lose a
+         # fact, which is what makes it safe to apply where a too-big card is not.
+         str(ep_dir), "--write", "--apply-broll", "--apply-wide"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     out = (r.stdout or "") + (r.stderr or "")
     if r.returncode:

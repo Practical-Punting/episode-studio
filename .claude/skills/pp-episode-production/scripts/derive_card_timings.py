@@ -180,6 +180,10 @@ def main():
     #     Only the CONFIRMED branch is ever auto-applied — where slack >= need. The
     # other branch says "a decision rather than an adjustment" and still halts.
     broll_fixes: dict[str, float] = {}
+    # A3 — the same argument, for the other halt that was never a decision. See the
+    # SHOT PLAN block: WIDE is the only lawful answer and the beats are already known.
+    apply_wide = "--apply-wide" in sys.argv
+    wide_fixes: dict[int, list] = {}
 
     epj_path = d / "docs/episode.json"
     # PREFER FORCED ALIGNMENT. renders/generated.srt is CONSTRUCTED from
@@ -592,9 +596,22 @@ def main():
         flag = "OK" if not bad else "NOT WIDE"
         print(f"  {cid:6} {s:8.2f} -> {e:8.2f}  spans beats {spanned}  {flag}")
         if bad:
-            problems.append(f"SHOT PLAN {cid}: on-screen card is up while beats {bad} are "
-                            f"MCU. Set them WIDE, or the card lands over Gordon's face "
-                            f"(the EP11 failure).")
+            # 🔴 THIS IS NOT A DECISION, AND IT HALTED TWO OF EP23'S FOUR (Jodie, 13 Aug).
+            # WIDE is the ONLY lawful answer — the rule has no second option — and the
+            # offending beats are already computed, on the line above. It then stopped the
+            # build so somebody could retype MCU as WIDE. Same argument as --apply-broll.
+            #
+            # ⚠️ AND WIDENING A BEAT CANNOT LOSE A FACT. That is what makes it safe to
+            # apply where a card that is too big for its window is not: nothing is
+            # shortened, nothing is dropped, no wording moves. The card-size halt stays
+            # a halt precisely because it would have to give something up.
+            if apply_wide:
+                for n in bad:
+                    wide_fixes.setdefault(n, []).append(cid)
+            else:
+                problems.append(f"SHOT PLAN {cid}: on-screen card is up while beats {bad} "
+                                f"are MCU. Set them WIDE, or the card lands over Gordon's "
+                                f"face (the EP11 failure).")
 
     # ---- report ------------------------------------------------------------
     print("\n" + "=" * 74)
@@ -612,23 +629,41 @@ def main():
   change she should agree to rather than discover.""")
     for n in notes:
         print(f"NOTE    {n}")
-    if problems:
+    if problems or wide_fixes:
+        # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The b-roll delay is computed
+        # from a ROUNDED overlap, so one pass can leave a hundredth of a second still
+        # touching — EP21 needed two rounds. Widening a beat can likewise move a card's
+        # neighbours into view. The caller loops until nothing moves, and every problem
+        # class that is a real DECISION still halts.
+        applied = []
         if apply_broll and broll_fixes:
-            # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The delay is computed
-            # from a ROUNDED overlap, so one pass can leave a hundredth of a second
-            # still touching — EP21 needed two rounds. The caller loops until the
-            # numbers stop moving, and every other problem class still halts.
             offs_out = build.setdefault("broll_offsets", {})
             for t, v in sorted(broll_fixes.items()):
                 was = offs_out.get(t)
                 offs_out[t] = v
                 print(f"   applied build.broll_offsets[{t!r}] = {v}"
                       + (f"  (was {was})" if was is not None else "  (was unset)"))
+            applied.append(f"{len(broll_fixes)} b-roll offset(s)")
+        if apply_wide and wide_fixes:
+            by_n = {b["n"]: b for b in epj["beats"]}
+            for n, cids in sorted(wide_fixes.items()):
+                b = by_n.get(n)
+                if b is None:                    # a beat the shot map has and the json does not
+                    problems.append(f"SHOT PLAN: beat {n} needs WIDE but is not in "
+                                    f"episode.json's beats[] — cannot apply.")
+                    continue
+                was = b.get("framing")
+                b["framing"] = "WIDE"
+                print(f"   applied beats[{n}].framing = WIDE  (was {was}) "
+                      f"— for {', '.join(cids)}")
+            applied.append(f"{len(wide_fixes)} beat framing(s)")
+        if applied:
             epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
                                 encoding="utf-8")
-            print(f"\nAPPLIED {len(broll_fixes)} b-roll offset(s) the tool had already "
-                  f"worked out — re-deriving.\n")
+            print(f"\nAPPLIED {' and '.join(applied)} the tool had already worked out "
+                  f"— re-deriving.\n")
             return "RETRY"
+    if problems:
         print(f"\n{len(problems)} PROBLEM(S) — NOTHING WRITTEN:")
         for p in problems:
             print(f"  !! {p}")
@@ -656,12 +691,12 @@ def main():
 
 
 if __name__ == "__main__":
-    # --apply-broll makes main() return "RETRY" once it has written the offsets it
-    # already knew. Bounded, because a loop that cannot converge must stop and say so
-    # rather than write the same number for ever.
+    # --apply-broll and --apply-wide make main() return "RETRY" once they have written
+    # what they already knew. Bounded, because a loop that cannot converge must stop and
+    # say so rather than write the same value for ever.
     for _round in range(1, 6):
         if main() != "RETRY":
             break
     else:
-        sys.exit("b-roll offsets did not settle after 5 rounds — stopping rather than "
-                 "writing the same numbers again. This one needs a look.")
+        sys.exit("the mechanical fixes did not settle after 5 rounds — stopping rather "
+                 "than writing the same values again. This one needs a look.")
