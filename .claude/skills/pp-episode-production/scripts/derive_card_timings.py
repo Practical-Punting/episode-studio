@@ -297,7 +297,18 @@ def main():
     last_end = max(s["end"] for s in shots)
     ec_beat = int(build.get("endcard_beat", 24))
     title_win = (float(build.get("title_head", 0.0)), round(first_speech, 2))
-    end_win = (round(beat_start.get(ec_beat, last_end) - float(build.get("endcard_lead", 1.5)), 2),
+    # 🔴 PLUS endcard_lead, NOT MINUS — THE ASSEMBLER IS THE SOURCE OF TRUTH HERE.
+    # assemble_episode.py:139 builds the film with `bs(endcard_beat) + endcard_lead`, and
+    # qc_episode.py checks it at the same place. This tool subtracted it, so it believed
+    # the end card arrived 3.0s (2 x lead) EARLIER than it does — and invented overlaps
+    # against a card that was never there yet.
+    #
+    # ⚠️ IT FABRICATED A HALT AND MOVED A CARD. EP23's "CARD-CARD overlap C23/END: 1.51s"
+    # was pure arithmetic: C23 ran to 804.55 and the end card lands at 806.04. Its real
+    # window was 9.49s against a 9.0s minimum — IT FITTED WHERE IT WAS. The tool even
+    # printed the contradiction beside itself, "it already fits", and nobody read the two
+    # lines together. EP22's C18/C19 halt is the same shape and wants re-checking.
+    end_win = (round(beat_start.get(ec_beat, last_end) + float(build.get("endcard_lead", 1.5)), 2),
                round(last_end - float(build.get("warranty_tail", 6.7))
                      - float(build.get("warranty_lead", 0.3)), 2))
     warr_win = (round(last_end - float(build.get("warranty_tail", 6.7)), 2), round(last_end, 2))
@@ -305,7 +316,8 @@ def main():
     print(f"  TITLE     {title_win[0]:8.2f} -> {title_win[1]:8.2f}   "
           f"(silent head; measured hold {title_win[1]-title_win[0]:.2f}s "
           f"vs holds.TITLE {holds.get('TITLE')})")
-    print(f"  END       {end_win[0]:8.2f} -> {end_win[1]:8.2f}   (beat {ec_beat} - endcard_lead)")
+    print(f"  END       {end_win[0]:8.2f} -> {end_win[1]:8.2f}   (beat {ec_beat} "
+          f"+ endcard_lead, as assemble_episode builds it)")
     print(f"  WARRANTY  {warr_win[0]:8.2f} -> {warr_win[1]:8.2f}   (last {build.get('warranty_tail')}s)")
     if abs((title_win[1] - title_win[0]) - float(holds.get("TITLE", 0))) > 0.75:
         notes.append(f"holds.TITLE is {holds.get('TITLE')}s but the real silent head is "

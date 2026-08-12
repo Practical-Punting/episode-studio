@@ -139,5 +139,56 @@ with tempfile.TemporaryDirectory() as td:
           "it has" in out and "needs" in out)
 
 
+# ══ A2 — the end card sits where the ASSEMBLER puts it ════════════════════════
+# endcard_beat 5 starts at 48.0 with endcard_lead 1.5.
+#     assembler & QC:  48.0 + 1.5 = 49.5      <- the film
+#     derive (buggy):  48.0 - 1.5 = 46.5      <- 3.0s early, invents overlaps
+# CC exits at 47.0 — inside that 3.0s gap. It genuinely fits; the bug says it does not.
+print("\nA2 — the end card is placed where the assembler puts it")
+
+with tempfile.TemporaryDirectory() as td:
+    root = build_episode(
+        td,
+        beats=[(1, 0.35, 10.0, "MCU"), (2, 10.0, 25.0, "WIDE"), (3, 25.0, 33.0, "MCU"),
+               (4, 33.0, 48.0, "MCU"), (5, 48.0, 63.0, "MCU")],
+        cards=[{"id": "CC", "beat": 4, "cue": "charlie cue phrase", "items": 2}],
+        srt=[(0.35, 10.0, "opening words for the first beat of this test episode"),
+             (10.0, 25.0, "second beat words carry on for a while here"),
+             (25.0, 33.0, "third beat words run along here too"),
+             (33.0, 34.0, "fourth beat opens"),
+             (34.0, 48.0, "charlie cue phrase and then some more words after it"),
+             (48.0, 63.0, "fifth beat words the outro")])
+    out = run(root)
+
+    end_line = next((l for l in out.splitlines() if l.strip().startswith("END ")), "")
+    check("END is placed at beat + endcard_lead (49.50), not beat - lead (46.50)",
+          "49.50" in end_line and "46.50" not in end_line,
+          f"END line: {end_line.strip()!r}")
+    check("the label says + endcard_lead", "+ endcard_lead" in end_line,
+          f"END line: {end_line.strip()!r}")
+    # THE REGRESSION JODIE ASKED FOR: no phantom overlap on a card that genuinely fits.
+    check("NO phantom CC/END overlap — CC exits 47.0, the end card lands 49.5",
+          "CARD-CARD overlap CC/END" not in out,
+          "the 3.0s error is back: a fitting card is being called an overlap")
+    check("and the run is clean", "ALL CHECKS PASS" in out, out[-700:])
+
+# The same geometry with the card genuinely overrunning MUST still be caught.
+with tempfile.TemporaryDirectory() as td:
+    root = build_episode(
+        td,
+        beats=[(1, 0.35, 10.0, "MCU"), (2, 10.0, 25.0, "WIDE"), (3, 25.0, 33.0, "MCU"),
+               (4, 33.0, 48.0, "MCU"), (5, 48.0, 63.0, "MCU")],
+        cards=[{"id": "CC", "beat": 4, "cue": "charlie cue phrase", "items": 2}],
+        srt=[(0.35, 10.0, "opening words for the first beat of this test episode"),
+             (10.0, 25.0, "second beat words carry on for a while here"),
+             (25.0, 33.0, "third beat words run along here too"),
+             (33.0, 41.0, "fourth beat opens and runs on for a good while yet"),
+             (41.0, 48.0, "charlie cue phrase and then some more words after it"),
+             (48.0, 63.0, "fifth beat words the outro")])
+    out = run(root)
+    check("a card that REALLY runs into the end card is still caught",
+          "CARD-CARD overlap CC/END" in out,
+          "fixing the position must not blind the check")
+
 print("\n" + ("ALL PASS" if not FAILED else f"{len(FAILED)} FAILED: {FAILED}"))
 sys.exit(1 if FAILED else 0)
