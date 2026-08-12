@@ -26,6 +26,7 @@ the rest of the QC still runs.
 """
 import argparse
 import json
+import card_hold as ch
 import math
 import os
 import re
@@ -921,12 +922,13 @@ def stage_card_timing(qc, final, beats, head, episode_path):
             ok = False
         raw = (B.get("holds", {}) or {}).get(c) or (B.get("hero_hold", 12.0)
               if cards[c].get("hero") else B.get("default_hold", 8.0))
-        hold = max(raw, B.get("min_card_hold", 0.0))
+        hold = max(raw, ch.min_hold_for(cards[c], B))
         if nxt[c] is not None:
             hold = max(3.0, min(hold, nxt[c] - t - 0.5))
-        if hold < minh - 0.01 and (nxt[c] is None or nxt[c] - t - 0.5 >= minh):
-            qc.fail(f"card {c} holds only {hold:.1f}s - under the readable minimum "
-                    f"({minh:.0f}s; raise holds/min_card_hold)")
+        card_min = ch.min_hold_for(cards[c], B)
+        if hold < card_min - 0.01 and (nxt[c] is None or nxt[c] - t - 0.5 >= card_min):
+            qc.fail(f"card {c} holds only {hold:.1f}s - under its readable minimum "
+                    f"({ch.why(cards[c], B)}; raise holds/min_card_hold)")
             ok = False
         windows[c] = (t, t + hold)
     if ok:

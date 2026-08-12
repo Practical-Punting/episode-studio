@@ -47,6 +47,7 @@ exactly when it matters most — after a long build, when everyone is looking at
 render. It can still be run by hand for a report; --write is what the engine uses.
 """
 import json, re, sys, pathlib
+import card_hold as ch
 
 ENTRY_DELAY = 3.0          # PP-STANDARDS: card entry = spoken cue + 3.0s
 MIDROLL_MIN_FULL = 6.0     # >=6s of FULL visibility (fades on top)
@@ -250,8 +251,12 @@ def main():
         if lead < ENTRY_DELAY - 0.01:
             problems.append(f"{cid}: lead {lead}s is less than the {ENTRY_DELAY}s entry "
                             f"delay — the cue resolves BEFORE its own beat starts.")
-        if hold < min_hold:
-            problems.append(f"{cid}: hold {hold}s is below min_card_hold {min_hold}s. "
+        # THE FLOOR SCALES WITH WHAT THE CARD ASKS YOU TO READ — see card_hold.py.
+        # A flat 10s halted EP21 C19, two rows on a beat that could give it 8.64s.
+        card_min = ch.min_hold_for(c, build)
+        if hold < card_min - 0.01:
+            problems.append(f"{cid}: hold {hold}s is below this card's minimum — "
+                            f"{ch.why(c, build)}. "
                             f"Shift the window, never shorten the card — Jodie's call.")
 
     # ---- 2. un-cued cards INHERIT THE SHIFT of the card they follow ---------

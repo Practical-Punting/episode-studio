@@ -18,6 +18,7 @@
 #          endcard_beat, warranty_lead, clip_pattern, clips_dir, inputs{...}}
 # Standing card roles are matched by id in build.standing (title/endcard/warranty).
 import json, sys
+import card_hold as ch
 
 EPJ, SMJ, MODE = sys.argv[1], sys.argv[2], (sys.argv[3] if len(sys.argv) > 3 else "info")
 EP = json.load(open(EPJ, encoding="utf-8"))
@@ -51,11 +52,15 @@ cardindex = {cid: i + 1 for i, cid in enumerate(content_ids)}      # 1-based in 
 M = len(content_ids)
 TITLE_IN, END_IN, WAR_IN, PRES_A_IN, MUSIC_IN = M + 1, M + 2, M + 3, M + 4, M + 5
 
-MINH = B.get("min_card_hold", 0.0)   # readable-minimum floor (card-sync standard, 25 Jul 2026)
+# The readable minimum (card-sync standard, 25 Jul 2026) SCALES with the card's
+# reading load — card_hold.py owns the rule, and derive_card_timings and qc_episode
+# read the same one. Clamping to a flat floor here while the shot map planned a
+# shorter window would put a card back over the end card in the finished video with
+# every check passing.
 def hold_for(cid):
     raw = (B["holds"][cid] if cid in B.get("holds", {})
            else B.get("hero_hold", 12.0) if cards[cid].get("hero") else B.get("default_hold", 8.0))
-    return max(raw, MINH)
+    return max(raw, ch.min_hold_for(cards[cid], B))
 def lead_for(cid): return B.get("leads", {}).get(cid, 1.0)
 
 # ---- MCU windows (from beats[].framing) + continuous outro hold ----
