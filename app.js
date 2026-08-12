@@ -1086,8 +1086,16 @@ function cardFor(ep) {
     // The machine's turn comes FIRST, so a script-less episode can never fall through
     // to "Your turn — words" (the Job-5 fault). `cls: "work"` on purpose: it reads as
     // the studio busy, not as her queue, and it is not the attention class.
+    // 🔴 THE DRAFTING PASS'S OWN WORDS WHEN IT HAS LEFT ANY (EP22, 12 Aug 2026).
+    // This closes the known limit named in the comment above: the board could not tell
+    // "the studio is drafting" from "the studio tried and stopped", so EP22 sat for
+    // twenty minutes reading "Writing the script… no action needed yet" having already
+    // burned an attempt and a repair round. The pass now writes progress_step on the
+    // queued row — "attempt 2 of 3", "Tried to write the script and stopped — …" —
+    // and that is strictly better than this generic sentence whenever it exists.
     : studioIsWriting(ep)
-    ? { label: "Writing the script… no action needed yet", cls: "work", pct: 2 }
+    ? { label: (ep.progress_step || "Writing the script… no action needed yet"),
+        cls: "work", pct: 2 }
     // BEFORE the words gate, because this one comes first in time: the hook and byline
     // are wanted before anything is drafted, and the words gate needs a script to read.
     : packagingEntryPending(ep)

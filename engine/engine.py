@@ -1630,6 +1630,36 @@ def _draft_ledger_path(d) -> Path:
     return Path(d) / _DRAFT_LEDGER
 
 
+def _tried_and_stopped(attempt: int, why: str) -> str:
+    """The board line for an attempt that did not produce a usable script.
+
+    It says WHICH attempt, WHY, and WHAT HAPPENS NEXT — because the failure Jodie
+    actually hit was not that drafting is hard, it was that a silent studio and a
+    working studio looked identical for twenty minutes.
+    """
+    left = DRAFT_ATTEMPT_LIMIT - attempt
+    nxt = (f"trying again within 15 minutes ({left} attempt"
+           f"{'s' if left != 1 else ''} left)" if left > 0
+           else "no attempts left — this one needs a look")
+    return f"Tried to write the script and stopped — {why}. Now {nxt}."
+
+
+def _say(ep, text: str) -> None:
+    """Put the drafting pass's own state on the board's progress line.
+
+    A QUEUED episode has no progress line at all, so everything this pass does — the
+    attempts, the rejections, the halts — was invisible to anyone not reading the run
+    log. `progress_step` is written and nothing else: no status, no claim, no flag,
+    so the pre-claim rule (I1) still holds and the Script Gate is untouched.
+
+    Never raises. A board that cannot be told is not a reason to stop drafting.
+    """
+    try:
+        rail.progress(ep["id"], text, 0)
+    except Exception as e:                                             # noqa: BLE001
+        log(f"   (could not put '{text}' on the board: {e})")
+
+
 def packaging_entry_pending(ep) -> list[str]:
     """Which of the operator's own words are still MISSING — [] when none are.
 
@@ -1995,6 +2025,18 @@ def _draft_watch(provider):
             log(f"drafting pass: PP-EP{int(nn):02d} has no script and its article "
                 f"is captured — commissioning one (attempt {n} of "
                 f"{DRAFT_ATTEMPT_LIMIT})")
+            # 🔴 AND SAY SO ON THE BOARD WHILE IT HAPPENS (EP22, 12 Aug 2026).
+            # This closes the KNOWN LIMIT written into app.js: the board could not tell
+            # "the studio is drafting" from "the studio tried and stopped", because the
+            # attempt ledger is a file in the episode folder and never reached the rail.
+            # EP22 sat for twenty minutes under a serene "Writing the script…" having
+            # already burned an attempt and a repair round on a rejected figure, with
+            # nothing anywhere a person looks. An episode that is failing must not be
+            # indistinguishable from one that is working.
+            #     progress_step only — NOT a status, NOT a claim, and no flag. The
+            # pre-claim rule (I1) is that this pass never claims and never sets a
+            # status, and writing the progress line breaks neither.
+            _say(ep, f"Writing the script — attempt {n} of {DRAFT_ATTEMPT_LIMIT}")
             try:
                 # THE GATE THE BUILD HALTS ON, HANDED TO THE WRITER'S RETRY LOOP.
                 # Same function, same arguments, same file — read fresh each round,
@@ -2019,9 +2061,11 @@ def _draft_watch(provider):
                 if h.detail:
                     log(f"   (commission detail, for the log: {com._safe(h.detail)})")
                 log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {h.message}")
+                _say(ep, _tried_and_stopped(n, "the writer stopped part-way"))
                 continue
             except EngineFlag as f:
                 log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {f}")
+                _say(ep, _tried_and_stopped(n, "the studio stopped the attempt"))
                 continue
 
             text = Path(verdict["_path"]).read_text(encoding="utf-8").strip()
@@ -2052,6 +2096,9 @@ def _draft_watch(provider):
                     "NOT used and nothing was written to the script box:")
                 for p in problems:
                     log(f"      x {p}")
+                _say(ep, _tried_and_stopped(
+                    n, f"the draft stated {len(problems)} figure(s) the article "
+                       f"does not"))
                 continue
 
             # 🔴 THE ONLY WAY THESE WORDS REACH THE RAIL. Never set_fields, never an
@@ -2061,6 +2108,10 @@ def _draft_watch(provider):
             row = rail.seat_script_if_empty(ep["id"], text)
             if row:
                 _clear_draft_attempts(d)
+                # The words are in the box: the drafting line has done its job and
+                # must go, or it would sit under a finished script saying "attempt 1
+                # of 3" for ever. The board's own words-gate chip takes over here.
+                _say(ep, None)
                 log(f"   seated {len(text.split())} words into PP-EP{int(nn):02d}'s "
                     "script box — it is waiting for a person to read and approve it")
             else:

@@ -64,6 +64,7 @@ class Rail:
         self.seat_returns = seat_returns
         self.forbidden = []
         self.flagged = []
+        self.progressed = []
 
     def list_queued(self):
         return list(self.queued)
@@ -94,6 +95,20 @@ class Rail:
         # queue at all; from 11 Aug 2026 it may, but only after repeated failure of the
         # same task. So it is recorded rather than refused, and the cases assert WHEN.
         self.flagged.append((id, message))
+        return {"id": id}
+
+    def progress(self, id, step_text, pct):
+        # ALSO NO LONGER A FAULT, AND BOUNDED THE SAME WAY (EP22, 12 Aug 2026).
+        # The pass could not say what it was doing, so a studio that had burned an
+        # attempt and a repair round looked exactly like one quietly working — EP22
+        # sat twenty minutes under "Writing the script… no action needed yet".
+        #     Why this does not weaken I2. That invariant is about THE WORDS: the
+        # script reaches the rail only through seat_script_if_empty, so a human typing
+        # in the box can never be overwritten. rail.progress writes exactly two keys,
+        # progress_step and progress_pct, and structurally cannot reach the script
+        # box, the status or any gate — so the thing I2 protects is untouched.
+        # set_fields stays refused, which is what keeps that guarantee narrow.
+        self.progressed.append((id, step_text, pct))
         return {"id": id}
 
     def reclaim_stale(self, *a, **k):
@@ -266,9 +281,42 @@ def main():                                                            # noqa: C
     # proof moved from the syntax tree to the behaviour, which is where it belongs.
     for forbidden in ("claim_next", "claim", "update_status",
                       "reclaim_stale", "release", "delete", "set_fields",
-                      "checkpoint", "progress"):
+                      "checkpoint"):
         check(f"  it never CALLS {forbidden}()", forbidden not in calls,
               f"calls: {sorted(calls)}")
+
+    print("\n-- THE PASS SAYS WHAT IT IS DOING (EP22, 12 Aug 2026) --")
+    # EP22 sat queued for twenty minutes reading "Writing the script… no action needed
+    # yet" having already burned an attempt and a repair round on a rejected figure.
+    # A studio that is failing must not look identical to one that is working.
+    rp = Rail([episode(18)])
+    provp = Provider(pp)
+    run_pass(rp, provp)
+    said = [t for _, t, _ in rp.progressed]
+    check("it puts the attempt on the board before commissioning",
+          any("attempt 1 of" in (t or "") for t in said), f"said: {said}")
+    check("  and the line names which attempt of how many",
+          any("of 3" in (t or "") for t in said), f"said: {said}")
+    check("  and it CLEARS the line once the script is seated",
+          said and said[-1] is None,
+          f"the last thing said was {said[-1:]!r}, so a finished script would sit "
+          f"under a drafting line for ever")
+
+    # A FAILED attempt must say so — the silence is the whole bug.
+    class Halting(Provider):
+        def _commission_script(self, ep, d, gate=None):
+            import commission as com
+            raise com.CommissionHalt("the writer stopped and did not say why")
+    rh = Rail([episode(18)])
+    run_pass(rh, Halting(pp))
+    saidh = [t for _, t, _ in rh.progressed if t]
+    check("a HALTED attempt is reported on the board, not just the run log",
+          any("stopped" in t for t in saidh), f"said: {saidh}")
+    check("  and the line says what happens next",
+          any("trying again" in t or "needs a look" in t for t in saidh),
+          f"said: {saidh}")
+    check("  and it does NOT raise a red flag for a single failure",
+          not rh.flagged, f"flagged: {rh.flagged}")
 
     print("\n-- 🔴 I2: THE WORDS REACH THE RAIL ONLY THROUGH THE GUARD --")
     check("it calls seat_script_if_empty", "seat_script_if_empty" in calls,
