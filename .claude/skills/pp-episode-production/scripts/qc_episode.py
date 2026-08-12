@@ -412,6 +412,65 @@ def _mean_luma(final, t):
     return sum(r.stdout) / len(r.stdout)
 
 
+# 🔴 THE END CARD IS PROVED BY THE DROP, NOT BY AN ABSOLUTE NUMBER. (EP23, 13 Aug 2026.)
+#
+# This check used to be `whole-frame mean luma > 70 -> HARD FAIL`, and it hard-failed
+# EP23 three times with the end card PLAINLY ON SCREEN. Measured off PP-EP23-FINAL.mp4:
+#     film 810-813s  luma 129.4   (presenter alone)
+#     film    814s   luma  71.5   (the card lands)
+#     film 815-826s  luma  75.1   (steady, through to the warranty)
+# The card's arrival is unmistakable; its absolute value is not.
+#
+# ⚠️ AND THERE WAS NEVER ANY MARGIN — IT WAS A COIN TOSS ON EVERY EPISODE THAT RAN IT:
+#     EP22 sampled 69 and PASSED, by one point.   EP23 sampled 72 and FAILED, by two.
+# EP22's own end card sits at 72.1 steady, so its pass was the luck of where the single
+# sample landed, not a healthier episode. The end card is composited over the presenter,
+# so the number it yields is decided by whatever is BEHIND it — which is exactly the
+# thing the check has no business depending on.
+#
+# 🚫 THE FIX IS NOT A BIGGER NUMBER. Raising 70 to 80 keeps the coin toss and moves the
+# edge somewhere else. What is actually claimed is "the dark card came up over the
+# presenter", and that is a CHANGE — so measure the change.
+#
+# The absolute test is kept as a SECOND WAY TO PASS, never as a way to fail: an episode
+# whose frame is genuinely dark passes even if the run-up was dark too. A missing end
+# card still fails both ways — no drop, and a bright frame.
+END_CARD_DROP_MIN = 25.0      # 129->71 is ~58; EP22's ~51. A missing card drops ~0.
+END_CARD_DARK_MAX = 70.0      # the old threshold, demoted to a second way to PASS
+
+
+def _end_card_baseline(final, ec_ti):
+    """What the screen looks like WITHOUT the end card — the brightest of three
+    frames in the run-up, so a card or a dark cut just before entry cannot spoil it.
+
+    Sampled from 3.0s to 1.0s before entry and never closer: EP23's transition is
+    complete within a second (129.6 at entry-0.04s, 71.5 at entry+1.0s), so a sample
+    any nearer risks measuring the fade instead of the run-up.
+    """
+    seen = [_mean_luma(final, t) for t in (ec_ti - 3.0, ec_ti - 2.0, ec_ti - 1.0)
+            if t > 0.1]
+    seen = [v for v in seen if v is not None]
+    return max(seen) if seen else None
+
+
+def end_card_verdict(base, luma):
+    """('ok'|'warn'|'fail', drop_or_None) — THE RULE, isolated from ffmpeg on purpose.
+
+    Kept as a pure function so the regression can prove it on the numbers EP22 and EP23
+    actually produced, without a 143 MB file and a Drive mount. test_end_card_drop.py.
+    """
+    if luma is None:
+        return "warn", None
+    drop = None if base is None else base - luma
+    if drop is not None and drop >= END_CARD_DROP_MIN:
+        return "ok", drop                     # the card visibly came up
+    if luma <= END_CARD_DARK_MAX:
+        return "ok", drop                     # dark on its own — the old test, as a PASS
+    if base is None:
+        return "warn", None                   # nothing to compare against; ask for eyes
+    return "fail", drop                       # bright, and nothing changed: it is absent
+
+
 def stage_end_sequence(qc, final, beats, head, episode_path, out_dir):
     """The EP08 lessons, made structural (outro + audio standards):
     1. breathing room - the last word lands well before the end;
@@ -462,13 +521,26 @@ def stage_end_sequence(qc, final, beats, head, episode_path, out_dir):
                     "(drop endcard_hold to use the hold-to-warranty default)")
         t = min(ec_ti + 1.0, dur - 0.2)
         luma = _mean_luma(final, t)
+        base = _end_card_baseline(final, ec_ti)
+        verdict, drop = end_card_verdict(base, luma)
         if luma is None:
             qc.warn("could not sample the end-card frame")
-        elif luma > 70:
-            qc.fail(f"end card not visibly on screen during the e-book beat "
-                    f"(frame at {t:.1f}s luma {luma:.0f} - too bright for the dark card)")
+        elif verdict == "ok" and drop is not None and drop >= END_CARD_DROP_MIN:
+            qc.note(f"end card visible at the e-book beat (luma {base:.0f} -> "
+                    f"{luma:.0f}, a {drop:.0f} drop at {t:.1f}s)")
+        elif verdict == "ok":
+            qc.note(f"end card visible at the e-book beat (luma {luma:.0f} at {t:.1f}s, "
+                    "dark on its own"
+                    + (f"; run-up {base:.0f}, no drop to measure)" if base is not None
+                       else ")"))
+        elif verdict == "warn":
+            qc.warn(f"could not sample the end-card run-up; frame at {t:.1f}s is luma "
+                    f"{luma:.0f} - check the end card by eye")
         else:
-            qc.note(f"end card visible at the e-book beat (luma {luma:.0f} at {t:.1f}s)")
+            qc.fail(f"end card not visibly on screen during the e-book beat "
+                    f"(luma {base:.0f} -> {luma:.0f} at {t:.1f}s - only a {drop:.0f} "
+                    f"drop, and too bright to be the dark card on its own; the card "
+                    f"looks absent, not merely dim)")
 
     # 3. sting audible under the warranty
     if dur > war_ti + 2:

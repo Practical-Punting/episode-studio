@@ -18,6 +18,133 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 13 AUG 2026 — found on EP23, after the overnight Windows reboot
+
+## 🔵 THE BEFORE-NEXT-EPISODE BATCH — **Jodie, 13 Aug 2026: log, do NOT fix now. EP23 first.**
+
+Both found while EP23 sat at 87%. **They are the same fault twice: a derived number
+that disagrees with the thing it describes, and nobody compared them.**
+
+### B1 — THE END CARD IS IN THE WRONG PLACE IN THE OVERLAP CHECK (it fabricates overlaps)
+
+**`derive_card_timings.py` places the end card at `beat − endcard_lead`. The assembler
+places it at `beat + endcard_lead`, and THE ASSEMBLER IS RIGHT.**
+
+| | end card entry (EP23, master time) |
+|---|---|
+| `derive_card_timings.py` (`END … (beat 39 - endcard_lead)`) | **803.04** |
+| `assemble_episode.py:139` `bs(endcard_beat) + endcard_lead` | **806.04** |
+| `qc_episode.py:452` `bs(ecb) + endcard_lead` | **806.04** |
+
+**A 3.0s error, and it invented the halt that stopped EP23.** The reported
+`CARD-CARD overlap C23/END: 1.51s` was **phantom**: C23 ran 796.55 → 804.55 against an
+end card that does not arrive until 806.04. Its real window was **9.49s against a 9.0s
+minimum — it fitted where it was.** C23 was moved to beat 37 on the strength of that
+number (harmless, +3s hold, lands clean — kept), but the reasoning was false.
+
+**Fix: `derive` must use `beat + endcard_lead`.** ⚠️ **Then re-check every past episode
+whose card-card halt involved END** — this has been silently mis-measuring every one of
+them, and the EP22 C18/C19 investigation is a candidate.
+
+### B2 — THE QC END-CARD LUMA CHECK HAS NO MARGIN AND HARD-FAILS A GOOD EPISODE
+
+`qc_episode.py:467` hard-fails on **whole-frame mean luma > 70** at one sampled frame.
+
+**The end card was demonstrably ON SCREEN when EP23 failed.** Measured off
+`PP-EP23-FINAL.mp4`: luma **129.4** at film 810–813s (Gordon alone), **71.5** at 814s
+(the card lands), then **75.1** flat through to the warranty. The drop is unmistakable;
+the absolute number is not.
+
+**There is no margin anywhere in this check:**
+
+| | sampled luma | verdict |
+|---|---|---|
+| EP22 | **69** | passed — **by one point** |
+| EP23 | **72** | HARD FAIL — by two |
+
+EP23's end card steady state is 75.1; **EP22's is 72.1**, so EP22's pass was the luck of
+where its single sample landed, not a healthier episode. **The check has been a coin
+toss on every episode that ever ran it.**
+
+**Fix: measure the DROP (129 → 71 is unambiguous), or sample the card's own region —
+not a bare whole-frame threshold.** ⚠️ **Do not just raise the number**: that keeps a
+check whose pass/fail is decided by whatever is behind a semi-transparent card.
+
+🔴 **AND IT BLOCKS EP23 UNTIL IT IS FIXED.** `flag_and_wait` RETRIES the step on clear,
+QC is deterministic on an unchanged film, and there is **no waive, accept or override
+path in `qc_episode.py`** — checked. Clearing the flag loops. See the checkpoint.
+
+
+## 🔴 A REBOOT SILENTLY PASSES A HUMAN GATE **(found on EP23, 13 Aug 2026)**
+
+**Jodie's ruling: leave it until EP23 is out the door, then fix it. It is a real fix,
+not a note.**
+
+`providers.listen_to_the_master` writes its `.listened-{size}-{mtime}` marker **before**
+it raises `EngineFlag`. The marker therefore records that the gate ASKED, not that a
+human ANSWERED. Windows updated overnight and killed the engine between the ask and the
+answer; on resume the step found the marker and walked straight through into `shot_map`.
+
+**Nothing was lost — the gate sits before the expensive half-hour and the shot map
+halted 51s in — and Jodie confirms she had in fact listened. But it passed by accident,
+not by design, and the next one may not be so lucky.**
+
+⚠️ **This is a CLASS, not one step.** Any flag-once gate that writes its marker at
+ask-time has the same hole. The candidate fix is to record ask-time and answer-time
+SEPARATELY — a marker that means "asked" cannot also mean "answered" — and to re-raise
+on resume when only the ask is recorded.
+
+## 🟡 "CARD OVER GORDON'S FACE → SET THE BEAT WIDE" SHOULD AUTO-APPLY **(Jodie, 13 Aug 2026)**
+
+**The same argument as the b-roll offsets in `65cbbbe`, and it is Jodie's own.** A
+`SHOT PLAN` halt is **not a decision** — the EP11 rule is mechanical: a panel-push card
+must have WIDE for its whole window, entry to exit, and `derive_card_timings.py` has
+ALREADY computed exactly which beats are wrong (`bad = [n for n in spanned if
+framing.get(n) != "WIDE"]`). It then halts so a human can retype `MCU` → `WIDE`.
+
+**EP23 spent 2 of its 4 halts on this**, and both were typing, not thinking:
+- **beat 7** — C3's window spilled past the beat boundary once the aligned SRT moved its
+  cue later than the word-count estimate had it. `_framing_note` predicted this class
+  ("a window that crosses a boundary needs BOTH beats WIDE and it is the thing most
+  easily missed") and still missed this one, because it was worked out from word counts.
+- **beat 32** — C21 was changed to **panel-push** on 12 Aug to clear the logo collision,
+  and framing was never re-derived. `_framing_note` still lists 32 among the beats that
+  are MCU *because their card is fullscreen*. **The fix created the halt.**
+
+Auto-apply is safe in a way the card-size halt is not: WIDE is the only lawful answer, it
+is already computed, and widening a beat cannot lose a fact. Follow `--apply-broll`'s
+shape — apply, re-derive, and print what was changed rather than asking.
+
+⚠️ **`_framing_note` in `docs/episode.json` goes stale the moment framing is re-derived**
+(EP23's still says "EIGHTEEN WIDE OF FORTY-ONE"; it is now twenty). Whatever auto-applies
+should say so, or the prose becomes a second, wrong source.
+
+## 🟠 `why_card_beat` STILL NAMES THE SECOND CARD'S NUMBERS **(found on EP23, 13 Aug 2026)**
+
+**The exact bug `which_gives_way`'s own docstring says was fixed — it was ADDED
+ALONGSIDE, not instead.** In `derive_card_timings.py`:
+
+```python
+problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
+                + why_card_beat(ids[j])          # <- ids[j] is the SECOND card
+                + which_gives_way(ids[i], ids[j]))
+```
+
+So EP23's C23/END message leads with **"beat 39 is 14.35s long and this card needs
+19.80s … IT DOES NOT FIT AT ANY CUE POSITION"** — those are the **END card's** numbers
+(beat 39, its 16.80s dwell + 3.0s), not C23's. C23 needs **9.0s** and has **6.49s**.
+
+The docstring records this happening once already: *"which is how a brief came to
+describe C19 as needing 18.26s when 18.26s was the END card's dwell."* **EP22 was told
+18.26s; EP23 was told 19.80s. Same bug, one episode later.** It makes a card look
+roughly twice as oversized as it is, and it is the FIRST thing on the board.
+
+`which_gives_way` below it is correct and carries the real numbers — so the fix is
+probably to drop the `why_card_beat(ids[j])` term from the card-card branch, or call it
+on `ids[i]`, not to write anything new.
+
+---
+
 # 🆕 LOGGED 9 AUG 2026
 
 ## ✅ THE BEFORE-EP20 BATCH — CLOSED 10 AUGUST 2026. 13 of 13 items answered.
