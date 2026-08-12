@@ -48,6 +48,7 @@ render. It can still be run by hand for a report; --write is what the engine use
 """
 import json, re, sys, pathlib
 import card_hold as ch
+import framing as _framing
 
 ENTRY_DELAY = 3.0          # PP-STANDARDS: card entry = spoken cue + 3.0s
 MIDROLL_MIN_FULL = 6.0     # >=6s of FULL visibility (fades on top)
@@ -657,6 +658,12 @@ def main():
                 print(f"   applied beats[{n}].framing = WIDE  (was {was}) "
                       f"— for {', '.join(cids)}")
             applied.append(f"{len(wide_fixes)} beat framing(s)")
+            # A4 — the authored note is now overtaken by what we just wrote. Say so in
+            # the file, or the next reader trusts prose that describes a layout mix the
+            # episode no longer has (EP23's still claimed "EIGHTEEN WIDE OF FORTY-ONE").
+            if _framing.stamp_framing_note(
+                    epj, [(n, None, cids) for n, cids in sorted(wide_fixes.items())]):
+                print("   stamped _framing_note as re-derived")
         if applied:
             epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
                                 encoding="utf-8")

@@ -519,11 +519,38 @@ def _preflight_cards(ctx) -> list[str]:
         except Exception:
             article = None
 
+    # 🔴 A4 — A LAYOUT CHANGE DECIDES FRAMING, so re-derive it HERE, not at the shot map.
+    # C21 was changed fullscreen -> panel-push on 12 Aug to clear a logo collision and
+    # nothing re-derived framing; beat 32 halted EP23 the next day, and `_framing_note`
+    # still explained beat 32's MCU by the layout C21 no longer had. THE FIX MADE THE HALT.
+    #
+    # Only the card's OWN beat is knowable without the master — which beats a card SPILLS
+    # into needs the aligned SRT, and that half is derive_card_timings' at shot_map
+    # (--apply-wide). C21 was the own-beat case, so this catches it hours earlier, before
+    # a credit moves. WIDE is the only lawful answer and widening cannot lose a fact, so
+    # it is applied, not asked about.
+    framing_lines = []
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import framing as _fr
+        _changed = _fr.resync_own_beats(epj)
+        if _changed:
+            _fr.stamp_framing_note(epj, _changed)
+            epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
+                                encoding="utf-8")
+            for _n, _was, _cids in _changed:
+                framing_lines.append(
+                    f"framing re-derived: beat {_n} {_was or 'unset'} -> WIDE "
+                    f"(carries the on-screen card {', '.join(str(c) for c in _cids)})")
+    except Exception as e:                                         # noqa: BLE001
+        # Never the reason a build cannot start — the same contract as the rest of this.
+        framing_lines.append(f"framing re-derive skipped ({type(e).__name__}: {e})")
+
     # capture_looked_for=True: this caller DID go to disk for it, so "named but not
     # there" is a real finding here and not merely an argument nobody supplied.
     res = pc.preflight_cards(epj, script_text=script, capture_text=capture,
                              article_norm=article, capture_looked_for=bool(rel))
-    lines = pc.format_report(res).splitlines()
+    lines = framing_lines + pc.format_report(res).splitlines()
     if res["blockers"]:
         raise EngineFlag(
             "This episode's cards cannot be built as they are written. Nothing has "
