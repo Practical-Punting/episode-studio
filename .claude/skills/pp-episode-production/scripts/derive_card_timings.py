@@ -531,8 +531,16 @@ def main():
             pairs += 1
             ov = overlaps(cards_only[ids[i]], cards_only[ids[j]])
             if ov > 0.01:
+                # 🔴 why_card_beat DESCRIBES THE CARD THAT GIVES WAY — ids[i], NOT ids[j].
+                # It was called on ids[j] and printed that card's beat and dwell as
+                # "this card", directly after naming ids[i] as the one at fault. EP23's
+                # C23 read "needs 19.80s" when it needed 9.0s; EP22's C19 read "18.26s".
+                # Both numbers were the END CARD'S dwell, and both led a brief. It is the
+                # same misattribution which_gives_way was written to end — that fix was
+                # added ALONGSIDE this line instead of replacing it, so the wrong numbers
+                # kept their place at the FRONT of the message, where they are read first.
                 problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
-                                + why_card_beat(ids[j])
+                                + why_card_beat(ids[i])
                                 + which_gives_way(ids[i], ids[j]))
     print(f"  card-card       : {pairs} pairs checked")
     if "MIDROLL" in windows:
