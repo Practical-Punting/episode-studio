@@ -163,7 +163,15 @@ def extract(page):
     tables = re.findall(r"<table.*?</table>", frag, re.S | re.I)
     for i, t in enumerate(tables):
         frag = frag.replace(t, f"\n@@TABLE{i}@@\n")
-    frag = re.sub(r"<b>\s*(.*?)\s*</b>", lambda x: f"\n@@H@@{x.group(1)}\n",
+    # 🔴 AN EMPTY <b></b> IS NOT A HEADING (EP23, Track Secrets Part 3, 12 Aug 2026).
+    # The cross-links at the foot of a multi-part feature read "Click here to read
+    # Part 1 … Part 2 … Part 4" — and the part you are ON is bolded with NO link, so
+    # the page emits a literal `<b></b>`. That produced a heading marker with nothing
+    # in it, which then survived into the body and refused the whole article. The
+    # refusal was right and the marker was the studio's own; a bold tag with nothing
+    # inside it is not a heading and should never have made one.
+    frag = re.sub(r"<b>\s*(.*?)\s*</b>",
+                  lambda x: f"\n@@H@@{x.group(1)}\n" if x.group(1).strip() else "",
                   frag, flags=re.S | re.I)
     frag = re.sub(r"(?:<br\s*/?>\s*){2,}", "\n\n", frag, flags=re.I)
     frag = re.sub(r"<br\s*/?>", "\n", frag, flags=re.I)
@@ -176,6 +184,18 @@ def extract(page):
         if not b:
             continue
         tm = re.search(r"@@TABLE(\d+)@@", b)
+        if tm and int(tm.group(1)) >= len(tables):
+            # 🔴 THE PAGE'S OWN TEXT CONTAINED SOMETHING SHAPED LIKE OUR SENTINEL.
+            # Found by the control for EP23's marker fix: a body carrying a literal
+            # "@@TABLE7@@" indexed straight into a table list that has no seventh
+            # entry and died with IndexError — a CRASH, not a refusal, so the engine
+            # would report an unexpected exception instead of "this page needs a
+            # human". A guard that fails messily is one nobody trusts the next time.
+            raise Unrecognised(
+                f"the article text contains something shaped like this reader's own "
+                f"table marker ({tm.group(0)}) and there is no such table on the page. "
+                f"Either the extraction did not complete or the page really does say "
+                f"that, and neither is safe to guess at.")
         if tm:
             before, after = b.split(tm.group(0), 1)
             if before.strip():
@@ -183,10 +203,20 @@ def extract(page):
             blocks.append(table_to_md(tables[int(tm.group(1))]))
             if after.strip():
                 blocks.append(re.sub(r"\s*\n\s*", " ", after).strip())
-        elif b.startswith("@@H@@"):
+        elif b.startswith("@@H@@") and "@@H@@" not in b[5:]:
             blocks.append(f"**{b[5:].strip()}**")
         else:
-            blocks.append(re.sub(r"\s*\n\s*", " ", b))
+            # ⚠️ A <b> USED FOR EMPHASIS INSIDE A PARAGRAPH IS NOT A HEADING EITHER,
+            # and until now it leaked. The marker only becomes its own block when a
+            # BLANK line follows the bold run; a bold phrase mid-sentence gets a single
+            # newline, stays inside its paragraph, and `startswith` never sees it. So
+            # any page that emphasises a few words mid-paragraph was refused outright.
+            # The marker runs to the newline the substitution put after it, so it has
+            # to be converted HERE, before the newlines are collapsed to spaces.
+            b = re.sub(r"@@H@@([^\n]*)",
+                       lambda m: f"**{m.group(1).strip()}**" if m.group(1).strip()
+                       else "", b)
+            blocks.append(re.sub(r"\s*\n\s*", " ", b).strip())
     body = "\n\n".join(blocks)
 
     # EP17 ruling — repair the glued '?', list every one, leave real ones alone.

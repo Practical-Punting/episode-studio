@@ -201,6 +201,81 @@ leaky_no_byline = (ca.CONTAINER + "<p>" + ("word " * 400) + " Next To Jump "
 check("no byline + furniture INSIDE a long body is still REFUSED",
       refuses(leaky_no_byline, "") is not None)
 
+
+# ── EP23, TRACK SECRETS PART 3 — THE STUDIO'S OWN MARKER REFUSED THE PAGE ─────
+# The foot of a multi-part feature links its siblings — "Click here to read Part 1
+# … Part 2 … Part 4" — and the part you are ON is bolded with NO link, so the page
+# emits a literal `<b></b>`. That made a heading marker with nothing in it, which
+# survived into the body and refused the whole article three times. The refusal was
+# RIGHT — a marker in the body means the extraction did not complete — but the marker
+# was ours, not the page's.
+print("\n-- EP23: a bold tag with nothing in it is not a heading --")
+empty_b = (ca.CONTAINER + "<p>" + ("word " * 400) +
+           "Click here to read Part 1. <b></b> Click here to read Part 4.</p></div>")
+msg_e = refuses(empty_b, "")
+check("an EMPTY <b></b> no longer refuses the page", msg_e is None,
+      f"still refused: {msg_e}")
+if msg_e is None:
+    body_e, _, _, _ = ca.extract(empty_b)
+    check("  and leaves no marker behind", "@@" not in body_e)
+    check("  and does not invent an empty heading", "****" not in body_e)
+    check("  while keeping the cross-links the earlier parts also kept",
+          "Click here to read Part 4." in body_e)
+
+# THE GENERAL BUG UNDERNEATH IT: a <b> used for emphasis mid-paragraph only gets a
+# single newline, so it stays inside its block and `startswith` never sees it. Any
+# page that emphasised a few words mid-sentence was refused outright.
+print("\n-- and a <b> used for emphasis mid-paragraph is not a heading either --")
+inline_b = (ca.CONTAINER + "<p>" + ("word " * 400) +
+            " and the <b>home straight</b> is the part that matters.</p></div>")
+msg_i = refuses(inline_b, "")
+check("a mid-paragraph <b> no longer refuses the page", msg_i is None,
+      f"still refused: {msg_i}")
+if msg_i is None:
+    body_i, _, _, _ = ca.extract(inline_b)
+    check("  and leaves no marker behind", "@@" not in body_i)
+    check("  and keeps the emphasis as bold, not as a lost word",
+          "**home straight**" in body_i, body_i[-120:])
+    check("  CONTROL: the words are still there, in order",
+          "the **home straight** is the part that matters" in body_i, body_i[-120:])
+
+# CONTROL: a genuine leak MUST still fail loudly. This is the guard that stops a
+# half-extracted page becoming an article of record, and none of the above may soften
+# it — a page whose own text contains the sentinel is still refused.
+print("\n-- 🔒 CONTROL: a marker that really does leak still REFUSES --")
+real_leak = (ca.CONTAINER + "<p>" + ("word " * 400) +
+             " @@TABLE7@@ stray sentinel</p></div>")
+msg_l = refuses(real_leak, "")
+check("a stray sentinel in the body is still REFUSED", msg_l is not None,
+      "the guard has gone soft — a half-extracted page could become the record")
+check("  and it REFUSES rather than crashing",
+      bool(msg_l) and "table marker" in msg_l, str(msg_l))
+# ⚠️ THIS CASE FOUND A CRASH, NOT A REFUSAL. A body carrying a literal "@@TABLE7@@"
+# indexed into a table list with no seventh entry and died with IndexError, so the
+# engine would have reported an unexpected exception rather than "this page needs a
+# human". A guard that fails messily is one nobody trusts the next time.
+# ⚠️ AND WHAT IS NO LONGER A LEAK, SAID PLAINLY SO NOBODY "RESTORES" IT. The heading
+# sentinel cannot survive any more, because it is now always CONSUMED — as a heading
+# when it opens a block, as inline bold when it sits mid-paragraph, and as nothing at
+# all when the tag was empty. That is the fix. The guard still covers what it was
+# there for: a table marker with no table behind it, and any other residue that means
+# the extraction stopped half-done.
+leak_h = (ca.CONTAINER + "<p>" + ("word " * 400) + " @@H@@ stray</p></div>")
+body_lh, _, _, _ = ca.extract(leak_h)
+check("  a heading sentinel is CONSUMED, never left in the body", "@@" not in body_lh,
+      body_lh[-120:])
+check("  and the words around it survive intact", "stray" in body_lh, body_lh[-120:])
+
+# And a heading at the START of a block is still a heading — the case that worked.
+print("\n-- CONTROL: a real heading is still a heading --")
+heading = (ca.CONTAINER + "<p>" + ("word " * 400) +
+           "</p><p><b>Geelong:</b><br />A roomy flat course.</p></div>")
+msg_h = refuses(heading, "")
+check("a leading <b> still becomes a heading", msg_h is None, f"refused: {msg_h}")
+if msg_h is None:
+    body_h, _, _, _ = ca.extract(heading)
+    check("  rendered as bold", "**Geelong:**" in body_h, body_h[-140:])
+
 print(f"\n{'=' * 70}")
 if DRIFTED:
     print(f"⚠️  PAGE DRIFT on EP{DRIFTED}: the live article has been EDITED since that "
