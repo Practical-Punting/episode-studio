@@ -181,6 +181,43 @@ def offenders(page, url, bust=0, shrinking=()):
     for r in over:
         out.append((r["owner"], r["fs"], "extends outside the card", 1))
 
+    # ── 3b. A RUN LYING ACROSS A PANEL THAT IS NOT ITS OWN ────────────────────
+    # 🔴 EP22 C16, 12 Aug 2026 — THE EP16 SHAPE FOR THE THIRD TIME. card_check has had
+    # a foreign-panel rule all along and this function could not see it, so autofit
+    # reported "0 fitted, 0 still failing" on a page the very next gate refused, and
+    # the halt blamed the WORDS: "a choice between the words and the layout". On a
+    # bars card the words are TRACK NAMES. "Flemington" is one word at 78px in a 300px
+    # label column — it cannot wrap, cannot be abbreviated, and spilled 26px into
+    # bar1. There was no choice to make; the only honest lever is type SIZE.
+    #
+    # ⚠️ DERIVED, NOT NAMED — the same discipline as the wrapped-run rule below. It
+    # says nothing about bars or labels: it asks which runs lie on a panel they are
+    # not part of. A matrix cell over a neighbouring row, a note across a sibling
+    # card, a chip over the wrong step — all covered, in any block, and each shrinks
+    # through its own block's declared fit key. Shrinking is by OWNER, so a bars
+    # card's three labels share `.blabel` and step down together: uniform by
+    # construction, never one label smaller than its neighbours.
+    #
+    # 🔒 THE GEOMETRY IS CARD_CHECK'S OWN, field for field — the INK band rather than
+    # the line box, the opacity test, the MIN_PANEL floor that keeps a rule or a bar
+    # from counting as a panel, and the ancestry test that lets a strikethrough sit
+    # inside its own chip. A second opinion here is exactly how the fitter and the
+    # checker come to disagree about what "overlapping" means, which is the fault
+    # this rule exists to close.
+    for r in runs:
+        ink = dict(r, y=r["y"] + r["h"] / 2 - cc.INK * r["fs"], h=2 * cc.INK * r["fs"])
+        for b in boxes:
+            if not b["opaque"] or b["id"] == r["boxId"]:
+                continue
+            if min(b["w"], b["h"]) < cc.MIN_PANEL:
+                continue          # a rule, bar, pip or winning post is a mark, not a panel
+            if b["id"] in r["anc"] or r["boxId"] in b["anc"]:
+                continue
+            if cc.rects_overlap(ink, b):
+                out.append((r["owner"], r["fs"],
+                            f"lies across {b['owner']}, which it is not part of", 0))
+                break
+
     # ⚠️ THE LINE THAT FALLS OFF THE BOTTOM IS USUALLY NOT THE ONE AT FAULT.
     # EP19 C7: a 300px figure reading "Three to Seven" wrapped to two lines and shoved
     # the 46px caption and the 66px payoff off the card. card_check named the caption

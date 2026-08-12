@@ -114,6 +114,34 @@ CARDS = {
             "ask": "Units staked on each bet, Monday to Saturday.", "chip": None},
         "trace": {"bars.1.value": "three units on monday and tuesday"},
     },
+    # 🔴 EP22 C16, 12 Aug 2026 — A LABEL THAT OVERRUNS ITS COLUMN SIDEWAYS.
+    # Not the wrap above: "Flemington" is ONE word at 78px in a 300px label column, so
+    # it cannot wrap and spills 26px into bar1. card_check calls it ON A FOREIGN PANEL;
+    # autofit was blind to that rule entirely and reported "0 fitted, 0 still failing"
+    # on the same page — the EP16 shape again. The values are EP22's real ones.
+    "barlabel": {
+        "id": "C5", "block": "bars", "layout": "fullscreen", "job": "anchor",
+        "eyebrow": "Five · The Straights",
+        "headline_display": "The Straights,<br>Side by Side",
+        "content": {"bars": [
+            {"label": "Flemington", "value": "453", "note": "Its long 453 m home straight",
+             "tone": ""},
+            {"label": "Caulfield", "value": "320", "note": "Just under 320 m", "tone": ""},
+            {"label": "Sandown Park", "value": "407",
+             "note": "A 407 m straight, and a really testing one", "tone": ""}],
+            "ask": "Home straight, in metres.", "chip": None},
+        "trace": {"bars.1.value": "its long 453 m home straight"},
+    },
+    # The same card with labels that FIT — the control for "already fits is untouched".
+    "barsok": {
+        "id": "C4", "block": "bars", "layout": "fullscreen", "job": "anchor",
+        "eyebrow": "Four · The Straights", "headline_display": "The Straights,<br>Side by Side",
+        "content": {"bars": [
+            {"label": "Ascot", "value": "453", "note": "A long home straight", "tone": ""},
+            {"label": "Ayr", "value": "320", "note": "Just under 320 m", "tone": ""}],
+            "ask": "Home straight, in metres.", "chip": None},
+        "trace": {"bars.1.value": "a long home straight"},
+    },
 }
 
 
@@ -400,6 +428,70 @@ def _sees_a_run_too_wide_for_the_card():
 
 case("a run too WIDE for the card is seen, and fitted",
      _sees_a_run_too_wide_for_the_card)
+
+
+# ------------------------------------------------------------------- 7 -----
+def _a_bar_label_that_overruns_its_column_is_sized_down():
+    """🔴 EP22 C16, 12 Aug 2026. A bars card's label is a TRACK NAME — unshortenable —
+    so when it overruns its column the only honest lever is type SIZE. autofit could
+    not see card_check's foreign-panel rule at all, so it declared the page fine while
+    the gate refused it, and the halt then blamed words that cannot change. The EP16
+    shape for the third time: a rule the checker has and the fitter does not."""
+    d = build("barlabel")
+    rc, out = check(d)
+    assert rc != 0, (
+        f"CONTROL FAILED: card_check passed 'Flemington' at 78px in a 300px label "
+        f"column, so this is not the foreign-panel case:\n{out[-500:]}")
+    assert "FOREIGN PANEL" in out, (
+        f"the gate failed it for some other reason, so the new rule is not what is on "
+        f"trial:\n{out[-600:]}")
+    assert "Flemington" in out, f"a different label is at fault:\n{out[-400:]}"
+
+    _rc2, out2 = autofit(d)
+    assert "0 fitted" not in out2, (
+        f"autofit fitted nothing — a label lying across a foreign panel is still "
+        f"invisible to it:\n{out2[-700:]}")
+    rc3, out3 = check(d)
+    assert rc3 == 0, f"'Flemington' still lies across bar1:\n{out3[-700:]}"
+
+    # TYPE SIZE ONLY — never the words. Every label survives, spelled as authored.
+    page = [f for f in os.listdir(d) if f.startswith("c5-")][0]
+    html = open(os.path.join(d, page), encoding="utf-8").read()
+    for word in ("Flemington", "Caulfield", "Sandown Park"):
+        assert word in html, f"autofit altered the WORDS — {word!r} is gone"
+    for fig in ("453", "320", "407"):
+        assert fig in html, f"a figure was lost: {fig}"
+    shutil.rmtree(d, ignore_errors=True)
+
+
+case("a bar label overrunning its column is sized down, words untouched",
+     _a_bar_label_that_overruns_its_column_is_sized_down)
+
+
+# ------------------------------------------------------------------- 8 -----
+def _a_bars_card_that_already_fits_is_left_alone():
+    """The other half of the class fix: it must not shrink a card that is fine. A
+    fitter that shrinks everything passes every gate and ruins every card."""
+    d = build("barsok")
+    rc, out = check(d)
+    assert rc == 0, (
+        f"CONTROL FAILED: the short-label bars card is itself broken, so 'untouched' "
+        f"would prove nothing:\n{out[-500:]}")
+    before = {f: open(os.path.join(d, f), encoding="utf-8").read()
+              for f in os.listdir(d) if f.endswith(".html")}
+    _rc2, out2 = autofit(d)
+    assert "0 still failing" in out2, (
+        f"autofit reported a failure on a card that fits:\n{out2[-500:]}")
+    after = {f: open(os.path.join(d, f), encoding="utf-8").read()
+             for f in os.listdir(d) if f.endswith(".html")}
+    assert before == after, (
+        "autofit rewrote a bars card that already fits — the new rule fires when it "
+        "should not, and every episode's bar labels would shrink for nothing")
+    shutil.rmtree(d, ignore_errors=True)
+
+
+case("a bars card that already fits is not touched",
+     _a_bars_card_that_already_fits_is_left_alone)
 
 
 print(f"\nautofit: {len(PASS)} passed, {len(FAIL)} failed")
