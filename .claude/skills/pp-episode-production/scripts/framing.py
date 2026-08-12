@@ -72,14 +72,18 @@ def resync_own_beats(epj: dict) -> list[tuple]:
     the only lawful answer here and widening a beat cannot lose a fact, so applying it is
     a chore, not a decision — the same argument as --apply-broll and --apply-wide.
     """
-    by_n = {b.get("n"): b for b in epj.get("beats", [])}
+    # ⚠️ `bt`, NOT `b`. A bare `b` is this codebase's alias for the BUILD dict, and
+    # test_preflight_build_written greps for `b[...] =` to prove every key the build
+    # writes is declared. A beat loop named `b` reads to that guard as a build write and
+    # blunts it. The name is load-bearing.
+    by_n = {bt.get("n"): bt for bt in epj.get("beats", [])}
     changed = []
     for n, cids in sorted(needs_wide_own_beat(epj).items()):
-        b = by_n.get(n)
-        if b is None:
+        bt = by_n.get(n)
+        if bt is None:
             continue
-        changed.append((n, b.get("framing"), list(cids)))
-        b["framing"] = WIDE
+        changed.append((n, bt.get("framing"), list(cids)))
+        bt["framing"] = WIDE
     return changed
 
 
