@@ -106,5 +106,31 @@ fr.resync_own_beats(d7)
 check("all fixed", all(b["framing"] == "WIDE" for b in d7["beats"]),
       str({b["n"]: b["framing"] for b in d7["beats"]}))
 
+# ── A5 — THE AUTOMATED SWAP MUST NOT MANUFACTURE THE C21 HALT ────────────────
+# layout_rescue turns the 12 Aug hand-swap into a build step. The hand-swap's whole
+# failure was that framing was never re-derived afterwards — so a rescue that does not
+# re-derive would reproduce that halt on EVERY swap, for ever. Asserted structurally,
+# the way test_landing_block asserts BOTH wait loops check the stale-code guard: a
+# behaviour proved once and then deleted is not a guarantee.
+print("\nthe automated swap re-derives framing (A5 x A4)")
+
+SCRIPTS = HERE.parent / ".claude/skills/pp-episode-production/scripts"
+src = (SCRIPTS / "layout_rescue.py").read_text(encoding="utf-8")
+check("layout_rescue imports the framing rule", "import framing" in src)
+check("it re-derives after a swap it APPLIED",
+      "resync_own_beats" in src and "if apply and swapped" in src,
+      "a rescue that swaps to panel-push without re-deriving recreates the C21 halt")
+check("it stamps the note too", "stamp_framing_note" in src)
+check("and it never loses a good rescue over the follow-up",
+      "the shot map will still apply it" in src)
+
+# The swap itself, at the level the rule cares about: the card is panel-push now.
+d8 = epj([{"id": "C21", "beat": 32, "layout": "fullscreen"}])
+check("before the swap the rule is silent (fullscreen, host not in shot)",
+      fr.needs_wide_own_beat(d8) == {})
+d8["cards"][0]["layout"] = "panel-push"            # <- exactly what layout_rescue writes
+check("the moment layout changes, the rule fires",
+      fr.needs_wide_own_beat(d8) == {32: ["C21"]}, str(fr.needs_wide_own_beat(d8)))
+
 print("\n" + ("ALL PASS" if not FAILED else f"{len(FAILED)} FAILED: {FAILED}"))
 sys.exit(1 if FAILED else 0)
