@@ -497,12 +497,24 @@ def derive_timings(ep_dir: Path) -> str:
                 keep.append("   " + line.strip())
             elif line.strip():
                 take = False
+        # 🔴 THE COUNT GOES FIRST, WHERE TRUNCATION CANNOT REACH IT. EP22's flag was
+        # cut at 900 characters and showed THREE problems when the tool had found SIX;
+        # EP21's showed two. So the board said "fix this" twice over, each fix revealed
+        # more, and that is a large part of what made this feel like a drip-feed rather
+        # than one decision. The detail can be cut — the TOTAL never is.
+        n_problems = sum(1 for k in keep if k.startswith("!!"))
+        body = "\n".join(keep)
+        cut = len(body) > 1600
         raise EngineFlag(
-            "The card timings could not be derived, so nothing was written and the "
-            "existing leads are stale. Every problem below is a DECISION — a card that "
-            "cannot take its window, an overlap, a cue that is not in the SRT — and the "
-            "tool refuses to guess at any of them.\n"
-            + "\n".join(keep)[:1600])
+            f"{n_problems} thing(s) to decide before the shot map can be written. "
+            "Nothing was written and the existing leads are stale. Every problem below "
+            "is a DECISION — a card that cannot take its window, an overlap, a cue that "
+            "is not in the SRT — and the tool refuses to guess at any of them. "
+            "(B-roll clips that merely needed delaying inside their own beat have "
+            "already been shifted and are not in this list.)\n"
+            + body[:1600]
+            + (f"\n… list cut here — {n_problems} problem(s) in total, the rest are in "
+               f"the run log." if cut else ""))
     tail = [l for l in out.splitlines() if "leads" in l or "midroll.at" in l]
     return "card timings derived from the aligned SRT — " + ("; ".join(tail)[:240] or "written")
 
