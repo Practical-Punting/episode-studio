@@ -357,6 +357,10 @@ NUMBER_WORDS = _ONES | _TENS | _SCALE | _FRACW
 # positives on an approved script in the first measurement.
 BARE_WORDS = {"half", "halves", "quarter", "quarters", "third", "thirds"}
 
+# The ordinal words themselves, for the "every Nth" idiom in _is_prose. A finishing
+# position is still traced — this set is only ever consulted behind the word "every".
+_ORDINAL_WORDS = set(_ORD_ONES.values()) | set(_ORD_TENS.values())
+
 # Words that may sit INSIDE a spoken figure but never start or end one.
 CONNECTORS = set("and to on per cent dollars dollar point in".split())
 
@@ -388,6 +392,7 @@ def figures(text: str) -> list[str]:
     for chunk in _CLAUSE.split(text or ""):
         run: list[str] = []
         prev = ""
+        before = ""      # the word immediately BEFORE the run began — see _is_prose
         toks = norm_words(chunk)
         for tok in toks + ["\x00"]:
             if tok == "and" and not (run and run[-1] in _AND_AFTER):
@@ -395,29 +400,55 @@ def figures(text: str) -> list[str]:
             else:
                 tok_is_connector = tok in CONNECTORS
             if tok in NUMBER_WORDS or (run and tok_is_connector):
-                if not run and tok in ("hundred", "thousand") and prev == "a":
-                    run.append("one")
+                if not run:
+                    # ⚠️ CAPTURED HERE AND NOWHERE ELSE. `prev` is overwritten on every
+                    # token INSIDE the run, so by the time the run closes it holds the
+                    # run's own last word, not the word in front of it. The lead-in has
+                    # to be taken at the moment the run starts or it is already gone.
+                    before = prev
+                    if tok in ("hundred", "thousand") and prev == "a":
+                        run.append("one")
                 run.append(tok)
                 prev = tok
                 continue
             while run and run[-1] in CONNECTORS:
                 run.pop()
-            if run and any(t in NUMBER_WORDS for t in run) and not _is_prose(run):
+            if run and any(t in NUMBER_WORDS for t in run) \
+                    and not _is_prose(run, before):
                 found.append(" ".join(run))
             run = []
+            before = ""
             prev = tok
     return found
 
 
-def _is_prose(run: list[str]) -> bool:
+def _is_prose(run: list[str], before: str = "") -> bool:
     """Runs that are ordinary English wearing a number's clothes.
 
       · "half", "a quarter", "in third place" — bare position or proportion.
       · "the THIRD ONE" — an ordinal followed by the PRONOUN "one". EP15's only
         remaining false positive was this, and reading it as a figure would have
         the gate demanding the article state the number "three one".
+      · "EVERY second voice" — the distributive idiom, meaning every other. `before`
+        is the word in front of the run.
+
+    🔴 "EVERY Nth" IS AN IDIOM, NOT A POSITION (EP22, 12 Aug 2026). EP22's first draft
+    said "Every second voice out there has a system" and the gate called "second" a
+    figure the article never states — costing a writing attempt and a repair round.
+    The same sentence with "third" passed, because BARE_WORDS happens to name "third"
+    and not "second". So the gate read one sentence two ways depending on which
+    ordinal was in it.
+
+    🔒 AND THE EXEMPTION IS THE IDIOM, NOT THE ORDINAL. Exempting bare ordinals
+    outright was written, proved and REVERTED: a finishing position is a claim about
+    the world and stays traced — "saying a horse ran sixth when the article says
+    fourth is exactly the kind of altered figure §0a forbids". Keying on "every"
+    cannot reach "ran sixth" or "finished fourth", because neither is preceded by it.
+    An ORDINAL only: "every twelve starts" is a cardinal and stays checked.
     """
     if len(run) == 1 and run[0] in BARE_WORDS:
+        return True
+    if len(run) == 1 and before == "every" and run[0] in _ORDINAL_WORDS:
         return True
     return len(run) == 2 and run[0] in _FRACW and run[1] == "one"
 

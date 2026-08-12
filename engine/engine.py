@@ -1874,6 +1874,80 @@ def _a_brand_new_episode_is_waiting(provider) -> int | None:
     return None
 
 
+RETRY_DRAFT_SECS = 60      # the cooldown between one failed attempt and the next
+
+
+def _draft_last_at(d) -> float:
+    """When the last drafting attempt was recorded, as unix time. 0.0 if never.
+
+    ⚠️ 0.0 MEANS "RETRY NOW", so anything swallowed here silently REMOVES the
+    cooldown. The first version of this called `datetime.datetime.fromisoformat`,
+    which does not exist under this module's `from datetime import datetime` — every
+    read raised AttributeError, every read returned 0.0, and the tight loop the
+    cooldown exists to prevent was reinstated by a typo that logged nothing. A missing
+    ledger is ordinary and stays quiet; anything else now says so.
+    """
+    p = _draft_ledger_path(d)
+    if not p.is_file():
+        return 0.0                      # never attempted — the ordinary case
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8")).get("last_at")
+        return datetime.fromisoformat(raw).timestamp() if raw else 0.0
+    except Exception as e:                                             # noqa: BLE001
+        log(f"   (could not read when {p.parent.parent.name} was last drafted, so it "
+            f"is treated as ready: {type(e).__name__}: {e})")
+        return 0.0
+
+
+def _a_draft_is_ready_to_retry(provider) -> int | None:
+    """The ep_number of a PART-DRAFTED episode whose cooldown has passed, or None.
+
+    🔴 THIRTEEN OF EP22'S TWENTY MINUTES WERE THE TIMER, NOT WORK. Its first attempt
+    was rejected over one figure and the repair round halted at 05:27; the next
+    attempt did not begin until 05:40 and had a good script by 05:43. Nothing was
+    happening in between and nothing said so.
+
+    ⚠️ THIS REVERSES AN EARLIER TRADE-OFF DELIBERATELY, and the thing it traded for
+    is kept. `_a_brand_new_episode_is_waiting` was confined to episodes with ZERO
+    attempts precisely so a failing draft could not be retried every 25 seconds and
+    burn its whole bound "before anyone looked at the board". That function is
+    untouched; this is a SEPARATE question with its own cooldown, so:
+
+      · the bound does not move — still DRAFT_ATTEMPT_LIMIT attempts, no more;
+      · the 25s hammering is still impossible — RETRY_DRAFT_SECS sits between goes;
+      · and since f552c00 every attempt is on the BOARD, so reaching the end of the
+        bound sooner means the visible "needs a look" arrives sooner. That was the
+        risk in the original reasoning, and it is now the point.
+
+    Cheap by construction: the queued list the pass already reads, plus a file stat.
+    """
+    try:
+        for ep in rail.list_queued():
+            nn = ep.get("ep_number")
+            if not nn or ep.get("needs_look"):
+                continue
+            if (ep.get("script_snapshot") or "").strip():
+                continue
+            if (ep.get("script_doc_url") or "").strip():
+                continue
+            if ep.get("claimed_by"):
+                continue
+            if packaging_entry_pending(ep):
+                continue          # waiting on HER words, not on the writer
+            d = provider.dir(ep)
+            n = _draft_attempts(d)
+            # STARTED BUT NOT SPENT OUT. Zero is the other question's job — two paths
+            # answering for one episode is how it gets commissioned twice.
+            if not 0 < n < DRAFT_ATTEMPT_LIMIT:
+                continue
+            if time.time() - _draft_last_at(d) < RETRY_DRAFT_SECS:
+                continue
+            return int(nn)
+    except Exception:                                                  # noqa: BLE001
+        return None            # the slow pass will pick it up; never break the loop
+    return None
+
+
 def _draft_watch(provider):
     """THE PRE-CLAIM DRAFTING PASS — the engine writes the script it is waiting for.
 
@@ -2260,6 +2334,18 @@ def cmd_run(mock, watch):
                             f"starting on it now rather than waiting for the "
                             f"{900 // 60}-minute pass")
                         fast = True
+                    else:
+                        # AND THE SAME FOR A DRAFT THAT FAILED AND HAS GOES LEFT.
+                        # Thirteen of EP22's twenty silent minutes were this timer.
+                        # The attempt bound is unchanged; only the waiting between
+                        # attempts is, so a self-healing draft finishes in minutes and
+                        # one that cannot reaches its visible flag sooner.
+                        nn = _a_draft_is_ready_to_retry(provider)
+                        if nn is not None:
+                            log(f"PP-EP{nn:02d}'s last drafting attempt did not "
+                                f"produce a usable script — trying again now rather "
+                                f"than waiting for the {900 // 60}-minute pass")
+                            fast = True
                 if not mock and (fast or time.time() - _draft_last > 900):
                     _draft_watch(provider)
                     _draft_last = time.time()

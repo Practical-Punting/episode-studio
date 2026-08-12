@@ -155,5 +155,157 @@ case("the idle loop asks the fast question, and the 900s safety net survives",
      _the_loop_actually_uses_it)
 
 
+# ------------------------------------------------------------------- 6 -----
+# 🔴 A FAILED ATTEMPT RETRIES IN A MINUTE, NOT A QUARTER OF AN HOUR (EP22, 12 Aug).
+# EP22's attempt 1 was rejected over one figure and its repair round halted at 05:27.
+# The next attempt did not start until 05:40 and succeeded at 05:43 — so thirteen of
+# the twenty minutes Jodie watched were the retry timer, not work.
+#
+# ⚠️ THIS REVERSES AN EARLIER TRADE-OFF ON PURPOSE, and case 2 above still holds.
+# The fast path was deliberately kept to ZERO-attempt episodes so a failing draft
+# could not be retried every 25 seconds and burn its bound "before anyone looked at
+# the board". Two things make the reversal safe now:
+#   · it is a SEPARATE question with its own ~60s cooldown, so the 25s hammering that
+#     case 2 guards against still cannot happen — _a_brand_new_episode_is_waiting is
+#     untouched and still answers only for a never-drafted episode;
+#   · f552c00 put every attempt on the BOARD, so "gives up sooner" now means the
+#     visible "needs a look" arrives sooner, which is the point rather than the risk.
+def _mk(attempts, age_secs):
+    """A provider whose episode has `attempts` recorded, `age_secs` ago."""
+    import datetime
+    import json
+    prov = Prov({})
+    d = prov.dir({"ep_number": 20})
+    (d / "docs").mkdir(parents=True, exist_ok=True)
+    when = (datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(seconds=age_secs))
+    engine._draft_ledger_path(d).write_text(json.dumps(
+        {"attempts": attempts, "last_at": when.isoformat(),
+         "last_note": "commissioning the script"}), encoding="utf-8")
+    return prov
+
+
+def _ready(rows, attempts, age_secs):
+    prov = _mk(attempts, age_secs)
+    with Rail(rows):
+        return engine._a_draft_is_ready_to_retry(prov)
+
+
+def _a_failed_attempt_retries_within_a_minute_or_two():
+    got = _ready([row(20)], attempts=1, age_secs=90)
+    assert got == 20, (
+        f"a part-drafted episode was not offered for retry ({got!r}), so a draft that "
+        f"fails once still waits out the 15-minute pass")
+
+
+def _but_not_instantly():
+    got = _ready([row(20)], attempts=1, age_secs=5)
+    assert got is None, (
+        "an attempt that failed five seconds ago was retried at once — that is the "
+        "tight loop the cooldown exists to prevent")
+
+
+def _the_cap_is_unchanged():
+    got = _ready([row(20)], attempts=engine.DRAFT_ATTEMPT_LIMIT, age_secs=600)
+    assert got is None, (
+        f"an episode at the {engine.DRAFT_ATTEMPT_LIMIT}-attempt cap was offered "
+        f"again — the bound must not move, only the waiting between attempts")
+    assert engine.DRAFT_ATTEMPT_LIMIT == 3, "the attempt cap changed"
+
+
+def _a_never_drafted_one_is_not_this_question():
+    got = _ready([row(20)], attempts=0, age_secs=600)
+    assert got is None, (
+        "a never-drafted episode came back from the RETRY question — that one belongs "
+        "to _a_brand_new_episode_is_waiting, and two paths answering for the same "
+        "episode is how it gets commissioned twice")
+
+
+def _the_same_guards_apply():
+    for kw, why in [({"needs_look": True}, "an open question"),
+                    ({"claimed_by": "someone"}, "already being worked"),
+                    ({"script_snapshot": "words"}, "already has words"),
+                    ({"hook": None}, "waiting on HER words, not the writer")]:
+        got = _ready([row(20, **kw)], attempts=1, age_secs=600)
+        assert got is None, f"retried an episode that is {why}: {kw}"
+
+
+def _the_loop_asks_the_retry_question_too():
+    src = Path(engine.__file__).read_text(encoding="utf-8")
+    i = src.index("def cmd_run(")
+    body = src[i:]
+    assert "_a_draft_is_ready_to_retry(provider)" in body, \
+        "the idle loop never asks the retry question, so the fix is unreachable"
+    assert "> 900" in body, "the 900s safety net has been removed"
+
+
+case("a draft that failed is retried within a minute or two",
+     _a_failed_attempt_retries_within_a_minute_or_two)
+case("  but never instantly — the cooldown holds", _but_not_instantly)
+case("  and the 3-attempt cap is untouched", _the_cap_is_unchanged)
+case("  a never-drafted episode is NOT this question's job",
+     _a_never_drafted_one_is_not_this_question)
+case("  every other guard still applies", _the_same_guards_apply)
+case("  and the idle loop actually asks it", _the_loop_asks_the_retry_question_too)
+
+
+# ------------------------------------------------------------------- 7 -----
+# WHAT IT ACTUALLY COSTS IN WALL-CLOCK, driven through the real function on a
+# simulated clock rather than asserted from the constants.
+def _wall_clock():
+    """Seconds of WAITING across a draft that keeps failing, on a simulated clock.
+
+    Counts only the gaps BETWEEN attempts — the commissions themselves take the same
+    few minutes either way, so the gaps are the whole difference. Each gap is found by
+    ageing the ledger until the real function says the episode is ready again, so this
+    measures the shipped behaviour rather than restating the constant.
+    """
+    import datetime
+    import json
+    prov = _mk(attempts=1, age_secs=0)
+    d = prov.dir({"ep_number": 20})
+    total = 0.0
+    for attempt in range(1, engine.DRAFT_ATTEMPT_LIMIT):
+        age = 0.0
+        while age < 4000:
+            when = (datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.timedelta(seconds=age))
+            engine._draft_ledger_path(d).write_text(json.dumps(
+                {"attempts": attempt, "last_at": when.isoformat()}), encoding="utf-8")
+            with Rail([row(20)]):
+                if engine._a_draft_is_ready_to_retry(prov) == 20:
+                    break
+            age += 5.0
+        total += age
+    return total
+
+
+def _a_self_healing_draft_finishes_in_minutes():
+    secs = _wall_clock()
+    mins = secs / 60.0
+    assert mins < 4, (
+        f"a draft that fails and retries still waits {mins:.1f} minutes between "
+        f"attempts — the 15-minute silence is not gone")
+    # and say what it was, so the number is never a bare claim
+    old = (900.0 * (engine.DRAFT_ATTEMPT_LIMIT - 1)) / 60.0
+    print(f"        waiting across all {engine.DRAFT_ATTEMPT_LIMIT} attempts: "
+          f"{mins:.1f} min (was {old:.0f} min on the 900s pass)")
+
+
+def _all_three_failing_reaches_the_flag_quickly():
+    secs = _wall_clock()
+    # the bound is reached after the LAST attempt, so the waiting is the same figure;
+    # what matters is that it is minutes, not the better part of an hour.
+    assert secs < 300, (
+        f"a draft that fails all {engine.DRAFT_ATTEMPT_LIMIT} attempts takes "
+        f"{secs / 60:.1f} minutes of pure waiting to reach 'needs a look'")
+
+
+case("a draft that fails then succeeds waits minutes, not fifteen",
+     _a_self_healing_draft_finishes_in_minutes)
+case("  and one that fails all 3 reaches 'needs a look' quickly",
+     _all_three_failing_reaches_the_flag_quickly)
+
+
 print(f"\nkick on submit: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

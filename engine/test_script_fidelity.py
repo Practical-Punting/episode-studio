@@ -239,6 +239,36 @@ def main():                                                            # noqa: C
           F.check("he was second", UNITS_CAP) == [],
           str(F.check("he was second", UNITS_CAP)))
 
+    # ── "EVERY Nth" IS THE DISTRIBUTIVE IDIOM, NOT A POSITION (EP22, 12 Aug 2026) ──
+    # EP22's first draft said "Every second voice out there has a system" — "every
+    # second" meaning every other. The gate called it a figure the article never
+    # states, which cost a writing attempt and a repair round. The SAME sentence with
+    # "third" passed, because BARE_WORDS happens to name "third" and not "second".
+    #
+    # 🔒 THE EXEMPTION IS THE IDIOM, NOT THE ORDINAL, and that distinction is the
+    # whole safety argument. It is keyed on the word BEFORE the run being "every", so
+    # it can never reach "ran sixth" or "finished fourth" — the ruling above stands
+    # exactly as it was, and the two cases above still prove it.
+    _NO_ORD = ("x\n---- ARTICLE TEXT BEGINS ----\n"
+               "The draw is what matters at these tracks.\n"
+               "---- ARTICLE TEXT ENDS ----\n")
+    for phrase in ("every second voice out there has a system",
+                   "every third voice out there has a system",
+                   "every fourth race is a maiden",
+                   "every twentieth runner wins"):
+        check(f"  {phrase[:38]!r} is the IDIOM",
+              F.check(phrase, _NO_ORD) == [], str(F.check(phrase, _NO_ORD)))
+
+    print("\n-- 🔒 CONTROL: the idiom exemption does NOT reach a finishing position --")
+    for phrase in ("he ran second at Rosehill", "he finished fourth that day",
+                   "it ran sixth on the day", "the second favourite was beaten"):
+        check(f"  {phrase[:38]!r} is STILL checked",
+              len(F.check(phrase, _NO_ORD)) == 1, str(F.check(phrase, _NO_ORD)))
+    # and "every" must not license a CARDINAL either — only an ordinal is idiomatic
+    check("  'every twelve starts' is still checked (a cardinal, not an ordinal)",
+          len(F.check("every twelve starts he wins one", _NO_ORD)) >= 1,
+          str(F.check("every twelve starts he wins one", _NO_ORD)))
+
     print("\n-- 🔴 A SLASH IS ODDS *AND* A FRACTION (EP18, 7 Aug 2026) --")
     # THE FAULT: EP18's first live draft was FAITHFUL and the gate blocked it. The
     # article says "an average dividend of $2.80 (about 7/4)"; the writer wrote
