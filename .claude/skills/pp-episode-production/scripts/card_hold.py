@@ -72,6 +72,43 @@ def min_hold_for(card: dict, build: dict) -> float:
     return round(min(max(scaled, min(ABSOLUTE_FLOOR_S, blanket)), blanket), 2)
 
 
+def options_for(card: dict, build: dict, available: float) -> str:
+    """The ways this card could be made to fit `available` seconds, in plain English.
+
+    🔴 WHY THIS EXISTS. The halt used to say a card "is too big for its beat" and stop.
+    Every time — EP21 C18/C19, EP22 C18/C19 — a person then did the same arithmetic by
+    hand: what window does it actually have, what does it need at its current size,
+    what would it need if a row came out, and is it even possible. That is three
+    numbers the tool already holds. Handing over the question without the numbers is
+    what turned a two-minute decision into a full round trip.
+
+    The lever is the READING LOAD, not the prose: the minimum scales at
+    BASE + PER_ITEM x items, so folding a row out is what shortens the card. Tightening
+    words changes how it LOOKS, never how long it must be held.
+    """
+    n = reading_load(card)
+    need = min_hold_for(card, build)
+    if need <= available:
+        return f"it already fits — needs {need:.1f}s and has {available:.2f}s"
+    lines = [f"it has {available:.2f}s and needs {need:.1f}s at {n} item(s) — "
+             f"over by {need - available:.2f}s"]
+    # the largest content this window WOULD take
+    fits = [k for k in range(1, n)
+            if min_hold_for({"content": {"rows": [None] * k}}, build) <= available]
+    if fits:
+        k = max(fits)
+        got = min_hold_for({"content": {"rows": [None] * k}}, build)
+        lines.append(f"FOLD to {k} item(s) and it fits ({got:.1f}s) — fold a row into "
+                     f"its parent, never drop the fact")
+        lines.append(f"or SPLIT it: {k} item(s) here and the rest on another cue")
+    else:
+        lines.append(f"NOTHING FITS THIS WINDOW: even one item needs "
+                     f"{ABSOLUTE_FLOOR_S:.1f}s and there are only {available:.2f}s, so "
+                     f"tightening and splitting BOTH fail — this card has to move to a "
+                     f"window with at least {ABSOLUTE_FLOOR_S:.1f}s, or come out")
+    return "; ".join(lines)
+
+
 def why(card: dict, build: dict) -> str:
     """One line for a run log or a halt, so the number is never a bare assertion."""
     n = reading_load(card)

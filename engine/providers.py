@@ -473,16 +473,36 @@ def derive_timings(ep_dir: Path) -> str:
             "master is trimmed; run it, then clear this flag.")
     r = subprocess.run(
         [sys.executable, str(SKILL_DIR / "scripts/derive_card_timings.py"),
-         str(ep_dir), "--write"],
+         # 🔴 --apply-broll: THE TOOL STOPS TYPING ITS OWN ANSWER OUT FOR SOMEBODY ELSE.
+         # A b-roll/card overlap is not a decision — the tool computes the exact delay
+         # AND confirms the room exists at the back of the clip's own beat before it
+         # says anything. It then halted the build so a human could copy the number in.
+         # EP22 halted on FOUR in one run, EP21 on one; every one was applied verbatim.
+         # Only the confirmed-available case is applied; anything else still halts.
+         str(ep_dir), "--write", "--apply-broll"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     out = (r.stdout or "") + (r.stderr or "")
     if r.returncode:
+        # ⚠️ KEEP THE CONTINUATION LINES. The filter used to take only lines starting
+        # with "!!", which would now throw away the most useful half of the message —
+        # the "C18 IS THE ONE THAT GIVES WAY … FOLD to 2 item(s)" line sits UNDER its
+        # problem, indented. Dropping it would leave the board saying a card is too big
+        # and not what to do about it, which is the round trip this is meant to end.
+        keep, take = [], False
+        for line in out.splitlines():
+            if line.strip().startswith("!!"):
+                keep.append(line.strip())
+                take = True
+            elif take and line.startswith("       "):
+                keep.append("   " + line.strip())
+            elif line.strip():
+                take = False
         raise EngineFlag(
             "The card timings could not be derived, so nothing was written and the "
             "existing leads are stale. Every problem below is a DECISION — a card that "
             "cannot take its window, an overlap, a cue that is not in the SRT — and the "
             "tool refuses to guess at any of them.\n"
-            + "\n".join(l for l in out.splitlines() if l.strip().startswith("!!"))[:900])
+            + "\n".join(keep)[:1600])
     tail = [l for l in out.splitlines() if "leads" in l or "midroll.at" in l]
     return "card timings derived from the aligned SRT — " + ("; ".join(tail)[:240] or "written")
 

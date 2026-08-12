@@ -169,6 +169,17 @@ def main():
         sys.exit(__doc__)
     d = pathlib.Path(sys.argv[1]).resolve()
     write = "--write" in sys.argv
+    apply_broll = "--apply-broll" in sys.argv
+    # 🔴 THE REMEDY WAS ALREADY COMPUTED AND A HUMAN WAS RETYPING IT (12 Aug 2026).
+    # A b-roll/card overlap is not a decision: why_broll_card below works out the exact
+    # delay AND confirms the room exists at the back of the clip's own beat before it
+    # says a word. It then printed "Set build.broll_offsets['x'] to 4.61" and stopped
+    # the build so somebody could type 4.61 into a file. EP22 halted on FOUR of these
+    # in one run and EP21 on one; every one was applied verbatim, unchanged, by hand.
+    # With --apply-broll the tool writes what it already knows and runs again.
+    #     Only the CONFIRMED branch is ever auto-applied — where slack >= need. The
+    # other branch says "a decision rather than an adjustment" and still halts.
+    broll_fixes: dict[str, float] = {}
 
     epj_path = d / "docs/episode.json"
     # PREFER FORCED ALIGNMENT. renders/generated.srt is CONSTRUCTED from
@@ -446,6 +457,9 @@ def main():
         slack = round((be - bs) - (cur + broll_dur), 2)
         need = round(ov, 2)
         if slack >= need:
+            # CONFIRMED AVAILABLE — record it so --apply-broll can write it. This is
+            # the only branch that is ever auto-applied.
+            broll_fixes[target] = round(cur + need, 2)
             return (f" — the clip starts {cur:.2f}s into beat {n} and there is "
                     f"{slack:.2f}s of unused room at the BACK of that same beat, "
                     f"so delaying it by {need:.2f}s clears this without touching "
@@ -486,6 +500,28 @@ def main():
         return (f" — beat {n} is {length:.2f}s and the card needs {need:.2f}s, so "
                 f"the latest cue that still fits starts at {latest:.2f}s.")
 
+    def which_gives_way(first, second):
+        """WHICH of an overlapping pair has to change, and by how much.
+
+        🔴 THE ARITHMETIC A HUMAN DID BY HAND EVERY TIME (EP21 C18/C19, EP22 C18/C19).
+        In an overlap A/B, A is still up when B arrives — and B's entry is fixed by its
+        CUE, which is a spoken word and not ours to move. So A is the one that gives
+        way, and the window it actually has is B's entry minus A's entry. The old
+        message said only "too big for its beat" and named the beat of the SECOND card,
+        which is how a brief came to describe C19 as needing 18.26s when 18.26s was the
+        END card's dwell. Name the card, give it its number, list its ways out.
+        """
+        a, b = windows.get(first), windows.get(second)
+        card = next((c for c in epj.get("cards", []) if c.get("id") == first), None)
+        if not a or not b or card is None:
+            return ""
+        available = round(b[0] - a[0], 2)
+        if available <= 0:
+            return (f" — {first} and {second} are cued at the same moment, so this is "
+                    f"not a size problem: one of the two cues has to move.")
+        return (f"\n       {first} IS THE ONE THAT GIVES WAY (its window runs to "
+                f"{second}'s entry): " + ch.options_for(card, build, available))
+
     cards_only = {k: v for k, v in windows.items() if k not in ("MIDROLL",)}
     pairs = 0
     print(f"\nOVERLAP CHECK — all four classes")
@@ -496,7 +532,8 @@ def main():
             ov = overlaps(cards_only[ids[i]], cards_only[ids[j]])
             if ov > 0.01:
                 problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
-                                + why_card_beat(ids[j]))
+                                + why_card_beat(ids[j])
+                                + which_gives_way(ids[i], ids[j]))
     print(f"  card-card       : {pairs} pairs checked")
     if "MIDROLL" in windows:
         n = 0
@@ -556,6 +593,22 @@ def main():
     for n in notes:
         print(f"NOTE    {n}")
     if problems:
+        if apply_broll and broll_fixes:
+            # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The delay is computed
+            # from a ROUNDED overlap, so one pass can leave a hundredth of a second
+            # still touching — EP21 needed two rounds. The caller loops until the
+            # numbers stop moving, and every other problem class still halts.
+            offs_out = build.setdefault("broll_offsets", {})
+            for t, v in sorted(broll_fixes.items()):
+                was = offs_out.get(t)
+                offs_out[t] = v
+                print(f"   applied build.broll_offsets[{t!r}] = {v}"
+                      + (f"  (was {was})" if was is not None else "  (was unset)"))
+            epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
+                                encoding="utf-8")
+            print(f"\nAPPLIED {len(broll_fixes)} b-roll offset(s) the tool had already "
+                  f"worked out — re-deriving.\n")
+            return "RETRY"
         print(f"\n{len(problems)} PROBLEM(S) — NOTHING WRITTEN:")
         for p in problems:
             print(f"  !! {p}")
@@ -583,4 +636,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # --apply-broll makes main() return "RETRY" once it has written the offsets it
+    # already knew. Bounded, because a loop that cannot converge must stop and say so
+    # rather than write the same number for ever.
+    for _round in range(1, 6):
+        if main() != "RETRY":
+            break
+    else:
+        sys.exit("b-roll offsets did not settle after 5 rounds — stopping rather than "
+                 "writing the same numbers again. This one needs a look.")
