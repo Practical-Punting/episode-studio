@@ -68,6 +68,31 @@ with tempfile.TemporaryDirectory() as tmp:
     else:
         print(f"  · skipped the shipped-card half: {shipped} not present")
 
+
+# ── A PAGE THAT IS NOT THERE MUST STOP THE BUILD (EP22, 12 Aug 2026) ──────────
+# card_check served a path that did not exist anyway: the local server answered 404,
+# the 404 page carries no card elements, no rule found anything to complain about,
+# and it printed "✓ <name>" / "1/1 clean" and exited 0. A misnamed or missing card —
+# exactly what a rename produces — was therefore CERTIFIED. Two faults in one: the
+# missing file was not noticed, and main()'s return value never reached the exit code,
+# so every early return read as a pass to any caller checking the status.
+print("\n-- a missing page is REFUSED, not passed --")
+_missing = os.path.join(tempfile.gettempdir(), "no-such-card-page-ep22.html")
+if os.path.exists(_missing):
+    os.remove(_missing)
+_rc, _out = check(_missing)
+if _rc == 0:
+    fails.append("card_check PASSED a page that does not exist — a missing or "
+                 f"misnamed card would be certified:\n{_out}")
+else:
+    print(f"  ✓ refused with exit {_rc}")
+if "no such file" not in _out.lower():
+    fails.append(f"the refusal does not say the file is missing:\n{_out}")
+else:
+    print("  ✓ and it says why")
+
+# The CONTROL for "it does not now refuse everything" is the shipped-C10 case above,
+# which passes a real page through the same entry point and must still exit 0.
 print()
 for f in fails:
     print(f"  ✗ {f}")

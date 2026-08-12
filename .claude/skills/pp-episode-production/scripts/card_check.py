@@ -450,8 +450,23 @@ def main():
     target = pathlib.Path(a.target).resolve()
     if target.is_dir():
         serve, pages = target, sorted(p.name for p in target.glob("*.html"))
-    else:
+    elif target.is_file():
         serve, pages = target.parent, [target.name]
+    else:
+        # 🔴 A GATE THAT PASSES A FILE THAT IS NOT THERE (EP22, 12 Aug 2026).
+        # This branch used to be a bare `else`, so a path that did not exist was
+        # served anyway: the local server answered 404, the 404 page has no card
+        # elements on it, no rule found anything to complain about, and card_check
+        # printed "✓ <name>" and "1/1 clean" and exited 0. A misnamed or missing
+        # card page — exactly what a rename produces — was therefore certified.
+        #     Found by accident: a check was run against a filename that did not
+        # exist and returned clean, which is the only reason anyone looked.
+        # Directory mode was never affected, because it globs real files.
+        print(f"CARD CHECK CANNOT RUN: there is no such file or directory — {target}\n"
+              f"  Nothing was checked. This is a refusal, not a pass: a page that is "
+              f"missing or misnamed has to stop the build, because the clip that "
+              f"would be rendered from it is the one that ships.")
+        return 2
     if not pages:
         print(f"no card pages in {serve}")
         return 0
@@ -496,4 +511,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # ⚠️ main()'s RETURN VALUE HAS TO REACH THE EXIT CODE. It was called bare, so
+    # every early `return` in it was discarded and the process exited 0 regardless —
+    # which is how a refusal ("there is no such file") still read as a pass to any
+    # caller checking the status. The normal path never returns at all: it ends in
+    # os._exit() because browser.close() hangs on this machine, so this only governs
+    # the early exits, which is exactly what it is for.
+    sys.exit(main() or 0)
