@@ -1093,10 +1093,39 @@ def autofit_cards(ep_dir: Path) -> str:
     the words are longer than the design can hold, which is a human choice between the
     words and the layout, not something to shrink away.
     """
-    r = subprocess.run(
-        [sys.executable, str(SKILL_DIR / "scripts/autofit_cards.py"),
-         str(ep_dir / "overlay/export")],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+    def _fit():
+        return subprocess.run(
+            [sys.executable, str(SKILL_DIR / "scripts/autofit_cards.py"),
+             str(ep_dir / "overlay/export")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=900)
+
+    r = _fit()
+    rescued = ""
+    if r.returncode:
+        # 🔴 BEFORE ASKING, TRY THE OTHER FRAME (EP23 C21, 12 Aug 2026). The halt below
+        # says the choice is "between the words and the layout" — and on C21 it was
+        # neither. The card was authored `fullscreen` while its five sibling
+        # minor-track slates were all `panel-push`; the cell block is bottom-anchored,
+        # so tightening moved it DOWN and its bottom edge never left the logo chip. In
+        # panel-push it fit at full size with not one word changed.
+        #     Same shape as --apply-broll: the tool can TRY the sibling frame and
+        # MEASURE the answer, so stopping to ask is the waste. Making a card consistent
+        # with its siblings is not a design choice. layout_rescue refuses anything that
+        # needs shrinking, changes a word, or fails card_check, and restores the exact
+        # bytes when it refuses — so a rescue that does not hold leaves this untouched
+        # and the halt below still fires.
+        res = subprocess.run(
+            [sys.executable, str(SKILL_DIR / "scripts/layout_rescue.py"),
+             str(ep_dir), "--apply"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=1800)
+        out_res = (res.stdout or "") + (res.stderr or "")
+        if "SWAPPED" in out_res:
+            rescued = "\n".join(l for l in out_res.splitlines()
+                                if l.strip().startswith(("SWAPPED", "fullscreen ->",
+                                                         "panel-push ->")))
+            r = _fit()          # re-measure: the swap has to stand on its own
     if r.returncode:
         raise EngineFlag(
             "A card's text does not fit its box, and stepping the type down to the floor "
@@ -1104,8 +1133,12 @@ def autofit_cards(ep_dir: Path) -> str:
             "problem: the page is authored, the words are right and every figure is traced "
             "— the content is simply longer than the design can hold. That is a choice "
             "between the words and the layout, and it is yours, not the build's.\n"
+            "(The sibling frame was tried first and did not rescue it — the reason is in "
+            "the run log.)\n"
             f"{(r.stdout or r.stderr).strip()[-1200:]}")
-    return (r.stdout or "").strip()
+    out = (r.stdout or "").strip()
+    return (f"a card was moved to its siblings' frame — {rescued.strip()}\n{out}"
+            if rescued else out)
 
 
 def author_missing_cards(ep_dir: Path) -> str:
