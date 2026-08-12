@@ -227,6 +227,18 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .wf{display:block;}
 .wf span{display:block;font-size:11.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;
   color:var(--muted);margin-bottom:5px;}
+/* the packaging entry step — a title arrived with no hook and/or no byline.
+   The two boxes are spaced apart on purpose: they are the pair that CROSSED on
+   EP21, and a hint under each says which word belongs in it. */
+.wordsform .wf + .wf{margin-top:12px;}
+.pe-what{display:block;font-style:normal;font-size:11.5px;color:var(--muted);
+  margin-top:4px;letter-spacing:.2px;}
+.pe-title{background:#f6f7f9;border-radius:10px;padding:9px 12px;margin:0 0 14px;}
+.pe-title span{display:block;font-size:11px;font-weight:800;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.pe-title b{font-size:15px;color:var(--ink);}
+.pe-blank{margin-top:12px;}
+.g-act{margin-top:14px;}
 .drift{background:#fff6ef;border-left:4px solid var(--orange);border-radius:10px;padding:11px 13px;
   margin:0 0 14px;font-size:13.5px;line-height:1.45;color:var(--ink);}
 .drift a{color:var(--orange);font-weight:800;}

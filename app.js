@@ -165,7 +165,11 @@ function wordsGatePending(ep) {
  * behavioural case in test_board_words_chip instead, so a future refactor of either
  * layer still has to keep it true. */
 function studioIsWriting(ep) {
-  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep);
+  // ...and NOT while it is waiting on her hook and byline. The engine's drafting pass
+  // will not commission a wordless episode, so without this clause the card would say
+  // "Writing the script…" about a pass that has already decided it cannot start.
+  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
+         !packagingEntryPending(ep);
 }
 /* The words now live in their own columns so the board can EDIT them. Older rows
  * carried them as "Byline: …" / "Hook: …" lines in notes — still read as a
@@ -179,6 +183,42 @@ function hookOf(ep) {
   if (ep.hook) return ep.hook;
   const m = /hook:\s*(.+)/i.exec(ep.notes || "");
   return m ? m[1].trim() : "";
+}
+
+/* 🔴 AN EPISODE CAN START WITH A TITLE AND NOTHING ELSE, and until now nothing asked
+ * for the rest. EP22 is exactly that — a title, no byline — and the board said
+ * "Writing the script… no action needed yet": the studio claiming it was on the job
+ * while it was in fact blocked on words only she can write. That is the Job-5 fault
+ * above, in its other direction. The one before it read the wrong side of the same
+ * question; this one never asked at all.
+ *
+ * 🔒 NULL MEANS NEVER SUPPLIED. "" MEANS SHE CHOSE TO LEAVE IT BLANK. The whole
+ * mechanism, and it needs no new column. Checked against the real rail before being
+ * relied on: every episode EP6-EP21 carries a real string or NULL, and NOT ONE carries
+ * an empty string — so "" was free to be given a meaning. The only way to write one is
+ * ticking the box on the entry card.
+ *
+ * ⚠️ READS THE TWO COLUMNS, NOT hookOf/bylineOf — on purpose, even though those exist
+ * three lines up. Their notes fallback cannot tell NULL from "", which is the entire
+ * distinction here, and the ENGINE's packaging_entry_pending() reads the same two
+ * columns with no fallback either. Two sides of one question have to agree, or the
+ * board asks for words the engine has already decided it has. */
+function wordMissing(ep, name) {
+  if (ep[name] === "") return false;             // deliberate blank — she said so
+  return !String(ep[name] || "").trim();         // NULL, absent, or whitespace
+}
+/* ⚠️ AND ONLY WHILE THERE IS NOTHING TO READ YET. If a script already exists, the WORDS
+ * GATE is the right surface and this one must stand down: that card carries the hook,
+ * the title and the byline AND the script she approves them beside, so showing this
+ * thinner card instead would take the script away to ask for a word she could have
+ * typed there. This step exists for the moment BEFORE anything is drafted — which is
+ * exactly when hasWordsToRead() is false.
+ *     Found by test_script_editor, not by reasoning: its episode is queued with a
+ * script and no byline, and without this clause the entry card replaced the editor
+ * and the "edit script" button vanished from the board. */
+function packagingEntryPending(ep) {
+  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
+         (wordMissing(ep, "hook") || wordMissing(ep, "byline"));
 }
 
 // ── state ────────────────────────────────────────────────────────────────
@@ -1012,9 +1052,11 @@ function renderBoard(force) {
     // rather than sitting invisibly in Waiting.
     const eps = EPISODES.filter((e) =>
       lane.title === "Your turn"
-        ? (lane.statuses.includes(e.status) || wordsGatePending(e))
+        ? (lane.statuses.includes(e.status) || wordsGatePending(e) ||
+           packagingEntryPending(e))
         : lane.title === "Waiting"
-          ? (e.status === "queued" && !wordsGatePending(e))
+          ? (e.status === "queued" && !wordsGatePending(e) &&
+             !packagingEntryPending(e))
           : lane.statuses.includes(e.status));
     if (!eps.length) continue;
     out += '<section class="lane"><div class="lane-head">' +
@@ -1046,6 +1088,10 @@ function cardFor(ep) {
     // the studio busy, not as her queue, and it is not the attention class.
     : studioIsWriting(ep)
     ? { label: "Writing the script… no action needed yet", cls: "work", pct: 2 }
+    // BEFORE the words gate, because this one comes first in time: the hook and byline
+    // are wanted before anything is drafted, and the words gate needs a script to read.
+    : packagingEntryPending(ep)
+    ? { label: "Your turn — the words", cls: "need", pct: 2 }
     : wordsGatePending(ep)
     ? { label: "Your turn — words", cls: "need", pct: 3 }
     : STATUS[ep.status] || { label: ep.status || "—", cls: "wait", pct: 10 };
@@ -1221,6 +1267,7 @@ function showsScript(ep) {
 }
 
 function gateFor(ep) {
+  if (packagingEntryPending(ep)) return gatePackagingEntry(ep);
   if (wordsGatePending(ep)) return gateWords(ep);
   switch (ep.status) {
     case "awaiting_render":   return gateRender(ep);
@@ -1239,6 +1286,67 @@ function gateFor(ep) {
       return coverPickOpen(ep) ? gateCover(ep) : "";
     default:                  return "";
   }
+}
+
+/* 🔴 THE ENTRY STEP — the first thing asked of a new episode, and an ORDINARY TURN.
+ *
+ * An episode can arrive with a title and nothing else (EP22: a title, no byline), and
+ * nothing used to ask for the rest — the card said "Writing the script…" while the
+ * drafting pass sat blocked on words only she can write.
+ *
+ * ⚠️ TWO BOXES, TWO IDS, AND THAT IS THE ANTI-CROSSING MEASURE. On EP21 the hook ended
+ * up in the byline slot and the title in the hook slot, and had to be corrected on the
+ * rail by hand. Here each word has its own input, its own id (`pe-hook-…`,
+ * `pe-byline-…`, deliberately NOT the words gate's `w-hook-…`), its own label and its
+ * own example, and the save below names the destination column for each. There is no
+ * step at which the two values are in the same variable, so there is nothing to swap.
+ *
+ * 🔒 AND IT NEVER FILLS A BOX FOR HER. A missing word renders as an EMPTY box, never
+ * as the title, never as the other word, never as a guess. Leaving one blank is
+ * allowed, but only by ticking the box that says so — which writes "" and means "she
+ * decided", as against NULL which means "nobody has yet". */
+function gatePackagingEntry(ep) {
+  const missing = ["hook", "byline"].filter((f) => wordMissing(ep, f));
+  const box = (name, label, what, example, value) =>
+    '<label class="wf"><span>' + esc(label) + "</span>" +
+    '<input type="text" id="pe-' + name + "-" + ep.id + '" value="' + esc(value) +
+    '" placeholder="e.g. ' + esc(example) + '" autocomplete="off">' +
+    // The example lives in the placeholder; the hint says what the word IS. Saying
+    // both in both places reads as twice the instruction for one box.
+    '<i class="pe-what">' + esc(what) + "</i></label>";
+
+  let h = '<div class="gate"><h4>Your turn — the words for this episode</h4>' +
+    '<p class="g-hint">This one arrived with a title and ' +
+    (missing.length === 2 ? "neither of the other two words"
+                          : "no " + esc(missing[0])) +
+    ". Nothing is written or built until you have typed " +
+    (missing.length === 2 ? "them" : "it") +
+    " — the studio will not guess, and it will not start without " +
+    (missing.length === 2 ? "them" : "it") + ".</p>";
+
+  // THE TITLE, FOR CONTEXT, AND NOT AN INPUT. It is already approved elsewhere and
+  // this card must not become a second place that can change it — that is precisely
+  // how the title reached the hook slot on EP21.
+  h += '<div class="pe-title"><span>The title (not editable here)</span><b>' +
+    esc(ep.title || "—") + "</b></div>";
+
+  h += '<div class="wordsform">' +
+    box("hook", "Hook — the big text on the thumbnail",
+        "a few words, and different from the title",
+        "Bet Less, Win More", ep.hook == null ? "" : ep.hook) +
+    box("byline", "Byline — the small line under the title",
+        "the one-line promise",
+        "The stats tell the story", ep.byline == null ? "" : ep.byline) +
+    "</div>";
+
+  // THE DELIBERATE BLANK, and it has to be a deliberate ACT. Without the tick an
+  // empty box is refused, so "" can only ever mean she chose it.
+  h += '<label class="tick pe-blank"><input type="checkbox" id="pe-blank-' + ep.id +
+    '"><span>Leave any box I have left empty blank on purpose</span></label>';
+
+  h += '<div class="g-act"><button class="btn" data-act="packaging-entry" data-ep="' +
+    ep.id + '">Save these words &rarr;</button></div>';
+  return h + "</div>";
 }
 
 /* The words + script card. The three words are EDITABLE here — the operator is
@@ -1797,6 +1905,29 @@ $("lanes").addEventListener("click", async (e) => {
     if (await writeEpisode(id, patch, id + ":words", btn)) {
       clearWordDrafts(id);      // saved — the DB is now the truth, not the boxes
       toast("toast", "Script read and words approved — the build can start.", true);
+    }
+    return;
+  }
+
+  /* 🔴 EACH WORD IS NAMED TO ITS OWN COLUMN, in one statement, read straight from its
+   * own box. There is no list, no loop and no shared variable the two could pass
+   * through — the EP21 crossing had to be made impossible here, not just unlikely.
+   * The title is not in the patch at all, so this card cannot touch it. */
+  if (act === "packaging-entry") {
+    const hook = ($("pe-hook-" + id)?.value || "").trim();
+    const byline = ($("pe-byline-" + id)?.value || "").trim();
+    const blankOk = !!$("pe-blank-" + id)?.checked;
+    if ((!hook || !byline) && !blankOk) {
+      toast("toast", "Type the missing word, or tick the box to leave it blank on " +
+                     "purpose. Nothing is filled in for you.", false);
+      return;
+    }
+    // "" IS A DECISION AND NULL IS NOT. An empty box only becomes "" because the tick
+    // above says she meant it; that is what stops the engine asking again for ever.
+    const patch = { hook: hook, byline: byline };
+    if (await writeEpisode(id, patch, id + ":packaging-entry", btn)) {
+      clearWordDrafts(id);
+      toast("toast", "Saved — the studio can start on this one now.", true);
     }
     return;
   }

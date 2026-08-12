@@ -69,7 +69,13 @@ class Rail:
 
 
 def row(n, **kw):
+    # The hook and byline are part of a normal row (12 Aug 2026): the fast path does
+    # not fire for an episode still waiting on the operator's own words, because that
+    # one is HER turn and waking the drafting pass every 25s to re-decide it cannot
+    # start is exactly the churn the fast path was built to avoid. The missing-words
+    # case has its own suite in test_packaging_entry.py.
     r = {"id": f"id{n}", "ep_number": n, "status": "queued", "needs_look": False,
+         "hook": "A hook", "byline": "A byline",
          "script_snapshot": None, "script_doc_url": None, "claimed_by": None}
     r.update(kw)
     return r

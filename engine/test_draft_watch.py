@@ -124,7 +124,15 @@ class Provider:
 
 
 def episode(n, **kw):
+    # 🔴 THE HOOK AND BYLINE ARE PART OF A NORMAL ROW (12 Aug 2026). The drafting pass
+    # will not commission an episode that has neither — they are the approved packaging
+    # `_approved_packaging_text` licenses figures against, so drafting without them
+    # spends tokens on a script written against half its licence, and the board asks
+    # for them as an ordinary turn instead. This fixture was written before that was
+    # true and every case here means "a normal episode", not "one missing its words" —
+    # that case has its own suite in test_packaging_entry.py.
     row = {"id": f"id-{n}", "ep_number": n, "status": "queued",
+           "hook": "A hook", "byline": "A byline",
            "script_snapshot": None, "script_doc_url": None, "needs_look": False}
     row.update(kw)
     return row

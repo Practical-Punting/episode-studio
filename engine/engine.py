@@ -1630,6 +1630,34 @@ def _draft_ledger_path(d) -> Path:
     return Path(d) / _DRAFT_LEDGER
 
 
+def packaging_entry_pending(ep) -> list[str]:
+    """Which of the operator's own words are still MISSING — [] when none are.
+
+    🔴 AN EPISODE CAN START WITH A TITLE AND NOTHING ELSE, and until now nothing asked
+    for the rest. EP22 is exactly that: a title, no byline. Two things went wrong.
+    The board said "Writing the script… no action needed yet" — the studio claiming it
+    was on the job while it was in fact blocked on words only Jodie can write. And on
+    EP21 the fields CROSSED: the hook ended up in the byline slot and the title in the
+    hook slot, and had to be put right on the rail by hand.
+
+    These two are not decoration. `_approved_packaging_text` below turns them into the
+    ONLY second source a spoken figure may be licensed against, so commissioning a
+    script before they exist quietly narrows the fidelity gate to the article alone.
+    A missing byline is not a cosmetic gap; it changes what the writer is allowed to say.
+
+    🔒 NULL MEANS NEVER SUPPLIED. "" MEANS SHE CHOSE TO LEAVE IT BLANK.
+    That is the whole mechanism and it needs no new column. Checked against the real
+    rail before being relied on: every episode EP6-EP21 carries either a real string or
+    NULL, and NOT ONE carries an empty string — so "" was free to be given a meaning.
+    The only way to write "" is a human ticking the box that says so on the board.
+
+    NOTHING HERE FALLS BACK TO THE TITLE, and that omission is the point. A default
+    would make the step disappear by inventing the words it exists to ask for.
+    """
+    return [f for f in ("hook", "byline") if not str(ep.get(f) or "").strip()
+            and ep.get(f) != ""]
+
+
 def _approved_packaging_text(ep) -> str:
     """The episode's OWN approved words — the second source a spoken figure may have.
 
@@ -1805,6 +1833,10 @@ def _a_brand_new_episode_is_waiting(provider) -> int | None:
             # ALREADY BEING WORKED, by this engine or another: leave it entirely.
             if ep.get("claimed_by"):
                 continue
+            # Waiting on HER words, not on the writer. Firing the fast path here would
+            # wake the drafting pass every 25 seconds to re-decide it cannot start.
+            if packaging_entry_pending(ep):
+                continue
             if _draft_attempts(provider.dir(ep)) == 0:
                 return int(nn)
     except Exception:                                                  # noqa: BLE001
@@ -1900,6 +1932,26 @@ def _draft_watch(provider):
                 capture = assert_capture_for_script(provider.pp, nn)
             except EngineFlag as f:
                 log(f"drafting pass: PP-EP{int(nn):02d} — {f}")     # RUN LOG ONLY
+                continue
+
+            # 🔴 HER WORDS COME BEFORE THE WRITER'S. The hook and the byline are the
+            # approved packaging, and `_approved_packaging_text` makes them the only
+            # second source a spoken figure may be licensed against — so drafting
+            # without them silently narrows the fidelity gate and spends tokens on a
+            # script written against half the licence.
+            #
+            # NOT A FLAG, AND THAT IS DELIBERATE (A19 in reverse). Every other stop this
+            # pass produces is the STUDIO's and goes to the run log because Jodie can do
+            # nothing about it. This one is the exact opposite: it is hers, she can act
+            # on it in ten seconds, and the BOARD already shows it as an ordinary turn —
+            # `packagingEntryPending` in app.js reads the same two fields and puts the
+            # card in "Your turn" with the two boxes on it. A red fault flag here would
+            # dress a routine question up as a breakage.
+            missing = packaging_entry_pending(ep)
+            if missing:
+                log(f"drafting pass: PP-EP{int(nn):02d} is waiting on its "
+                    f"{' and '.join(missing)} — nothing is drafted or spent until "
+                    f"they are typed in on the board. Not a fault: it is her turn.")
                 continue
 
             d = provider.dir(ep)
