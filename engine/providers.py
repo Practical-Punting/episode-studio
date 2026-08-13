@@ -35,6 +35,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import broll_prompt_rules                      # the b-roll standing lines (EP24 onward)
 import check_page_images                       # the general "does every <img> resolve"
 
 
@@ -1861,6 +1862,23 @@ class RealProvider:
                         f"B-roll clip '{clip}' has no prompt in episode.json — "
                         "Claude Code writes the b-roll prompts (hats / ethnic-mix / "
                         "turf wording baked in). Add it, then clear this flag.")
+                # 🔴 THE STANDING LINES ARE CHECKED HERE BECAUSE EVERY GENERATED PROMPT
+                # COMES THROUGH THIS FUNCTION. Checked in the registry it is a rule
+                # somebody has to remember; checked here a prompt that does not state
+                # them cannot be submitted, and it costs nothing to find out — this
+                # runs before the credit is spent, not after the clip comes back wrong.
+                # EP24 onward; EP23 and earlier are published and are not re-graded.
+                gaps = broll_prompt_rules.check_episode(
+                    [b], ep.get("ep_number") if hasattr(ep, "get") else None)
+                if gaps:
+                    raise EngineFlag(
+                        f"The b-roll prompt for '{clip}' is missing standing lines that "
+                        "exist because each one has already gone wrong in a shipped "
+                        "episode. Nothing has been generated and nothing charged.\n\n"
+                        + "\n".join("  · " + g for g in gaps) +
+                        "\n\nThe wording is in docs/broll-registry.md — §5 and the "
+                        "Australian racing spec block under it. Add it to the prompt in "
+                        "docs/episode.json, then clear this flag.")
                 return b["prompt"]
         raise RuntimeError(f"clip {clip} not found in episode.json broll[]")
 

@@ -135,6 +135,77 @@ wearing a different colour.
 the RANGE was not, and that is exactly the §2 gap in a new place: *the model dresses what it
 is told about and improvises the rest.*
 
+### 5. THE WHOLE FIELD RUNS ON ONE SIDE OF THE RAIL — say which side, every racing shot
+**(Hugh, from EP23 as shipped, 14 Aug 2026. EP24 onward. EP23 is published and is NOT
+changed.) The fault: horses ran on BOTH SIDES of the rail.**
+
+**Say it, every galloping / field / raceday shot:**
+> *"The whole field runs on ONE side of a single white running rail — the rail is the
+> inside boundary of the track, open green turf infield beyond it, no horses on the far
+> side; on a bend the rail curves with the track and the field stays outside it."*
+
+> ## 🔴 THE GAP, AND IT IS §2's GAP IN A NEW PLACE. **EP23's prompts DID name the rail —
+> ## five of six of them. Not one said WHICH SIDE OF IT THE HORSES GO.**
+
+Read what they actually asked for. In every case the rail is **scenery**:
+
+| clip | how the rail was described |
+|---|---|
+| country-course-wide-sweep | *"…white running rail running away across the frame"* |
+| roomy-circuit-long-straight | *"…white running rail alongside and open empty turf beyond it"* |
+| tough-track-uphill-finish | *"…white running rail along one side"* |
+| coming-from-well-back | *"…white running rail curving away on the inside"* |
+| inside-barriers-turn-for-home | *"…the leaders tight against a … white running rail"* |
+
+Every one of those places the rail **in the frame**. Not one states the **RELATIONSHIP**
+between the field and the rail — that it is a BOUNDARY, that the runners are all on the
+same side of it, and that what lies beyond it is empty turf. So the model drew the rail
+it was asked for and filled both sides with the horses it was also asked for.
+**It did what it was told; it was told the wrong thing** — §1's sentence, exactly.
+
+**This is the same shape as §4:** hats were named, *the range* was not. Here the rail was
+named, *the side* was not. **A model completes what you describe and improvises the rest,
+so the thing that must be true has to be the thing you say.**
+
+⚠️ **THE POSITIVE HALF IS THE HALF THAT WORKS: "open green turf infield beyond it."**
+*"No horses on the far side"* is worth keeping as belt-and-braces, but a negation cannot
+be drawn — the model has to render *something* beyond the rail, and if you do not say
+what, it will reach for the subject you have spent the rest of the sentence describing.
+**Give the far side a job (empty infield) and there is no room left for a horse.**
+
+📌 **AND STOP SENDING "DEAD STRAIGHT AND PERFECTLY LEVEL" INTO A BEND.** EP23 asked for
+*"a dead straight and perfectly level white running rail"* in `coming-from-well-back`
+(*"curving away on the inside"*) and in `inside-barriers-turn-for-home` (*"sweeps around
+a bend"*) — **a standing line pasted in unconditionally, contradicting the shot around
+it.** Asking a model for a straight rail on a bend is asking for incoherent geometry, and
+incoherent geometry is the soil the both-sides fault grows in. On a bend the line is
+*"the rail curves with the track and the field stays outside it"*; keep *"dead straight
+and perfectly level"* for the straights, where it is true.
+
+---
+
+## 🇦🇺 THE FULL AUSTRALIAN RACING SPEC — every racing shot, stated POSITIVELY
+**(Consolidated 14 Aug 2026 with §5, so one block carries all of it. The sections above
+are the REASONING and the evidence; this is the checklist.)**
+
+> *Lush green Australian turf. A single white running rail as the inside boundary of the
+> track, open green turf infield beyond it — the whole field on ONE side of it, no horses
+> on the far side; on a bend the rail curves with the track and the field stays outside
+> it. Thoroughbreds galloping, each horse at a different point of its stride, staggered
+> strides, hooves landing at different moments, legs out of phase across the field.
+> Anatomically correct horses — four legs, one head, no fused or extra limbs. Jockeys up
+> and crouched in the irons, actively riding, in bright and VARIED Australian racing
+> silks and matching caps, white or cream breeches, black riding boots, safety helmets
+> with the silk cover on. Crowd in present-day Australian dress, Akubra-style hats in a
+> VARIETY of natural colours — fawn, sand, tan, brown, grey, black, olive — worn at
+> different angles, no two neighbours alike; the Australian ethnic mix and a wide range
+> of ages. Photoreal, cinematic, natural daylight.*
+
+**Every clause is there because something went wrong without it** — the rail side (EP23),
+the strides (EP16 1:25), the silks (EP16 8:11), the hat range (EP18), the turf (US dirt
+is the model's default). **Nothing here is decoration and nothing here is a negation**,
+which is the rule the whole file is built on: *describe the thing you want to SEE.*
+
 ---
 
 ## 📋 STILL UNSPECIFIED — found by auditing all seven EP16 prompts, not yet gone wrong

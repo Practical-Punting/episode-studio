@@ -510,6 +510,19 @@ point to the source sentence, it does not ship"* finally became something a mach
   hats incl. Akubra/fedora; the Australian ethnic mix ≈ 75% white / 9% Asian / 9% Middle-Eastern /
   5% Black; wide ages) → mood (photoreal, cinematic, natural light) → negatives (no dirt, no US
   signage, no repeated framing).
+- 🐎 **THE FIELD RUNS ON ONE SIDE OF THE RAIL — SAY WHICH SIDE (ruling A21, Hugh, 14 Aug 2026;
+  EP24 onward).** EP23 shipped with horses on **both sides** of the running rail. Five of its six
+  racing prompts NAMED the rail and not one said which side the horses go, so the model drew the
+  rail as scenery and filled both sides. **Every galloping / field / raceday shot states:**
+  > *"The whole field runs on ONE side of a single white running rail — the rail is the inside
+  > boundary of the track, open green turf infield beyond it, no horses on the far side; on a bend
+  > the rail curves with the track and the field stays outside it."*
+  ⚠️ *"Open green turf infield beyond it"* is the clause doing the work — a negation cannot be
+  drawn, so give the far side a job or the model fills it with the subject.
+  ⚠️ **Never send *"dead straight and perfectly level"* into a bend shot** — EP23 did it twice.
+  🔒 **The engine checks this before spending a credit** (`engine/broll_prompt_rules.py`), so a
+  prompt missing these lines halts rather than generating. Full wording and reasoning:
+  `docs/broll-registry.md` §5 and the Australian racing spec block under it.
 - **Horses must be MOUNTED** — riders up, jockeys in silks, saddles and bridles clearly visible.
 - **Everyone fully and appropriately dressed; no AI anatomy/artifact weirdness** (no rider-detached
   horses, no object-through-body, no extra/missing/fused limbs). "Invisible at speed" is **not** the
