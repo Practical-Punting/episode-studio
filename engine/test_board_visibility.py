@@ -59,5 +59,20 @@ print("\nthe guards it must not replace")
 check("the 30-second safety net is still there", "}, 30000);" in SRC)
 check("realtime is still subscribed normally", "subscribeRealtime()" in SRC)
 
+# 🔴 D1 LANDS ON A BOARD SHE MAY BE TYPING ON, AND IT LANDS THE INSTANT SHE LOOKS BACK.
+# The refetch must go through the SAME door as the 30-second poll — loadAll(), which
+# calls renderBoard() UNFORCED, which bails while any field is dirty (the C1 pause).
+# The tempting fix for a stale tab is to force the render, and that is the one thing
+# that must never happen here: it would rebuild the box she is mid-sentence in, every
+# single time she alt-tabs back. Behaviour proved in a browser by
+# test_board_editor_browser's D1 case; this is the cheap guard against it being undone.
+print("\nand it must not barge through the pause that protects her typing")
+check("it refetches through loadAll(), the guarded door",
+      "loadAll()" in body and "renderBoard(true)" not in body,
+      "a forced render here rebuilds the field she is typing in on every tab return")
+check("it does not clear the dirty marks to get its way",
+      "UI.dirty" not in body,
+      "dropping the pause on return is the same wipe by another name")
+
 print("\n" + ("ALL PASS" if not FAILED else f"{len(FAILED)} FAILED: {FAILED}"))
 sys.exit(1 if FAILED else 0)

@@ -988,11 +988,48 @@ let LAST_SCRIPTED = new Map();
  * construction — it asks each card whether it contains a dirty field.
  * Reproduced and proved in headless Chromium; the clean idle case always worked, which
  * is why this hid. */
+/* The word a box is ASKING FOR, given the episode it sits on: `pe-hook-ep-19` on
+ * episode `ep-19` is asking for the hook, and so is `w-hook-ep-19`. Derived from the
+ * id rather than kept in a map of gate prefixes — a map would be a list somebody
+ * maintains, and a third gate that asks for the hook would silently not be covered.
+ * The episode id is passed in because it contains dashes itself (`ep-19`), so the id
+ * cannot be split on "-" without knowing where the tail starts. */
+function wordAsked(inputId, epId) {
+  const tail = "-" + epId;
+  if (!inputId || !inputId.endsWith(tail)) return "";
+  const head = inputId.slice(0, -tail.length);        // "pe-hook"
+  const cut = head.indexOf("-");
+  return cut < 0 ? "" : head.slice(cut + 1);          // "hook"
+}
+
 function refreshSeatedCards() {
   EPISODES.forEach((ep) => {
     if (!ep.script_snapshot || LAST_SCRIPTED.get(ep.id)) return;
     const node = document.querySelector('[data-card="' + CSS.escape(ep.id) + '"]');
     if (!node) return;
+    /* 🔴 THE REBUILT CARD ASKS FOR THE SAME WORD IN A DIFFERENT BOX — AND THE FIRST
+     * VERSION OF THIS DROPPED WHAT SHE HAD TYPED ON THE FLOOR.
+     * A script arriving is exactly what makes packagingEntryPending() go false
+     * (hasWordsToRead() becomes true), so the card flips from the entry step to the
+     * words gate IN THE SAME REBUILD that seats the script. `pe-hook-ep-19` ceases to
+     * exist and `w-hook-ep-19` takes its place, empty — because the hook was never
+     * saved, which is the whole reason she was typing it. restoreDrafts() then looked
+     * for a box that was gone and put the value nowhere.
+     *     SO THE HALF-TYPED HOOK VANISHED AT THE MOMENT THE SCRIPT ARRIVED, and the
+     * pause that exists to protect her typing was still on while it happened.
+     * Caught by test_board_editor_browser in a real browser ("was 'x', now None");
+     * the value loss is invisible to any check that only asks "did the script show".
+     * ⚠️ AND D1 IS WHAT MAKES IT BITE. The tab-return refetch calls this the instant
+     * she comes back, so the losing case is the ordinary one: type a hook, alt-tab
+     * away to fetch something, the script seats while you are gone, come back.
+     * Carried ONLY into an empty box: a box the server has since filled holds the
+     * saved truth, and this must not overwrite it. */
+    const carry = new Map();
+    node.querySelectorAll("input[id], textarea[id]").forEach((i) => {
+      if (i.type === "checkbox" || i.type === "radio" || i.type === "file") return;
+      const word = wordAsked(i.id, ep.id);
+      if (word && i.value && UI.dirty.has(i.id)) carry.set(word, { from: i.id, value: i.value });
+    });
     /* ⚠️ THE CARD SHE IS TYPING IN IS USUALLY THE VERY ONE. The words gate puts the
      * hook, byline and title boxes on the SAME card as the script, so "refresh every
      * card except hers" — the first version of this — skipped exactly the case that
@@ -1007,12 +1044,38 @@ function refreshSeatedCards() {
       ? [act.selectionStart, act.selectionEnd] : null;
     node.outerHTML = cardFor(ep);
     restoreDrafts();
-    if (focusId) {
-      const back = $(focusId);
+    /* Put each carried word into whichever box now asks for it. The box she was IN
+     * becomes the box she is in, so `focusId` is re-pointed too — otherwise the caret
+     * would be restored into an element that no longer exists and focus would fall
+     * back to <body> mid-sentence. */
+    let landedFocus = focusId;
+    if (carry.size) {
+      const fresh = document.querySelector('[data-card="' + CSS.escape(ep.id) + '"]');
+      fresh && fresh.querySelectorAll("input[id], textarea[id]").forEach((i) => {
+        if (i.type === "checkbox" || i.type === "radio" || i.type === "file") return;
+        const got = carry.get(wordAsked(i.id, ep.id));
+        if (!got || got.from === i.id || i.value) return;   // never overwrite a filled box
+        i.value = got.value;
+        // It is still unsaved, so it must still pause the board — under its NEW id.
+        // editingNow() drops ids whose element is gone, so leaving the old mark behind
+        // would quietly end the pause on work that is still unsaved.
+        UI.dirty.delete(got.from);
+        UI.words.delete(got.from);
+        UI.dirty.add(i.id);
+        UI.words.set(i.id, got.value);
+        if (landedFocus === got.from) landedFocus = i.id;
+      });
+    }
+    if (landedFocus) {
+      const back = $(landedFocus);
       if (back) {
         back.focus();
-        if (at && back.setSelectionRange) {
-          try { back.setSelectionRange(at[0], at[1]); } catch (e) { /* not a text box */ }
+        // The caret goes back where it was, or to the END of a value that has just
+        // moved house — she was typing that word and can carry on typing it.
+        const pos = landedFocus === focusId && at
+          ? at : [back.value.length, back.value.length];
+        if (back.setSelectionRange) {
+          try { back.setSelectionRange(pos[0], pos[1]); } catch (e) { /* not a text box */ }
         }
       }
     }
