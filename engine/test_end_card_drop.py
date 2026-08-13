@@ -95,7 +95,9 @@ check("EP22 and EP23 were 3 luma apart and got opposite verdicts under the old r
 # ── 6. AGAINST THE REAL FILM, when it is there (never a skip in silence) ───────
 print("\nagainst the real film")
 
-final = pathlib.Path(r"G:\My Drive\PP Videos\PP-EP23\output\PP-EP23-FINAL.mp4")
+import ep_paths as _ep          # stage-8 renames the folder AND restems the file
+_d = _ep.episode_dir(23)
+final = _d / "output" / f"{_d.name}-FINAL.mp4"
 if not final.is_file():
     print(f"  SKIP  {final.name} not on this machine — the rule is proved above")
 else:

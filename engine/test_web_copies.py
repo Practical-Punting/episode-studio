@@ -63,7 +63,14 @@ def stage(n: int, dst: Path) -> Path:
     ep = dst / src.name
     (ep / "output").mkdir(parents=True)
     (ep / "ebook").mkdir(parents=True)
-    slug = src.name.split("-")[0] + "-" + src.name.split("-")[1]
+    # THE STAGE-8 RENAME RESTEMS THE FILES, NOT ONLY THE FOLDER:
+    # PP-EP20/output/PP-EP20-thumbnail.png became
+    # PP-EP20-Bill-Benter-Professional-Gambler/output/
+    #   PP-EP20-Bill-Benter-Professional-Gambler-thumbnail.png.
+    # Rebuilding "PP-EP20" from the first two segments looked for a file that
+    # stopped existing the day EP20 published, and the test then reported the
+    # artefacts as "not built yet" — a stale path wearing a missing-input message.
+    slug = src.name
     pairs = [(src / "output" / f"{slug}-thumbnail.png",
               ep / "output" / f"{slug}-thumbnail.png"),
              (src / "ebook/cover.png", ep / "ebook/cover.png")]
@@ -97,7 +104,7 @@ def main():
         print("-- it ADDS exactly two files --")
         added = sorted(set(after) - set(before))
         removed = sorted(set(before) - set(after))
-        slug = ep.name.split("-")[0] + "-" + ep.name.split("-")[1]
+        slug = ep.name          # restemmed by stage-8; see stage()
         want = sorted([f"output\\{slug}-thumbnail-lowres.jpg".replace("\\", os.sep),
                        f"output\\{slug}-cover-lowres.jpg".replace("\\", os.sep)])
         check("exactly two files appear", len(added) == 2, f"{added}")

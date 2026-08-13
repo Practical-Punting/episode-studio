@@ -151,7 +151,11 @@ def _every_suite_that_needs_one_has_it():
             continue
         if "PP Videos" not in src or not re.search(r"PP-EP", src):
             continue
-        assert "def episode_dir(" in src, \
+        # IMPORTING THE SHARED RESOLVER SATISFIES THIS, and is BETTER than a local copy.
+        # Demanding `def episode_dir(` in every suite mandates duplicating the one
+        # rule this lint exists to protect -- the one-value-in-two-places fault that
+        # card_hold.py's header describes. ep_paths.py holds it once.
+        assert ("def episode_dir(" in src or "import ep_paths" in src), \
             f"{p.name} reaches into a PP Videos EPISODE FOLDER but has no " \
             "episode_dir() resolver"
 
