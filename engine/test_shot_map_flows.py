@@ -75,7 +75,7 @@ def derive(d, *args):
 
 def ep22_copy(tmp, mutate=None):
     """A working copy of EP22 with its REAL SRT and shot map, optionally rewound."""
-    src = PP / "PP-EP22"
+    src = _ep.episode_dir(22, PP)
     d = Path(tmp)
     (d / "docs").mkdir(parents=True, exist_ok=True)
     (d / "renders").mkdir(parents=True, exist_ok=True)
@@ -89,7 +89,8 @@ def ep22_copy(tmp, mutate=None):
     return d
 
 
-HAVE_EP22 = (PP / "PP-EP22/renders/aligned.srt").is_file()
+import ep_paths as _ep                      # renamed on publish; resolve by NUMBER
+HAVE_EP22 = _ep.have(22, "renders", "aligned.srt", pp=PP)
 
 # ══════════════════════════════════════════════════════════════════════════════
 print("=" * 78)

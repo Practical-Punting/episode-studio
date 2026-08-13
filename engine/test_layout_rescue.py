@@ -33,7 +33,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 SCRIPTS = REPO / ".claude/skills/pp-episode-production/scripts"
 PP = Path(r"G:\My Drive\PP Videos")
-SRC = PP / "PP-EP23"
+import ep_paths as _ep                      # renamed on publish; resolve by NUMBER
+SRC = _ep.episode_dir(23, PP)
 
 for _s in (sys.stdout, sys.stderr):
     try:
