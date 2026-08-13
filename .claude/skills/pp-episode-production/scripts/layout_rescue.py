@@ -161,6 +161,31 @@ def rescue(ep_dir: pathlib.Path, apply: bool) -> int:
         if keep:
             swapped.append((page, cid, was, other))
 
+    # 🔴 A SWAP TO panel-push CHANGES WHERE GORDON HAS TO BE, so re-derive framing NOW.
+    # This is the C21 fault with the hand taken out of it: on 12 Aug the swap was made by
+    # hand, framing was never re-derived, and beat 32 halted the shot map the next day.
+    # Automating the swap without this would reproduce that halt on EVERY rescue, for
+    # ever — the tool would be manufacturing the fault it exists to prevent.
+    #
+    # Only the card's OWN beat is settled here; the beats a card SPILLS into need the
+    # aligned SRT and are derive_card_timings' half at shot_map. See framing.py.
+    if apply and swapped:
+        try:
+            import framing as _fr
+            epj_now = json.loads(epj_path.read_text(encoding="utf-8"))
+            changed = _fr.resync_own_beats(epj_now)
+            if changed:
+                _fr.stamp_framing_note(epj_now, changed)
+                epj_path.write_text(json.dumps(epj_now, indent=2, ensure_ascii=False) + "\n",
+                                    encoding="utf-8")
+                for n, was_f, cids in changed:
+                    print(f"  FRAMING   beat {n} {was_f or 'unset'} -> WIDE "
+                          f"(now carries the on-screen card {', '.join(str(c) for c in cids)})")
+        except Exception as e:                                     # noqa: BLE001
+            # Never lose a good rescue over the follow-up; shot_map re-derives anyway.
+            print(f"  FRAMING   not re-derived here ({type(e).__name__}: {e}) — "
+                  f"the shot map will still apply it")
+
     for page, cid, was, other in swapped:
         print(f"  {'SWAPPED' if apply else 'WOULD SWAP'}  {cid} ({page})")
         print(f"      {was} -> {other}: fits at FULL SIZE, zero shrink steps, "

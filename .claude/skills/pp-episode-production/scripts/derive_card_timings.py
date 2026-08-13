@@ -48,6 +48,7 @@ render. It can still be run by hand for a report; --write is what the engine use
 """
 import json, re, sys, pathlib
 import card_hold as ch
+import framing as _framing
 
 ENTRY_DELAY = 3.0          # PP-STANDARDS: card entry = spoken cue + 3.0s
 MIDROLL_MIN_FULL = 6.0     # >=6s of FULL visibility (fades on top)
@@ -180,6 +181,10 @@ def main():
     #     Only the CONFIRMED branch is ever auto-applied — where slack >= need. The
     # other branch says "a decision rather than an adjustment" and still halts.
     broll_fixes: dict[str, float] = {}
+    # A3 — the same argument, for the other halt that was never a decision. See the
+    # SHOT PLAN block: WIDE is the only lawful answer and the beats are already known.
+    apply_wide = "--apply-wide" in sys.argv
+    wide_fixes: dict[int, list] = {}
 
     epj_path = d / "docs/episode.json"
     # PREFER FORCED ALIGNMENT. renders/generated.srt is CONSTRUCTED from
@@ -297,7 +302,18 @@ def main():
     last_end = max(s["end"] for s in shots)
     ec_beat = int(build.get("endcard_beat", 24))
     title_win = (float(build.get("title_head", 0.0)), round(first_speech, 2))
-    end_win = (round(beat_start.get(ec_beat, last_end) - float(build.get("endcard_lead", 1.5)), 2),
+    # 🔴 PLUS endcard_lead, NOT MINUS — THE ASSEMBLER IS THE SOURCE OF TRUTH HERE.
+    # assemble_episode.py:139 builds the film with `bs(endcard_beat) + endcard_lead`, and
+    # qc_episode.py checks it at the same place. This tool subtracted it, so it believed
+    # the end card arrived 3.0s (2 x lead) EARLIER than it does — and invented overlaps
+    # against a card that was never there yet.
+    #
+    # ⚠️ IT FABRICATED A HALT AND MOVED A CARD. EP23's "CARD-CARD overlap C23/END: 1.51s"
+    # was pure arithmetic: C23 ran to 804.55 and the end card lands at 806.04. Its real
+    # window was 9.49s against a 9.0s minimum — IT FITTED WHERE IT WAS. The tool even
+    # printed the contradiction beside itself, "it already fits", and nobody read the two
+    # lines together. EP22's C18/C19 halt is the same shape and wants re-checking.
+    end_win = (round(beat_start.get(ec_beat, last_end) + float(build.get("endcard_lead", 1.5)), 2),
                round(last_end - float(build.get("warranty_tail", 6.7))
                      - float(build.get("warranty_lead", 0.3)), 2))
     warr_win = (round(last_end - float(build.get("warranty_tail", 6.7)), 2), round(last_end, 2))
@@ -305,7 +321,8 @@ def main():
     print(f"  TITLE     {title_win[0]:8.2f} -> {title_win[1]:8.2f}   "
           f"(silent head; measured hold {title_win[1]-title_win[0]:.2f}s "
           f"vs holds.TITLE {holds.get('TITLE')})")
-    print(f"  END       {end_win[0]:8.2f} -> {end_win[1]:8.2f}   (beat {ec_beat} - endcard_lead)")
+    print(f"  END       {end_win[0]:8.2f} -> {end_win[1]:8.2f}   (beat {ec_beat} "
+          f"+ endcard_lead, as assemble_episode builds it)")
     print(f"  WARRANTY  {warr_win[0]:8.2f} -> {warr_win[1]:8.2f}   (last {build.get('warranty_tail')}s)")
     if abs((title_win[1] - title_win[0]) - float(holds.get("TITLE", 0))) > 0.75:
         notes.append(f"holds.TITLE is {holds.get('TITLE')}s but the real silent head is "
@@ -490,15 +507,41 @@ def main():
         hold = round(w[1] - w[0], 2)
         need = round(ENTRY_DELAY + hold, 2)
         length = round(be - bs, 2)
-        if need > length:
+        # 🔴 "IMPOSSIBLE" IS A CLAIM ABOUT THE SMALLEST THE CARD MAY LAWFULLY BE,
+        # not about the hold it happens to carry. Judged on the current hold, this
+        # said EP22's C19 "DOES NOT FIT AT ANY CUE POSITION" on the very line where
+        # which_gives_way said "it already fits — needs 9.0s and has 9.43s", because
+        # one used the authored 10.0s and the other the 9.0s floor for 3 items. Two
+        # true numbers, one flat contradiction, printed together.
+        min_hold = round(ch.min_hold_for(c, build), 2)
+        min_need = round(ENTRY_DELAY + min_hold, 2)
+        if min_need > length:
             return (f" — beat {n} is {length:.2f}s long and this card needs "
-                    f"{need:.2f}s ({ENTRY_DELAY:.1f}s before it enters, then "
-                    f"{hold:.2f}s on screen), so IT DOES NOT FIT AT ANY CUE "
-                    f"POSITION. That is a card that is too big for its beat, not "
-                    f"a cue placed badly.")
+                    f"{min_need:.2f}s even at its FLOOR ({ENTRY_DELAY:.1f}s before it "
+                    f"enters, then {min_hold:.2f}s on screen — the least it may "
+                    f"lawfully be held), so IT DOES NOT FIT AT ANY CUE POSITION. That "
+                    f"is a card that is too big for its beat, not a cue placed badly.")
+        if need > length:
+            return (f" — beat {n} is {length:.2f}s and the card needs {need:.2f}s as "
+                    f"held ({hold:.2f}s), which does not fit — but it DOES fit at its "
+                    f"floor of {min_hold:.2f}s ({min_need:.2f}s total). Bring the hold "
+                    f"down to at most {round(length - ENTRY_DELAY, 2):.2f}s, or move it.")
         latest = round(bs + (length - need), 2)
         return (f" — beat {n} is {length:.2f}s and the card needs {need:.2f}s, so "
                 f"the latest cue that still fits starts at {latest:.2f}s.")
+
+    def _fits_its_window(first, second):
+        """Does `first` fit the room `second` leaves it, at its lawful floor?
+
+        The window runs to the second card's entry, which is cue-fixed. If the floor
+        fits inside it, the overlap is a hold to bring down — not a card that is too
+        big for anything, and the beat arithmetic has nothing useful to add.
+        """
+        a, b_ = windows.get(first), windows.get(second)
+        card = next((c for c in epj.get("cards", []) if c.get("id") == first), None)
+        if not a or not b_ or card is None:
+            return False
+        return round(b_[0] - a[0], 2) >= round(ch.min_hold_for(card, build), 2)
 
     def which_gives_way(first, second):
         """WHICH of an overlapping pair has to change, and by how much.
@@ -531,8 +574,23 @@ def main():
             pairs += 1
             ov = overlaps(cards_only[ids[i]], cards_only[ids[j]])
             if ov > 0.01:
+                # 🔴 why_card_beat DESCRIBES THE CARD THAT GIVES WAY — ids[i], NOT ids[j].
+                # It was called on ids[j] and printed that card's beat and dwell as
+                # "this card", directly after naming ids[i] as the one at fault. EP23's
+                # C23 read "needs 19.80s" when it needed 9.0s; EP22's C19 read "18.26s".
+                # Both numbers were the END CARD'S dwell, and both led a brief. It is the
+                # same misattribution which_gives_way was written to end — that fix was
+                # added ALONGSIDE this line instead of replacing it, so the wrong numbers
+                # kept their place at the FRONT of the message, where they are read first.
+                # ⚠️ AND ONLY WHEN THE BEAT IS ACTUALLY THE PROBLEM. A card's window may
+                # lawfully run past its own beat — most of EP23's do — so "it does not
+                # fit its beat" is noise whenever the WINDOW accommodates it, and worse
+                # than noise when it reads as impossibility beside "it already fits".
+                # EP22's C19 printed exactly that pair. If the card fits the room the
+                # next card leaves it, this is a hold to trim, not a beat to argue with.
                 problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
-                                + why_card_beat(ids[j])
+                                + ("" if _fits_its_window(ids[i], ids[j])
+                                   else why_card_beat(ids[i]))
                                 + which_gives_way(ids[i], ids[j]))
     print(f"  card-card       : {pairs} pairs checked")
     if "MIDROLL" in windows:
@@ -572,9 +630,22 @@ def main():
         flag = "OK" if not bad else "NOT WIDE"
         print(f"  {cid:6} {s:8.2f} -> {e:8.2f}  spans beats {spanned}  {flag}")
         if bad:
-            problems.append(f"SHOT PLAN {cid}: on-screen card is up while beats {bad} are "
-                            f"MCU. Set them WIDE, or the card lands over Gordon's face "
-                            f"(the EP11 failure).")
+            # 🔴 THIS IS NOT A DECISION, AND IT HALTED TWO OF EP23'S FOUR (Jodie, 13 Aug).
+            # WIDE is the ONLY lawful answer — the rule has no second option — and the
+            # offending beats are already computed, on the line above. It then stopped the
+            # build so somebody could retype MCU as WIDE. Same argument as --apply-broll.
+            #
+            # ⚠️ AND WIDENING A BEAT CANNOT LOSE A FACT. That is what makes it safe to
+            # apply where a card that is too big for its window is not: nothing is
+            # shortened, nothing is dropped, no wording moves. The card-size halt stays
+            # a halt precisely because it would have to give something up.
+            if apply_wide:
+                for n in bad:
+                    wide_fixes.setdefault(n, []).append(cid)
+            else:
+                problems.append(f"SHOT PLAN {cid}: on-screen card is up while beats {bad} "
+                                f"are MCU. Set them WIDE, or the card lands over Gordon's "
+                                f"face (the EP11 failure).")
 
     # ---- report ------------------------------------------------------------
     print("\n" + "=" * 74)
@@ -592,23 +663,51 @@ def main():
   change she should agree to rather than discover.""")
     for n in notes:
         print(f"NOTE    {n}")
-    if problems:
+    if problems or wide_fixes:
+        # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The b-roll delay is computed
+        # from a ROUNDED overlap, so one pass can leave a hundredth of a second still
+        # touching — EP21 needed two rounds. Widening a beat can likewise move a card's
+        # neighbours into view. The caller loops until nothing moves, and every problem
+        # class that is a real DECISION still halts.
+        applied = []
         if apply_broll and broll_fixes:
-            # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The delay is computed
-            # from a ROUNDED overlap, so one pass can leave a hundredth of a second
-            # still touching — EP21 needed two rounds. The caller loops until the
-            # numbers stop moving, and every other problem class still halts.
             offs_out = build.setdefault("broll_offsets", {})
             for t, v in sorted(broll_fixes.items()):
                 was = offs_out.get(t)
                 offs_out[t] = v
                 print(f"   applied build.broll_offsets[{t!r}] = {v}"
                       + (f"  (was {was})" if was is not None else "  (was unset)"))
+            applied.append(f"{len(broll_fixes)} b-roll offset(s)")
+        if apply_wide and wide_fixes:
+            # `bt`, not `b` — a bare `b` is this codebase's alias for the BUILD dict, and
+            # test_preflight_build_written greps for `b[...] =` to prove every key the
+            # build writes is declared exempt. A beat loop named `b` reads to that guard
+            # as a build write and blunts it. The name is load-bearing.
+            by_n = {bt["n"]: bt for bt in epj["beats"]}
+            for n, cids in sorted(wide_fixes.items()):
+                bt = by_n.get(n)
+                if bt is None:                   # a beat the shot map has, the json does not
+                    problems.append(f"SHOT PLAN: beat {n} needs WIDE but is not in "
+                                    f"episode.json's beats[] — cannot apply.")
+                    continue
+                was = bt.get("framing")
+                bt["framing"] = "WIDE"
+                print(f"   applied beats[{n}].framing = WIDE  (was {was}) "
+                      f"— for {', '.join(cids)}")
+            applied.append(f"{len(wide_fixes)} beat framing(s)")
+            # A4 — the authored note is now overtaken by what we just wrote. Say so in
+            # the file, or the next reader trusts prose that describes a layout mix the
+            # episode no longer has (EP23's still claimed "EIGHTEEN WIDE OF FORTY-ONE").
+            if _framing.stamp_framing_note(
+                    epj, [(n, None, cids) for n, cids in sorted(wide_fixes.items())]):
+                print("   stamped _framing_note as re-derived")
+        if applied:
             epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
                                 encoding="utf-8")
-            print(f"\nAPPLIED {len(broll_fixes)} b-roll offset(s) the tool had already "
-                  f"worked out — re-deriving.\n")
+            print(f"\nAPPLIED {' and '.join(applied)} the tool had already worked out "
+                  f"— re-deriving.\n")
             return "RETRY"
+    if problems:
         print(f"\n{len(problems)} PROBLEM(S) — NOTHING WRITTEN:")
         for p in problems:
             print(f"  !! {p}")
@@ -636,12 +735,12 @@ def main():
 
 
 if __name__ == "__main__":
-    # --apply-broll makes main() return "RETRY" once it has written the offsets it
-    # already knew. Bounded, because a loop that cannot converge must stop and say so
-    # rather than write the same number for ever.
+    # --apply-broll and --apply-wide make main() return "RETRY" once they have written
+    # what they already knew. Bounded, because a loop that cannot converge must stop and
+    # say so rather than write the same value for ever.
     for _round in range(1, 6):
         if main() != "RETRY":
             break
     else:
-        sys.exit("b-roll offsets did not settle after 5 rounds — stopping rather than "
-                 "writing the same numbers again. This one needs a look.")
+        sys.exit("the mechanical fixes did not settle after 5 rounds — stopping rather "
+                 "than writing the same values again. This one needs a look.")

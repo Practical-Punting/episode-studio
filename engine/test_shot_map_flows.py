@@ -165,8 +165,26 @@ else:
               "C18 IS THE ONE THAT GIVES WAY" in out, out[-500:])
         check("  with its real window, not the other card's beat",
               "it has 8.90s and needs 9.0s at 3 item(s)" in out, out[-500:])
-        check("  and C19 is called impossible rather than 'too big'",
-              "NOTHING FITS THIS WINDOW" in out, out[-500:])
+        # 🔴 CHANGED 13 AUG 2026 — THE OLD ASSERTION WAS PINNING A BUG IN PLACE.
+        # It demanded "NOTHING FITS THIS WINDOW" for C19. That verdict came from the end
+        # card being placed at `beat - endcard_lead`, 3.0s early, so C19 was measured
+        # against room that had not run out yet. With the end card where
+        # assemble_episode actually builds it, C19 has 9.43s and needs 9.0s:
+        #
+        #     C19 IS THE ONE THAT GIVES WAY (its window runs to END's entry):
+        #     it already fits — needs 9.0s and has 9.43s
+        #
+        # EP22's C19 was a PHANTOM too, the same shape as EP23's C23. The 0.57s overlap
+        # is real, but it is a HOLD to bring down — 10.0s authored against 9.43s
+        # available, floor 9.0s — not a card that fits nowhere. Keeping the old wording
+        # would re-pin the 3.0s error, which is how it survived two episodes unnoticed.
+        c19_msg = out.split("C19/END")[-1][:600]
+        check("  and C19 is NOT called impossible — it fits, at its floor",
+              "NOTHING FITS THIS WINDOW" not in c19_msg, c19_msg)
+        check("  C19's overlap is reported as a hold that fits, with the numbers",
+              "it already fits" in c19_msg and "9.43s" in c19_msg, c19_msg)
+        check("  and no 'does not fit' sits beside 'already fits'",
+              "IT DOES NOT FIT AT ANY CUE POSITION" not in c19_msg, c19_msg)
 
     # ---- and the shipped fix passes -------------------------------------------
     with tempfile.TemporaryDirectory() as t:
