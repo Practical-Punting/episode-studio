@@ -20,6 +20,54 @@ as they were written; check them against git before acting on one.*
 
 # 🆕 LOGGED 14 AUG 2026 — found on EP24
 
+## 🟠 A CARD'S CUE IS A QUOTE FROM THE SPOKEN TRACK — AND SPOKEN NUMBERS ARE WORDS
+
+**EP24 C19. Editing a card AFTER the render orphaned its cue from the SRT, and the shot
+map halted with one decision to make.**
+
+⚠️ **THE CAUSE IS NARROWER THAN IT LOOKS, AND THE NARROW VERSION IS THE USEFUL ONE.**
+The first reading was *"the card was tightened, so its cue phrase changed and no longer
+matches what Gordon said"*. Half right, and the half that is wrong changes the rule.
+
+When C19 was split, its new cue was written as
+**`sprint races favour runners drawn 7 and inside`** — taken from the ARTICLE, via the
+card's own `trace` entry, which reads *"Sprint races favour runners drawn 7 and inside."*
+The aligned SRT says:
+
+> **`Sprint races favour runners drawn seven and inside.`**
+
+**The phrase was right. The `7` was the whole fault.** Gordon speaks a spoken-words
+script, so **every number is spelled out**; the article and therefore every `trace`
+sentence uses digits. **A cue copied from `trace` fails silently the moment it contains a
+figure** — and figures are exactly what these cards are about, so it will keep happening.
+
+Checked across the episode: **every other cue was in the SRT**, including the original
+cue moved to C19B. Only the newly-authored one failed, and only on the digit.
+
+**THE RULE, for the between-episode list:**
+1. **A cue is a quote from the SPOKEN TRACK, never from the article and never from
+   `trace`.** `trace` proves a FIGURE's source; the cue anchors to a SOUND. Two different
+   jobs, two different strings, and they are not interchangeable.
+2. **Numbers in a cue are spelled out**, because that is how they are said.
+3. **A card edited after the render may change its DISPLAY text freely — its CUE must
+   remain a phrase that is verbatim in `renders/aligned.srt`.** A tighten or a split must
+   never orphan a cue from the spoken words.
+
+🔒 **CANDIDATE GUARD, and it is a one-liner:** after any post-SRT card edit, assert every
+`cards[].cue` is a case-insensitive substring of the aligned SRT. It would have caught
+this before the shot map ran, and it needs no judgement — the SRT is right there.
+*(Would also have caught it at authoring time on any episode whose SRT already exists.)*
+
+📌 **AND THE SPLIT PULLED A SECOND, REAL ITEM WITH IT.** Moving C19 to beat 35 made its
+window span **beat 36, which was MCU** — a card over Gordon's face, the EP11 failure. The
+fix is mechanical (WIDE is the only lawful answer and widening cannot lose a fact) and is
+**already an open backlog item below: "CARD OVER GORDON'S FACE → SET THE BEAT WIDE" SHOULD
+AUTO-APPLY.** It halted for a human again here. **Second episode running.**
+⚠️ `_framing_note` in `docs/episode.json` was amended by hand, because it counts WIDE
+beats in prose and goes stale the moment framing is re-derived — the same trap that entry
+already warns about.
+
+
 ## 🟠 THE CARD-WRITER OVER-FILLS COUNTRY-TRACK CARDS **(EP24 C19; EP23 C21 was the same family)**
 
 **Jodie's ruling: this is for the AUTHOR to cap, before the next episode. It is a
