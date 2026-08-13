@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import os
 import shutil
@@ -1569,6 +1570,85 @@ def _acquire_lock():
     LOCK.write_text(str(os.getpid()))
 
 
+# ── B3 — THE TITLE COMES FROM THE PAGE, NOT FROM THE URL ─────────────────────
+# The board pre-fills a new ticket's title by title-casing the URL slug (app.js
+# slugToTitle). A slug is not a headline, and it is not even reliably the same WORDS:
+# EP21 and EP22 both shipped through as "Trade Secrets" because the slug said `trade`
+# where the page said `track`. Nobody mistyped anything — the URL did.
+#
+# ⚠️ THE PAGE WAS ALREADY READ. capture_article parses the <h1> and writes the headline
+# as the first line of the capture. The fault was never that the headline was unavailable;
+# it was that nothing carried it back to the rail.
+#
+# 🔒 IT REPLACES A PLACEHOLDER AND NOTHING ELSE. The new title is written ONLY when the
+# current one is character-for-character what slugToTitle would have produced from this
+# episode's own source_url — i.e. nobody has touched it — and only while the title is
+# unapproved. A title someone has edited or approved is theirs, and this must never be
+# the reason a considered title silently reverts.
+def _slug_title(url: str) -> str:
+    """Mirror of app.js slugToTitle. Kept in step deliberately: this is how we RECOGNISE
+    the board's placeholder, so if the board's rule changes this must change with it."""
+    try:
+        seg = url.split("?")[0].split("#")[0].rstrip("/").split("/")[-1] or ""
+        seg = re.sub(r"-\d{4,}$", "", seg)
+        seg = re.sub(r"\.[a-z]+$", "", seg, flags=re.I)
+        if not seg:
+            return "New episode"
+        words = [w[:1].upper() + w[1:] for w in seg.split("-") if w]
+        return " ".join(words) or "New episode"
+    except (AttributeError, IndexError, TypeError):
+        # ⚠️ NARROW ON PURPOSE. A bare `except Exception` here swallowed a NameError
+        # while this was being written (engine.py did not import `re`) and turned a
+        # broken function into a silent "New episode" that the tests then caught only
+        # because they compared the actual string. A catch wide enough to hide a typo
+        # is wide enough to hide the next one.
+        return "New episode"
+
+
+def _title_from_capture(text: str) -> str:
+    """The headline capture_article wrote as the capture's first `# ` line."""
+    for line in (text or "").splitlines():
+        if line.startswith("# "):
+            head = line[2:].strip()
+            # House form: the page SHOUTS its headline, the studio does not.
+            #
+            # ⚠️ PER WORD, NOT PER LINE. "TRACK SECRETS (Part 3)" is not a fully-shouted
+            # string — the "(Part 3)" is mixed — so a whole-line `head == head.upper()`
+            # test never fires on exactly the headlines we get. Each SHOUTED word is
+            # brought down and every already-cased word is left as the author set it,
+            # so "(Part 3)" survives untouched.
+            out = []
+            for w in head.split():
+                letters = [ch for ch in w if ch.isalpha()]
+                if len(letters) > 1 and all(ch.isupper() for ch in letters):
+                    out.append(w[:1] + w[1:].lower())
+                else:
+                    out.append(w)
+            return " ".join(out)
+    return ""
+
+
+def _retitle_from_capture(ep: dict, capture_text: str) -> None:
+    """Put the article's own headline on the rail, if the title is still the placeholder."""
+    try:
+        head = _title_from_capture(capture_text)
+        cur = (ep.get("title") or "").strip()
+        src = (ep.get("source_url") or "").strip()
+        if not head or not src or head == cur:
+            return
+        if ep.get("title_approved"):
+            return                                   # hers now, not ours
+        if cur and cur != _slug_title(src):
+            return                                   # somebody has already edited it
+        rail.set_fields(ep["id"], {"title": head})
+        ep["title"] = head
+        log(f"   title from the article's own headline: {cur!r} -> {head!r} "
+            f"(the URL slug said {cur!r})")
+    except Exception as e:                                         # noqa: BLE001
+        log(f"   could not re-title from the capture ({type(e).__name__}: {e}) — "
+            f"leaving the board's title alone")
+
+
 def _code_changed():
     """Stale-code guard: a long-lived watch engine must not keep months-old
     logic in memory. If any file it IMPORTED changed since start, exit so the
@@ -2042,6 +2122,13 @@ def _draft_watch(provider):
                     _clear_failures(provider.dir(ep), "capture")
                     log(f"drafting pass: PP-EP{int(nn):02d} — captured the article from "
                         f"its source_url -> {Path(dest).name}")
+                    # 🔴 B3 — THE TITLE COMES FROM THE PAGE, NOT FROM THE URL.
+                    # The board pre-fills the title by title-casing the URL slug, and a
+                    # slug is not the headline: EP21 and EP22 both arrived as "Trade
+                    # Secrets" because the slug said `trade`. The article was RIGHT
+                    # THERE and had already been read — capture_article parses the <h1>
+                    # — and nothing carried that back to the rail.
+                    _retitle_from_capture(ep, _txt)
                 except Exception as e:                              # noqa: BLE001
                     # THE RUN LOG FIRST, THE BOARD IF IT KEEPS FAILING. A19 says a page
                     # we cannot read is the studio's problem and Jodie should not be
