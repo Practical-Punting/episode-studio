@@ -93,6 +93,28 @@ calls = []
 _TEST_LOG = pathlib.Path(tempfile.mkdtemp(prefix="pp-sv-log-")) / "supervisor-test.log"
 sv.log_path = lambda *_a, **_k: _TEST_LOG
 
+# 🔴 AND THE SAME FAULT AGAIN, ONE LINE LOWER, IN THE ONE FILE THAT CANCELS A HUMAN'S
+# DECISION. Found 13 Aug 2026, by being bitten by it live.
+#
+# `sv.STOP_MARKER` is the REAL `engine/engine.stopped`. `arm()` writes and unlinks it and
+# the `finally:` at the bottom deletes it unconditionally — so RUNNING THE TEST SUITE
+# SILENTLY RELEASED A DELIBERATE ENGINE HOLD. Measured, from the operational log:
+#
+#     21:08:59  engine exited 1                       (stopped on purpose, for a merge)
+#     21:10:01  engine.stopped is present — NOT starting     ← the hold working
+#     ... the suite runs ...
+#     21:15:02  starting: engine.py run --watch              ← the hold, gone
+#
+# ⚠️ THIS IS THE EXACT SCENARIO `stop_engine.py` WAS BUILT TO PREVENT, and its docstring
+# names it: 8 Aug 2026, the engine stopped by hand to send EP18 back a stage, and a healer
+# that would have fought the rewind. The marker is the one thing the machine cannot infer
+# — INTENT — and a test was quietly throwing it away.
+#     A TEST MAY NOT DELETE A DECISION A HUMAN MADE. The log lesson above is the same
+# lesson: this file reaches into live operational state, so every piece of it it touches
+# has to be redirected, not just the one that has already burned somebody.
+_TEST_MARKER = pathlib.Path(tempfile.mkdtemp(prefix="pp-sv-stop-")) / "engine.stopped"
+sv.STOP_MARKER = _TEST_MARKER
+
 
 def real_ago(secs):
     """start() calls frozen_work() with no argument, so it uses the REAL clock.
