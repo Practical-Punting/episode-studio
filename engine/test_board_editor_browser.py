@@ -269,19 +269,147 @@ def run_refresh(page, port):
         # 🔴 AND IT MUST NOT COST HER THE THING THE PAUSE EXISTS TO PROTECT.
         # A fix that shows the script by throwing away her half-typed hook is a worse
         # bug than the one it replaces, and it would look identical in the check above.
+        #
+        # ⚠️ ASKED OF THE WORD, NOT OF THE BOX — corrected 13 Aug 2026, and the
+        # correction is the finding. This used to look up `typed` by id and demand that
+        # exact element still exist. IT CANNOT, AND IT SHOULD NOT: a script arriving is
+        # precisely what makes packagingEntryPending() stand down (app.js ~l.210), so
+        # the card flips from the entry step to the words gate in the same rebuild that
+        # seats the script, and `pe-hook-…` is REPLACED BY `w-hook-…` by design.
+        # The old assertion therefore demanded the gate never change, and it failed on a
+        # board that was behaving correctly — while saying nothing about the real harm.
+        # The real harm is the WORDS: she typed a hook and the hook must still be there,
+        # in whatever box now asks for a hook. That is what this asks now, and it is the
+        # stricter question — it fails both if the value is dropped AND if it is stranded
+        # in a box she can no longer see.
         kept = page.evaluate("""(a) => {
-          const el = document.getElementById(a.id);
-          if (!el) return { gone: true };
-          return { gone: false, value: el.value,
-                   focused: document.activeElement === el,
-                   caret: el.selectionStart };
-        }""", {"id": typed})
-        check("  her typing survived the refresh", not kept["gone"]
-              and kept["value"] == before_val,
-              f"was {before_val!r}, now {kept.get('value')!r}")
+          // the same derivation app.js uses: <gate>-<word>-<episode id>
+          const word = (id) => {
+            const tail = '-' + a.ep;
+            if (!id.endsWith(tail)) return '';
+            const head = id.slice(0, -tail.length), cut = head.indexOf('-');
+            return cut < 0 ? '' : head.slice(cut + 1);
+          };
+          const want = word(a.id);
+          const boxes = [...document.querySelectorAll('#lanes input[id], #lanes textarea[id]')]
+            .filter((el) => word(el.id) === want);
+          const holder = boxes.find((el) => el.value === a.value);
+          return { want, seen: boxes.map((el) => el.id + '=' + JSON.stringify(el.value)),
+                   holderId: holder ? holder.id : null,
+                   focused: !!holder && document.activeElement === holder,
+                   caret: holder ? holder.selectionStart : null };
+        }""", {"id": typed, "ep": EPISODE["id"], "value": before_val})
+        check("  her typing survived the refresh",
+              kept["holderId"] is not None,
+              f"the {kept['want'] or '?'} she typed ({before_val!r}) is in no box on the "
+              f"card — boxes asking for it: {kept['seen'] or 'none at all'}")
         check("  and the caret is still in her field",
               kept.get("focused") is True,
-              f"focus moved away (caret {kept.get('caret')})")
+              f"focus moved away from {kept.get('holderId')} (caret {kept.get('caret')})")
+
+
+def run_tab_return(page, port):
+    """D1 × HER TYPING — THE ONE THAT HAPPENS ON A LIVE BOARD EVERY WEEK.
+
+    D1 made the board refetch the moment the tab is looked at again, because a hidden
+    tab's throttled timer was letting the board show a dead-engine picture of a working
+    engine. Right — but the refetch lands on a board she may have been HALFWAY THROUGH
+    TYPING ON when she alt-tabbed away, and it lands the instant she looks back.
+
+    Her actual habit is the losing case exactly: type a hook, go and fetch something,
+    the drafting pass seats the script while you are gone, come back.
+
+    ⚠️ WHAT THIS DOES AND DOES NOT PROVE — read before trusting the green.
+    THE TAB IS NOT REALLY HIDDEN. It is a SIMULATED return: `visibilityState` is
+    overridden and the real `visibilitychange` is dispatched, so app.js's real handler
+    runs its real path (refetch, re-subscribe, re-render) against a board with unsaved
+    typing on it. That is the half that can lose her words, and it is proved here.
+
+    NOT proved: timer throttling, and a socket that dies while hidden. Those need a
+    genuinely backgrounded tab and CANNOT BE HAD HERE — measured 13 Aug 2026, so the
+    next person does not spend the hour again:
+      · bring_to_front() on a sibling tab leaves BOTH at visibilityState 'visible' —
+        in default headless, in --headless=new, AND headed. It activates the target
+        without backgrounding the other.
+      · CDP `Emulation.setPageVisibilityOverride` does not exist in this Chromium.
+      · CDP `Page.setWebLifecycleState('frozen')` is accepted and changes nothing —
+        no event fires and visibilityState stays 'visible'. A silent no-op, which is
+        the worst kind: it would have made this suite pass while testing nothing.
+    The throttling half is what D1 was BUILT from and is asserted structurally in
+    test_board_visibility.py. This case covers the interaction that suite cannot see.
+    """
+    print(f"\n{'=' * 70}\nD1 — coming back to the tab must not wipe what she was typing\n{'=' * 70}")
+    no_script = dict(EPISODE, script_snapshot=None)
+    open_board(page, port, [no_script], ready="#lanes .card, #lanes [data-ep]")
+
+    typed = page.evaluate("""() => {
+      const el = document.querySelector('#lanes input[type=text], #lanes textarea');
+      if (!el) return null;
+      el.focus(); el.value = 'Bet Less, Win M';        // mid-word, as a real one is
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.setSelectionRange(el.value.length, el.value.length);
+      return el.id;
+    }""")
+    check("she is mid-sentence in a box on the board", typed is not None,
+          "no editable field on the card — cannot reproduce her state")
+    if not typed:
+        return
+    print(f"          typed 'Bet Less, Win M' into <{typed}>")
+
+    # she alt-tabs away. The override is installed as a getter so it can be flipped
+    # back, and the event is the REAL one — the handler cannot tell the difference.
+    hidden = page.evaluate("""() => {
+      window.__vis = 'hidden';
+      Object.defineProperty(document, 'visibilityState',
+        { configurable: true, get: () => window.__vis });
+      document.dispatchEvent(new Event('visibilitychange'));
+      return document.visibilityState;
+    }""")
+    check("the board is in the hidden state (simulated — see the docstring)",
+          hidden == "hidden",
+          f"visibilityState is {hidden!r} — the rest of this proves nothing")
+
+    # the script seats while she is away, which is the whole point of D1
+    page.evaluate("(row) => { window.__rows.episodes = [row]; }", EPISODE)
+    page.wait_for_timeout(500)
+
+    page.evaluate("""() => {
+      window.__vis = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));   // she looks back
+    }""")
+    page.wait_for_timeout(2500)                  # the D1 refetch is a round trip
+    check("the board caught up on return (D1 still does its job)",
+          FIRST_LINE[:30] in page.inner_text("#lanes") or "Edit the script" in page.inner_text("#lanes"),
+          "the tab-return refetch did not land — D1 itself is broken")
+
+    kept = page.evaluate("""(a) => {
+      const word = (id) => {
+        const tail = '-' + a.ep;
+        if (!id.endsWith(tail)) return '';
+        const head = id.slice(0, -tail.length), cut = head.indexOf('-');
+        return cut < 0 ? '' : head.slice(cut + 1);
+      };
+      const want = word(a.id);
+      const boxes = [...document.querySelectorAll('#lanes input[id], #lanes textarea[id]')]
+        .filter((el) => word(el.id) === want);
+      const holder = boxes.find((el) => el.value === a.value);
+      return { want, holderId: holder ? holder.id : null,
+               seen: boxes.map((el) => el.id + '=' + JSON.stringify(el.value)),
+               focused: !!holder && document.activeElement === holder,
+               caret: holder ? holder.selectionStart : null,
+               paused: !!document.querySelector('#pausebar:not([hidden])') };
+    }""", {"id": typed, "ep": EPISODE["id"], "value": "Bet Less, Win M"})
+
+    check("HER TYPING IS STILL THERE after the tab-return refetch",
+          kept["holderId"] is not None,
+          f"the {kept['want'] or '?'} she typed is gone — boxes asking for it: "
+          f"{kept['seen'] or 'none at all'}")
+    check("  and the caret is where she left it, ready for the next letter",
+          kept.get("focused") is True and kept.get("caret") == len("Bet Less, Win M"),
+          f"focus/caret lost — in {kept.get('holderId')} at {kept.get('caret')}")
+    check("  and the board still says it is paused around her unsaved box",
+          kept["paused"] is True,
+          "the pause dropped on return, so the NEXT poll rebuilds the card under her")
 
 
 def main():
@@ -290,9 +418,15 @@ def main():
     try:
         with sync_playwright() as p:
             b = p.chromium.launch()
-            pg = b.new_page(viewport={"width": 1440, "height": 900})
+            # ONE context, so run_tab_return's second tab is a SIBLING TAB of this one.
+            # browser.new_page() makes its own context, and a page in another context is
+            # another window — bringing it to the front would not hide this one, and the
+            # D1 case would quietly test nothing.
+            ctx = b.new_context(viewport={"width": 1440, "height": 900})
+            pg = ctx.new_page()
             run(pg, port, "BUG 1 — the editor must show the WHOLE script")
             run_refresh(pg, port)
+            run_tab_return(pg, port)
             b.close()
     finally:
         httpd.shutdown()

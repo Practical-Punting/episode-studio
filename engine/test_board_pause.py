@@ -74,6 +74,25 @@ def main():
                      if not ln.strip().startswith("//") and not ln.strip().startswith("*")
                      and not ln.strip().startswith("/*"))
 
+    # 📌 THE SINGLE-CARD REFRESH IS CARVED OUT OF THE TWO CHECKS BELOW, and the carve-out
+    # is the point, so read this before widening it.
+    # Two cases here used to assert the ABSENCE of `document.activeElement` and
+    # `selectionStart` ANYWHERE in app.js. That was a fair proxy when the only rebuild
+    # was the whole board: caret code could then only mean somebody was patching over a
+    # destroyed node instead of not destroying it.
+    #     It stopped being fair when refreshSeatedCards() landed — the deliberate, narrow
+    # rebuild of ONE card, and only when a script has just arrived on it, because a
+    # paused board was hiding seated scripts (EP19). That path SHOULD carry focus and
+    # caret across: it rebuilds a node on purpose, and losing a caret is a smaller harm
+    # than a script she cannot see. The old cases failed on correct code and said
+    # nothing about the requirement.
+    # So the requirement is now asserted where it lives: the pause DECISION must not
+    # consult focus, and the WHOLE-BOARD rebuild must still be un-patched. Anything
+    # outside refreshSeatedCards() is still forbidden to touch either.
+    seat = re.search(r"function refreshSeatedCards\(\)[\s\S]*?\n\}", code)
+    seated = seat.group(0) if seat else ""
+    rest = code.replace(seated, "") if seated else code
+
     print("-- the pause is driven by DIRTY, not by focus --")
     check("there is a dirty set", "dirty: new Set()" in code)
     check("an input event marks a field dirty",
@@ -81,8 +100,20 @@ def main():
     check("it is DELEGATED, so fields that do not exist yet are covered",
           "document.addEventListener(\"input\"" in code,
           "a per-field listener would be a list somebody maintains")
+    check("the single-card refresh was found, so the carve-outs below are real",
+          bool(seated),
+          "refreshSeatedCards() is gone or renamed — the two cases after this are now "
+          "scanning the whole file and mean something different from what they say")
     check("FOCUS ALONE IS NOT THE TEST (Jodie had alt-tabbed away)",
-          "document.activeElement" not in code)
+          "document.activeElement" not in rest,
+          "the pause is deciding on focus somewhere outside the single-card refresh; "
+          "she alt-tabs away mid-edit and a blurred field is still an unsaved field")
+    edit_fn = re.search(r"function editingNow\(\)[\s\S]*?\n\}", code)
+    check("  and the pause decision itself reads the dirty set, never the focus",
+          bool(edit_fn) and "UI.dirty" in edit_fn.group(0)
+          and "activeElement" not in edit_fn.group(0),
+          "editingNow() is what renderBoard asks before it rebuilds; it must answer "
+          "from what is UNSAVED, not from what happens to be focused")
     check("renderBoard consults it before rebuilding",
           re.search(r"function renderBoard\(force\)[\s\S]{0,300}editingNow\(\)", code)
           is not None)
@@ -95,8 +126,39 @@ def main():
     check("the guard sits BEFORE the innerHTML write",
           0 < idx_guard < idx_html,
           "a rebuild after the check would destroy the node anyway")
-    check("no attempt to save/restore a caret (it cannot restore undo)",
-          "selectionStart" not in code)
+    check("no attempt to save/restore a caret around the WHOLE-BOARD rebuild "
+          "(it cannot restore undo)",
+          "selectionStart" not in rest,
+          "caret machinery outside the single-card refresh means somebody is patching "
+          "over a destroyed node instead of not destroying it — and undo cannot be "
+          "patched over at all: it dies with the element and no API exposes it")
+
+    print("\n-- the ONE deliberate rebuild carries her work across, it does not drop it --")
+    # 🔴 THE FAULT THIS CLOSED, 13 Aug 2026, found in a real browser and not in this file.
+    # A script arriving is exactly what makes packagingEntryPending() stand down, so the
+    # card flips from the entry step to the words gate IN THE SAME REBUILD that seats the
+    # script: `pe-hook-…` ceases to exist and an empty `w-hook-…` takes its place.
+    # restoreDrafts() looked for a box that was gone and put the half-typed hook nowhere.
+    # SHE LOST THE WORD AT THE MOMENT THE SCRIPT ARRIVED, while the banner still said her
+    # typing was being protected. D1 is what made it ordinary: the tab-return refetch runs
+    # this the instant she looks back, which is precisely when a script has just seated.
+    # Measured in test_board_editor_browser (old code: "boxes asking for it: w-hook=''").
+    check("a value whose box has gone is carried to the box that now asks for that word",
+          "wordAsked(" in code and "function wordAsked" in code,
+          "the rebuilt card can ask for the same word under a different id; without "
+          "this her unsaved hook is dropped on the floor")
+    check("  the word is DERIVED from the id, never a map of gate prefixes",
+          re.search(r"function wordAsked\([\s\S]*?indexOf\(\"-\"\)", code) is not None,
+          "a map is a list somebody maintains, and a third gate asking for the hook "
+          "would silently not be covered")
+    check("  and it never overwrites a box that already holds something",
+          re.search(r"got\.from === i\.id \|\| i\.value", code) is not None,
+          "a box the server has since filled holds the saved truth")
+    check("  the carried value keeps pausing the board, under its NEW id",
+          re.search(r"UI\.dirty\.delete\(got\.from\)[\s\S]{0,200}UI\.dirty\.add", code)
+          is not None,
+          "editingNow() drops ids whose element is gone, so leaving the old mark "
+          "behind ends the pause on work that is still unsaved")
 
     print("\n-- the banner is honest, specific, and OUTSIDE #lanes --")
     check("the banner is inserted as a SIBLING of #lanes",

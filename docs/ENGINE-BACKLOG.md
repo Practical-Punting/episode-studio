@@ -75,7 +75,32 @@ QC is deterministic on an unchanged film, and there is **no waive, accept or ove
 path in `qc_episode.py`** — checked. Clearing the flag loops. See the checkpoint.
 
 
-## 🔴 A REBOOT SILENTLY PASSES A HUMAN GATE **(found on EP23, 13 Aug 2026)**
+## ✅ CLOSED — A REBOOT SILENTLY PASSES A HUMAN GATE **(found on EP23, 13 Aug 2026)**
+
+**CLOSED 13 Aug 2026** — `providers.ask_once()` / `answer_pending_gates()`, proved by
+`engine/test_gate_answered.py` (20 cases). The ask and the answer are two files:
+`.asked-<stem>` written before raising, `.answered-<stem>` written only when the engine
+observes `needs_look` go false. Resume with only an ask recorded and the question is put
+again — no special case needed, because an unanswered ask simply is not an answer.
+All three gates in the class were converted (the listen gate and BOTH placement
+reviews), and the suite asserts all three use it, since a shared fix one call site opts
+out of reads as covered when it is not. Pre-C3 markers on EP01–EP23 are honoured as
+answers, so nothing published or in flight is re-halted.
+
+⚠️ **Two traps found while closing it, both worth keeping:**
+1. **"Not flagged" also describes a flag that was never raised.** The engine can die
+   between writing the ask and flagging the rail; on resume `needs_look` is false
+   because *nobody was ever asked*. Promoting on that alone rebuilds the same silent
+   pass one layer up. Promotion now requires `flag_step` in the state file — written
+   at the moment the rail is flagged — as proof the question actually reached the
+   board, and pops it afterwards so it cannot authorise a later gate's orphan ask.
+2. **Two tests asserted the bug** (`test_listen_gate`, `test_title_card`). Both called
+   the gate twice and required the second to fall through, describing that as "clearing
+   the flag". A re-run is equally a crash, a reboot or a `--watch` restart — which is
+   EP23 exactly. Neither could tell an answer from a restart, because neither could the
+   code.
+
+*Original entry, kept for the reasoning:*
 
 **Jodie's ruling: leave it until EP23 is out the door, then fix it. It is a real fix,
 not a note.**

@@ -640,3 +640,67 @@ find.** Listed, never reconstructed.
 ⚠️ **This approval covers this reorder and nothing else.** Any further re-sequencing is a fresh ruling.
 
 🔒 **Guarded:** `check_locked_order()` now asserts `render_gate` before `audit_inputs`. The absence of that eighth assertion is why the regression was invisible — all seven existing rules still held while the render slid behind the commission for two episodes.
+
+## A21 · 14 Aug 2026 — 🐎 THE FIELD RUNS ON ONE SIDE OF THE RAIL, AND THE PROMPT SAYS SO · **Hugh**
+
+**The fault, on EP23 as shipped: horses ran on BOTH SIDES of the running rail.**
+
+**EP24 onward. EP23 is published and is NOT changed.** This is a **prompt rule**, routed
+exactly where **A4** says every b-roll fault must go — into the words, never into a step.
+
+**The line, stated positively, on every galloping / field / raceday shot:**
+> *"The whole field runs on ONE side of a single white running rail — the rail is the
+> inside boundary of the track, open green turf infield beyond it, no horses on the far
+> side; on a bend the rail curves with the track and the field stays outside it."*
+
+### 🔴 THE REASON, AND IT IS NOT "NOBODY MENTIONED THE RAIL"
+
+**EP23's prompts NAMED the white running rail — five of the six racing shots did.** They
+also carried the stride line and the silks line, because whoever wrote them had read
+`broll-registry.md`. **Not one of them said WHICH SIDE OF IT THE HORSES GO.**
+
+In every case the rail was placed as **scenery** — *"running away across the frame"*,
+*"along one side"*, *"curving away on the inside"*, *"the leaders tight against a … white
+running rail"* — and never as a **BOUNDARY with a rule about it**. So the model drew the
+rail it was asked for and filled both sides with the horses it was also asked for.
+
+> ### It did what it was told. It was told the wrong thing.
+
+**That is the same shape as the hat ruling (A15) and as the two EP16 faults: a model
+completes what you describe and improvises the rest.** Hats were named, the RANGE was
+not. The rail was named, the SIDE was not. **The thing that must be true has to be the
+thing you say.**
+
+⚠️ **THE POSITIVE CLAUSE IS THE ONE THAT WORKS: *"open green turf infield beyond it."***
+*"No horses on the far side"* is kept as belt-and-braces, but **a negation cannot be
+drawn** — the model must render *something* beyond the rail, and if it is not told what,
+it reaches for the subject the rest of the prompt is about. **Give the far side a job and
+there is no room left for a horse.**
+
+📌 **AND A SECOND FAULT FOUND WHILE WRITING THIS.** EP23 sent *"a dead straight and
+perfectly level white running rail"* into **two shots that bend** — `coming-from-well-back`
+(*"curving away on the inside"*) and `inside-barriers-turn-for-home` (*"sweeps around a
+bend"*). **A standing line pasted in unconditionally, contradicting the shot around it.**
+Asking a model for a straight rail on a bend is asking for incoherent geometry, and
+incoherent geometry is the soil the both-sides fault grows in.
+
+**SUPERSEDES:** nothing. It **extends** the rail item that has been in
+`broll-registry.md` since 28 Jul 2026, which until now was a *"look at the contact
+sheet"* rule that said prompt wording *"helps"* but *"is not the control"*. The wording is
+now a standing line in its own right, and the glance is still the last line of defence.
+
+**DOES NOT COVER:** the glance itself, which stands (A4). It does not add a step, a gate,
+an approval or a sign-off, and **must not be read as licence to.**
+
+🔒 **GUARDED, because a rule that is only written down recurs.** The lines live once in
+`engine/broll_prompt_rules.py` and are checked in `providers._broll_prompt` — the function
+**every generated prompt comes through** — so a prompt that does not state them cannot be
+submitted, and it halts **before a credit is spent**, not after the clip comes back wrong.
+`engine/test_broll_rail_rule.py` (26 cases) proves it against **EP23's real prompts**: it
+catches all five racing clips on the missing rail side and both bend shots on the
+contradiction, leaves the kitchen-table clip alone, and **does not re-flag the strides,
+silks or turf EP23 already got right** — a check that complains about everything is one
+nobody reads.
+
+⚠️ **This is not a review step and the guard is not a judgement.** It reads text and names
+the missing sentence. **A4 forbids a step, not a spellcheck.**

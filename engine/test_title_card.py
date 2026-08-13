@@ -421,8 +421,21 @@ def _review_is_raised_with_the_png():
     assert "hero_focus" in msg and "title_card" in msg, \
         f"the flag does not say what to change if they are unhappy:\n{msg}"
     assert "Clear this flag" in msg, f"the flag does not say what to do if happy:\n{msg}"
-    # …and clearing it lets the build through, instead of re-raising forever.
-    providers.title_placement_review(d, png)          # must NOT raise the second time
+    # C3, 13 Aug 2026 — A RERUN IS NOT AN ANSWER, so these are now two separate facts.
+    # This line used to call the gate straight back and require it to fall through,
+    # calling that "clearing the flag". It is not: a re-run is equally what a crash, a
+    # reboot or a --watch restart produces, and on EP23 that is exactly what happened —
+    # Windows updated overnight, killed the engine between the ask and the answer, and
+    # the gate walked through on resume. The ask and the answer are two records now.
+    try:
+        providers.title_placement_review(d, png)
+        raise AssertionError("re-running the step passed the gate without anybody "
+                             "answering it — a gate a power cut can pass is not a gate")
+    except providers.EngineFlag:
+        pass
+    # …and once a human really has cleared the flag, the build goes through.
+    providers.answer_pending_gates(d)
+    providers.title_placement_review(d, png)          # must NOT raise after an answer
 
 
 case("A1: the review flag carries the PNG, and clearing it lets the build continue",
