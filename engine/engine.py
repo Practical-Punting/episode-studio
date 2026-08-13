@@ -101,7 +101,8 @@ import preflight_episode_json                  # E26 — the config pre-flight (
 import script_fidelity                         # the drafting pass's own gate
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
-                       assert_capture_for_script, find_capture, SKILL_DIR)
+                       assert_capture_for_script, find_capture, SKILL_DIR,
+                       answer_pending_gates)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -1337,6 +1338,44 @@ def run_step(ctx, name):
             time.sleep(delay)
 
 
+def _record_gate_answers(ctx) -> None:
+    """C3 — write down that the human answered, wherever we notice it.
+
+    ⚠️ TWO CALL SITES, AND THE SECOND IS THE ONE EP23 NEEDED. `flag_and_wait` only
+    observes a clear in --watch mode; without --watch the engine EXITS at the flag, and
+    on 13 Aug the process did not exit politely at all — Windows updated overnight and
+    killed it. In both of those the answer arrives while nothing is running, so it is
+    also checked when an episode is picked back up. A pending ask plus a board that is
+    no longer flagged means exactly one thing: somebody cleared it while we were gone.
+
+    🔴 AND IT PROMOTES NOTHING UNLESS THE FLAG WAS REALLY RAISED — `flag_step` is the
+    proof, written to the state file by `flag_and_wait` at the moment it flags the rail.
+    The first draft of this rebuilt the very bug it closes. A gate writes its ask and
+    THEN raises; kill the engine in that gap and the board was never flagged at all, so
+    on resume `needs_look` is false — not because anybody answered, but because nobody
+    was ever asked. "Not flagged" alone would have promoted that orphan ask to an answer
+    and walked the gate through in silence, which is EP23 exactly, rebuilt one layer up.
+        An unraised flag leaves no `flag_step`, so it cannot authorise anything.
+
+    `flag_step` is popped on the way out for the same reason: left behind, it would sit
+    in the state file as standing permission and authorise the NEXT gate's ask, killed
+    in the same gap, on a later resume.
+
+    Never raises. A gate that fails to record its answer asks again, which is the safe
+    direction; a gate that fails LOUDLY would strand the episode over bookkeeping.
+    """
+    if not ctx.state.get("flag_step"):
+        return                      # no flag was ever raised — nobody has been asked
+    try:
+        done = answer_pending_gates(ctx.provider.dir(ctx.ep))
+        for name in done:
+            log(f"   recorded the answer to a human gate ({name})")
+        if done and ctx.state.pop("flag_step", None) is not None:
+            ctx.save()
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not record a gate answer: {e} — the gate will ask again)")
+
+
 def flag_and_wait(ctx, name, message):
     """Set the red flag (status unchanged), then wait — heartbeat stays LIVE the
     whole time, so the board shows a paused-but-alive engine, never a dead one."""
@@ -1371,6 +1410,14 @@ def flag_and_wait(ctx, name, message):
         ep = ctx.refresh()
         if not ep.get("needs_look"):
             log(f"   flag cleared — retrying {name}")
+            # C3 — THE ANSWER IS RECORDED HERE, BECAUSE HERE IS WHERE IT HAPPENS.
+            # A flag-once gate writes `.asked-…` and raises; it is gone by the time
+            # anybody answers. The answer is THIS: `needs_look` going false. Recording
+            # it inside the gate is what let a reboot walk one through on EP23 — the
+            # marker said "a human has listened" when all that had happened was the
+            # asking. One flag is outstanding at a time, so a cleared flag answers
+            # whatever was asked.
+            _record_gate_answers(ctx)
             # No flag, no picture. Left behind, it would put a stale preview beside
             # whatever the NEXT flag turns out to be about.
             if ctx.state.pop("flag_step", None) is not None:
@@ -2489,6 +2536,15 @@ def cmd_run(mock, watch):
                         time.sleep(poll)
                     log("flag cleared — carrying on")
                     continue
+                # C3 — REACHING HERE MEANS THE BOARD IS NOT FLAGGED, so any gate still
+                # holding only an `.asked-…` was answered while nothing was watching.
+                # THIS IS THE PATH EP23 ACTUALLY TOOK: Windows updated overnight and
+                # killed the engine between the listen gate asking and Jodie answering,
+                # so neither wait loop above ever ran. Without this the gate would ask
+                # again on every resume forever; with it, it asks exactly once more —
+                # which is the correct behaviour, because the ask it recorded was never
+                # answered by anyone.
+                _record_gate_answers(ctx)
                 if status in PHASES:
                     hb.active.set()
                     run_phase(ctx)

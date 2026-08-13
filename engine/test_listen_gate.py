@@ -85,16 +85,33 @@ def main():
             check("  it tells them what to do if it sounds WRONG",
                   "re-render" in msg.lower() and "nothing here is wasted" in msg.lower())
 
-        print("\n-- AND CLEARING IT LETS THE BUILD CONTINUE --")
-        # Clearing the flag on the board re-runs the step. Second call must fall
-        # through — otherwise the build asks forever and the episode can never move.
+        print("\n-- A RERUN IS NOT AN ANSWER (C3, 13 Aug 2026) --")
+        # 🔴 THIS CASE USED TO CALL THE GATE TWICE AND REQUIRE THE SECOND TO FALL
+        # THROUGH, on the reasoning that "clearing the flag on the board re-runs the
+        # step". Both halves of that are true and the conclusion still did not follow:
+        # a re-run is ALSO what happens after a crash, a reboot or a `--watch` restart,
+        # and this test could not tell those from a human clearing a flag — because
+        # neither could the code. It asserted the EP23 bug. Windows updated overnight,
+        # killed the engine between the ask and the answer, and the gate walked through.
+        # The two events are now two records, so the two cases below are separable.
         second = "returned"
         try:
             providers.listen_to_the_master(d, m)
         except providers.EngineFlag:
             second = "raised again"
-        check("the same master does NOT ask twice", second == "returned",
-              "clearing the flag would re-raise it and the episode could never proceed")
+        check("re-running the step WITHOUT an answer asks again", second == "raised again",
+              "a gate a power cut can pass is not a gate")
+
+        print("\n-- AND CLEARING IT LETS THE BUILD CONTINUE --")
+        # THE ANSWER, as the engine records it: the human cleared the flag.
+        providers.answer_pending_gates(d)
+        third = "returned"
+        try:
+            providers.listen_to_the_master(d, m)
+        except providers.EngineFlag:
+            third = "raised again"
+        check("the answered master does NOT ask twice", third == "returned",
+              "the episode could never proceed — the original requirement, unchanged")
 
         print("\n-- A NEW MASTER ASKS AGAIN. This is EP20's case exactly. --")
         m2 = master_in(d, b"a DIFFERENT take, re-rendered because the first was bad")

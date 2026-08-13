@@ -286,6 +286,75 @@ def build_web_copies(ep, ep_dir: Path) -> str:
     return out or "web copies: nothing reported"
 
 
+# ── C3: a flag-once human gate, where ASKING and BEING ANSWERED are different ──
+#
+# 🔴 A REBOOT WALKED A HUMAN GATE THROUGH. EP23, 13 Aug 2026.
+# All three gates below wrote their marker and THEN raised the flag, so the marker
+# recorded that the gate had ASKED, not that a human had ANSWERED — while saying, in
+# the file, "a human has listened to this master". Windows updated overnight and killed
+# the engine in the gap between the two. On resume the step found the marker and walked
+# straight through into shot_map.
+#     Nothing was lost that time: the gate sits before the expensive half-hour, the shot
+# map halted 51s in, and Jodie confirms she HAD listened. IT PASSED BY ACCIDENT, NOT BY
+# DESIGN, and a gate that can be passed by a power cut is not a gate.
+#
+# ⚠️ IT IS A CLASS, NOT A STEP — the listen gate and BOTH placement reviews had it,
+# identically. So the shape lives here ONCE and the three gates call it. Three separate
+# corrections would have been three chances to get a fourth gate wrong.
+#
+# THE TWO FACTS ARE TWO FILES:
+#   `.asked-<stem>`     the gate put the question. Written before raising.
+#   `.answered-<stem>`  a human cleared the flag. Written by answer_pending_gates(),
+#                       from the ONE place that can observe an answer.
+# Resume with only the ask recorded and the question is asked again — which is the
+# whole fix, and it needs no special case: an unanswered ask simply is not an answer.
+def ask_once(marker_dir: Path, stem: str, message: str, legacy: Path | None = None):
+    """Ask a human ONCE, and re-ask if the last asking was never answered.
+
+    `legacy` is a pre-C3 marker file. If it exists, a human answered this question
+    under the old scheme and must not be asked again — EP01–EP23 carry those markers
+    and re-asking would halt published and in-flight episodes for no reason.
+    """
+    answered = marker_dir / f".answered-{stem}"
+    if answered.exists() or (legacy is not None and legacy.exists()):
+        return
+    marker_dir.mkdir(parents=True, exist_ok=True)
+    asked = marker_dir / f".asked-{stem}"
+    # Deliberately rewritten even when it already exists: the useful fact is WHEN the
+    # question was last put, and a re-ask after a reboot is a new asking.
+    asked.write_text(
+        f"asked {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n"
+        "THIS RECORDS THE QUESTION, NOT THE ANSWER. The engine re-asks while this is\n"
+        "the only marker here. It becomes .answered-… when a human clears the flag.\n",
+        encoding="utf-8")
+    raise EngineFlag(message)
+
+
+def answer_pending_gates(ep_dir: Path) -> list[str]:
+    """A human cleared the flag: promote every outstanding ask to an answer.
+
+    ⚠️ CALLED FROM WHERE AN ANSWER CAN ACTUALLY BE OBSERVED, which is not inside the
+    gate. The gate raises and is gone; the answer arrives later, on the board, as
+    `needs_look` going false. One flag is outstanding at a time — `needs_look` is a
+    single boolean on the row — so a cleared flag answers whatever was asked.
+    """
+    done = []
+    for asked in sorted(ep_dir.rglob(".asked-*")):
+        answered = asked.with_name(asked.name.replace(".asked-", ".answered-", 1))
+        try:
+            answered.write_text(
+                asked.read_text(encoding="utf-8", errors="replace") +
+                f"answered {datetime.now(timezone.utc).isoformat(timespec='seconds')}"
+                " (a human cleared the flag)\n", encoding="utf-8")
+            asked.unlink(missing_ok=True)
+            done.append(answered.name)
+        except OSError as e:                                          # noqa: BLE001
+            # Never strand an episode over bookkeeping — worst case it asks again,
+            # which is the safe direction for a gate to fail in.
+            print(f"    ⚠️ could not record the answer to {asked.name}: {e}")
+    return done
+
+
 def listen_to_the_master(ep_dir: Path, master: Path):
     """🔊 THE ONE MINUTE THAT WOULD HAVE SAVED EP20. (Jodie, 11 Aug 2026.)
 
@@ -312,12 +381,11 @@ def listen_to_the_master(ep_dir: Path, master: Path):
     exactly EP20's case — asks again rather than inheriting the last one's approval.
     """
     st = master.stat()
-    seen = ep_dir / "renders" / f".listened-{st.st_size}-{int(st.st_mtime)}"
-    if seen.exists():
-        return
-    seen.parent.mkdir(parents=True, exist_ok=True)
-    seen.write_text("a human has listened to this master\n", encoding="utf-8")
-    raise EngineFlag(
+    stem = f"listened-{st.st_size}-{int(st.st_mtime)}"
+    ask_once(
+        ep_dir / "renders", stem,
+        legacy=ep_dir / "renders" / f".{stem}",       # pre-C3 marker: already answered
+        message=(
         "Listen to Gordon's downloaded render and confirm the voice sounds right "
         "before we build.\n"
         f"  {master}\n"
@@ -330,7 +398,7 @@ def listen_to_the_master(ep_dir: Path, master: Path):
         "could tell them apart — loudness, peak, bitrate and the whole spectrum matched "
         "the good episodes. Only an ear can hear it.\n"
         "Sounds right? Clear this flag and the build carries on. Sounds wrong? Re-render "
-        "it in HeyGen, save the new file, and say so — nothing here is wasted yet.")
+        "it in HeyGen, save the new file, and say so — nothing here is wasted yet."))
 
 
 def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
@@ -349,19 +417,17 @@ def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     Flags once. The marker records that a human has seen it, so clearing the flag
     lets the step through instead of re-raising it forever.
     """
-    seen = ep_dir / "thumbnail/.placement-reviewed"
-    if seen.exists():
-        return
-    seen.parent.mkdir(parents=True, exist_ok=True)
-    seen.write_text("a human has looked at the thumbnail placement\n", encoding="utf-8")
-    raise EngineFlag(
+    ask_once(
+        ep_dir / "thumbnail", "placement-reviewed",
+        legacy=ep_dir / "thumbnail/.placement-reviewed",   # pre-C3: already answered
+        message=(
         f"Have a look at the thumbnail: {url or png}\n"
         "It is built at the standard placement (text upper-left over the scrim), which "
         "is what EP11 and EP12 both used. What needs your eye is the HERO CROP — whether "
         "the horses are framed well and every line of text is clear of them.\n"
         "Happy? Clear this flag and the build carries on. Not happy? Say so and the crop "
         "is one value (thumbnail.hero_focus, e.g. \"center 62%\") — EP12 needed 62% "
-        "because its field sits low in the frame.")
+        "because its field sits low in the frame."))
 
 
 HEAD_BREATH = 0.4          # silence left before the first word, in seconds
@@ -811,13 +877,11 @@ def title_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     someone sitting at this machine. The PNG is now published to the same public
     bucket the cover A/B choices already use, and the board renders it.
     """
-    seen = ep_dir / "overlay/export/.title-placement-reviewed"
-    if seen.exists():
-        return
-    seen.parent.mkdir(parents=True, exist_ok=True)
-    seen.write_text("a human has looked at the title card placement\n", encoding="utf-8")
     where = url or str(png)
-    raise EngineFlag(
+    ask_once(
+        ep_dir / "overlay/export", "title-placement-reviewed",
+        legacy=ep_dir / "overlay/export/.title-placement-reviewed",   # pre-C3
+        message=(
         f"Have a look at the title card: {where}\n"
         "The words are already settled — the headline, the part line and the byline "
         "are the approved packaging, and the type size is measured, not chosen. What "
@@ -826,7 +890,7 @@ def title_placement_review(ep_dir: Path, png: Path, url: str | None = None):
         "Happy? Clear this flag and the build carries on. Not happy? It is one value "
         'in docs/episode.json — "title_card": {"hero_focus": "center 62%"} — which is '
         "exactly what EP12 needed, because its field sits low in the frame. Say so and "
-        "it is one edit and a re-render.")
+        "it is one edit and a re-render."))
 
 
 def title_preview(ep_dir: Path, clip: Path) -> Path:
