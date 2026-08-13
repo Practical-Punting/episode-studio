@@ -18,6 +18,47 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 14 AUG 2026 — found on EP24
+
+## 🟠 THE CARD-WRITER OVER-FILLS COUNTRY-TRACK CARDS **(EP24 C19; EP23 C21 was the same family)**
+
+**Jodie's ruling: this is for the AUTHOR to cap, before the next episode. It is a
+recurrence, not a one-off, and the Track Secrets country episodes are where it recurs.**
+
+EP24's `C19` put **four** country courses on one matrix card — two facts each, eight
+cells. It did not fit **even at the autofit floor** (60% / 16px), and the automatic
+layout swap (sibling frame → panel-push) was tried first and did not rescue it, so this
+was genuinely over-full and not a layout fault: `mcell` shrank to 49.2px and still ran
+under the logo chip, `mplace` to 37.2px and still left the card.
+
+**FIXED ON THE EPISODE by the SPACE rule — tighten and keep, then split, never drop:**
+1. Tightened the cells to **73%** of their characters (filler out: *"Favour those…"*,
+   *"Give preference to those…"*, *"Runners drawn…"*). **Still did not fit.** That is the
+   useful measurement — it says the card was over-full by a whole ROW, not by phrasing.
+2. **Split into `C19` + `C19B`**, two tracks each. Both fitted with room to spare —
+   88% and 94% of template size — and `card_check` reads 25/25 clean.
+
+📌 **AND THE SPLIT FIXED A SECOND THING NOBODY HAD FLAGGED.** The beats run **one track
+each** — 34 Murray Bridge, 35 Balaklava, 36 Strathalbyn, 37 Gawler — and the single card
+sat on **beat 37**, showing all four tracks while **Gawler alone** was being spoken.
+The two cards now sit on 35 and 37, each on screen while its own two tracks are talked
+about. *An over-full card was also a mis-timed one, and only the overflow was visible.*
+
+**WHAT THE AUTHOR SHOULD DO (the actual ask):** cap how much goes on one country-track
+card — **two courses per card** is what fits with margin — and split many tracks across
+consecutive cards **on the beats where they are spoken**, rather than gathering them onto
+the last one. A four-row matrix of two-fact rows does not fit the panel-push card.
+
+⚠️ **`C19B`, NOT A RENUMBER, AND THE REASON GENERALISES.** Inserting a `C20` would have
+pushed the existing C20 to C21, and C20 is referenced in **`figures`, `ebook` AND
+`build`** — three places to break, mid-build, for a cosmetic ordinal. Two screens of one
+idea share the ordinal instead (*"Country Tracks"* / *"Country Tracks, continued"*).
+📌 **The eyebrow first read *"(1 of 2)"* and the trace guard REFUSED it** — a numeral on
+screen must quote a source sentence, and those digits are not in the article. Correct,
+and the words-not-digits form passes. *That guard is doing real work.*
+
+---
+
 # 🆕 LOGGED 13 AUG 2026 — found on EP23, after the overnight Windows reboot
 
 ## 🔵 THE BEFORE-NEXT-EPISODE BATCH — **Jodie, 13 Aug 2026: log, do NOT fix now. EP23 first.**
