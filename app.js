@@ -2177,5 +2177,36 @@ function subscribeRealtime() {
 // A safety net in case the socket quietly drops.
 setInterval(() => { if (SESSION) loadAll(); }, 30000);
 
+/* 🔴 THE BOARD LOOKED STUCK WHEN IT WAS NOT, AND NEITHER GUARD ABOVE COVERS IT.
+ *
+ * The cache-bust half of this is already solved: index.html's asset links carry a hash
+ * OF THE BYTES (stamp_assets.py), re-checked by test_asset_stamp.py. The stale board is
+ * not stale CODE.
+ *
+ * It is a BACKGROUND TAB. Browsers throttle timers hard in a hidden tab — Chrome drops
+ * them to roughly once a minute and can freeze them entirely — and a WebSocket that dies
+ * while hidden reconnects only when something asks it to. So the 30-second net above is
+ * not running at 30 seconds, and possibly not at all. Come back to the tab and the board
+ * shows what it knew when you left: an episode that has since moved three stages still
+ * sitting at the old one.
+ *
+ *     THAT IS INDISTINGUISHABLE FROM A STOPPED ENGINE — and it is the same class of lie
+ *     as 28 Jul, when this board went on saying "Working for 1 d 1 hr" while the engine
+ *     was dead. Same fault, sides swapped: now it hides work that IS happening.
+ *
+ * So the moment the tab is looked at again: refetch, and check the socket is really
+ * joined rather than trusting that `channel` being set means it is alive.
+ */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !SESSION) return;
+  const state = channel && channel.state;
+  if (channel && state !== "joined") {          // it died while we were away
+    try { db.removeChannel(channel); } catch (e) { /* already gone */ }
+    channel = null;
+  }
+  subscribeRealtime();
+  loadAll();
+});
+
 db.auth.onAuthStateChange(() => route());
 route();
