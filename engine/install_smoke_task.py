@@ -52,12 +52,13 @@ PYTHON = Path(sys.executable)
 # directly, so `>` is passed to python as an argument rather than interpreted.
 RUNNER_BODY = """@echo off
 rem Written by install_smoke_task.py. The nightly capture smoke test.
+rem ONE LINE ON PURPOSE. The dated log is opened by smoke_capture.py itself (--log-dir),
+rem because %DATE% is locale-dependent and the cmd quoting needed to work around it
+rem broke the scheduled task outright (LastTaskResult 255, no log at all).
 setlocal
 set "PYTHONIOENCODING=utf-8"
-set "PP_VIDEOS_DIR=G:\\My Drive\\PP Videos"
-for /f "tokens=1-3 delims=-/ " %%a in ("%DATE%") do set "STAMP=%%c-%%b-%%a"
-if not exist "{logs}" mkdir "{logs}"
-"{python}" "{smoke}" >> "{logs}\\smoke-%STAMP%.log" 2>&1
+set "PP_VIDEOS_DIR=G:\My Drive\PP Videos"
+"{python}" "{smoke}" --log-dir "{logs}"
 """
 
 XML = """<?xml version="1.0" encoding="UTF-16"?>

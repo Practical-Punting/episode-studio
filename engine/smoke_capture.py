@@ -190,9 +190,34 @@ def main(argv=None) -> int:
                     help="every corpus URL, not one per section")
     ap.add_argument("--refresh-corpus", action="store_true",
                     help="re-read the rail and rewrite the cache")
+    ap.add_argument("--log-dir",
+                    help="also append this run to <dir>/smoke-YYYY-MM-DD.log. Done HERE "
+                         "rather than by a shell redirect because %DATE% is locale-"
+                         "dependent (it produced 'smoke-08-13-Thu.log' on this machine, "
+                         "which neither sorts nor survives a year change) and the cmd "
+                         "quoting needed to work around that broke the task outright.")
     ap.add_argument("--strict", action="store_true",
                     help="fail on a damaged page too, not only on a broken shape")
     a = ap.parse_args(argv)
+
+    if a.log_dir:
+        import datetime
+        d = pathlib.Path(a.log_dir)
+        d.mkdir(parents=True, exist_ok=True)
+        fh = open(d / f"smoke-{datetime.date.today().isoformat()}.log", "a",
+                  encoding="utf-8")
+
+        class _Tee:
+            def write(self, s):
+                fh.write(s)
+                try:
+                    sys.__stdout__.write(s)
+                except Exception:
+                    pass
+            def flush(self):
+                fh.flush()
+        sys.stdout = _Tee()
+        print(f"\n===== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} =====")
 
     if a.urls:
         rows = [{"ep": None, "url": u.strip(), "section": section_of(u.strip())}
