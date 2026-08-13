@@ -34,3 +34,6 @@ engine/smoke-corpus.json
 
 # the engine's runtime lock — it holds a live pid, so it is never repo content
 engine/engine.lock
+
+# written by install_smoke_task.py at install time
+engine/run_smoke.cmd
