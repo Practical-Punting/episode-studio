@@ -35,15 +35,28 @@ FROM_EP = 24
 # Asked of the prompt, not listed per clip: a registry of clip names would be a list
 # somebody maintains, and the next racing clip added would be graded as a kitchen table.
 # (`broll-ratings-pencil-and-weights` is EP23's non-racing clip and must stay exempt.)
-RACING_WORDS = re.compile(
-    r"\b(racehorse|racehorses|horses|field of|gallop\w*|runner|runners|jockey|jockeys"
-    r"|racecourse|race day|raceday|straight|home turn|barrier|barriers|furlong)\b",
-    re.I)
+#
+# 🔴 IT ASKS FOR HORSES, NOT FOR A RACECOURSE — corrected 14 Aug 2026 on EP24, and the
+# correction matters more since these rules started AUTO-APPLYING.
+# The first version also matched `racecourse`, `race day`, `straight`, `barrier` and
+# `furlong` — words that describe a VENUE. EP24's `broll-glamour-raceday-crowd` is a shot
+# of people on the lawn with no horse in it, and it was graded as a racing shot and told
+# to add jockeys' silks and out-of-phase strides.
+#     WHEN THE ONLY CONSEQUENCE WAS A HALT THAT WAS NOISE. NOW IT WOULD WRITE HORSES INTO
+#     A SHOT OF A CROWD, which is a worse clip than the one the rule exists to prevent.
+# A rule may only be applied to a shot it is actually about.
+HORSE_WORDS = re.compile(
+    r"\b(racehorse|racehorses|horse|horses|field of|gallop\w*|runner|runners"
+    r"|jockey|jockeys|mounted|thoroughbred\w*)\b", re.I)
 
 
-def is_racing_shot(prompt: str) -> bool:
-    """A galloping / field / raceday shot — the shots the rules below are about."""
-    return bool(RACING_WORDS.search(prompt or ""))
+def has_horses(prompt: str) -> bool:
+    """A galloping / field shot — the shots the rail and rider rules are about."""
+    return bool(HORSE_WORDS.search(prompt or ""))
+
+
+# Kept as the older name; `has_horses` is what it always meant.
+is_racing_shot = has_horses
 
 
 # ── the standing lines ──────────────────────────────────────────────────────────
@@ -101,12 +114,19 @@ RULES = [
 
 # Only where the clip actually contains a crowd — demanding hat colours of a head-on
 # gallop would be noise, and a guard everyone ignores is worse than no guard.
-CROWD_WORDS = re.compile(r"\b(crowd|spectator\w*|punter\w*|rail-?side|grandstand|"
-                         r"onlooker\w*|people)\b", re.I)
+# ⚠️ `grandstand` WAS IN HERE AND IS NOT A CROWD. It is a building, and it stands in the
+# background of wide course shots with nobody in them — EP24's
+# `broll-metropolitan-circuit-wide-sweep` was told to name hat colours for a crowd it does
+# not contain. PEOPLE WORDS ONLY.
+CROWD_WORDS = re.compile(r"\b(crowd|crowds|spectator\w*|punter\w*|onlooker\w*|people"
+                         r"|men and women|racegoer\w*)\b", re.I)
 CROWD_RULE = dict(
     key="hat-variety",
     name="hats in a VARIETY of natural colours",
-    needs=[r"variety of .{0,20}colours", r"varied .{0,20}(hats|colours)",
+    # "a RANGE of natural colours" is the same requirement in the other common wording,
+    # and EP24 already said it. Demanding one synonym over another is asking for a
+    # copy-paste, not for the fact. (The registry itself says "a VARIETY"; both pass.)
+    needs=[r"(variety|range|mix) of .{0,25}colours", r"varied .{0,20}(hats|colours)",
            r"no two neighbours alike"],
     why=("EP18 — sixteen people along the rail and every hat the same pale cream. "
          "A model fills a crowd by repeating ONE thing; uniformity is its default."),
@@ -120,12 +140,14 @@ STRAIGHT_RAIL = re.compile(r"dead straight|perfectly level", re.I)
 
 def check_prompt(prompt: str) -> list[dict]:
     """Every standing line this prompt fails to state. Empty list = nothing to say."""
-    if not is_racing_shot(prompt):
-        return []                      # a kitchen table is not a racing shot
     out = []
-    rules = list(RULES)
-    if CROWD_WORDS.search(prompt):
-        rules.append(CROWD_RULE)
+    rules = []
+    if has_horses(prompt):
+        rules += RULES                 # a kitchen table is not a racing shot
+    if CROWD_WORDS.search(prompt or ""):
+        rules.append(CROWD_RULE)       # …and a crowd shot needs its hats, horses or not
+    if not rules:
+        return []
     for r in rules:
         if not any(re.search(p, prompt, re.I) for p in r["needs"]):
             out.append({"key": r["key"], "name": r["name"], "why": r["why"]})
@@ -141,6 +163,136 @@ def check_prompt(prompt: str) -> list[dict]:
                     "for incoherent geometry, which is the soil this fault grows in."),
         })
     return out
+
+
+# ── APPLYING, RATHER THAN ASKING ────────────────────────────────────────────────
+#
+# 🔴 A HALT HERE IS NOT A DECISION, SO IT MUST NOT BE A HALT. (Jodie, 14 Aug 2026.)
+# EP24 stopped at the credit check because six prompts were missing standing lines. The
+# machine knew WHICH lines, and it knew the exact words — they are in this file — and it
+# stopped to ask a human to copy them in. That is a chore wearing a decision's clothes,
+# and it is the same argument as the auto-WIDE and auto-broll-offset rulings: when the
+# lawful answer is already computed, apply it and say what was changed.
+#
+#     AND A HALT WAS ACTIVELY WORSE THAN NOISE HERE. `_broll_prompt` is per clip, so it
+#     reported ONE clip when SIX were short — six halts, one at a time, each needing a
+#     human to clear it before the next appeared.
+#
+# ⚠️ WHAT IT MAY NOT DO IS INVENT THE SHOT. It appends the standing FACTS every racing
+# shot must state; it never writes the subject, the framing or the action. And it applies
+# a rule only to a shot the rule is about — see the HORSE_WORDS note above, which is the
+# fault this feature would otherwise have shipped: writing jockeys into a crowd shot.
+FIXES = {
+    "rail-side": None,          # handled with rail-beyond, in one sentence
+    "rail-beyond": None,
+    "strides": ("each horse at a different point of its stride, staggered strides, "
+                "hooves landing at different moments, legs out of phase across the field"),
+    "silks": ("jockeys up and crouched in the irons, actively riding, in bright and "
+              "varied Australian racing silks and matching caps, white or cream breeches, "
+              "black riding boots, safety helmets with the silk cover on"),
+    "turf": "lush green Australian turf",
+    "anatomy": ("anatomically correct horses — four legs, one head, no fused or extra "
+                "limbs"),
+    "hat-variety": ("Akubra-style hats in a variety of natural colours — fawn, sand, tan, "
+                    "brown, grey, black, olive — worn at different angles, no two "
+                    "neighbours alike"),
+}
+
+# The rail sentence depends on the shot, which is the whole point of A21's second finding:
+# a straight line pasted into a bend is what produced the incoherent geometry.
+RAIL_STRAIGHT = ("the whole field running on ONE side of a single white running rail — "
+                 "the rail is the inside boundary of the track, open green turf infield "
+                 "beyond it, no horses on the far side")
+RAIL_BEND = ("the whole field running on ONE side of a single white running rail — on "
+             "this bend the rail curves with the track and the field stays outside it, "
+             "the rail is the inside boundary of the track with open green turf infield "
+             "beyond it and no horses on the far side")
+
+
+# 🔴 A COMPETING CLAIM ABOUT WHAT IS BEYOND THE RAIL IS A HUMAN'S CALL.
+# EP24's `broll-metropolitan-circuit-wide-sweep` already said the rail had "a grandstand
+# and gum trees beyond". Appending "open green turf infield beyond it" left the prompt
+# asserting TWO different far sides — and that is not a missing line, it is a
+# contradiction, which is the exact soil A21 says this fault grows in. It also has a real
+# answer that depends on the shot: a far-side rail is the OUTSIDE boundary and a
+# grandstand beyond it is correct, so the tool cannot know which claim to keep.
+# It stops and says so. That is the halt worth having.
+_BEYOND_NON_TURF = re.compile(
+    r"\b(grandstand|stands?|building\w*|car ?park|house\w*|road|fence|trees?|scrub|"
+    r"hill\w*|marquee\w*|tent\w*|crowd\w*)\b[^.]{0,40}\bbeyond\b"
+    r"|\bbeyond\b[^.]{0,40}\b(grandstand|stands?|building\w*|car ?park|house\w*|road|"
+    r"trees?|marquee\w*|tent\w*|crowd\w*)\b", re.I)
+
+
+def _add_sentence(text: str, clause: str) -> str:
+    """Append a clause as a PROPER SENTENCE.
+
+    The first version did `text + ". " + clause`, which left the prompt reading
+    "…no repeated framing. the whole field running on ONE side…" — a lower-case fragment
+    hanging off the end. These strings are read by a person as often as by a model when
+    somebody is working out why a clip came back wrong, and a prompt that reads like a
+    mistake gets treated as one.
+    """
+    return text.rstrip(". ") + ". " + clause[0].upper() + clause[1:] + "."
+
+
+def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
+    """Add every standing line this prompt is missing.
+
+    Returns (new_prompt, applied, unfixable). `unfixable` is what a human still has to
+    look at — kept deliberately, because a tool that claims to fix everything is one
+    nobody checks.
+    """
+    gaps = {g["key"] for g in check_prompt(prompt)}
+    if not gaps:
+        return prompt, [], []
+    text = prompt.rstrip()
+    applied, unfixable = [], []
+    bend = bool(BEND_WORDS.search(text))
+
+    # Before touching anything: is the far side already spoken for by something that is
+    # not turf? Then the rail clause is a contradiction, not an addition.
+    if gaps & {"rail-side", "rail-beyond"} and _BEYOND_NON_TURF.search(text):
+        m = _BEYOND_NON_TURF.search(text)
+        return prompt, [], [
+            "this prompt already says what lies beyond the rail "
+            f'("…{m.group(0).strip()}…"), and the standing line says open green turf '
+            "infield. Two different far sides is a contradiction, and which one is right "
+            "depends on the shot — a FAR-SIDE rail is the outside boundary and a "
+            "grandstand beyond it is correct, while an inside rail must have empty "
+            "infield beyond it. Decide which rail this is and write that one clause."]
+
+    # 1. THE CONTRADICTION FIRST, because it is a REWRITE and the rail sentence added
+    #    below has to agree with what is left behind.
+    if "straight-rail-on-a-bend" in gaps:
+        fixed = re.sub(r"\s*dead straight and perfectly level\s*", " ", text)
+        fixed = re.sub(r"\s{2,}", " ", fixed)
+        if fixed != text:
+            text = fixed
+            applied.append('removed "dead straight and perfectly level" — the shot bends')
+        else:
+            unfixable.append('a "dead straight" rail in a shot that bends, and the '
+                             "phrase could not be located to remove")
+
+    # 2. The rail sentence, in the form this shot can actually be.
+    if gaps & {"rail-side", "rail-beyond"}:
+        text = _add_sentence(text, RAIL_BEND if bend else RAIL_STRAIGHT)
+        applied.append("the field runs on ONE side of the rail, with open green turf "
+                       "infield beyond it" + (" (bend wording)" if bend else ""))
+
+    # 3. Everything else is a fact appended in the registry's own words.
+    for key in ("strides", "silks", "turf", "anatomy", "hat-variety"):
+        if key in gaps and FIXES.get(key):
+            text = _add_sentence(text, FIXES[key])
+            applied.append(FIXES[key][:60] + "…")
+
+    # 4. RE-CHECK. If applying the rules did not satisfy the rules, the tool is wrong and
+    #    must say so rather than quietly generating a clip that breaks them — the one
+    #    thing genuinely worth a human here.
+    left = {g["key"] for g in check_prompt(text)}
+    for key in sorted(left):
+        unfixable.append(f"{key} — still missing after auto-apply")
+    return text, applied, unfixable
 
 
 def check_episode(broll: list[dict], ep_number: int | None) -> list[str]:

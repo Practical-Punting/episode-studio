@@ -1751,6 +1751,29 @@ class RealProvider:
     def epjson(self, ep) -> dict:
         return json.loads((self.dir(ep) / "docs/episode.json").read_text(encoding="utf-8"))
 
+    def _save_broll_prompt(self, ep, clip: str, prompt: str) -> None:
+        """Record a corrected b-roll prompt back into episode.json.
+
+        The file is the audit trail for what was generated, so a prompt the engine
+        rewrote has to be the prompt the file shows — otherwise the next reader compares
+        a clip against words that never produced it. Re-read and re-written here rather
+        than held in memory, because `epjson()` reads from disk every call.
+        """
+        path = self.dir(ep) / "docs/episode.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        # ⚠️ `br`, NEVER `b` — a bare `b[...] = ` is read by
+        # test_preflight_build_written's static audit as a `build.*` key written by the
+        # build, which then halts EVERY episode at audit_inputs on a missing convention.
+        # Already learned once on the beat loops (`bt`, never `b`); same trap, new file.
+        for br in data.get("broll", []):
+            if br.get("target") == clip:
+                br["prompt"] = prompt
+                break
+        else:
+            return                                  # nothing to record against
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                        encoding="utf-8")
+
     def run(self, args, cwd, timeout=None, tail=800):
         """Run a tool; on failure raise with the stderr tail (goes into the
         plain-English flag if retries exhaust).
@@ -1862,23 +1885,45 @@ class RealProvider:
                         f"B-roll clip '{clip}' has no prompt in episode.json — "
                         "Claude Code writes the b-roll prompts (hats / ethnic-mix / "
                         "turf wording baked in). Add it, then clear this flag.")
-                # 🔴 THE STANDING LINES ARE CHECKED HERE BECAUSE EVERY GENERATED PROMPT
-                # COMES THROUGH THIS FUNCTION. Checked in the registry it is a rule
-                # somebody has to remember; checked here a prompt that does not state
-                # them cannot be submitted, and it costs nothing to find out — this
-                # runs before the credit is spent, not after the clip comes back wrong.
+                # 🔴 THE STANDING LINES ARE APPLIED HERE BECAUSE EVERY GENERATED PROMPT
+                # COMES THROUGH THIS FUNCTION. In the registry they are a rule somebody
+                # has to remember; here they are a fact of the prompt that is generated.
+                #
+                # ⚠️ IT APPLIES, IT DOES NOT ASK — Jodie, 14 Aug 2026, after EP24 stopped
+                # at the credit check for six prompts missing lines the machine already
+                # had the exact words for. A halt is for a DECISION, and there is no
+                # decision here: the lawful wording is computed and there is one of it.
+                # Same ruling as auto-WIDE and the auto b-roll offsets.
+                #     And the halt was worse than noise: this function runs PER CLIP, so
+                # it reported one clip when six were short — six halts in a row.
                 # EP24 onward; EP23 and earlier are published and are not re-graded.
-                gaps = broll_prompt_rules.check_episode(
-                    [b], ep.get("ep_number") if hasattr(ep, "get") else None)
-                if gaps:
-                    raise EngineFlag(
-                        f"The b-roll prompt for '{clip}' is missing standing lines that "
-                        "exist because each one has already gone wrong in a shipped "
-                        "episode. Nothing has been generated and nothing charged.\n\n"
-                        + "\n".join("  · " + g for g in gaps) +
-                        "\n\nThe wording is in docs/broll-registry.md — §5 and the "
-                        "Australian racing spec block under it. Add it to the prompt in "
-                        "docs/episode.json, then clear this flag.")
+                n = ep.get("ep_number") if hasattr(ep, "get") else None
+                if n is not None and n >= broll_prompt_rules.FROM_EP:
+                    fixed, applied, unfixable = broll_prompt_rules.apply_rules(b["prompt"])
+                    if applied:
+                        # WRITTEN BACK, so episode.json records what was actually
+                        # generated. An in-memory fix would leave the file disagreeing
+                        # with the clip it produced, and the file is the audit trail.
+                        self._save_broll_prompt(ep, clip, fixed)
+                        print(f"    b-roll prompt for {clip}: added "
+                              f"{len(applied)} standing line(s) (A21) —")
+                        for a in applied:
+                            print(f"      · {a}")
+                    if unfixable:
+                        # THE ONLY HALT LEFT: applying the rules did not satisfy them, so
+                        # the tool is wrong. Generating anyway would ship a clip that
+                        # breaks a rule this file exists to enforce.
+                        raise EngineFlag(
+                            f"The b-roll prompt for '{clip}' still breaks a standing "
+                            "rule after the engine tried to correct it automatically — "
+                            "so the correction is what is wrong, not just the prompt. "
+                            "Nothing has been generated and nothing charged.\n\n"
+                            + "\n".join("  · " + u for u in unfixable) +
+                            "\n\nThe wording is in docs/broll-registry.md — §5 and the "
+                            "Australian racing spec block under it. This one needs a "
+                            "person: fix the prompt in docs/episode.json, then clear "
+                            "this flag.")
+                    return fixed
                 return b["prompt"]
         raise RuntimeError(f"clip {clip} not found in episode.json broll[]")
 
