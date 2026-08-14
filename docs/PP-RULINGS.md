@@ -759,6 +759,55 @@ different image to E16 — which costs nothing here: a hero already ON DISK is n
 re-bought, so only a hero that was going to be generated anyway is generated from the
 better words.**
 
+## A24 · 14 Aug 2026 — 📄 A THIN CAPTURE IS PROVISIONAL UNTIL A HUMAN SAYS YES · **Jodie**
+
+**The ruling:** *capture best-effort text, but it does NOT become the article of record —
+what `script_fidelity`, `check_trace` and the e-book body are measured against — until a
+HUMAN has looked and said yes.*
+
+> **No hard halt, and nothing silently trusted.** On a thin or partial capture the
+> best-effort text is kept as **PROVISIONAL**, and a plain-English **question** goes on the
+> board: *"this article came out shorter than a PP feature normally is — open it and tell
+> me whether that is all of it."*
+
+### 🔴 HOW THIS SITS WITH "IT PLACES A CAPTURE OR IT REFUSES", WHICH IS NOT WEAKENED
+
+`capture_article`'s own header says it never produces a best-effort article of record, and
+that rule is load-bearing: **a subtly wrong capture does not fail — it redefines the truth,
+and every downstream check then agrees with it.**
+
+> ### THE DANGER WAS NEVER BEST-EFFORT TEXT. IT WAS BEST-EFFORT TEXT NOBODY LOOKED AT.
+> **A human's confirmation satisfies the original rule exactly.** What had to be built was
+> not the fallback — it was the guarantee that between the refusal and the yes, nothing
+> anywhere can mistake the text for the article of record.
+
+🔒 **AND THAT GUARANTEE IS THE FILE'S LOCATION, NOT ITS BANNER.** The provisional text is
+written into the EPISODE's folder, never `PP Videos/docs/`, so `find_capture()` — which
+globs `docs/EPnn-source-article-*.md` — **cannot see it at all.** A banner is a comment,
+and this repo has paid for trusting those. **Promotion is a MOVE, and the move is the
+moment it becomes true.**
+
+### WHAT IS OFFERED FOR A YES, AND WHAT IS STILL A HARD REFUSAL
+
+| offered as provisional | still refused outright |
+|---|---|
+| **SHORTNESS** — the words are the article's own; the only doubt is whether they are all of it, and **that is a question a person answers by looking at the page** | **no article container / it never closes** — there are no words to offer |
+| | **furniture leaked · a surviving sentinel** — the text is CONTAMINATED, and asking someone to certify text whose edges they cannot see is not a confirmation |
+| | **OCR damage · a list inside a list** — §0a JUDGEMENTS about what the article SAYS, which is a different question from "is this all of it" |
+
+⚖️ **The answer is OBSERVED, never assumed.** It reuses the C3 gate (`ask_once` /
+`answer_pending_gates`): an `.asked-…` becomes an `.answered-…` **only when the flag
+actually went down on the board**, so a restart, a reboot or a re-run cannot promote
+anything by itself. An unanswered ask simply is not an answer.
+
+📌 **And the promoted file says how it got there** — "the automatic capture REFUSED this
+page for being too short… a person compared it with the source and confirmed it" — so
+nobody reading it in three months mistakes a short article for a clean automatic capture.
+
+🔒 **GUARDED:** `engine/test_capture_provisional.py`, 28 cases, including that
+`find_capture()` returns nothing while the question is outstanding, that a re-run re-asks,
+and that a second promotion cannot overwrite the record.
+
 ## A23 · 14 Aug 2026 — ⏱️ A MECHANICAL FIX APPLIES ITSELF; ONLY THE EDITORIAL HALF HALTS · **Jodie**
 
 **The fault, on EP25: `CARD-CARD overlap C26/END: 0.34s`.** Three tenths of a second

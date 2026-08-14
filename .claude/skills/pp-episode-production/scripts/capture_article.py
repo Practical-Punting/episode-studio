@@ -79,7 +79,31 @@ MIN_WORDS = 300
 
 
 class Unrecognised(Exception):
-    """The page is not one we know how to read. Nothing is written."""
+    """The page is not one we know how to read. Nothing is written.
+
+    🔴 `provisional` CARRIES BEST-EFFORT ARTICLE TEXT — and ONLY where the extraction
+    genuinely produced the article's own words and the doubt is about how MUCH of it
+    arrived. (Jodie's B2 ruling, 14 Aug 2026.)
+
+    THE RULING, and how it sits with the rule at the top of this file. "It places a
+    capture or it refuses" exists so that nothing subtly wrong becomes the article of
+    record UNNOTICED. A human confirming the text satisfies that exactly — the danger
+    was never best-effort text, it was best-effort text nobody looked at. So a thin
+    capture is kept as PROVISIONAL, outside the folder anything reads from, and a plain
+    question goes on the board. It becomes the article of record when a person says yes,
+    and not one moment earlier.
+
+    ⚠️ AND MOST REFUSALS MUST NOT SET IT. A page with no article container produced no
+    words to offer. Furniture that leaked, or a surviving sentinel, means the text is
+    CONTAMINATED — offering that for a yes/no is asking someone to certify something
+    they cannot see the edges of. OCR damage and a nested list are §0a JUDGEMENTS about
+    what the article says, which is a different question from "is this all of it".
+    Only shortness is offered, because shortness is the one a human can simply LOOK at.
+    """
+
+    def __init__(self, message, provisional: str | None = None):
+        super().__init__(message)
+        self.provisional = provisional
 
 
 def fetch(url):
@@ -292,10 +316,14 @@ def extract(page):
 
     words = len(body.split())
     if words < MIN_WORDS:
+        # THE ONE REFUSAL THAT CARRIES ITS TEXT FORWARD. The words that DID come out are
+        # the article's own — the doubt is whether they are all of it, and that is a
+        # question a person can answer by looking at the page. See Unrecognised.
         raise Unrecognised(
             f"only {words} words came out of the article container, and a PP feature is "
             f"never that short. The page is laid out in a way this reader does not "
-            "understand, and a truncated article of record is worse than none.")
+            "understand, and a truncated article of record is worse than none.",
+            provisional=body)
     leaked = [f for f in FURNITURE if f in body]
     if leaked:
         raise Unrecognised(
@@ -509,6 +537,91 @@ By {byline}
     else:
         print(f"\nwould write {dest.name} (report only; pass --write)")
     return dest, text
+
+
+# ══ B2 — A THIN CAPTURE IS PROVISIONAL UNTIL A HUMAN SAYS YES ════════════════════
+#
+# Jodie's ruling, 14 Aug 2026: *capture best-effort text, but it does NOT become the
+# article of record until a HUMAN has looked and said yes.* No hard halt, and nothing
+# silently trusted.
+#
+# 🔒 THE PROVISIONAL FILE IS DELIBERATELY NOT WHERE ANYTHING LOOKS. `find_capture()`
+# globs `PP Videos/docs/EPnn-source-article-*.md`; this writes into the EPISODE's own
+# folder under a different name entirely, so no glob, no widened pattern and no
+# half-remembered path can pick it up by accident. **The file's location is the
+# guarantee, not its banner** — a banner is a comment, and this repo has paid for
+# trusting those. Promotion is a MOVE, and the move is the moment it becomes true.
+PROVISIONAL_NAME = "capture-PROVISIONAL.md"
+PROVISIONAL_BANNER = """> # 🟠 PROVISIONAL — THIS IS NOT THE ARTICLE OF RECORD.
+>
+> The capture came back SHORT and stopped, so this text is best-effort and nobody has
+> confirmed it. **Nothing measures against this file**: it sits in the episode folder,
+> not in `PP Videos/docs/`, so `find_capture()` cannot see it and the script gate, the
+> figure traces and the e-book body all still have no article to compare with.
+>
+> **Why it stopped:** {why}
+>
+> **What a person is being asked:** open the source page and see whether the words below
+> are the WHOLE article. If they are, say so on the board and this becomes the article of
+> record. If the page has more in it, the capture needs fixing — do not promote this.
+"""
+
+
+def write_provisional(ep_dir: pathlib.Path, url: str, ep_number, body: str,
+                      why: str) -> pathlib.Path:
+    """Keep a thin capture where it can be read and NOT be believed."""
+    dest = pathlib.Path(ep_dir) / "docs" / PROVISIONAL_NAME
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(
+        PROVISIONAL_BANNER.format(why=why)
+        + f"\n# PP-EP{int(ep_number):02d} — provisional capture\n\n"
+          f"Source: {url}\n"
+          f"Captured {dt.date.today().strftime('%d %B %Y').lstrip('0')} by "
+          f"`capture_article.py`, and REFUSED as too short.\n"
+          f"Words: {len(body.split())} (a PP feature is normally {MIN_WORDS}+).\n\n"
+          f"---\n\n---- ARTICLE TEXT BEGINS ----\n\n{body}\n\n"
+          f"---- ARTICLE TEXT ENDS ----\n",
+        encoding="utf-8", newline="\n")
+    return dest
+
+
+def promote_provisional(ep_dir: pathlib.Path, pp: pathlib.Path, ep_number,
+                        headline: str) -> pathlib.Path:
+    """A human said yes: the provisional text BECOMES the article of record.
+
+    Written to the canonical name `find_capture()` looks for, and the provisional copy
+    is removed — one article of record, never two files that could drift.
+    """
+    src = pathlib.Path(ep_dir) / "docs" / PROVISIONAL_NAME
+    text = src.read_text(encoding="utf-8")
+    body = text.split("---- ARTICLE TEXT BEGINS ----", 1)[1] \
+               .split("---- ARTICLE TEXT ENDS ----", 1)[0].strip()
+    dest = (pathlib.Path(pp) / "docs" /
+            f"EP{int(ep_number):02d}-source-article-{slug(headline)}.md")
+    if dest.exists():
+        raise Unrecognised(f"{dest.name} already exists — refusing to overwrite the "
+                           f"article of record with a promoted provisional capture.")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(
+        f"# {headline}\n\n"
+        f"Source: {url_of(text)}\n"
+        f"Captured by `capture_article.py` as a SHORT capture and CONFIRMED BY A HUMAN "
+        f"on {dt.date.today().strftime('%d %B %Y').lstrip('0')}.\n\n"
+        f"## HOW THIS ONE WAS MADE — read before trusting a word count\n\n"
+        f"**The automatic capture REFUSED this page for being too short and did not "
+        f"place it.** A person opened the source page, compared it with the text below "
+        f"and confirmed it is the whole article. That confirmation is what makes this "
+        f"the article of record; nothing here was accepted on the tool's say-so.\n\n"
+        f"---\n\n---- ARTICLE TEXT BEGINS ----\n\n{body}\n\n"
+        f"---- ARTICLE TEXT ENDS ----\n",
+        encoding="utf-8", newline="\n")
+    src.unlink(missing_ok=True)
+    return dest
+
+
+def url_of(text: str) -> str:
+    m = re.search(r"^Source: (\S+)", text, re.M)
+    return m.group(1) if m else ""
 
 
 def main():
