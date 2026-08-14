@@ -109,6 +109,30 @@ def _odds_on(m) -> str:
     return _odds(m) + " on"
 
 
+def _decade(m) -> str:
+    """`1930s` -> "nineteen thirties". A DECADE IS A PLURAL AND NOTHING READ IT.
+
+    ══ EP25, 14 Aug 2026 — FOUND BEFORE IT BIT, FOR ONCE ═══════════════════════
+    Folding EP25's article and looking for DIGITS THAT SURVIVED turned up exactly
+    one: `1930s`, in "Eric Connolly, the well-known punter of the 1930s" — the
+    sentence that carries the article's own punchline, "never bet more than you can
+    afford to lose", which is this studio's standing outro. A script reaching for
+    that story says "the nineteen thirties", and the gate would have called it an
+    invention and cost the episode another drafting attempt.
+
+    The four-figure rules could not reach it: `1930s` has no word boundary before
+    the `s`, so neither the year reading nor the cardinal ever sees it.
+
+    🔒 A reading, like every rule in this file — it spells the digits that are on
+    the page and cannot turn one figure into another.
+    """
+    a, b = int(m.group(1)), int(m.group(2))
+    if b == 0:
+        return f"{int_words(a)} hundreds"
+    w = int_words(b)
+    return f"{int_words(a)} " + (w[:-1] + "ies" if w.endswith("y") else w + "s")
+
+
 def _dec_words(x: str) -> str:
     """"12.5" -> "twelve point five"; "1" -> "one". One side of a price."""
     if "." not in x:
@@ -300,6 +324,8 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     s = text or ""
     s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
                lambda m: ordinal_words(int(m.group(1))), s)
+    # A DECADE, before anything else can mistake it for a year. See `_decade`.
+    s = re.sub(r"\b(\d{2})(\d0)s\b", _decade, s)
     if ordinal_dates:
         s = re.sub(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\b",
                    lambda m: f"{m.group(1)} {ordinal_words(int(m.group(2)))}", s)

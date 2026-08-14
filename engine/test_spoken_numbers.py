@@ -146,6 +146,30 @@ def main():
         check(f"  {spoken!r} is REFUSED", not says(art, spoken),
               "the gate has gone soft — this figure is not in the article")
 
+    print("\n-- 🔴 EP25: A DECADE IS A PLURAL, AND NOTHING READ IT --")
+    # Found by folding EP25's article and looking for DIGITS THAT SURVIVED, rather
+    # than by an episode failing on it: `1930s` was the only one. It sits in "Eric
+    # Connolly, the well-known punter of the 1930s" — the sentence carrying the
+    # article's own "never bet more than you can afford to lose", which is the
+    # studio's standing outro, so a draft was very likely to reach for it.
+    for art, spoken in [
+        ("the well-known punter of the 1930s", "nineteen thirties"),
+        ("back in the 1980s",                  "nineteen eighties"),
+        ("the 1900s were different",           "nineteen hundreds"),
+        ("racing in the 1920s",                "nineteen twenties"),
+    ]:
+        check(f"{art.split()[-1]} reads {spoken!r}", says(art, spoken))
+    for art, spoken in [
+        ("the well-known punter of the 1930s", "nineteen forties"),
+        ("back in the 1980s",                  "nineteen nineties"),
+        ("the well-known punter of the 1930s", "nineteen thirty one"),
+    ]:
+        check(f"  {spoken!r} is REFUSED", not says(art, spoken),
+              "the gate has gone soft — this figure is not in the article")
+    check("  and a plain year is untouched by the decade rule",
+          says("back in 1988", "nineteen eighty eight")
+          and not says("back in 1988", "nineteen eighties"))
+
     print("\n-- the readings are OFFERED, never chosen for you --")
     check("all three readings are declared in one place", len(sf.READINGS) == 3,
           f"{sf.READINGS}")
