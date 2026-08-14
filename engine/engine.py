@@ -1048,7 +1048,13 @@ STEP_BUDGET_S = {
     "self_qc":         20 * 60,
     # the three steps that COMMISSION. Each reads the bound its own commission runs
     # under, from commission.py — the one place those timeouts are defined.
-    "audit_inputs":    _commission_budget(EPJSON_ATTEMPTS, _com.TIMEOUT_EPJSON_S),
+    # 🔴 THE MAX, NOT THE FLOOR — C2, 14 Aug 2026. The epjson ceiling now SCALES with the
+    # script (commission.epjson_timeout), so TIMEOUT_EPJSON_S is only its lower bound. An
+    # alarm set to the floor would fire while a big episode's writer was still legitimately
+    # working — which is the exact fault the note above TIMEOUT_S warns about, and what the
+    # board did to EP18 and EP19. The watchdog has to agree with the LOOSEST bound the
+    # commission can actually run under.
+    "audit_inputs":    _commission_budget(EPJSON_ATTEMPTS, _com.EPJSON_MAX_S),
     "ebook_pdf":       _commission_budget(1, _com.TIMEOUT_S),
     "youtube_copy":    _commission_budget(1, _com.TIMEOUT_S),
 }

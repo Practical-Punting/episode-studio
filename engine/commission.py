@@ -72,6 +72,51 @@ TIMEOUT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900"))
 TIMEOUT_EPJSON_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "1800"))
 TIMEOUT_SCRIPT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200"))
 
+# ── C2 — THE CARD-WRITER'S CEILING SCALES WITH THE JOB ──────────────────────────
+#
+# 🔴 IT HAS NOW CUT OFF A WORKING WRITER ON TWO EPISODES RUNNING (EP23 and EP24, both
+# at "checking the inputs"). The comment at the epjson call site asked for exactly this
+# evidence — "if a second run lands near it, raise it on that evidence rather than on
+# nerves" — and the second run landed.
+#
+# WHAT THE EPISODES ACTUALLY MEASURE:
+#     reference (when 1800 was set)   27 beats, 16 cards — wrote a 67 KB file in ~18 min
+#     EP22                            35 beats, 22 cards — finished inside 1800
+#     EP23                            41 beats, 26 cards — TIMED OUT at 1800
+#     EP24                            41 beats, 24 cards — TIMED OUT at 1800
+# The job is not a fixed size and the ceiling was. A bigger article means more beats,
+# more cards, more trace sentences to quote — and the ceiling never moved.
+#
+# ⚠️ THE PREDICTOR IS WEAK AND THAT IS SAID OUT LOUD. At commission time the beats and
+# cards DO NOT EXIST YET — they are the artefact being written — so the only thing to
+# scale on is the approved script, and script length separates these episodes poorly
+# (EP22 9.2 KB finished, EP24 10.3 KB did not). So this is deliberately GENEROUS: it is
+# a CEILING, not an estimate of the typical case, and being too tight costs a whole
+# wasted commission while being slightly loose costs only a later honest failure.
+#
+# 🔒 THE BETTER FIX IS NOT THIS ONE, AND THE NEXT PERSON SHOULD KNOW IT.
+# The real complaint is "a job that was still working got cut off", and the right answer
+# to that is a SILENCE timeout — stream the writer's output and fail when it stops
+# producing, not when a clock runs out. That needs `commission()` to move from
+# subprocess.run to a streamed Popen, which is a real change to the one path that spends
+# money, and it is not being half-done in the middle of a fix batch. Logged, scoped.
+EPJSON_BASE_S = int(os.environ.get("ENGINE_COMMISSION_EPJSON_BASE", "900"))
+EPJSON_PER_KB_S = int(os.environ.get("ENGINE_COMMISSION_EPJSON_PER_KB", "180"))
+EPJSON_MAX_S = int(os.environ.get("ENGINE_COMMISSION_EPJSON_MAX", "3600"))
+
+
+def epjson_timeout(script_chars: int | None = None) -> int:
+    """The ceiling for the settings-and-cards commission, scaled by the script.
+
+    Never returns less than the measured TIMEOUT_EPJSON_S floor: 1800 was earned by a
+    real observation and nothing here may quietly lower it. Capped at EPJSON_MAX_S so a
+    genuinely stuck writer still fails loudly rather than hanging all night.
+    """
+    if not script_chars or script_chars <= 0:
+        return TIMEOUT_EPJSON_S
+    want = EPJSON_BASE_S + EPJSON_PER_KB_S * (script_chars / 1024.0)
+    return int(max(TIMEOUT_EPJSON_S, min(EPJSON_MAX_S, want)))
+
 
 def _safe(s) -> str:
     """Flatten text that the engine's log stream cannot encode.

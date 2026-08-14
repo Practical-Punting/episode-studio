@@ -3625,7 +3625,14 @@ class RealProvider:
             # ⚠️ 1800 IS A BOUND WITH MARGIN, NOT A MEASUREMENT OF THE TYPICAL
             # CASE. One observation sets a floor, not a distribution. If a second
             # run lands near it, raise it on that evidence rather than on nerves.
-            timeout=com.TIMEOUT_EPJSON_S,
+            # C2 — SCALED BY THE JOB. A fixed 1800 cut off a WORKING writer on EP23 and
+            # EP24 running. The approved script is the only size signal that exists at
+            # this point (the beats and cards are the artefact being written), so the
+            # ceiling is derived from it. Falls back to the measured floor when there is
+            # no script to measure.
+            timeout=com.epjson_timeout(
+                (d / "docs/spoken-words.txt").stat().st_size
+                if (d / "docs/spoken-words.txt").is_file() else None),
             # the board's own sentence while the writer works (#6)
             on_start=on_start,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,

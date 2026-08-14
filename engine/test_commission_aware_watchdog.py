@@ -50,9 +50,23 @@ def case(name, ok, why=""):
 budget = engine.STEP_BUDGET_S.get("audit_inputs")
 case("audit_inputs has a budget at all", budget is not None,
      "it still falls through to the 900s default")
+# 🔴 THE MAX, NOT THE FLOOR — C2, 14 Aug 2026. The epjson ceiling now SCALES with the
+# script (commission.epjson_timeout), because a fixed 1800 cut off a WORKING writer on
+# EP23 and EP24 running. TIMEOUT_EPJSON_S is therefore only the LOWER bound now, and an
+# alarm set to it would fire while a big episode's writer was still legitimately going —
+# the exact fault this suite exists to prevent, arriving through the back door.
 case("  …and it is the commission's OWN bound, not a typed number",
-     budget == engine.EPJSON_ATTEMPTS * com.TIMEOUT_EPJSON_S + 300,
-     f"{budget} != {engine.EPJSON_ATTEMPTS} x {com.TIMEOUT_EPJSON_S} + 300")
+     budget == engine.EPJSON_ATTEMPTS * com.EPJSON_MAX_S + 300,
+     f"{budget} != {engine.EPJSON_ATTEMPTS} x {com.EPJSON_MAX_S} + 300")
+case("  …and it agrees with the LOOSEST ceiling a commission can run under",
+     budget >= engine.EPJSON_ATTEMPTS * com.epjson_timeout(60000) + 300,
+     "a scaled commission could outlive its own alarm")
+case("  …while the measured floor is never lowered",
+     com.epjson_timeout(1) >= com.TIMEOUT_EPJSON_S and
+     com.epjson_timeout(None) == com.TIMEOUT_EPJSON_S,
+     "1800 was earned by a real observation; scaling may raise it, never lower it")
+case("  …and a genuinely stuck writer still fails, rather than hanging all night",
+     com.epjson_timeout(10 ** 7) == com.EPJSON_MAX_S)
 
 # 🔴 THE CONTROL, IN THE NUMBERS THAT ACTUALLY HAPPENED. If either of these ever reads
 # "stuck" again, the board is calling a working writer stuck, which is the whole fault.
@@ -79,7 +93,15 @@ prov = (HERE / "providers.py").read_text(encoding="utf-8")
 case("providers.py no longer re-reads the timeout env vars itself",
      'os.environ.get("ENGINE_COMMISSION_TIMEOUT' not in prov,
      "a second reader of the same value is fault #2 — it drifts the day one is raised")
-case("  …it reads commission.py's definition", "com.TIMEOUT_EPJSON_S" in prov)
+# C2, 14 Aug 2026: providers now asks commission.py to COMPUTE the epjson ceiling from
+# the script rather than reading the constant, because a fixed 1800 cut off a working
+# writer on EP23 and EP24. The requirement is unchanged and is what is asserted — the
+# value comes from commission.py, never from a number typed into providers.
+case("  …it reads commission.py's definition",
+     "com.epjson_timeout(" in prov or "com.TIMEOUT_EPJSON_S" in prov)
+case("  …and the epjson ceiling is COMPUTED there, not fixed at the call site",
+     "com.epjson_timeout(" in prov,
+     "a fixed ceiling is what cut EP23 and EP24 off mid-write")
 
 # ── 4. the label reaches the board, and the CLOCK IS NEVER RESET ──────────────
 src = (HERE / "engine.py").read_text(encoding="utf-8")
