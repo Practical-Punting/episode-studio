@@ -318,6 +318,45 @@ def main():                                                            # noqa: C
     check("  and it does NOT raise a red flag for a single failure",
           not rh.flagged, f"flagged: {rh.flagged}")
 
+    # 🔴 EP25, 14 Aug 2026 — AND IT MUST SAY WHICH HALT IT WAS.
+    # This line read "the writer stopped part-way" for EVERY halt. EP25's writer did
+    # the opposite: it wrote a COMPLETE 2,617-word script, was rejected over one figure
+    # the article actually prints, and declined to remove it — correctly; the numbers
+    # check was wrong. The board reported a writer that gave up mid-sentence, so the
+    # next person to look went hunting for a timeout or a token ceiling while the real
+    # fault sat in the fold. A WRONG DESCRIPTION OF A FAULT COSTS MORE THAN NO
+    # DESCRIPTION, because it is a lead and it is followed.
+    #
+    # The discriminator is THE FILE, never the writer's account of itself.
+    class HaltedAfterWriting(Provider):
+        def _commission_script(self, ep, d, gate=None):
+            import commission as com
+            out = Path(d) / "docs/spoken-words.txt"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text("word " * 900, encoding="utf-8")
+            raise com.CommissionHalt("I wrote it and will not change that figure")
+    # ⚠️ A TREE OF ITS OWN, and that is not tidiness. These two cases are told apart
+    # by whether a script is ON DISK, and every earlier case in this file has already
+    # written one into the shared tree's PP-EP18. Sharing it would have the "wrote
+    # nothing" case read the happy path's script and pass for the wrong reason.
+    rw = Rail([episode(18)])
+    run_pass(rw, HaltedAfterWriting(pp_tree("EP18-source-article-testing-the-numbers.md")))
+    saidw = [t for _, t, _ in rw.progressed if t]
+    check("a writer that WROTE a script and then stopped is not called part-way",
+          not any("part-way" in t for t in saidw), f"said: {saidw}")
+    check("  and the line says a script was written, with its size",
+          any("900 words" in t for t in saidw), f"said: {saidw}")
+
+    class HaltedBeforeWriting(Provider):
+        def _commission_script(self, ep, d, gate=None):
+            import commission as com
+            raise com.CommissionHalt("I could not read the article")
+    rb = Rail([episode(18)])
+    run_pass(rb, HaltedBeforeWriting(pp_tree("EP18-source-article-testing-the-numbers.md")))
+    saidb = [t for _, t, _ in rb.progressed if t]
+    check("  and a writer that wrote NOTHING is still reported as exactly that",
+          any("before it had written" in t for t in saidb), f"said: {saidb}")
+
     print("\n-- 🔴 I2: THE WORDS REACH THE RAIL ONLY THROUGH THE GUARD --")
     check("it calls seat_script_if_empty", "seat_script_if_empty" in calls,
           f"calls: {sorted(calls)}")

@@ -2363,7 +2363,27 @@ def _draft_watch(provider):
                 if h.detail:
                     log(f"   (commission detail, for the log: {com._safe(h.detail)})")
                 log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {h.message}")
-                _say(ep, _tried_and_stopped(n, "the writer stopped part-way"))
+                # 🔴 SAY WHICH HALT IT WAS, AND ASK THE ARTEFACT (EP25, 14 Aug 2026).
+                # This line used to read "the writer stopped part-way" for EVERY halt.
+                # EP25's writer did nothing of the kind: it wrote a COMPLETE script
+                # three times, was rejected each time over one figure, and then
+                # declined to remove a number the article prints — which was correct,
+                # and the gate was wrong. The board reported a writer that gave up
+                # mid-sentence, so the next person to look went hunting for a timeout
+                # or a token ceiling and the real fault sat in the numbers check.
+                #
+                # The discriminator is the FILE, not the writer's own account of
+                # itself: a script on disk means words were written before the halt.
+                # A verdict is a report; the artefact is what happened.
+                _drafted = d / "docs/spoken-words.txt"
+                try:
+                    _words = len(_drafted.read_text(encoding="utf-8").split())
+                except OSError:
+                    _words = 0
+                _why = (f"the writer wrote {_words} words and then stopped rather "
+                        f"than make a change it disagreed with" if _words > 200
+                        else "the writer stopped before it had written a script")
+                _say(ep, _tried_and_stopped(n, _why))
                 continue
             except EngineFlag as f:
                 log(f"   drafting pass stopped for PP-EP{int(nn):02d}: {f}")
