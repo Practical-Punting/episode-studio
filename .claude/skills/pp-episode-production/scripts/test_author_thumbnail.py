@@ -205,6 +205,92 @@ except Exception as e:                                        # noqa: BLE001
     FAIL.append(("a long payoff is FITTED so the copy clears the logo; a short one is not",
                  f"{type(e).__name__}: {e}"))
 
+# ══ THE SERIES PART IS PRINTED ONCE (EP24, 14 Aug 2026) ══════════════════════════
+# EP24's rail title was typed with BRACKETS — "Track Secrets (Part 4)" — so the whole
+# string became packaging.hook, check() insisted the headline equal it, and the split
+# had nowhere to put the part but the headline:
+#     TRACK SECRETS  /  (PART 4)  /  Part 4
+# EP24 shipped a thumbnail rebuilt by hand. EP21-23 are the SAME SERIES and were right
+# only because their titles carry no brackets — so the fixture here is both shapes.
+import packaging_gate as _pg                                  # noqa: E402
+
+
+def series_ep(hook, l1, l2, part="Part 4"):
+    return {"packaging": {"hook": hook,
+                          "byline": "What the track is telling you before the race",
+                          "ebook_title": hook},
+            "thumbnail": {"l1": l1, "l2": l2, "part": part,
+                          "strap_break_after": "telling", "hero_focus": "center"}}
+
+
+# --- the fault, exactly as EP24's episode.json still holds it ---------------------
+case("a bracketed series part in l2 HALTS",
+     series_ep("Track Secrets (Part 4)", "TRACK SECRETS", "(PART 4)"), "brackets")
+case("an unbracketed series part inside the headline HALTS",
+     series_ep("Track Secrets Part 4", "TRACK", "SECRETS PART 4"), "print it twice")
+
+# --- the split that replaces it --------------------------------------------------
+e24 = series_ep("Track Secrets (Part 4)", "TRACK SECRETS", "(PART 4)")
+g = at.headline_and_part(e24, e24["thumbnail"])
+if (g[0], g[1], g[2]) == ("TRACK", "SECRETS", "Part 4"):
+    PASS.append(("'Track Secrets (Part 4)' splits to TRACK / SECRETS / Part 4",
+                 f"l1={g[0]!r} l2={g[1]!r} part={g[2]!r}; {g[3]}"))
+else:
+    FAIL.append(("'Track Secrets (Part 4)' splits to TRACK / SECRETS / Part 4",
+                 f"got {g[:3]}"))
+
+# …and the split must then PASS its own gate — a fix that trips the guard it was
+# written for is not a fix.
+try:
+    at.check(e24, {**e24["thumbnail"], "l1": g[0], "l2": g[1], "part": g[2]})
+    PASS.append(("the split headline passes check()", "no halt"))
+except at.Halt as e:                                          # noqa: BLE001
+    FAIL.append(("the split headline passes check()", str(e)[:160]))
+
+# --- CONTROL: an episode that was already right must not move --------------------
+ok21 = series_ep("Track Secrets", "TRACK", "SECRETS", "Part 1")
+g21 = at.headline_and_part(ok21, ok21["thumbnail"])
+if (g21[0], g21[1], g21[2], g21[3]) == ("TRACK", "SECRETS", "Part 1", ""):
+    PASS.append(("CONTROL: a hook with no part is left exactly alone",
+                 "TRACK / SECRETS / Part 1, and no split was made"))
+else:
+    FAIL.append(("CONTROL: a hook with no part is left exactly alone", f"got {g21}"))
+
+# --- the RENDERED PAGE is what the gate counts, and it counts to one --------------
+def _zone_page(l1, l2, part):
+    return (f'<div class="eyebrow">How to Win at Horse Racing</div>'
+            f'<div class="l1">{l1}</div><div class="l2">{l2}</div>'
+            f'<div class="part">{part}</div>'
+            f'<div class="strap">What the track is telling you before the race</div>')
+
+
+twice = _pg.page_faults("thumbnail", _zone_page("TRACK SECRETS", "(PART 4)", "Part 4"),
+                        "Track Secrets (Part 4)",
+                        "What the track is telling you before the race",
+                        "Track Secrets (Part 4)")
+if any("printed 2 time(s)" in f for f in twice):
+    PASS.append(("the packaging gate REFUSES a page printing the part twice",
+                 next(f for f in twice if "printed 2" in f)[:130]))
+else:
+    FAIL.append(("the packaging gate REFUSES a page printing the part twice",
+                 f"faults={twice}"))
+
+once = _pg.page_faults("thumbnail", _zone_page("TRACK", "SECRETS", "Part 4"),
+                       "Track Secrets (Part 4)",
+                       "What the track is telling you before the race",
+                       "Track Secrets (Part 4)")
+if not once:
+    PASS.append(("CONTROL: the same page with the part ONCE passes", "no faults"))
+else:
+    FAIL.append(("CONTROL: the same page with the part ONCE passes", f"faults={once}"))
+
+# …and a title whose words merely CONTAIN "part" is not a series title.
+notseries = _pg.strip_part("The Best Part of Betting")
+if notseries == ("The Best Part of Betting", ""):
+    PASS.append(("CONTROL: 'The Best Part of Betting' is not a series part", str(notseries)))
+else:
+    FAIL.append(("CONTROL: 'The Best Part of Betting' is not a series part", str(notseries)))
+
 print("\nTHUMBNAIL NEGATIVE TESTS — every guard must fire\n" + "=" * 74)
 for n, m in PASS:
     print(f"  ✓ {n}\n      {m[:110]}")

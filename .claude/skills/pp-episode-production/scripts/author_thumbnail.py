@@ -77,6 +77,44 @@ FOCUS = re.compile(r"^(center|\d{1,3}%)( (center|\d{1,3}%))?$")
 REQUIRED = ("l1", "l2", "part", "strap_break_after", "hero_focus")
 
 
+# ══ THE SERIES PART NEVER REACHES THE HEADLINE ═══════════════════════════════
+# 🔴 EP24, 14 Aug 2026. Its rail title was typed with BRACKETS — "Track Secrets
+# (Part 4)" — so the whole string became `packaging.hook`. `check()` below insists the
+# headline equals the hook, so the split had nowhere to put the part except the
+# headline, and the thumbnail read:
+#     TRACK SECRETS  /  (PART 4)  /  Part 4
+# EP24 shipped with a thumbnail rebuilt by hand. EP21-23 are the SAME SERIES and came
+# out right for one accidental reason: their titles have no brackets, so the hook was
+# "Track Secrets" and the part had only one place to go.
+#
+# ⚠️ SO THE BUG WAS A PUNCTUATION MARK IN A TITLE FIELD, three episodes after the
+# feature worked. The part is design furniture with a line of its own; it is taken off
+# the headline HERE, before l1 and l2 exist, and printed only by `.part`.
+def headline_and_part(ep, th):
+    """(l1, l2, part, note) — the headline with the series part taken out of it.
+
+    The part is stripped from the authored l1 and l2 individually, so it cannot survive
+    in either. If that empties one of them — which is what "(PART 4)" as the whole of l2
+    does — the headline is re-split from the hook: everything but the last word is the
+    SETUP (l1, white), the last word is the PAYOFF (l2, orange). That is exactly the
+    shape EP21, EP22 and EP23 were authored in, so the rule is the one already shipping.
+    """
+    pack = ep.get("packaging") or {}
+    base_hook, part_hook = pg.strip_part(pack_hook(ep))
+    l1 = pg.strip_part(str(th.get("l1") or ""))[0]
+    l2 = pg.strip_part(str(th.get("l2") or ""))[0]
+    part = str(th.get("part") or "").strip() or part_hook \
+        or pg.strip_part(str(pack.get("ebook_title") or ""))[1]
+    note = ""
+    if part_hook and not (l1 and l2):
+        words = base_hook.split()
+        if len(words) >= 2:
+            l1, l2 = " ".join(words[:-1]).upper(), words[-1].upper()
+            note = (f"series title split: {pack_hook(ep)!r} -> l1 {l1!r} + l2 {l2!r}, "
+                    f"with {part!r} on the part line and nowhere else")
+    return l1, l2, part, note
+
+
 def check(ep, th):
     pack = ep.get("packaging") or {}
     for k in REQUIRED:
@@ -99,11 +137,28 @@ def check(ep, th):
     # a title is sentence case, "Bill Benter Professional Gambler" — the two gates
     # disagreed and this one halted a correct thumbnail. The headline is set in caps
     # by the design; the comparison is about WORDS, not keystrokes.
+    # ⚠️ COMPARED WITH THE SERIES PART TAKEN OFF BOTH SIDES. The part has a line of its
+    # own, so a headline that leaves it out is not a headline that differs from the
+    # approved words — and demanding the whole string is exactly what forced EP24's
+    # "(PART 4)" into l2. The WORDS are still locked; only the part is elsewhere.
     hook = f"{th['l1']} {th['l2']}".strip()
-    if pack.get("hook") and hook.upper() != pack["hook"].strip().upper():
+    want = pg.strip_part(pack.get("hook") or "")[0]
+    if pack.get("hook") and pg.strip_part(hook)[0].upper() != want.upper():
         raise Halt(f"the thumbnail headline {hook!r} does not match the approved "
                    f"packaging.hook {pack['hook']!r}. The words were locked at the words "
                    f"gate; the thumbnail does not get to differ from them.")
+    # 🔴 AND THE PART MUST NOT BE IN THE HEADLINE AT ALL. EP24's l2 was literally
+    # "(PART 4)" — a bracketed series position set 150px tall in orange, above a part
+    # line saying the same thing. Brackets in the payoff word are the tell, and there is
+    # no legitimate reason for them: l2 is ONE word of the approved title.
+    if any(c in str(th["l2"]) for c in "()[]"):
+        raise Halt(f"thumbnail.l2 is {th['l2']!r} and carries brackets. l2 is the PAYOFF "
+                   f"word of the headline, set large in orange — a bracketed aside "
+                   f"belongs in no headline, and a bracketed SERIES PART belongs on the "
+                   f"part line, which prints it already. This is EP24's fault exactly.")
+    if pg.strip_part(str(th["l1"]))[1] or pg.strip_part(str(th["l2"]))[1]:
+        raise Halt(f"the series part is inside the headline ({th['l1']!r} / {th['l2']!r}) "
+                   f"as well as on the part line, so the thumbnail would print it twice.")
     if th.get("part") and pack.get("ebook_title") and th["part"] not in pack["ebook_title"]:
         raise Halt(f"thumbnail.part {th['part']!r} does not appear in the approved "
                    f"packaging.ebook_title {pack['ebook_title']!r}.")
@@ -222,7 +277,14 @@ def main():
     a = ap.parse_args()
 
     ep = json.load(open(a.episode_json, encoding="utf-8"))
-    th = ep.get("thumbnail") or {}
+    th = dict(ep.get("thumbnail") or {})
+    # THE SPLIT HAPPENS BEFORE ANYTHING ELSE SEES l1/l2 — including check(), which is
+    # what used to demand the part be in there. A copy, not a write-back: episode.json
+    # is the author's record and this is a rendering rule, so the page is what changes.
+    l1, l2, part, note = headline_and_part(ep, th)
+    if note:
+        th["l1"], th["l2"], th["part"] = l1, l2, part
+        print(f"  {note}")
     check(ep, th)
 
     tpl = open(TEMPLATE, encoding="utf-8").read()

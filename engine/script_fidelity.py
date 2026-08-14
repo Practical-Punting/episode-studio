@@ -84,9 +84,26 @@ def byline(capture_text: str) -> str | None:
     return None
 
 
+# 🔴 A LIST MARKER IS MARKUP, NOT A FIGURE THE ARTICLE STATES. (EP25, 14 Aug 2026.)
+# The capture now writes an ordered list as its own numbered paragraphs — `1. …` through
+# `50. …` — which is the article's own numbering restored (see capture_article fault 5).
+# Left in, those fifty markers become fifty numbers a script is ALLOWED to say, and this
+# gate goes quietly soft in exactly the place it had just proved itself: EP25's first
+# fresh draft was rejected for inventing `'forty seven'`, a figure the article does not
+# contain — and `47.` is now the forty-seventh tip's marker. The gate would have waved
+# through the very invention it caught.
+#
+# ⚠️ THE SHAPE IS THE WARNING, not this instance. Making a capture richer makes the
+# things measured against it more permissive, and nothing announces that. **Anything
+# added to the article of record has to be asked: does this become a fact a script may
+# now claim?** Stripped only at the LINE START, so a figure the article really states
+# ("1. Always bet with money…" is a marker; "$45. The progression" is not) is untouched.
+_LIST_MARKER = re.compile(r"(?m)^\d+\.[ \t]+")
+
+
 def source_text(capture_text: str) -> str:
     """Everything a script's figures may be drawn from: the byline + the body."""
-    body = (capture_text or "").split(MARKER_BEGIN)[-1]
+    body = _LIST_MARKER.sub("", (capture_text or "").split(MARKER_BEGIN)[-1])
     b = byline(capture_text)
     return f"{b}\n{body}" if b else body
 

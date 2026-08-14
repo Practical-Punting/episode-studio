@@ -33,7 +33,11 @@
           one author_ebook.py enforces:
           .kicker / h1.section / h2.rule / .lead / blockquote / .pullquote /
           .byline / .note / .divider / img.illus (+ .portrait) /
-          div.pagebreak / div.avoid
+          div.pagebreak / div.avoid / ol > li
+          — and where the ARTICLE prints a numbered list, the body reproduces it
+          as one <ol> with one <li> per numbered item, each figure sitting inside
+          the <li> it illustrates. author_ebook.py counts both and refuses a body
+          that flattens a list into a paragraph (EP25).
        3. Build:  python build_ebook.py <this-file> <out.pdf>
        4. QC: page count, all links live, header logo on content pages only,
           centred blocks actually centred (see the justify gotcha below).
@@ -136,6 +140,17 @@ p.haslead { orphans: 3; page-break-after: avoid; break-after: avoid; }
    together is the thing that actually needs it — a heading and its first lines, via
    `p.haslead` above. */
 
+/* A NUMBERED LIST, when the ARTICLE prints one. (EP25, 14 Aug 2026 — "50 Great
+   Staking Ideas" is an <ol> of fifty <li>, and both the capture and the book had
+   flattened it into a single paragraph.) The numbers are the article's own, so they
+   are set in the PP orange and given room, and an item is never split across a page
+   from its own number. A figure sits INSIDE the <li> it illustrates — that is what
+   keeps the picture beside its tip — so .illus inside a list item is pulled in a
+   little and loses the outer centring margin it uses in running text. */
+ol { margin: 14px 0 14px 0; padding-left: 26px; }
+ol li { margin: 0 0 11px 0; padding-left: 4px; orphans: 2; widows: 2; }
+ol li::marker { color:#DA532C; font-weight:800; }
+ol li .illus { margin: 12px auto 4px auto; max-width: 88%; max-height: 70mm; }
 .pagebreak { page-break-before: always; }
 .avoid { page-break-inside: avoid; }
 .note { font-size:10pt; color:#666; font-style:italic; }

@@ -457,6 +457,125 @@ case("a table whose figure's card gets a number wrong still halts",
      "does not carry",
      article=ART_T, body=GOOD_BODY, ebook_block=H1_ONLY, ep_over={"cards": CARD_BAD})
 
+# ══ A NUMBERED LIST (EP25, 14 Aug 2026) ══════════════════════════════════════════
+#
+# The article is an `<ol>` of fifty `<li>`; the body reproduced all fifty tips inside
+# ONE `<p>`, character for character, and every check ever written passed it. So the
+# control here is the shape, and it runs in BOTH directions — the flattened body must
+# halt, and the properly-numbered one must be authored.
+#
+# The fixture is a numbered list because that is the shape that failed; it is FOUR items
+# rather than fifty because the count is what the check reads, not the size.
+ART_L = """# TEST ARTICLE
+
+---- ARTICLE TEXT BEGINS ----
+
+TEST: FOUR STAKING IDEAS
+
+**Now for the tips:**
+
+1. Never bet more than you can afford to lose.
+
+2. Always have a sizeable betting bank - preferably 50 times your flat level stake.
+
+3. *Treat each bet separately, and do not always bet each way.
+
+4. Be content with a staking plan that produces small, but regular profits.
+
+* Indicates extract from Commonsense Punting, by Roger Dedman
+
+---- ARTICLE TEXT ENDS ----
+"""
+
+L_HEAD = ('<div class="kicker">Practical Punting Guide</div>\n'
+          '<h1 class="section">TEST: FOUR STAKING IDEAS</h1>\n'
+          '<h2 class="rule">Now for the tips:</h2>\n')
+L_FOOT = '<p>* Indicates extract from Commonsense Punting, by Roger Dedman</p>\n'
+L_TIPS = ["Never bet more than you can afford to lose.",
+          "Always have a sizeable betting bank &mdash; preferably 50 times your flat "
+          "level stake.",
+          "*Treat each bet separately, and do not always bet each way.",
+          "Be content with a staking plan that produces small, but regular profits."]
+# figure 1 renders C1, whose trace quotes tip 2 — so the gate must want it inside tip 2
+L_EP = {"figures": [{"n": 1, "card": "C1"}],
+        "cards": [{"id": "C1", "content": {},
+                   "trace": {"steps[1].k": "Always have a sizeable betting bank - "
+                                           "preferably 50 times your flat level stake."}}]}
+L_BOOK = {"departures": ["spaced-hyphen-em-dash"], "omit_paragraphs": []}
+
+
+def numbered_body(figure_in=2, one_ol=True):
+    li = []
+    for i, t in enumerate(L_TIPS, 1):
+        extra = ('<img class="illus" src="figure-1.png" alt="the betting bank">'
+                 if i == figure_in else "")
+        li.append(f"  <li>{t}{extra}</li>")
+        if not one_ol and i == 2:
+            li.append("</ol>\n<ol>")
+    tail = ("" if figure_in else
+            '<div class="avoid"><img class="illus" src="figure-1.png" '
+            'alt="the betting bank"></div>\n')
+    return L_HEAD + "<ol>\n" + "\n".join(li) + "\n</ol>\n" + tail + L_FOOT
+
+
+ok("control: a numbered list authored as one <ol> of four <li>",
+   article=ART_L, body=numbered_body(), ebook_block=L_BOOK, ep_over=L_EP)
+
+# 🔴 THE EP25 FAULT ITSELF. Every word correct; the structure gone.
+case("a numbered list FLATTENED into one paragraph HALTS",
+     "NUMBERED LIST of 4 items, and the body contains 0",
+     article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=L_HEAD + "<p>" + " ".join(L_TIPS) + "</p>\n" + L_FOOT)
+
+case("a numbered list MISSING one item HALTS",
+     "and the body contains 3",
+     article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=(L_HEAD + "<ol>\n"
+           + "\n".join(
+               f"  <li>{t}"
+               + ('<img class="illus" src="figure-1.png" alt="x">' if i == 2 else "")
+               + "</li>" for i, t in enumerate(L_TIPS[:3], 1))
+           + "\n</ol>\n" + L_FOOT))
+
+# THE WRONG ELEMENT, with the COUNTS MATCHING so the shape check cannot fire first —
+# the footnote (ordinary prose) set as a fourth <li>, and tip 4 set as a bare <p>.
+# Four items either way; only the elements are swapped. Without this case the
+# element rule would only ever be reached through a count mismatch, and the message
+# that names it would never be seen.
+case("the right words in the WRONG element HALTS, and says so",
+     "wrong element",
+     article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=(L_HEAD + "<ol>\n"
+           + "\n".join(
+               f"  <li>{t}"
+               + ('<img class="illus" src="figure-1.png" alt="x">' if i == 2 else "")
+               + "</li>" for i, t in enumerate(L_TIPS[:3], 1))
+           + "\n  <li>* Indicates extract from Commonsense Punting, by Roger "
+             "Dedman</li>\n</ol>\n"
+           + f"<p>{L_TIPS[3]}</p>\n"))
+
+case("splitting the list across TWO <ol> HALTS (the second restarts at 1)",
+     "restarts at 1", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=numbered_body(one_ol=False))
+
+# 🖼️ THE FIGURES. Present and correct, and nowhere near what they illustrate.
+case("the figures piled at the END of a numbered list HALTS",
+     "illustrates tip 2", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=numbered_body(figure_in=0))
+
+case("a figure in the WRONG tip HALTS",
+     "sits in tip 4", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP,
+     body=numbered_body(figure_in=4))
+
+# AND THE MIRROR: structure we invented is as wrong as structure we lost.
+case("a list the ARTICLE does not print HALTS",
+     "has no numbered list in it",
+     body=GOOD_BODY.replace(
+         "<p>How many times has it won firstup? Is it capable of repeating the "
+         "performance?</p>",
+         "<ol><li>How many times has it won firstup? Is it capable of repeating the "
+         "performance?</li></ol>"))
+
 print("\nE-BOOK FIDELITY GATE — every guard must fire\n" + "=" * 76)
 for n, m in PASS:
     print(f"  ✓ {n}\n      {m[:150]}")

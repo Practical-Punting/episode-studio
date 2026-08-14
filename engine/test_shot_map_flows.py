@@ -196,6 +196,84 @@ else:
 
 print()
 print("=" * 78)
+print("PART D - EP25 C26: the hold follows the floor, the FOLD stays a decision")
+print("=" * 78)
+# 🔴 THE HALT, AND WHY IT WAS DONE TWICE BY HAND. EP25 halted with
+#     CARD-CARD overlap C26/END: 0.34s — it has 9.66s and needs 10.0s at 4 item(s)
+# A human folded C26 from four cells to three AND set build.holds["C26"] = 9.0. Both
+# were needed, and only the first is a decision: folding lowers the FLOOR, but
+# `hold_for` returns build.holds[cid] or the episode default, so the PLANNED hold does
+# not move with it. Fold and stop, and the identical halt comes back.
+HAVE_EP25 = _ep.have(25, "renders", "aligned.srt", pp=PP)
+
+
+def ep25_copy(tmp, mutate=None):
+    src = _ep.episode_dir(25, PP)
+    d = Path(tmp)
+    (d / "docs").mkdir(parents=True, exist_ok=True)
+    (d / "renders").mkdir(parents=True, exist_ok=True)
+    for f in ("aligned.srt", "shot-map.json"):
+        shutil.copy(src / "renders" / f, d / "renders" / f)
+    epj = json.loads((src / "docs/episode.json").read_text(encoding="utf-8"))
+    if mutate:
+        mutate(epj)
+    (d / "docs/episode.json").write_text(json.dumps(epj, indent=2, ensure_ascii=False),
+                                         encoding="utf-8")
+    return d
+
+
+def unfold(e):
+    """C26 back to the FOUR cells it halted on — the bank and the stake split apart,
+    which is precisely the pair the human merged."""
+    c = next(x for x in e["cards"] if x["id"] == "C26")
+    cells = c["content"]["cells"]
+    c["content"]["cells"] = [
+        {"k": "The bank", "v": "Preferably 50 times your flat level stake", "sub": None},
+        {"k": "The stake", "v": "Most professional punters say level stake betting is "
+                                "the best and safest", "sub": None},
+        cells[1], cells[2]]
+    e["build"].pop("holds", None)
+
+
+if not HAVE_EP25:
+    print("  ·  skipped — EP25's aligned SRT is not on this machine")
+else:
+    # ---- the EDITORIAL half: no arithmetic clears it, so it must still halt -------
+    with tempfile.TemporaryDirectory() as t:
+        d = ep25_copy(t, unfold)
+        rc, out = derive(d, "--apply-broll", "--apply-wide", "--apply-hold")
+        check("a card that does not fit EVEN AT ITS FLOOR still halts",
+              rc != 0 and "CARD-CARD overlap C26/END" in out, out[-400:])
+        check("  and --apply-hold did NOT touch build.holds",
+              "C26" not in ((json.loads((d / "docs/episode.json").read_text(
+                  encoding="utf-8")).get("build") or {}).get("holds") or {}),
+              "a fold was applied without a human")
+        check("  and the halt names the ONE decision it wants",
+              "WHICH row folds into which" in out, out[-500:])
+        check("  and promises the hold follows by itself",
+              "you do not have to set build.holds" in out, out[-500:])
+        check("  and never offers to DROP a fact",
+              "never drop the fact" in out and "DROP it" not in out, out[-400:])
+
+    # ---- the MECHANICAL half: folded, holds unset — the half that got forgotten ---
+    with tempfile.TemporaryDirectory() as t:
+        d = ep25_copy(t, lambda e: e["build"].pop("holds", None))
+        rc0, out0 = derive(d, "--apply-broll", "--apply-wide")
+        check("CONTROL: folded but with the hold left at the default, it HALTS",
+              rc0 != 0 and "CARD-CARD overlap C26/END" in out0, out0[-400:])
+        rc1, out1 = derive(d, "--write", "--apply-broll", "--apply-wide", "--apply-hold")
+        got = (json.loads((d / "docs/episode.json").read_text(
+            encoding="utf-8")).get("build") or {}).get("holds", {}).get("C26")
+        check("  --apply-hold brings it down and the map derives",
+              rc1 == 0 and "ALL CHECKS PASS" in out1, out1[-400:])
+        check("  and it wrote exactly what the human wrote by hand (9.0)",
+              got == 9.0, f"build.holds['C26'] = {got}")
+        check("  and it said so, with the arithmetic behind it",
+              "applied build.holds['C26'] = 9.0" in out1 and "for 3 item(s)" in out1,
+              out1[-400:])
+
+print()
+print("=" * 78)
 print("PART C - nothing already shipped moves")
 print("=" * 78)
 for name in ("PP-EP19-10-Systems-for-Action-Hungry-Punters-Part-1",

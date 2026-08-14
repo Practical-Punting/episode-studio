@@ -185,6 +185,30 @@ def main():
     # SHOT PLAN block: WIDE is the only lawful answer and the beats are already known.
     apply_wide = "--apply-wide" in sys.argv
     wide_fixes: dict[int, list] = {}
+    # 🔴 --apply-hold: THE THIRD HALT THAT WAS NEVER A DECISION, AND THE ONE WITH A
+    # SECOND HALF NOBODY REMEMBERS. (EP25 C26, 14 Aug 2026.)
+    #
+    # A card overlaps the next by a hair. The card FITS the room it has, at its own
+    # lawful floor — the only reason it overruns is that its PLANNED hold is still the
+    # episode default. Bringing the hold down to the floor loses no fact, moves no cue
+    # and changes nothing a viewer reads; it is arithmetic this tool has already done.
+    #
+    # ⚠️ AND IT IS TWO WRITES, WHICH IS WHY IT KEPT COMING BACK HALF-DONE. Folding a row
+    # lowers the FLOOR (10.0s -> 9.0s at three items) but the PLANNED hold does not
+    # move with it: `hold_for` returns `build.holds[cid]` if it exists and otherwise the
+    # episode default, so a folded card is still planned at 10.0s and still overlaps.
+    # A human who folds and stops has fixed nothing, and the build says the same thing
+    # again. EP25 needed both, and both were done by hand.
+    #     So the floor moving is now what MAKES the hold move. The mechanical half can
+    # no longer be forgotten, because nobody has to remember it.
+    #
+    # 🚫 WHAT IS STILL A DECISION, AND STAYS ONE: WHICH ROW FOLDS INTO WHICH. That
+    # changes what the card says, and a machine choosing it would be automation eating
+    # a decision. When the floor does not fit even at the card's current size, this
+    # halts — and DROP is never among the options, because a fact does not come out to
+    # save three tenths of a second.
+    apply_hold = "--apply-hold" in sys.argv
+    hold_fixes: dict[str, float] = {}
 
     epj_path = d / "docs/episode.json"
     # PREFER FORCED ALIGNMENT. renders/generated.srt is CONSTRUCTED from
@@ -565,6 +589,28 @@ def main():
         return (f"\n       {first} IS THE ONE THAT GIVES WAY (its window runs to "
                 f"{second}'s entry): " + ch.options_for(card, build, available))
 
+    def hold_can_come_down(first, second):
+        """The new hold for `first` if this overlap is pure arithmetic, else None.
+
+        MECHANICAL means all three, and nothing else counts:
+          · `first` is the card that gives way (its window runs to `second`'s entry);
+          · at its OWN lawful floor it fits that window — so no fact has to move;
+          · its planned hold is ABOVE that floor — so there is something to bring down.
+        The answer is the floor itself, which is what a human wrote by hand on EP25.
+        """
+        a, b_ = windows.get(first), windows.get(second)
+        card = next((c for c in epj.get("cards", []) if c.get("id") == first), None)
+        if not a or not b_ or card is None:
+            return None
+        available = round(b_[0] - a[0], 2)
+        floor = round(ch.min_hold_for(card, build), 2)
+        current = round(hold_for(first, card, holds, build), 2)
+        if floor <= 0 or available <= 0:
+            return None                      # no floor set, or the two share a cue
+        if floor <= available + 0.005 and current > floor + 0.01:
+            return floor
+        return None
+
     cards_only = {k: v for k, v in windows.items() if k not in ("MIDROLL",)}
     pairs = 0
     print(f"\nOVERLAP CHECK — all four classes")
@@ -588,6 +634,13 @@ def main():
                 # than noise when it reads as impossibility beside "it already fits".
                 # EP22's C19 printed exactly that pair. If the card fits the room the
                 # next card leaves it, this is a hold to trim, not a beat to argue with.
+                # THE MECHANICAL HALF FIRST. If the card fits at its own floor, this is
+                # a hold to bring down and not a decision — record it and say nothing
+                # to the operator. Only the genuinely editorial case reaches `problems`.
+                down = hold_can_come_down(ids[i], ids[j]) if apply_hold else None
+                if down is not None:
+                    hold_fixes[ids[i]] = down
+                    continue
                 problems.append(f"CARD-CARD overlap {ids[i]}/{ids[j]}: {ov:.2f}s"
                                 + ("" if _fits_its_window(ids[i], ids[j])
                                    else why_card_beat(ids[i]))
@@ -663,7 +716,7 @@ def main():
   change she should agree to rather than discover.""")
     for n in notes:
         print(f"NOTE    {n}")
-    if problems or wide_fixes:
+    if problems or wide_fixes or hold_fixes:
         # ⚠️ WRITTEN AND RE-RUN, NOT WRITTEN AND TRUSTED. The b-roll delay is computed
         # from a ROUNDED overlap, so one pass can leave a hundredth of a second still
         # touching — EP21 needed two rounds. Widening a beat can likewise move a card's
@@ -678,6 +731,22 @@ def main():
                 print(f"   applied build.broll_offsets[{t!r}] = {v}"
                       + (f"  (was {was})" if was is not None else "  (was unset)"))
             applied.append(f"{len(broll_fixes)} b-roll offset(s)")
+        if apply_hold and hold_fixes:
+            # `holds_out`, and NEVER `build["holds"] = …`. test_preflight_build_written
+            # greps the engine and the skill for `build[...] = ` and fails on any key
+            # not declared build-written; `build.holds` is AUTHORED — episodes set it
+            # by hand — so it must not join that list. setdefault reaches the same dict
+            # without writing the pattern that would blunt the guard.
+            holds_out = build.setdefault("holds", {})
+            for cid, v in sorted(hold_fixes.items()):
+                was = holds_out.get(cid)
+                holds_out[cid] = v
+                card = next((c for c in epj["cards"] if c["id"] == cid), {})
+                print(f"   applied build.holds[{cid!r}] = {v}"
+                      + (f"  (was {was})" if was is not None
+                         else f"  (was unset — the episode default)")
+                      + f"  — {ch.why(card, build)}")
+            applied.append(f"{len(hold_fixes)} card hold(s) brought down to their floor")
         if apply_wide and wide_fixes:
             # `bt`, not `b` — a bare `b` is this codebase's alias for the BUILD dict, and
             # test_preflight_build_written greps for `b[...] =` to prove every key the

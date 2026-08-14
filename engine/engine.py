@@ -102,7 +102,7 @@ import script_fidelity                         # the drafting pass's own gate
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
                        assert_capture_for_script, find_capture, SKILL_DIR,
-                       answer_pending_gates)
+                       answer_pending_gates, ask_once)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -1977,6 +1977,88 @@ def _clear_failures(d, task: str) -> None:
             pass
 
 
+def _capture_provisional(ep, provider, nn, err) -> bool:
+    """B2 — keep a THIN capture as provisional and put the question on the board.
+
+    Returns True when the question is now outstanding (so the caller stops working this
+    episode) and False when the refusal was not a thin one — in which case the ordinary
+    studio-side failure path takes it, unchanged.
+
+    🔴 THE QUESTION IS THE WHOLE THING, so it is written to the operator-box rule: the
+    picture, the question, the buttons. No paths, no exception text, no talk of globs.
+    Jodie is being asked to look at a web page and say whether the words are all of it —
+    which is a judgement she can make in thirty seconds and the studio cannot make at all.
+    """
+    body = getattr(err, "provisional", None)
+    if not body:
+        return False                       # not a thin capture — nothing to offer
+    d = provider.dir(ep)
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import capture_article as cap                              # noqa: PLC0415
+        cap.write_provisional(d, ep.get("source_url") or "", nn, body, str(err))
+    except Exception as e:                                         # noqa: BLE001
+        log(f"drafting pass: PP-EP{int(nn):02d} — could not keep the short capture "
+            f"({type(e).__name__}: {e}); treating it as an ordinary refusal")
+        return False
+    words = len(body.split())
+    log(f"drafting pass: PP-EP{int(nn):02d} — the capture came back SHORT "
+        f"({words} words) and is being held as PROVISIONAL. It is NOT the article of "
+        f"record and nothing measures against it; the board now carries the question.")
+    try:
+        ask_once(
+            d / "docs", f"capture-provisional-{int(nn):02d}",
+            "This article came out SHORTER than a Practical Punting feature normally is "
+            f"— {words} words — so I have not accepted it.\n\n"
+            "I have kept what I read. It may well be the whole article: some pieces "
+            "genuinely are short. But I cannot tell the difference between a short "
+            "article and an article I only got part of, and everything else in the "
+            "episode is measured against these words for the rest of its life.\n\n"
+            "WHAT I NEED FROM YOU: open the article and read to the end of it.\n\n"
+            "  • If what you see is all there is — clear this flag, and I will use it "
+            "and carry on.\n"
+            "  • If there is more on the page than I got — leave this flag up and tell "
+            "the studio. The reading needs fixing, not confirming.\n\n"
+            "Nothing has been written and nothing has been spent.")
+    except EngineFlag as f:
+        try:
+            rail.flag_needs_look(ep["id"], str(f))
+        except Exception as e:                                     # noqa: BLE001
+            log(f"   (could not raise the provisional-capture question: {e})")
+            return False
+    return True
+
+
+def _promote_confirmed_capture(ep, provider, nn) -> bool:
+    """A human cleared the question: the provisional text becomes the article of record.
+
+    ⚠️ THE ANSWER IS OBSERVED, NEVER ASSUMED. `answer_pending_gates` turns an outstanding
+    `.asked-…` into `.answered-…` only when the flag actually went down on the board, so
+    an engine restart, a reboot or a re-run cannot promote anything by itself. An
+    unanswered ask simply is not an answer — the C3 gate rule, reused rather than
+    re-implemented.
+    """
+    d = provider.dir(ep)
+    stem = f"capture-provisional-{int(nn):02d}"
+    prov = d / "docs" / "capture-PROVISIONAL.md"
+    if not prov.is_file() or not (d / "docs" / f".answered-{stem}").exists():
+        return False
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import capture_article as cap                              # noqa: PLC0415
+        head = _title_from_capture(prov.read_text(encoding="utf-8")) or \
+            (ep.get("title") or f"PP-EP{int(nn):02d}")
+        dest = cap.promote_provisional(d, provider.pp, nn, head)
+    except Exception as e:                                         # noqa: BLE001
+        log(f"drafting pass: PP-EP{int(nn):02d} — a human confirmed the short capture "
+            f"but it could not be promoted ({type(e).__name__}: {e})")
+        return False
+    log(f"drafting pass: PP-EP{int(nn):02d} — the short capture was CONFIRMED BY A "
+        f"HUMAN and is now the article of record -> {Path(dest).name}. The file says "
+        f"so, so nobody later reads a short article as a clean automatic capture.")
+    return True
+
+
 def _flag_stuck(ep, d, task: str, what: str, reason: str, whose: str) -> bool:
     """After STUCK_AFTER consecutive failures, tell the board. Returns True if flagged.
 
@@ -2218,6 +2300,11 @@ def _draft_watch(provider):
             # one does not fail: it redefines the truth and every downstream check then
             # agrees with it. `capture_article` recognises the page or raises, and its
             # refusal lands in the run log like any other studio-side stop.
+            # B2 — DID A HUMAN ANSWER THE SHORT-CAPTURE QUESTION? Asked BEFORE the
+            # capture attempt below, because a confirmed provisional IS the article of
+            # record and re-fetching a page we have already been told about would
+            # discard her answer and ask her again.
+            _promote_confirmed_capture(ep, provider, nn)
             if not find_capture(provider.pp, nn) and (ep.get("source_url") or "").strip():
                 # B1 PRE-FLIGHT — SMOKE THIS ARTICLE'S OWN SECTION FIRST.
                 # Capture has broken on a NEW ARTICLE SHAPE on episode after episode, and
@@ -2244,6 +2331,19 @@ def _draft_watch(provider):
                     # — and nothing carried that back to the rail.
                     _retitle_from_capture(ep, _txt)
                 except Exception as e:                              # noqa: BLE001
+                    # ── B2: A THIN CAPTURE IS PROVISIONAL, AND THE QUESTION IS HERS ──
+                    # (Jodie's ruling, 14 Aug 2026.) The refusal above is right about
+                    # everything except what to do next: the words that came out ARE the
+                    # article's own, and the only doubt is whether they are all of it —
+                    # which is a question a person answers by LOOKING at the page.
+                    #
+                    # 🔒 IT DOES NOT WEAKEN "it places a capture or it refuses". That
+                    # rule exists so nothing subtly wrong becomes the article of record
+                    # UNNOTICED, and the danger was never best-effort text — it was
+                    # best-effort text nobody looked at. The text is kept where nothing
+                    # reads from, and a human's yes is what moves it.
+                    if _capture_provisional(ep, provider, nn, e):
+                        continue
                     # THE RUN LOG FIRST, THE BOARD IF IT KEEPS FAILING. A19 says a page
                     # we cannot read is the studio's problem and Jodie should not be
                     # handed work she cannot do — right for one failure, wrong for a

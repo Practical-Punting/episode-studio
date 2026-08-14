@@ -734,13 +734,131 @@ generated imagery.
 human gates). It does not add a step, a gate or an approval.
 
 🔒 **GUARDED, and APPLIED rather than asked.** The line lives once in
-`engine/broll_prompt_rules.py` and is applied in `providers._cover_prompts` — **the single
-funnel every generated hero comes through** — so both prompts state it and neither can be
-forgotten. Written back to `episode.json`, because that file is the audit trail for the
+`engine/broll_prompt_rules.py`, as one entry in `RULES`, so **both** funnels read the same
+definition: `apply_rules()` for the racing b-roll and `providers._cover_prompts` for the
+cover heroes. Written back to `episode.json`, because that file is the audit trail for the
 image that was bought. Proved in `engine/test_broll_rail_rule.py`, including that a
 non-racing image is NOT given racing orientation, and that applying it twice does not
 double it.
+
+> ### 🔴 CORRECTED 14 Aug 2026, THE DAY AFTER — **"THE SINGLE FUNNEL" WAS TWO FUNNELS.**
+> This paragraph used to say the line was applied in `providers._cover_prompts`, *"the
+> single funnel every generated hero comes through"*. **It is not.** The cover heroes come
+> through that one; the **racing b-roll** comes through `apply_rules()`, and the rule was
+> installed at only the first. EP25's two cover prompts carried the line correctly — and
+> **all six of its racing b-roll prompts had no orientation at all.**
+>
+> ⚠️ **AND THE TEST FILE WAS GREEN THROUGHOUT.** It asserted the cover funnel, which was
+> genuinely working. **A guard installed at one funnel says nothing about the other, and a
+> passing suite will not tell you there is another one** — the words *"the single funnel"*
+> were the whole of the evidence that there wasn't, and they were written by the same hand
+> that installed the guard. **Ask what ELSE reaches the thing you are protecting, and
+> answer it by reading the callers, not by describing the design.**
 📌 **The ledger (`_prompt_key`) is keyed on the prompt, so a rewritten prompt is a
 different image to E16 — which costs nothing here: a hero already ON DISK is never
 re-bought, so only a hero that was going to be generated anyway is generated from the
 better words.**
+
+## A24 · 14 Aug 2026 — 📄 A THIN CAPTURE IS PROVISIONAL UNTIL A HUMAN SAYS YES · **Jodie**
+
+**The ruling:** *capture best-effort text, but it does NOT become the article of record —
+what `script_fidelity`, `check_trace` and the e-book body are measured against — until a
+HUMAN has looked and said yes.*
+
+> **No hard halt, and nothing silently trusted.** On a thin or partial capture the
+> best-effort text is kept as **PROVISIONAL**, and a plain-English **question** goes on the
+> board: *"this article came out shorter than a PP feature normally is — open it and tell
+> me whether that is all of it."*
+
+### 🔴 HOW THIS SITS WITH "IT PLACES A CAPTURE OR IT REFUSES", WHICH IS NOT WEAKENED
+
+`capture_article`'s own header says it never produces a best-effort article of record, and
+that rule is load-bearing: **a subtly wrong capture does not fail — it redefines the truth,
+and every downstream check then agrees with it.**
+
+> ### THE DANGER WAS NEVER BEST-EFFORT TEXT. IT WAS BEST-EFFORT TEXT NOBODY LOOKED AT.
+> **A human's confirmation satisfies the original rule exactly.** What had to be built was
+> not the fallback — it was the guarantee that between the refusal and the yes, nothing
+> anywhere can mistake the text for the article of record.
+
+🔒 **AND THAT GUARANTEE IS THE FILE'S LOCATION, NOT ITS BANNER.** The provisional text is
+written into the EPISODE's folder, never `PP Videos/docs/`, so `find_capture()` — which
+globs `docs/EPnn-source-article-*.md` — **cannot see it at all.** A banner is a comment,
+and this repo has paid for trusting those. **Promotion is a MOVE, and the move is the
+moment it becomes true.**
+
+### WHAT IS OFFERED FOR A YES, AND WHAT IS STILL A HARD REFUSAL
+
+| offered as provisional | still refused outright |
+|---|---|
+| **SHORTNESS** — the words are the article's own; the only doubt is whether they are all of it, and **that is a question a person answers by looking at the page** | **no article container / it never closes** — there are no words to offer |
+| | **furniture leaked · a surviving sentinel** — the text is CONTAMINATED, and asking someone to certify text whose edges they cannot see is not a confirmation |
+| | **OCR damage · a list inside a list** — §0a JUDGEMENTS about what the article SAYS, which is a different question from "is this all of it" |
+
+⚖️ **The answer is OBSERVED, never assumed.** It reuses the C3 gate (`ask_once` /
+`answer_pending_gates`): an `.asked-…` becomes an `.answered-…` **only when the flag
+actually went down on the board**, so a restart, a reboot or a re-run cannot promote
+anything by itself. An unanswered ask simply is not an answer.
+
+📌 **And the promoted file says how it got there** — "the automatic capture REFUSED this
+page for being too short… a person compared it with the source and confirmed it" — so
+nobody reading it in three months mistakes a short article for a clean automatic capture.
+
+🔒 **GUARDED:** `engine/test_capture_provisional.py`, 28 cases, including that
+`find_capture()` returns nothing while the question is outstanding, that a re-run re-asks,
+and that a second promotion cannot overwrite the record.
+
+## A23 · 14 Aug 2026 — ⏱️ A MECHANICAL FIX APPLIES ITSELF; ONLY THE EDITORIAL HALF HALTS · **Jodie**
+
+**The fault, on EP25: `CARD-CARD overlap C26/END: 0.34s`.** Three tenths of a second
+stopped the build and waited for a person.
+
+### THE RULE
+
+> **When a card overruns the next and the arithmetic alone can clear it — the card FITS
+> the room it has, at its own lawful floor — the engine BRINGS THE HOLD DOWN and carries
+> on. It never asks.**
+> **When clearing it means deciding WHICH ROW FOLDS INTO WHICH, it halts, because that
+> changes what the card says.**
+> **`SPLIT` is offered as the alternative. `DROP` never is — a fact does not come out to
+> save three tenths of a second.**
+
+### 🔴 THE TWO-PART CATCH, WHICH IS THE WHOLE REASON THIS KEPT COMING BACK
+
+**Folding a row lowers the FLOOR. It does not move the PLANNED HOLD.** `hold_for()`
+returns `build.holds[cid]` if it exists and otherwise the episode default — so a card
+folded from four items to three has a floor of 9.0s and is **still planned at 10.0s, and
+still overlaps.**
+
+> **A human who folds the card and stops has fixed nothing, and gets the identical halt
+> back with no clue why.** EP25 needed **both** writes and a person did **both** by hand.
+
+**So the floor moving is now what MAKES the hold move.** The mechanical half can no longer
+be forgotten, because nobody has to remember it. *That is the general shape, and it is the
+point of the ruling: when a fix has an obvious half and a bookkeeping half, the bookkeeping
+half is where it silently half-lands — automate that one FIRST.*
+
+### WHERE THE LINE IS, AND WHY IT IS THERE
+
+**Automation eats chores, never decisions** (A12, and the Script Gate record). Bringing a
+hold down to a floor the tool already computed is a chore: **no fact moves, no cue moves,
+nothing a viewer reads changes.** Choosing that "the bank" and "the stake" share one cell —
+which is what EP25's fix actually was — **changes what the card says**, and stays Jodie's.
+
+**SUPERSEDES:** nothing. It is the third of the same argument: `--apply-broll` (12 Aug),
+`--apply-wide` (13 Aug), and now `--apply-hold`. **Every one was a halt that had never
+been a decision, and every one was applied verbatim by hand before it was automated.**
+
+**DOES NOT COVER:** a card that does not fit **even at its floor** (still halts, and must);
+a card too big for **any** window (`NOTHING FITS THIS WINDOW` — it moves or it comes out,
+and that is a decision); the midroll and b-roll overlap classes, which have their own rules.
+
+🔒 **GUARDED.** `--apply-hold` in `derive_card_timings.py`, one derived condition —
+*floor fits the window AND the planned hold is above the floor* — so no episode is named
+and no list is maintained. Proved in `engine/test_shot_map_flows.py` **PART D**, on EP25's
+real C26: the four-cell card still halts and `build.holds` is left untouched; the folded
+card with its hold unset is brought down to **9.0**, which is exactly the number the human
+wrote. EP22's pre-fix halts still halt, and EP19/20/21 still derive clean and unchanged.
+📌 **And the halt now names the one thing it wants** — *"the ONLY thing needed from you is
+WHICH row folds into which… the hold then comes down by itself; you do not have to set
+build.holds"* — so the person in front of it is asked for a judgement, never for arithmetic.

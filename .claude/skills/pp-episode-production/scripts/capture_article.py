@@ -10,7 +10,7 @@ against for the life of the episode. A capture that is subtly wrong does not fai
 quietly redefines the truth, and every downstream check then agrees with it. So this
 tool RECOGNISES a page or it HALTS. It never produces a best-effort article of record.
 
-THE FOUR THINGS A NAIVE FETCH GETS WRONG (all found building EP19's by hand):
+THE FIVE THINGS A NAIVE FETCH GETS WRONG (the first four found building EP19's by hand):
   1. paragraphs are `<br /><br />`, NOT `<p>` — strip the tags and the whole article
      runs into one block ("everything!As far as systems go")
   2. sub-headings are inline `<b>THE 10K SYSTEM</b>` and glue to the next sentence
@@ -18,6 +18,18 @@ THE FOUR THINGS A NAIVE FETCH GETS WRONG (all found building EP19's by hand):
      start3rd-last startWin 9 pts…" and the figures stop tracing (the EP16 lesson)
   4. the article ends at the byline; after it is the site — Recommended Article,
      Sign up for Free Tips, Next To Jump, Buy Tips
+  5. 🔴 A REAL `<ol>` MUST STAY A NUMBERED LIST. (EP25, 14 Aug 2026.) Fault 1 in its
+     purest form, and it got past this file because `<li>` is not `<br>` and not `<p>`:
+     the tag-strip removed it leaving NOTHING between the items, not even a space, so
+     "…rather than one horse each-way." ran straight into "If you insist on backing…".
+     **EP25's article is an `<ol>` of exactly 50 `<li>` and the capture made it ONE
+     PARAGRAPH of 3,900 words.** The e-book then reproduced that paragraph faithfully —
+     the fidelity gate was satisfied, because the gate compares the body to the CAPTURE
+     and the capture was already wrong. A whole list lost its structure and every check
+     downstream agreed with the loss.
+     ⚠️ THE TELL, worth more than the fix: sentences that abut with NO SPACE. A `<br>`
+     or a `<p>` at least leaves whitespace behind; a stripped `<li>` leaves nothing, so
+     the damage reads as a typo rather than as a missing structure.
 
 🔒 THE HEADLINE GOES INSIDE THE MARKERS. (Jodie, 9 Aug 2026, from EP19.)
 An episode's own title is the article's own words, printed on the page, and usually the
@@ -67,7 +79,31 @@ MIN_WORDS = 300
 
 
 class Unrecognised(Exception):
-    """The page is not one we know how to read. Nothing is written."""
+    """The page is not one we know how to read. Nothing is written.
+
+    🔴 `provisional` CARRIES BEST-EFFORT ARTICLE TEXT — and ONLY where the extraction
+    genuinely produced the article's own words and the doubt is about how MUCH of it
+    arrived. (Jodie's B2 ruling, 14 Aug 2026.)
+
+    THE RULING, and how it sits with the rule at the top of this file. "It places a
+    capture or it refuses" exists so that nothing subtly wrong becomes the article of
+    record UNNOTICED. A human confirming the text satisfies that exactly — the danger
+    was never best-effort text, it was best-effort text nobody looked at. So a thin
+    capture is kept as PROVISIONAL, outside the folder anything reads from, and a plain
+    question goes on the board. It becomes the article of record when a person says yes,
+    and not one moment earlier.
+
+    ⚠️ AND MOST REFUSALS MUST NOT SET IT. A page with no article container produced no
+    words to offer. Furniture that leaked, or a surviving sentinel, means the text is
+    CONTAMINATED — offering that for a yes/no is asking someone to certify something
+    they cannot see the edges of. OCR damage and a nested list are §0a JUDGEMENTS about
+    what the article says, which is a different question from "is this all of it".
+    Only shortness is offered, because shortness is the one a human can simply LOOK at.
+    """
+
+    def __init__(self, message, provisional: str | None = None):
+        super().__init__(message)
+        self.provisional = provisional
 
 
 def fetch(url):
@@ -96,6 +132,55 @@ def table_to_md(tbl_html):
     rows = [r + [""] * (width - len(r)) for r in rows]
     return ("| " + " | ".join(rows[0]) + " |\n|" + "|".join(["---"] * width) + "|\n"
             + "\n".join("| " + " | ".join(r) + " |" for r in rows[1:]))
+
+
+_LIST = re.compile(r"<(ol|ul)\b([^>]*)>(.*?)</\1\s*>", re.S | re.I)
+
+
+def lists_to_blocks(frag):
+    """Turn `<ol>`/`<ul>` into ONE BLOCK PER ITEM, numbered when the list is ordered.
+
+    An ordered list becomes markdown's own numbered list — `1. …` through `50. …`, one
+    per blank-line-separated block — so `article_paragraphs()` sees fifty paragraphs
+    where it used to see one, and the e-book body can reproduce them as fifty `<li>`.
+    An UNORDERED list becomes one block per item with no marker: the run-on is the bug,
+    and a bullet the article does not number is not something to invent a number for.
+
+    THE NUMBER IS THE ARTICLE'S OWN MARKUP, exactly as `**BOLD**` is for a heading —
+    `<ol>` numbers its items whether or not the digits appear in the HTML, so writing
+    them down is reproducing the page, not adding to it. `start=` is honoured because a
+    list that begins at 7 says 7 on the page.
+
+    NESTING REFUSES rather than guesses. A list inside a list has a numbering scheme
+    (1/a/i, or restart-at-1) that this cannot know from the markup alone, and inventing
+    one would put a wrong number in the article of record — the one thing this file
+    exists to prevent.
+    """
+    def one(m):
+        kind, attrs, inner = m.group(1).lower(), m.group(2) or "", m.group(3)
+        if re.search(r"<(ol|ul)\b", inner, re.I):
+            raise Unrecognised(
+                "this article contains a list inside a list. How the inner one is "
+                "numbered (1/a/i, or restarting at 1) is not something the markup "
+                "settles, and guessing would put a number in the article of record "
+                "that the page does not print. Capture this one by hand.")
+        items = [i for i in re.split(r"<li\b[^>]*>", inner)[1:]]
+        if not items:
+            return "\n\n"
+        n = 1
+        sm = re.search(r'start\s*=\s*["\']?(\d+)', attrs, re.I)
+        if sm:
+            n = int(sm.group(1))
+        out = []
+        for raw in items:
+            text = re.sub(r"</li\s*>.*", "", raw, flags=re.S | re.I)
+            if not re.sub(r"<[^>]+>", "", text).strip():
+                continue                      # an empty <li> is furniture, not an item
+            out.append((f"{n}. " if kind == "ol" else "") + text.strip())
+            n += 1
+        return "\n\n" + "\n\n".join(out) + "\n\n"
+
+    return _LIST.sub(one, frag)
 
 
 def _container_end(frag):
@@ -159,6 +244,12 @@ def extract(page):
     byline = m.group(1).strip() if m else None
     if m:
         frag = frag[:m.start()]
+
+    # LISTS BEFORE ANYTHING ELSE TOUCHES THE TAGS. `<li>` carries no whitespace of its
+    # own, so once the strip below has run there is nothing left to tell one item from
+    # the next — see fault 5 in the header. Done here, each item is already its own
+    # block by the time the `<br>` and `<p>` rules run, and they leave it alone.
+    frag = lists_to_blocks(frag)
 
     tables = re.findall(r"<table.*?</table>", frag, re.S | re.I)
     for i, t in enumerate(tables):
@@ -225,10 +316,14 @@ def extract(page):
 
     words = len(body.split())
     if words < MIN_WORDS:
+        # THE ONE REFUSAL THAT CARRIES ITS TEXT FORWARD. The words that DID come out are
+        # the article's own — the doubt is whether they are all of it, and that is a
+        # question a person can answer by looking at the page. See Unrecognised.
         raise Unrecognised(
             f"only {words} words came out of the article container, and a PP feature is "
             f"never that short. The page is laid out in a way this reader does not "
-            "understand, and a truncated article of record is worse than none.")
+            "understand, and a truncated article of record is worse than none.",
+            provisional=body)
     leaked = [f for f in FURNITURE if f in body]
     if leaked:
         raise Unrecognised(
@@ -364,6 +459,18 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
            f"**{len(tables)} real `<table>` in the article body, kept AS tables.** "
            "Flattened they read as unreadable prose and the figures stop tracing "
            "(the EP16 lesson).")
+    # THE LIST, RECORDED AS PROVENANCE. A downstream reader has to be able to tell a
+    # numbered list from prose that happens to start with a digit, and the e-book gate
+    # counts these items — so the count is written down where a human can check it
+    # against the page rather than inferred from the markers alone.
+    n_items = len(re.findall(r"(?m)^\d+\. ", body))
+    lst = ("**No numbered list in the article body.**" if not n_items else
+           f"**The article body is a NUMBERED LIST of {n_items} items, and it is kept "
+           f"as one** — written below as `1.` … `{n_items}.`, one paragraph per item, "
+           f"which is the article's own numbering. `<li>` carries no whitespace, so a "
+           f"plain tag-strip runs every item into its neighbour with not even a space "
+           f"between them (the EP25 lesson). The e-book reproduces this as an `<ol>` "
+           f"of {n_items} `<li>` and `author_ebook.py` refuses a body that does not.")
 
     # An empty standfirst rendered as a bare `****`. Not every page has one, and a
     # header full of empty markup is a header nobody reads.
@@ -391,14 +498,19 @@ without error.** Verified against the raw bytes, not through a reader.
 
 {tbl}
 
+## LISTS
+
+{lst}
+
 ## WHERE THE ARTICLE ENDS
 
 The body is {by_note}. Everything after it on these pages is
 the site — Recommended Article, Sign up for Free Tips, Next To Jump, Buy Tips — and the
 capture refuses to place itself if any of that reaches the article text.
 
-📌 Paragraph breaks are `<br /><br />` in the source and sub-headings are inline `<b>`;
-both are restored here. A plain tag-strip runs the whole article into one block.
+📌 Paragraph breaks are `<br /><br />` in the source, sub-headings are inline `<b>`, and
+list items are `<li>`; all three are restored here. A plain tag-strip runs the whole
+article into one block.
 
 ---
 
@@ -425,6 +537,91 @@ By {byline}
     else:
         print(f"\nwould write {dest.name} (report only; pass --write)")
     return dest, text
+
+
+# ══ B2 — A THIN CAPTURE IS PROVISIONAL UNTIL A HUMAN SAYS YES ════════════════════
+#
+# Jodie's ruling, 14 Aug 2026: *capture best-effort text, but it does NOT become the
+# article of record until a HUMAN has looked and said yes.* No hard halt, and nothing
+# silently trusted.
+#
+# 🔒 THE PROVISIONAL FILE IS DELIBERATELY NOT WHERE ANYTHING LOOKS. `find_capture()`
+# globs `PP Videos/docs/EPnn-source-article-*.md`; this writes into the EPISODE's own
+# folder under a different name entirely, so no glob, no widened pattern and no
+# half-remembered path can pick it up by accident. **The file's location is the
+# guarantee, not its banner** — a banner is a comment, and this repo has paid for
+# trusting those. Promotion is a MOVE, and the move is the moment it becomes true.
+PROVISIONAL_NAME = "capture-PROVISIONAL.md"
+PROVISIONAL_BANNER = """> # 🟠 PROVISIONAL — THIS IS NOT THE ARTICLE OF RECORD.
+>
+> The capture came back SHORT and stopped, so this text is best-effort and nobody has
+> confirmed it. **Nothing measures against this file**: it sits in the episode folder,
+> not in `PP Videos/docs/`, so `find_capture()` cannot see it and the script gate, the
+> figure traces and the e-book body all still have no article to compare with.
+>
+> **Why it stopped:** {why}
+>
+> **What a person is being asked:** open the source page and see whether the words below
+> are the WHOLE article. If they are, say so on the board and this becomes the article of
+> record. If the page has more in it, the capture needs fixing — do not promote this.
+"""
+
+
+def write_provisional(ep_dir: pathlib.Path, url: str, ep_number, body: str,
+                      why: str) -> pathlib.Path:
+    """Keep a thin capture where it can be read and NOT be believed."""
+    dest = pathlib.Path(ep_dir) / "docs" / PROVISIONAL_NAME
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(
+        PROVISIONAL_BANNER.format(why=why)
+        + f"\n# PP-EP{int(ep_number):02d} — provisional capture\n\n"
+          f"Source: {url}\n"
+          f"Captured {dt.date.today().strftime('%d %B %Y').lstrip('0')} by "
+          f"`capture_article.py`, and REFUSED as too short.\n"
+          f"Words: {len(body.split())} (a PP feature is normally {MIN_WORDS}+).\n\n"
+          f"---\n\n---- ARTICLE TEXT BEGINS ----\n\n{body}\n\n"
+          f"---- ARTICLE TEXT ENDS ----\n",
+        encoding="utf-8", newline="\n")
+    return dest
+
+
+def promote_provisional(ep_dir: pathlib.Path, pp: pathlib.Path, ep_number,
+                        headline: str) -> pathlib.Path:
+    """A human said yes: the provisional text BECOMES the article of record.
+
+    Written to the canonical name `find_capture()` looks for, and the provisional copy
+    is removed — one article of record, never two files that could drift.
+    """
+    src = pathlib.Path(ep_dir) / "docs" / PROVISIONAL_NAME
+    text = src.read_text(encoding="utf-8")
+    body = text.split("---- ARTICLE TEXT BEGINS ----", 1)[1] \
+               .split("---- ARTICLE TEXT ENDS ----", 1)[0].strip()
+    dest = (pathlib.Path(pp) / "docs" /
+            f"EP{int(ep_number):02d}-source-article-{slug(headline)}.md")
+    if dest.exists():
+        raise Unrecognised(f"{dest.name} already exists — refusing to overwrite the "
+                           f"article of record with a promoted provisional capture.")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(
+        f"# {headline}\n\n"
+        f"Source: {url_of(text)}\n"
+        f"Captured by `capture_article.py` as a SHORT capture and CONFIRMED BY A HUMAN "
+        f"on {dt.date.today().strftime('%d %B %Y').lstrip('0')}.\n\n"
+        f"## HOW THIS ONE WAS MADE — read before trusting a word count\n\n"
+        f"**The automatic capture REFUSED this page for being too short and did not "
+        f"place it.** A person opened the source page, compared it with the text below "
+        f"and confirmed it is the whole article. That confirmation is what makes this "
+        f"the article of record; nothing here was accepted on the tool's say-so.\n\n"
+        f"---\n\n---- ARTICLE TEXT BEGINS ----\n\n{body}\n\n"
+        f"---- ARTICLE TEXT ENDS ----\n",
+        encoding="utf-8", newline="\n")
+    src.unlink(missing_ok=True)
+    return dest
+
+
+def url_of(text: str) -> str:
+    m = re.search(r"^Source: (\S+)", text, re.M)
+    return m.group(1) if m else ""
 
 
 def main():

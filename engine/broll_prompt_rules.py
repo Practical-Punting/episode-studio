@@ -59,12 +59,49 @@ def has_horses(prompt: str) -> bool:
 is_racing_shot = has_horses
 
 
+# ── COVER AND RACING-HERO ORIENTATION ───────────────────────────────────────────
+#
+# 🔴 EP24's COVER B CAME BACK UPSIDE DOWN. (Jodie, 14 Aug 2026.)
+# The A/B pick caught it, as it is designed to — but the pick is a SAFETY NET, and a net
+# that has to be used is a net being relied on. One of the two options was wasted, and had
+# both been wonky the choice would have been between two unusable covers.
+#
+# ⚠️ NOT A NEGATION. "Not upside down" cannot be drawn: a model must place a horizon
+# somewhere, and if it is not told where, it will put it anywhere. The line says where
+# everything GOES — sky up, turf down, horizon level and central, camera at eye level —
+# which is the same reasoning as the rail's "open green turf infield beyond it" (A21).
+ORIENTATION = ("Correct upright orientation — horizon level and near the middle, sky at "
+               "the top, green turf and track at the bottom, camera at eye level; horses "
+               "upright and running along the ground")
+ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
+                     r"horizon .{0,20}(level|middle|centre|center)"]
+
 # ── the standing lines ──────────────────────────────────────────────────────────
 # Each rule is (key, human name, what it must SAY, why it exists). `needs` is a list of
 # alternatives — any ONE satisfies it — so a prompt may phrase a line in its own words
 # without the check demanding a copy-paste. The point is that the FACT is stated, not
 # that a sentence is duplicated.
 RULES = [
+    # 🔴 ORIENTATION IS ONE OF THESE, AND IT WAS NOT. (14 Aug 2026, the day after A22.)
+    # A22 was landed into `providers._cover_prompts` — the cover A/B funnel — and that
+    # worked: EP25's two hero prompts both carry the line. **But the RACING B-ROLL
+    # prompts go through `apply_rules`, which is a different funnel, and all six of
+    # EP25's still had no orientation at all.** The ruling says "cover_a, cover_b AND
+    # the racing hero prompts"; two of the three were covered.
+    #
+    # ⚠️ SO THE RULE WAS RIGHT, LIVE, AND PROVED — ON ONE OF THE TWO PATHS. A guard
+    # installed at one funnel says nothing about the other, and the tell is that A22's
+    # own test passed the whole time. It is a first-class rule here now, so
+    # `check_prompt`, `apply_rules`, the re-check and `check_episode` all see it and
+    # there is no second path to keep in step.
+    dict(
+        key="orientation",
+        name="which way up the picture goes",
+        needs=ORIENTATION_NEEDS,
+        why=("EP24's cover B came back UPSIDE DOWN. A model has to put the horizon "
+             "somewhere, and told nothing it puts it anywhere. Stated positively — "
+             "sky at the top, turf at the bottom, horizon level, horses upright."),
+    ),
     dict(
         key="rail-side",
         name="the whole field on ONE side of the rail",
@@ -196,6 +233,9 @@ FIXES = {
     "hat-variety": ("Akubra-style hats in a variety of natural colours — fawn, sand, tan, "
                     "brown, grey, black, olive — worn at different angles, no two "
                     "neighbours alike"),
+    # A22, and the one line the cover funnel shares with this one. Stated POSITIVELY —
+    # see the note by ORIENTATION: "not upside down" cannot be drawn.
+    "orientation": ORIENTATION,
 }
 
 # The rail sentence depends on the shot, which is the whole point of A21's second finding:
@@ -281,7 +321,9 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
                        "infield beyond it" + (" (bend wording)" if bend else ""))
 
     # 3. Everything else is a fact appended in the registry's own words.
-    for key in ("strides", "silks", "turf", "anatomy", "hat-variety"):
+    # `orientation` LAST, because it is a statement about the whole frame and reads as
+    # the closing instruction rather than as one more fact about the horses.
+    for key in ("strides", "silks", "turf", "anatomy", "hat-variety", "orientation"):
         if key in gaps and FIXES.get(key):
             text = _add_sentence(text, FIXES[key])
             applied.append(FIXES[key][:60] + "…")
@@ -296,28 +338,21 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
 
 
 # ── COVER AND RACING-HERO ORIENTATION ───────────────────────────────────────────
-#
-# 🔴 EP24's COVER B CAME BACK UPSIDE DOWN. (Jodie, 14 Aug 2026.)
-# The A/B pick caught it, as it is designed to — but the pick is a SAFETY NET, and a net
-# that has to be used is a net being relied on. One of the two options was wasted, and had
-# both been wonky the choice would have been between two unusable covers.
-#
-# ⚠️ NOT A NEGATION. "Not upside down" cannot be drawn: a model must place a horizon
-# somewhere, and if it is not told where, it will put it anywhere. The line says where
-# everything GOES — sky up, turf down, horizon level and central, camera at eye level —
-# which is the same reasoning as the rail's "open green turf infield beyond it" (A21).
-ORIENTATION = ("Correct upright orientation — horizon level and near the middle, sky at "
-               "the top, green turf and track at the bottom, camera at eye level; horses "
-               "upright and running along the ground")
-ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
-                     r"horizon .{0,20}(level|middle|centre|center)"]
+# The rule itself now lives in RULES, at the top, so ONE definition serves the b-roll
+# funnel (`apply_rules`) and the cover funnel (`providers._cover_prompts`). These two
+# helpers are the cover funnel's door into it — the covers are portrait stills and do
+# not take the rail, silks or strides lines, so they ask for this rule alone.
 
 
 def needs_orientation(prompt: str) -> bool:
-    """True when a racing image does not say which way up it is."""
-    if not has_horses(prompt or ""):
-        return False               # orientation is stated for the RACING images
-    return not any(re.search(p, prompt, re.I) for p in ORIENTATION_NEEDS)
+    """True when a racing image does not say which way up it is.
+
+    ⚠️ ASKED OF `check_prompt`, NOT OF A SECOND COPY OF THE PATTERNS. It used to test
+    ORIENTATION_NEEDS itself, which was the same list read twice — and while that was
+    true it was also the only thing that knew about orientation, so the b-roll path
+    never gained it. One reader, one rule.
+    """
+    return any(g["key"] == "orientation" for g in check_prompt(prompt or ""))
 
 
 def apply_orientation(prompt: str) -> tuple[str, bool]:
