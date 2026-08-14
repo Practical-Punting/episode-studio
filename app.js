@@ -281,6 +281,44 @@ function slugToTitle(url) {
     return words.join(" ") || "New episode";
   } catch (e) { return "New episode"; }
 }
+/* B6 — the two things about a pasted link that ARE knowable at paste time.
+ * Returns a sentence for the operator, or "" when the link is fine.
+ *
+ * 🔴 A DUPLICATE IS THE EXPENSIVE ONE. It is not merely tidy: the same article queued
+ * twice gets a second episode number, a second capture, a second commission and a second
+ * set of paid b-roll, and the two only diverge once somebody notices. Every source_url on
+ * the rail is already loaded, so this costs nothing.
+ * Compared on a NORMALISED url — scheme, "www.", trailing slash, query and fragment all
+ * removed — because the same article pasted from a search result and from the site itself
+ * are not the same string and are the same article. */
+const PP_HOSTS = ["practicalpunting.com.au"];
+
+function normUrl(u) {
+  try {
+    const p = new URL(u);
+    return p.host.toLowerCase().replace(/^www\./, "") +
+           p.pathname.replace(/\/+$/, "").toLowerCase();
+  } catch (e) { return String(u || "").trim().toLowerCase(); }
+}
+
+function articleUrlProblem(url) {
+  let host;
+  try { host = new URL(url).host.toLowerCase().replace(/^www\./, ""); }
+  catch (e) { return "That does not look like a web address. Paste the link to the " +
+                     "Practical Punting article."; }
+  if (!PP_HOSTS.some((h) => host === h || host.endsWith("." + h))) {
+    return "That link is not a Practical Punting article (" + host + "). Episodes are " +
+           "built from PP's own articles — paste the link from practicalpunting.com.au.";
+  }
+  const want = normUrl(url);
+  const dupe = EPISODES.find((e) => e.source_url && normUrl(e.source_url) === want);
+  if (dupe) {
+    return "That article is already on the rail as PP-EP" + (dupe.ep_number ?? "?") +
+           " (" + (dupe.status || "queued") + "). Nothing has been added.";
+  }
+  return "";
+}
+
 /* messages.sender is free text; the board is the operator's seat. */
 function senderFor(email) {
   const e = (email || "").toLowerCase();
@@ -789,6 +827,18 @@ $("start-form").addEventListener("submit", async (e) => {
   let url = (input.value || "").trim();
   if (!url) { toast("toast", "Paste an article link first.", false); return; }
   if (url.indexOf("http") !== 0) url = "https://" + url;
+
+  /* B6 — SAY NO AT THE PASTE, NOT EIGHTEEN STEPS IN.
+   * A wrong link costs a claim, a capture, a commission and a halt before anybody finds
+   * out, and both of these are knowable the instant it is pasted: the host is in the
+   * string, and every episode already on the rail is in memory.
+   * ⚠️ THINNESS IS DELIBERATELY NOT CHECKED HERE. It needs the article's TEXT, the board
+   * cannot fetch another origin (CORS), and a guess from the URL would be a warning that
+   * is wrong half the time — which is the thing this studio refuses to ship. It belongs
+   * to capture, where the text actually exists. Said out loud so nobody reads this as
+   * covering it. */
+  const bad = articleUrlProblem(url);
+  if (bad) { toast("toast", bad, false); input.focus(); return; }
 
   btn.disabled = true; btn.textContent = "Adding…";
   try {
