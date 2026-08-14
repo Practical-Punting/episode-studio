@@ -34,6 +34,11 @@ engine/smoke-corpus.json
 
 # the engine's runtime lock — it holds a live pid, so it is never repo content
 engine/engine.lock
+# The deliberate-stop marker: machine-local operational state that records a HUMAN'S
+# INTENT to hold the engine. Committing it would hold the engine on every machine that
+# checked the repo out, and it showed up as untracked noise in every status during a
+# merge. (A test was already caught deleting this file on 13 Aug 2026 — it matters.)
+engine/engine.stopped
 
 # written by install_smoke_task.py at install time
 engine/run_smoke.cmd
