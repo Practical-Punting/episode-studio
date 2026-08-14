@@ -259,6 +259,69 @@ def cue_faults(epj: dict, script_text: str) -> list[str]:
     return out
 
 
+# ------------------------------- and it must STILL be in the SRT afterwards (2b)
+#
+# 🔴 `cue_faults` ABOVE ALREADY CHECKS THE CUE — AGAINST THE APPROVED SCRIPT, AT
+# audit_inputs. EP24 C19 walked past it because the card was edited AFTERWARDS: the
+# over-full-card fix tightened and split it long after the pre-flight had run and long
+# after Gordon had recorded. The cue was rewritten; the recording was not.
+#
+#     A CHECK THAT RUNS ONCE PROTECTS THE VERSION IT RAN ON.
+#
+# ⚠️ AND THE ACTUAL FAULT WAS ONE CHARACTER, WHICH IS WHY THIS SAYS SO OUT LOUD.
+# The new cue was taken from the card's own `trace` entry — the ARTICLE's words:
+#       cue   "sprint races favour runners drawn 7 and inside"
+#       SRT   "Sprint races favour runners drawn seven and inside."
+# The phrase was right; the `7` was the whole fault. Gordon speaks a spoken-words script,
+# so EVERY NUMBER IS SPELLED OUT, while the article — and therefore every trace sentence —
+# uses digits. A cue copied from `trace` fails silently the moment it contains a figure,
+# and figures are what these cards are ABOUT.
+#     trace proves a FIGURE's source. The cue anchors to a SOUND. Two jobs, two strings.
+_DIGIT = re.compile(r"\d")
+
+
+def _nearest_spoken(cue: str, lines: list[str]) -> str | None:
+    """The spoken line sharing the most words with the cue — the re-anchor candidate."""
+    want = set(norm_words(cue))
+    if not want:
+        return None
+    best, score = None, 0
+    for ln in lines:
+        n = len(want & set(norm_words(ln)))
+        if n > score:
+            best, score = ln, n
+    return best if score >= 2 else None
+
+
+def cue_in_srt_faults(epj: dict, srt_text: str) -> list[str]:
+    """Every cue must be a literal phrase in the ALIGNED SRT — the finished render.
+
+    Run this after ANY post-render change to a card, so a tighten or a split can never
+    again leave a card waiting for words that were never spoken.
+    """
+    lines = [ln.strip() for ln in srt_text.splitlines()
+             if ln.strip() and "-->" not in ln and not ln.strip().isdigit()]
+    hay = norm_words(" ".join(lines))
+    out = []
+    for c in epj.get("cards", []):
+        cue = c.get("cue")
+        if not cue or _contiguous(norm_words(cue), hay):
+            continue
+        msg = (f"{c.get('id', '?')}: its cue is not in the aligned SRT, so the card is "
+               f"waiting for words that are not in the finished render. "
+               f"Cue as written: {cue!r}")
+        if _DIGIT.search(cue):
+            msg += (" — and it contains a DIGIT. Gordon speaks every number as a word, "
+                    "so a cue carrying '7' can never match a render that says 'seven'. "
+                    "This is what a cue copied from the article or from trace{} looks "
+                    "like: trace proves a figure's source, the cue anchors to a sound.")
+        near = _nearest_spoken(cue, lines)
+        if near:
+            msg += f" Nearest spoken line, verbatim: {near!r}"
+        out.append(msg)
+    return out
+
+
 # --------------------------------------------------------------- the capture
 def capture_faults(capture_text: str | None) -> list[str]:
     """The capture file must carry its ARTICLE TEXT markers.
@@ -339,6 +402,55 @@ def layout_is_not_here() -> str:
             "audit_inputs")
 
 
+# ------------------------------------------- a card must not be BORN too big (2a)
+#
+# 🔴 THE CARD-WRITER OVER-FILLS COUNTRY-TRACK CARDS. EP24 C19, and EP23 C21 before it.
+# C19 arrived with FOUR country courses on one matrix, two facts each. It did not fit at
+# the autofit floor (60%/16px), the automatic layout swap did not rescue it, and — the
+# measurement that matters — TIGHTENING THE CELLS TO 73% OF THEIR CHARACTERS DID NOT
+# RESCUE IT EITHER. It was over-full by a ROW, not by phrasing. Split two-and-two, both
+# halves fitted at 88% and 94%.
+#
+# ⚠️ AND THIS IS THE ONE OVER-FULL CHECK THAT CAN RUN HERE. `layout_is_not_here()` above
+# explains why autofit and card_check cannot: they need rendered pages and staged heroes.
+# THIS needs neither. Row count and cell length are pure data in episode.json, knowable at
+# audit_inputs — which is fault #4a's test, and it passes it.
+#
+# 📌 CALIBRATED ON REAL CARDS, AND THE LIMIT OF THAT IS STATED ON PURPOSE:
+#       4 rows of ~42-char cells  — FAILED below the floor, twice (before and after
+#                                   tightening to 73%)
+#       2 rows of ~42-char cells  — fitted at 88% and 94%
+#       3 rows                    — NEVER MEASURED.
+# So the cap is the measured-good number, not an interpolation. When a 3-row card is
+# genuinely measured, move it and say so here. A cap invented between two data points is
+# a guess wearing a number.
+MATRIX_MAX_ROWS = 2          # measured, not chosen — see above
+LONG_CELL_CHARS = 25         # below this a row is a chip, not a paragraph
+
+
+def overfull_faults(epj: dict) -> list[str]:
+    """Matrix cards that are too big to fit before anyone renders them."""
+    out = []
+    for card in epj.get("cards") or []:
+        if (card.get("block") or "") != "matrix":
+            continue
+        rows = ((card.get("content") or {}).get("rows")) or []
+        if len(rows) <= MATRIX_MAX_ROWS:
+            continue
+        longest = max((len(str(c)) for r in rows for c in (r.get("cells") or [])),
+                      default=0)
+        if longest <= LONG_CELL_CHARS:
+            continue                      # short chips; the row count is not the problem
+        out.append(
+            f"{card.get('id', '?')}: a matrix card with {len(rows)} rows and cells up to "
+            f"{longest} characters will not fit — {MATRIX_MAX_ROWS} such rows is what has "
+            f"been measured to fit, and EP24's four-row version failed even after its "
+            f"cells were tightened to 73%. Split it across cards, and put each card on "
+            f"the beat where its own items are SPOKEN rather than gathering them onto the "
+            f"last one. Nothing is dropped: every row moves to one card or the other.")
+    return out
+
+
 # ---------------------------------------------- the capture must BE THERE (E-a)
 def capture_reference_faults(epj: dict, capture_text: str | None,
                              capture_looked_for: bool = False) -> list[str]:
@@ -393,6 +505,7 @@ def preflight_cards(epj: dict, *, script_text: str = "",
         blockers += cue_faults(epj, script_text)
     blockers += capture_faults(capture_text)
     blockers += name_faults(epj, capture_text)
+    blockers += overfull_faults(epj)
     # 🚫 STRAY TRACE KEYS ARE NOT REPORTED HERE, AND THAT IS THE SAME DECISION AS THE
     # BEAT-LENGTH CHECK ABOVE. This module emits NO warnings on purpose (Jodie, 6 Aug
     # 2026): "a warning that is wrong about half the time trains people to stop reading

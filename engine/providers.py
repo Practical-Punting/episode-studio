@@ -2902,6 +2902,29 @@ class RealProvider:
         # BEFORE their spoken cue — C1 by 9.6 seconds. A hand-run step is one Hugh
         # cannot perform at all, and it gets skipped exactly when it matters most:
         # after a long build, when everyone is looking at the render.
+        # 2b — THE CUES MUST STILL BE IN THE SRT, and this is the first moment the SRT
+        # exists to ask. `preflight_cards.cue_faults` already checks cues against the
+        # approved SCRIPT at audit_inputs; EP24 C19 walked past it because the card was
+        # edited AFTERWARDS — the over-full-card fix rewrote the cue long after the
+        # pre-flight ran and long after Gordon had recorded.
+        #     A CHECK THAT RUNS ONCE PROTECTS THE VERSION IT RAN ON.
+        # Checked BEFORE derive_timings so the halt names the card, says the cue is not
+        # in the render, and offers the nearest real spoken line to re-anchor to —
+        # instead of derive_timings reporting an unplaceable card as a decision.
+        srt = d / "renders/aligned.srt"
+        if srt.is_file():
+            import preflight_cards                                 # noqa: PLC0415
+            bad = preflight_cards.cue_in_srt_faults(
+                self.epjson(ep), srt.read_text(encoding="utf-8", errors="replace"))
+            if bad:
+                raise EngineFlag(
+                    "A card is waiting for words that are not in the finished render. "
+                    "That happens when a card is edited AFTER Gordon has recorded — a "
+                    "tighten or a split may change what the card SAYS, but its cue has "
+                    "to stay a phrase he actually speaks. Nothing has been assembled.\n\n"
+                    + "\n".join("  · " + b for b in bad) +
+                    "\n\nRe-point the cue in docs/episode.json to the spoken line quoted "
+                    "above, then clear this flag.")
         print(f"    {derive_timings(d)}")
         return str(sm)
 
