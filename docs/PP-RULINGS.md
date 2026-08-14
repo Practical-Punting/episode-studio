@@ -734,12 +734,26 @@ generated imagery.
 human gates). It does not add a step, a gate or an approval.
 
 🔒 **GUARDED, and APPLIED rather than asked.** The line lives once in
-`engine/broll_prompt_rules.py` and is applied in `providers._cover_prompts` — **the single
-funnel every generated hero comes through** — so both prompts state it and neither can be
-forgotten. Written back to `episode.json`, because that file is the audit trail for the
+`engine/broll_prompt_rules.py`, as one entry in `RULES`, so **both** funnels read the same
+definition: `apply_rules()` for the racing b-roll and `providers._cover_prompts` for the
+cover heroes. Written back to `episode.json`, because that file is the audit trail for the
 image that was bought. Proved in `engine/test_broll_rail_rule.py`, including that a
 non-racing image is NOT given racing orientation, and that applying it twice does not
 double it.
+
+> ### 🔴 CORRECTED 14 Aug 2026, THE DAY AFTER — **"THE SINGLE FUNNEL" WAS TWO FUNNELS.**
+> This paragraph used to say the line was applied in `providers._cover_prompts`, *"the
+> single funnel every generated hero comes through"*. **It is not.** The cover heroes come
+> through that one; the **racing b-roll** comes through `apply_rules()`, and the rule was
+> installed at only the first. EP25's two cover prompts carried the line correctly — and
+> **all six of its racing b-roll prompts had no orientation at all.**
+>
+> ⚠️ **AND THE TEST FILE WAS GREEN THROUGHOUT.** It asserted the cover funnel, which was
+> genuinely working. **A guard installed at one funnel says nothing about the other, and a
+> passing suite will not tell you there is another one** — the words *"the single funnel"*
+> were the whole of the evidence that there wasn't, and they were written by the same hand
+> that installed the guard. **Ask what ELSE reaches the thing you are protecting, and
+> answer it by reading the callers, not by describing the design.**
 📌 **The ledger (`_prompt_key`) is keyed on the prompt, so a rewritten prompt is a
 different image to E16 — which costs nothing here: a hero already ON DISK is never
 re-bought, so only a hero that was going to be generated anyway is generated from the

@@ -54,11 +54,18 @@ def keys(prompt):
 GOOD_RAIL = ("The whole field runs on ONE side of a single white running rail — the rail "
              "is the inside boundary of the track, open green turf infield beyond it, no "
              "horses on the far side")
+# ⚠️ THE LAST CLAUSE WAS ADDED 14 Aug 2026, WHEN ORIENTATION BECAME A STANDING RULE
+# RATHER THAN A COVER-ONLY ONE. Without it this fixture is no longer "fully specified":
+# a complete racing prompt now says which way up the picture goes, and the b-roll funnel
+# is where EP25's six prompts were found with no orientation at all. Every case below
+# derives from GOOD by REMOVING one clause, so the fixture has to state everything the
+# rules ask for or the removals stop being the only difference.
 GOOD = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
         "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding. Natural daylight.")
+        "bright racing silks, actively riding. Natural daylight, horizon level and near "
+        "the middle with sky at the top and turf at the bottom, horses upright.")
 
 print("\n-- a prompt that states everything is quiet --")
 check("the fully-specified racing shot raises nothing", keys(GOOD) == set(), keys(GOOD))
@@ -276,6 +283,35 @@ check("  and returns the CORRECTED prompts", "return fa, fb" in prov_cov)
 check("  and writes them back to episode.json",
       "_save_cover_prompts" in prov_cov,
       "the file is the audit trail for the image that was bought")
+
+# 🔴 THE OTHER FUNNEL, WHICH A22 DID NOT REACH. (14 Aug 2026, the day after.)
+# Everything above passed the whole time and the racing B-ROLL prompts still had no
+# orientation: the covers go through `providers._cover_prompts`, the b-roll goes through
+# `apply_rules`, and A22 was installed at one of them. **A guard installed at one funnel
+# says nothing about the other** — and the tell was that this file was entirely green
+# while EP25 carried six unoriented racing prompts.
+print("\n-- 1b, second funnel: the RACING B-ROLL prompts, not only the covers --")
+bare = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
+        "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
+        "different points in their stride, legs out of phase across the field, "
+        "anatomically correct with four legs and one head. Mounted jockeys crouched in "
+        "bright racing silks, actively riding.")
+check("a racing b-roll prompt with everything BUT orientation is not clean",
+      keys(bare) == {"orientation"}, keys(bare))
+fixed_b, applied_b, unfix_b = R.apply_rules(bare)
+check("  apply_rules — the b-roll funnel — adds the line by itself",
+      not R.needs_orientation(fixed_b) and not unfix_b,
+      f"still missing; unfixable={unfix_b}")
+check("  and says it did", any("upright orientation" in a for a in applied_b),
+      str(applied_b))
+check("  and the prompt's own words are kept, the line appended",
+      fixed_b.startswith(bare.rstrip(". ")), fixed_b[:120])
+check("  CONTROL: a non-racing b-roll prompt is not given orientation",
+      "upright orientation" not in
+      R.apply_rules("Close overhead shot of hands marking a ruled notebook page.")[0])
+check("  ONE definition serves both funnels",
+      R.FIXES["orientation"] is R.ORIENTATION,
+      "a second copy of the line is a second thing to keep in step")
 
 print(f"\ntotal: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
