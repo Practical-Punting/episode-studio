@@ -1681,6 +1681,57 @@ def _title_from_capture(text: str) -> str:
     return ""
 
 
+def _section_smoke(source_url: str | None, timeout: int = 180) -> None:
+    """B1 — can we still read THIS ARTICLE'S SHAPE? Asked before a fresh capture.
+
+    🔴 THE FAULT THIS IS FOR. Capture has broken on a new article shape on episode after
+    episode — EP20 a profile with no byline, EP23 a page with unfamiliar layout markers —
+    and every one was found DURING A LIVE RUN, by Jodie, with an episode already queued
+    and the studio apparently working. `smoke_capture` was built to find that class off
+    the clock, and it ran NIGHTLY, which catches a regression by morning but not before
+    the episode that trips it.
+
+    ⚠️ ONE SECTION, NOT THE CORPUS (Jodie's decision, 14 Aug 2026). Smoking every shape is
+    a network fetch each and would make every new episode wait on a full sweep — buying
+    early warning with a delay on the path that is usually fine. The full sweep stays the
+    nightly job; this asks only about the shape actually being captured.
+
+    🚫 IT NEVER BLOCKS, AND THAT IS DELIBERATE. The capture attempt immediately after is
+    the real test and produces the specific error for THIS page. This runs first so the
+    log can already say whether the shape is broken generally or just this one article —
+    the question somebody would otherwise have to go and answer by hand at midnight. A
+    pre-flight that turned a readable page away because a SIBLING article failed would
+    stop the studio for a fault the episode does not have.
+    """
+    url = (source_url or "").strip()
+    if not url:
+        return
+    try:
+        sys.path.insert(0, str(ENGINE_DIR))
+        import smoke_capture                                          # noqa: PLC0415
+        section = smoke_capture.section_of(url)
+    except Exception as e:                                            # noqa: BLE001
+        log(f"    capture pre-flight: skipped ({e})")
+        return
+    try:
+        r = subprocess.run(
+            [sys.executable, str(ENGINE_DIR / "smoke_capture.py"), "--section", section],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout)
+    except Exception as e:                                            # noqa: BLE001
+        # A pre-flight that cannot run must not stop the run it precedes.
+        log(f"    capture pre-flight [{section}]: could not run ({e}) — carrying on")
+        return
+    tail = (r.stdout or r.stderr or "").strip().splitlines()
+    last = tail[-1] if tail else "no output"
+    if r.returncode == 0:
+        log(f"    capture pre-flight [{section}]: the shape still reads — {last}")
+    else:
+        log(f"    ⚠️ capture pre-flight [{section}]: THIS SHAPE IS ALREADY FAILING on "
+            f"articles we have built before, so a failure below is the SHAPE, not this "
+            f"page — {last}")
+
+
 def _retitle_from_capture(ep: dict, capture_text: str) -> None:
     """Put the article's own headline on the rail, if the title is still the placeholder."""
     try:
@@ -2168,6 +2219,16 @@ def _draft_watch(provider):
             # agrees with it. `capture_article` recognises the page or raises, and its
             # refusal lands in the run log like any other studio-side stop.
             if not find_capture(provider.pp, nn) and (ep.get("source_url") or "").strip():
+                # B1 PRE-FLIGHT — SMOKE THIS ARTICLE'S OWN SECTION FIRST.
+                # Capture has broken on a NEW ARTICLE SHAPE on episode after episode, and
+                # every one was found DURING A LIVE RUN by Jodie, with an episode already
+                # queued and the studio apparently working. The nightly sweep catches a
+                # regression by morning; this catches it before the episode starts.
+                # ⚠️ ONLY THIS ARTICLE'S SECTION, NEVER THE FULL SWEEP (Jodie, 14 Aug
+                # 2026). The whole corpus is a network fetch per shape, and making every
+                # new episode wait on all of them would buy early warning with a delay on
+                # the happy path. The full sweep stays the nightly job.
+                _section_smoke(ep.get("source_url"))
                 try:
                     sys.path.insert(0, str(SKILL_DIR / "scripts"))
                     import capture_article as cap
