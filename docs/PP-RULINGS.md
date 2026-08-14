@@ -704,3 +704,43 @@ nobody reads.
 
 ⚠️ **This is not a review step and the guard is not a judgement.** It reads text and names
 the missing sentence. **A4 forbids a step, not a spellcheck.**
+
+## A22 · 14 Aug 2026 — 🖼️ EVERY RACING IMAGE SAYS WHICH WAY UP IT IS · **Jodie**
+
+**The fault, on EP24: cover B came back UPSIDE DOWN.**
+
+**The line, stated positively, on both cover heroes and every racing hero image:**
+> *"Correct upright orientation — horizon level and near the middle, sky at the top, green
+> turf and track at the bottom, camera at eye level; horses upright and running along the
+> ground."*
+
+### 🔴 THE REASON: THE A/B PICK IS A SAFETY NET, AND IT WAS BEING RELIED ON
+
+The cover pick caught it, exactly as designed — **that is not the point.** One of the two
+options was **wasted**, so the "choice" was not a choice, and **had both come back wonky
+the pick would have been between two unusable covers.** A net that has to be used is a net
+being relied on. This does not replace the pick; it makes a wonky one **rarer**.
+
+⚠️ **AND IT MUST NOT BE A NEGATION.** *"Not upside down"* cannot be drawn. **A model has to
+put the horizon somewhere**, and if it is not told where, it will put it anywhere — so the
+line says where everything GOES: sky up, turf down, horizon level and central, camera at
+eye level, horses upright and on the ground. **Same reasoning as A21's *"open green turf
+infield beyond it"*: give the thing a job and there is no room for the wrong answer.**
+
+**SUPERSEDES:** nothing. It sits beside A21 as the second standing line applied to
+generated imagery.
+
+**DOES NOT COVER:** the cover pick itself, which stands and remains Jodie's (A12, and the
+human gates). It does not add a step, a gate or an approval.
+
+🔒 **GUARDED, and APPLIED rather than asked.** The line lives once in
+`engine/broll_prompt_rules.py` and is applied in `providers._cover_prompts` — **the single
+funnel every generated hero comes through** — so both prompts state it and neither can be
+forgotten. Written back to `episode.json`, because that file is the audit trail for the
+image that was bought. Proved in `engine/test_broll_rail_rule.py`, including that a
+non-racing image is NOT given racing orientation, and that applying it twice does not
+double it.
+📌 **The ledger (`_prompt_key`) is keyed on the prompt, so a rewritten prompt is a
+different image to E16 — which costs nothing here: a hero already ON DISK is never
+re-bought, so only a hero that was going to be generated anyway is generated from the
+better words.**

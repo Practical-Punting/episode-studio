@@ -2071,7 +2071,34 @@ class RealProvider:
                 "ethnic-mix / turf wording baked in). The heroes are generated "
                 "UPFRONT with the b-roll so the cover pick reaches you while "
                 "Gordon is still rendering. Add them, then clear this flag.")
-        return a, b
+        # 🔴 EP24's COVER B CAME BACK UPSIDE DOWN. The A/B pick caught it — but the pick
+        # is a SAFETY NET, and one of the two options was wasted. Both prompts state which
+        # way up the picture goes, applied here because this is the single funnel every
+        # generated hero comes through. Applied, not asked: there is one lawful answer and
+        # it is written down. (Same ruling as the b-roll standing lines, A21.)
+        fa, ca = broll_prompt_rules.apply_orientation(a)
+        fb, cb = broll_prompt_rules.apply_orientation(b)
+        if ca or cb:
+            self._save_cover_prompts(ep, fa, fb)
+            which = ", ".join(n for n, c in (("hero A", ca), ("hero B", cb)) if c)
+            print(f"    cover prompts: added the upright-orientation line to {which}")
+        return fa, fb
+
+    def _save_cover_prompts(self, ep, a: str, b: str) -> None:
+        """Record corrected hero prompts back into episode.json.
+
+        ⚠️ THE LEDGER IS KEYED ON THE PROMPT (`_prompt_key`), so a rewritten prompt is a
+        different image as far as E16 is concerned. That is correct and costs nothing
+        here: `cover_cost`/`_hero_paths` skip any hero already ON DISK, so a staged hero
+        is never re-bought — only a hero that was going to be generated anyway is
+        generated from the better words.
+        """
+        path = self.dir(ep) / "docs/episode.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        cov = data.setdefault("cover", {})
+        cov["hero_a_prompt"], cov["hero_b_prompt"] = a, b
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                        encoding="utf-8")
 
     def cover_cost(self, ep) -> float:
         """Exact preview of the cover-hero spend (no spend). 0 once both heroes

@@ -295,6 +295,38 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
     return text, applied, unfixable
 
 
+# ── COVER AND RACING-HERO ORIENTATION ───────────────────────────────────────────
+#
+# 🔴 EP24's COVER B CAME BACK UPSIDE DOWN. (Jodie, 14 Aug 2026.)
+# The A/B pick caught it, as it is designed to — but the pick is a SAFETY NET, and a net
+# that has to be used is a net being relied on. One of the two options was wasted, and had
+# both been wonky the choice would have been between two unusable covers.
+#
+# ⚠️ NOT A NEGATION. "Not upside down" cannot be drawn: a model must place a horizon
+# somewhere, and if it is not told where, it will put it anywhere. The line says where
+# everything GOES — sky up, turf down, horizon level and central, camera at eye level —
+# which is the same reasoning as the rail's "open green turf infield beyond it" (A21).
+ORIENTATION = ("Correct upright orientation — horizon level and near the middle, sky at "
+               "the top, green turf and track at the bottom, camera at eye level; horses "
+               "upright and running along the ground")
+ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
+                     r"horizon .{0,20}(level|middle|centre|center)"]
+
+
+def needs_orientation(prompt: str) -> bool:
+    """True when a racing image does not say which way up it is."""
+    if not has_horses(prompt or ""):
+        return False               # orientation is stated for the RACING images
+    return not any(re.search(p, prompt, re.I) for p in ORIENTATION_NEEDS)
+
+
+def apply_orientation(prompt: str) -> tuple[str, bool]:
+    """Add the orientation line if it is missing. Returns (prompt, changed)."""
+    if not needs_orientation(prompt):
+        return prompt, False
+    return _add_sentence(prompt.rstrip(), ORIENTATION), True
+
+
 def check_episode(broll: list[dict], ep_number: int | None) -> list[str]:
     """Human-readable findings for one episode's `broll[]`. Empty = clean.
 

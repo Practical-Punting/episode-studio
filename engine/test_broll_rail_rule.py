@@ -245,5 +245,37 @@ check("  with the evidence table of what EP23 actually asked for",
 check("  and it is stated POSITIVELY, per the file's own rule",
       "open green turf infield beyond it" in reg)
 
-print(f"\nb-roll rail rule: {len(PASS)} passed, {len(FAIL)} failed")
+print("\n-- 1b: WHICH WAY UP (EP24's cover B came back upside down) --")
+# 🔴 The A/B pick caught it, as designed — but the pick is a SAFETY NET, and one of two
+# options was wasted. Had both been wonky the choice was between two unusable covers.
+# ⚠️ NOT A NEGATION: "not upside down" cannot be drawn. A model must put the horizon
+# somewhere, and untold it puts it anywhere. The line says where everything GOES.
+hero = ("Portrait 2:3 cover hero, photoreal, a field of thoroughbred racehorses "
+        "galloping on lush green Australian turf, jockeys up in bright varied silks.")
+oriented, changed = R.apply_orientation(hero)
+check("a racing hero with no orientation stated gets the line", changed)
+check("  and it says where the sky and the turf GO, positively",
+      all(s in oriented for s in ("sky at the top", "horizon level", "at the bottom")),
+      oriented[-160:])
+check("  and it says the horses are upright and on the ground",
+      "horses upright and running along the ground" in oriented)
+check("  applying it twice does not double it",
+      R.apply_orientation(oriented) == (oriented, False))
+check("a hero that already states orientation is left alone",
+      R.apply_orientation(hero + " Horizon level near the middle.")[1] is False)
+check("a NON-racing image is not given racing orientation",
+      R.apply_orientation("Close overhead shot of hands marking a ruled notebook page.")
+      == ("Close overhead shot of hands marking a ruled notebook page.", False),
+      "orientation is stated for the racing images, not for every picture")
+
+prov_cov = prov.split("def _cover_prompts")[1].split("\n    def _save_cover_prompts")[0]
+check("_cover_prompts applies it to BOTH heroes",
+      prov_cov.count("apply_orientation") == 2,
+      "one hero left unstated is the one that comes back wrong")
+check("  and returns the CORRECTED prompts", "return fa, fb" in prov_cov)
+check("  and writes them back to episode.json",
+      "_save_cover_prompts" in prov_cov,
+      "the file is the audit trail for the image that was bought")
+
+print(f"\ntotal: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
