@@ -162,6 +162,43 @@ def zones_from_page(kind: str, page: str) -> dict:
     return out
 
 
+# ══ THE SERIES PART IS PRINTED ONCE, IN THE PART ZONE ════════════════════════════
+# 🔴 EP24, 14 Aug 2026 — "Track Secrets (Part 4)", and the thumbnail said PART TWICE.
+#
+# EP21, EP22 and EP23 are the same series and came out right, because their rail title
+# is "Track Secrets Part 3" and their `packaging.hook` is "Track Secrets" — the part
+# dropped out of the hook and only the `.part` line carried it. EP24's title was typed
+# with BRACKETS, "Track Secrets (Part 4)", and the whole string became the hook. The
+# thumbnail's headline must equal the hook (author_thumbnail.check), so the split had
+# nowhere to put "(Part 4)" except the headline:
+#     l1 "TRACK SECRETS"   l2 "(PART 4)"   part "Part 4"
+# The picture then read TRACK SECRETS / (PART 4) / Part 4, and EP24 shipped with a
+# thumbnail rebuilt by hand.
+#
+# ⚠️ NOTHING CAUGHT IT, and every check was honest. Rule 2 compares the headline to the
+# title and the title genuinely does say "(Part 4)". Rule 4 allows any word that is in
+# a rail field, and "part" and "4" both are. **A gate built on "does the page carry the
+# rail's words" cannot see a word carried TWICE** — which is the shape worth remembering,
+# because it is not a missing rule, it is a rule that counts to one and stops.
+#
+# The part is graded in its own zone on all three page kinds (the e-book cover splits it
+# out explicitly above), so the headline never needs it. This says so and counts.
+SERIES_PART = re.compile(r"\s*[(\[]?\s*\bpart\s+(\d+|[ivxl]+)\b\s*[)\]]?\s*$", re.I)
+
+
+def strip_part(title: str):
+    """('Track Secrets', 'Part 4') from 'Track Secrets (Part 4)'.
+
+    Anchored at the END, because that is where a series position is printed and a title
+    with the word "part" in the middle of it ("The Best Part of Betting") must not be
+    mistaken for one. Brackets are optional: the same series has been typed both ways.
+    """
+    m = SERIES_PART.search(title or "")
+    if not m:
+        return (title or "").strip(), ""
+    return (title or "")[:m.start()].strip(), f"Part {m.group(1)}"
+
+
 def _words(s: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", fold(s))
 
@@ -204,7 +241,13 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
                 f"episode carries. It is not a second place to describe the episode.")
 
     # 2 — the headline IS the title. Not the byline, not a hook written for it.
-    if fold(zones.get("headline")) != fold(title):
+    #     ⚠️ WITH OR WITHOUT THE SERIES PART. The part has a zone of its own on all three
+    #     kinds, so a headline that leaves it out is not a headline that differs from the
+    #     title — it is the title with the bit that is printed elsewhere taken off. EP24
+    #     had nowhere to put "(Part 4)" but the headline precisely because this insisted
+    #     on the whole string. Rule 5 below is what stops it appearing twice.
+    title_no_part, _tp = strip_part(title)
+    if fold(zones.get("headline")) not in (fold(title), fold(title_no_part)):
         bad.append(
             f"{what}: the big headline reads {zones.get('headline')!r} but the rail's "
             f"title is {title!r}. The headline is the TITLE field, verbatim. "
@@ -237,6 +280,35 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
                 f"field — not the title, not the byline, not the series line. Nothing on "
                 f"this picture may be written for it; every word is copied from the "
                 f"approved packaging or the zone is left blank.")
+
+    # 5 — THE SERIES PART IS PRINTED ONCE, AND IN THE PART ZONE. (EP24.)
+    #     Rules 2 and 4 both pass a page that says "Part 4" twice, because each of them
+    #     asks whether a word BELONGS and neither counts. This counts.
+    part = strip_part(title)[1] or strip_part(part_source)[1]
+    if part:
+        n = part.split()[-1].lower()
+        phrase = re.compile(rf"\bpart\s+{re.escape(n)}\b")
+        hits = {z: len(phrase.findall(fold(t))) for z, t in zones.items()}
+        total = sum(hits.values())
+        where = [z for z, c in hits.items() if c]
+        if total > 1 or (total == 1 and hits.get("part", 0) != 1):
+            if total > 1 and hits.get("headline"):
+                why_ = ("The headline is carrying it AS WELL as the part line, so the "
+                        "picture says it twice — EP24's fault exactly: TRACK SECRETS / "
+                        "(PART 4) / Part 4. Take it out of the headline; the part line "
+                        "is what prints it.")
+            elif hits.get("headline"):
+                why_ = ("It is in the HEADLINE instead of the part line. Every kind of "
+                        "page here has a zone of its own for the part, styled for it — "
+                        "a part set in headline type is the series position pretending "
+                        "to be the title.")
+            else:
+                why_ = ("Every kind of page here has a zone of its own for the part, "
+                        "and that is the only place it is printed.")
+            bad.append(
+                f"{what}: the series part {part!r} is printed {total} time(s), in "
+                f"{where or ['no zone at all']} — it belongs in the part zone, once. "
+                + why_)
     return bad
 
 
