@@ -199,5 +199,71 @@ case("watchdog: finishing a step clears the in-flight marker",
      _a_finished_step_clears_the_marker)
 
 
+
+
+# ── C4 / 3b — HIBERNATE WAS THE HOLE IN THE SLEEP GUARD ───────────────────────
+# `standby_problem` has read STANDBYIDLE since EP14 — both halves, because setting one
+# and not the other looks fixed and is not. HIBERNATEIDLE is a THIRD and FOURTH timer and
+# was never read at all: a machine set to "never sleep" can still hibernate out from under
+# a build, suspending the engine the same way and costing the same hours.
+#     The docstring's own lesson — a person can do this correctly and still be wrong —
+# applied to the guard as much as to Jodie.
+def pc2(s_ac, s_dc, h_ac, h_dc):
+    """powercfg output for BOTH subgroups, in the order supervisor asks for them."""
+    return pc(s_ac, s_dc) + (
+        "  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)\n"
+        "    Power Setting GUID: 9d7815a6-7ee4-497e-8888-515a05f02364  (Hibernate after)\n"
+        f"    Current AC Power Setting Index: 0x{h_ac:08x}\n"
+        f"    Current DC Power Setting Index: 0x{h_dc:08x}\n")
+
+
+def _hibernate_is_caught_when_sleep_is_already_off():
+    """The state a careful person lands on: sleep set to never, hibernate untouched."""
+    p = sup.standby_problem(lambda: pc2(0x0, 0x0, 0x0, 0x708))
+    assert p, ("sleep is off on both halves and HIBERNATE still fires after 30 min on "
+               "battery — the build is suspended just the same, and this read as fine")
+    assert "hibernate" in p.lower(), f"the message does not name hibernate:\n{p}"
+    assert "battery" in p.lower(), f"the message does not say WHICH half:\n{p}"
+    assert "hibernate-timeout-dc 0" in p, f"the message does not say how to fix it:\n{p}"
+
+
+case("hibernate: caught even when sleep is already set to never",
+     _hibernate_is_caught_when_sleep_is_already_off)
+
+
+def _all_four_timers_off_is_the_only_pass():
+    assert sup.standby_problem(lambda: pc2(0x0, 0x0, 0x0, 0x0)) is None, \
+        "all four timers at never should be the clean pass"
+
+
+case("hibernate: all four timers at never is the only clean pass",
+     _all_four_timers_off_is_the_only_pass)
+
+
+def _sleep_and_hibernate_are_named_separately():
+    p = sup.standby_problem(lambda: pc2(0x384, 0x0, 0x0, 0x708))
+    assert "sleep on MAINS" in p, f"sleep half not named:\n{p}"
+    assert "hibernate on BATTERY" in p, f"hibernate half not named:\n{p}"
+    assert "standby-timeout-ac 0" in p and "hibernate-timeout-dc 0" in p, \
+        f"the fix must name BOTH commands, or she fixes half of it again:\n{p}"
+
+
+case("hibernate: sleep and hibernate are reported and fixed SEPARATELY",
+     _sleep_and_hibernate_are_named_separately)
+
+
+def _still_fails_open_and_still_handles_sleep_only_output():
+    """Older powercfg, or a machine that reports only the one subgroup."""
+    assert sup.standby_problem(lambda: pc(0x0, 0x0)) is None, \
+        "sleep-only output with both halves off must still pass"
+    p = sup.standby_problem(lambda: pc(0x0, 0xb4))
+    assert p and "battery" in p.lower(), (
+        "sleep-only output must still be graded — the hibernate change must not have "
+        "made the original check depend on a subgroup that may not be reported")
+
+
+case("hibernate: sleep-only output is still graded, and still fails open",
+     _still_fails_open_and_still_handles_sleep_only_output)
+
 print(f"\nbundle D: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

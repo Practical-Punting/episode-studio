@@ -2071,7 +2071,34 @@ class RealProvider:
                 "ethnic-mix / turf wording baked in). The heroes are generated "
                 "UPFRONT with the b-roll so the cover pick reaches you while "
                 "Gordon is still rendering. Add them, then clear this flag.")
-        return a, b
+        # 🔴 EP24's COVER B CAME BACK UPSIDE DOWN. The A/B pick caught it — but the pick
+        # is a SAFETY NET, and one of the two options was wasted. Both prompts state which
+        # way up the picture goes, applied here because this is the single funnel every
+        # generated hero comes through. Applied, not asked: there is one lawful answer and
+        # it is written down. (Same ruling as the b-roll standing lines, A21.)
+        fa, ca = broll_prompt_rules.apply_orientation(a)
+        fb, cb = broll_prompt_rules.apply_orientation(b)
+        if ca or cb:
+            self._save_cover_prompts(ep, fa, fb)
+            which = ", ".join(n for n, c in (("hero A", ca), ("hero B", cb)) if c)
+            print(f"    cover prompts: added the upright-orientation line to {which}")
+        return fa, fb
+
+    def _save_cover_prompts(self, ep, a: str, b: str) -> None:
+        """Record corrected hero prompts back into episode.json.
+
+        ⚠️ THE LEDGER IS KEYED ON THE PROMPT (`_prompt_key`), so a rewritten prompt is a
+        different image as far as E16 is concerned. That is correct and costs nothing
+        here: `cover_cost`/`_hero_paths` skip any hero already ON DISK, so a staged hero
+        is never re-bought — only a hero that was going to be generated anyway is
+        generated from the better words.
+        """
+        path = self.dir(ep) / "docs/episode.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        cov = data.setdefault("cover", {})
+        cov["hero_a_prompt"], cov["hero_b_prompt"] = a, b
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                        encoding="utf-8")
 
     def cover_cost(self, ep) -> float:
         """Exact preview of the cover-hero spend (no spend). 0 once both heroes
@@ -2875,6 +2902,29 @@ class RealProvider:
         # BEFORE their spoken cue — C1 by 9.6 seconds. A hand-run step is one Hugh
         # cannot perform at all, and it gets skipped exactly when it matters most:
         # after a long build, when everyone is looking at the render.
+        # 2b — THE CUES MUST STILL BE IN THE SRT, and this is the first moment the SRT
+        # exists to ask. `preflight_cards.cue_faults` already checks cues against the
+        # approved SCRIPT at audit_inputs; EP24 C19 walked past it because the card was
+        # edited AFTERWARDS — the over-full-card fix rewrote the cue long after the
+        # pre-flight ran and long after Gordon had recorded.
+        #     A CHECK THAT RUNS ONCE PROTECTS THE VERSION IT RAN ON.
+        # Checked BEFORE derive_timings so the halt names the card, says the cue is not
+        # in the render, and offers the nearest real spoken line to re-anchor to —
+        # instead of derive_timings reporting an unplaceable card as a decision.
+        srt = d / "renders/aligned.srt"
+        if srt.is_file():
+            import preflight_cards                                 # noqa: PLC0415
+            bad = preflight_cards.cue_in_srt_faults(
+                self.epjson(ep), srt.read_text(encoding="utf-8", errors="replace"))
+            if bad:
+                raise EngineFlag(
+                    "A card is waiting for words that are not in the finished render. "
+                    "That happens when a card is edited AFTER Gordon has recorded — a "
+                    "tighten or a split may change what the card SAYS, but its cue has "
+                    "to stay a phrase he actually speaks. Nothing has been assembled.\n\n"
+                    + "\n".join("  · " + b for b in bad) +
+                    "\n\nRe-point the cue in docs/episode.json to the spoken line quoted "
+                    "above, then clear this flag.")
         print(f"    {derive_timings(d)}")
         return str(sm)
 
@@ -3575,7 +3625,14 @@ class RealProvider:
             # ⚠️ 1800 IS A BOUND WITH MARGIN, NOT A MEASUREMENT OF THE TYPICAL
             # CASE. One observation sets a floor, not a distribution. If a second
             # run lands near it, raise it on that evidence rather than on nerves.
-            timeout=com.TIMEOUT_EPJSON_S,
+            # C2 — SCALED BY THE JOB. A fixed 1800 cut off a WORKING writer on EP23 and
+            # EP24 running. The approved script is the only size signal that exists at
+            # this point (the beats and cards are the artefact being written), so the
+            # ceiling is derived from it. Falls back to the measured floor when there is
+            # no script to measure.
+            timeout=com.epjson_timeout(
+                (d / "docs/spoken-words.txt").stat().st_size
+                if (d / "docs/spoken-words.txt").is_file() else None),
             # the board's own sentence while the writer works (#6)
             on_start=on_start,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
