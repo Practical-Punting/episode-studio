@@ -1072,6 +1072,7 @@ def _ebook_vocabulary_note() -> str:
         p = ", ".join(f'<p class="{k}">' for k in ae.P_CLASSES if k)
         div = ", ".join(f'<div class="{k}">' for k in ae.DIV_CLASSES if k)
         img = ", ".join(f'<img class="{k}">' for k in sorted(ae.IMG_CLASSES))
+        tbl = ", ".join(f'<table class="{k}">' for k in sorted(ae.TABLE_CLASSES))
         return (
             "THE CLASS VOCABULARY IS CLOSED, AND EACH CLASS BELONGS TO ONE "
             "ELEMENT. A right class on the wrong element is refused:\n"
@@ -1079,6 +1080,7 @@ def _ebook_vocabulary_note() -> str:
             f"  - editorial paragraphs: {p}\n"
             f"  - divs: {div}\n"
             f"  - figures: {img}\n"
+            f"  - a chart the article prints: {tbl} (with tr/th/td inside it)\n"
             "  - headings: h1.section, h2.rule; and blockquote for a quotation\n"
             "Anything else is refused outright — a new class is not a way round "
             "the fidelity check.\n"
@@ -1088,13 +1090,29 @@ def _ebook_vocabulary_note() -> str:
             # It is an understandable move and the vocabulary list alone does not
             # forbid it: the article really does contain a <table>, and §0a says
             # reproduce the article. Nothing said which ELEMENT carries a grid.
-            "⚠️ A TABLE IN THE ARTICLE IS CARRIED BY ITS FIGURE, NOT BY MARKUP. "
-            "There is no <table> in this vocabulary — no table, tr, td, th, thead "
-            "or tbody — and adding one is refused outright. Where the article "
-            "prints a grid, this episode has a CARD for it and that card is one of "
-            "the figures[]: place the <img> and let it carry the grid. Do NOT also "
-            "re-type the values as text. An episode did both, and the same nine "
-            "numbers appeared twice on the page, once in a form the gate rejects.\n"
+            # 🔴 EP26, 15 Aug 2026. This paragraph used to say "there is no <table>
+            # in this vocabulary… adding one is refused outright". EP26's article
+            # prints THREE staking charts as one 45-row table and points at them by
+            # name eleven times, and no card carries 225 cells. The writer had no
+            # legal way to keep the chart, so it declared it OMITTED — and the gate
+            # refused, rightly. A rule that leaves no legal way to do the right thing
+            # has already chosen the wrong one. Both doors are now named.
+            "⚠️ A TABLE IN THE ARTICLE IS KEPT — AS A FIGURE, OR AS A CHART TABLE. "
+            "It is NEVER dropped, and a table declared in ebook.omit_paragraphs is "
+            "refused outright, because the prose points at these charts by name and "
+            "a book without them prints sentences about a table the reader cannot "
+            "see. There are exactly two ways to keep it, and you pick ONE:\n"
+            "  (a) if one of this episode's CARDS already renders the grid, place "
+            "that figure's <img> and let it carry the grid — preferred, because the "
+            "book then cannot drift from the video;\n"
+            '  (b) otherwise reproduce it as <table class="chart"> — one <tr> per '
+            "row of the article's table, one <td> per cell, in the article's own "
+            "order. Every cell is checked against the article, character for "
+            "character; it is a stricter check than (a), not a looser one.\n"
+            "Do NOT do both. An episode typed a grid AND placed the card figure of "
+            "the same grid, and the same nine numbers appeared twice on the page; "
+            "the gate now refuses that too. And a chart table carries CELLS only — "
+            "no <p>, <li> or <img> inside it.\n"
             # 🔴 EP25, 14 Aug 2026. The article is an <ol> of fifty <li>; the body
             # reproduced all fifty tips inside ONE <p>, character for character, and
             # the fidelity gate passed it. The gate now counts the article's numbered
