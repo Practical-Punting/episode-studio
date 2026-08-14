@@ -1213,6 +1213,40 @@ on a public repo is not a trade worth making**).
 
 # ✅ CLOSED BY RULING — off the lists entirely, do NOT raise again
 
+- ## 🔒 4a — "C1 CLOSING-CARD AUTO-MOVE" IS CLOSED AS ALREADY-COVERED. **(14 Aug 2026.)**
+  ### THE HALT IT WOULD HAVE AUTOMATED DOES NOT EXIST ANY MORE.
+
+  **"C1" is not defined anywhere in this repo** — the name outlived whatever note created
+  it. What it was reaching for is the closing/hero recap card overflow seen twice:
+  **EP22 C19** and **EP23 C23**.
+
+  🔴 **BOTH WERE PHANTOMS, AND `7835087` IS WHY.** `derive_card_timings` placed the end
+  card at `beat − endcard_lead` while `assemble_episode.py` builds it at
+  `beat + endcard_lead`. The tool believed the end card arrived **3.0s (two leads) early**
+  and invented overlaps against a card that had not appeared yet. EP23's C23 fitted where
+  it was — a 9.49s window against a 9.0s minimum — and its one real fault was an 8.0s
+  hold that wanted 9.0s: **a hold bump, not a move.**
+
+  ✅ **VERIFIED, NOT INFERRED FROM THE COMMIT MESSAGE.** Every episode on this machine with
+  an aligned SRT and a shot map — **sixteen of them, EP6 through EP25** — was re-derived
+  read-only on its CURRENT state. **Card/END overlaps found: ZERO. Including EP22 and
+  EP23 themselves.** (Three older episodes still report unrelated problems; none is an
+  end-card overlap.)
+
+  📌 **AND THE ONE GENUINE CARD/END OVERLAP SINCE IS NOT A MOVE.** EP25's `C26/END: 0.34s`
+  was real — it is post-`7835087` — and it is a **size-and-hold** problem, not a placement
+  one. Its mechanical half now applies itself under **A23** (`--apply-hold`), and its
+  editorial half — which row folds into which — is a decision and stays one.
+
+  > ### ⚠️ SO BUILDING A CLOSING-CARD AUTO-MOVE WOULD HAVE AIMED AN AUTO-APPLY AT THE
+  > ### WRONG HALT — and an auto-apply pointed at a phantom moves cards that fit.
+  > That is fault #6 with a fix attached: a wrong cause whose remedy appears to work.
+
+  🔒 **GUARDED so it cannot come back quietly:** `engine/test_derive_card_timings.py` A2 —
+  END is placed at `beat + endcard_lead`, a card that genuinely fits raises **no** phantom
+  overlap, **and a card that genuinely does run into the end card is still caught.**
+  Fixing a position must not blind a check.
+
 - ## 🔒 THE TRUNCATION AUDIT IS CLOSED. EP01-EP15, ALL FIFTEEN ACCOUNTED FOR.
   *(4 Aug 2026. Recorded so nobody re-opens it in three weeks.)*
   **NO PUBLISHED EPISODE IS SHORT.** The E22 download bug (`_heygen_fetch` never checks
