@@ -105,7 +105,14 @@ except cap.Unrecognised as e:
 print("\n-- 3. nothing can mistake it for the article of record --")
 with tempfile.TemporaryDirectory() as t:
     pp = Path(t)
-    ep_dir = pp / "PP-EP77"
+    # ⚠️ DELIBERATELY NOT GIVEN A REAL EPISODE-FOLDER NAME, and do not "tidy" it back.
+    # Nothing here parses the folder name — write_provisional() and
+    # promote_provisional() are both handed the episode NUMBER — and a literal episode
+    # folder name in a suite is what test_no_hardcoded_episode_paths refuses, because
+    # the Stage-8 rename turns those into stale paths that read as code regressions.
+    # The number is the id; the folder name is a guess (CLAUDE.md 0a).
+    # Everything below runs in this temp tree; no real media folder is touched.
+    ep_dir = pp / "episode-under-test"
     (pp / "docs").mkdir(parents=True)
     ep_dir.mkdir()
     body = " ".join(f"word{i}" for i in range(40))
