@@ -114,10 +114,22 @@ def engine_pid():
 
 
 def _powercfg():
-    """The raw sleep settings, as Windows reports them."""
+    """The raw sleep AND hibernate settings, as Windows reports them.
+
+    🔴 HIBERNATE WAS THE HOLE IN THIS GUARD, and it is the same fault the guard itself
+    was written about. `standby_problem` has checked STANDBYIDLE since EP14 — both the
+    mains and the battery timer, because setting one and not the other looks fixed and is
+    not. HIBERNATEIDLE IS A THIRD AND FOURTH TIMER, and it was never read: a machine set
+    to "never sleep" can still hibernate out from under a build, which suspends the engine
+    exactly the same way and costs exactly the same hours.
+        The lesson the docstring below already states — *a person can do this correctly
+    and still be wrong* — applied to the guard as much as to Jodie. Both subgroups are
+    queried now, in one call, and parsed the same way.
+    """
     r = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
-         "powercfg /q SCHEME_CURRENT SUB_SLEEP STANDBYIDLE"],
+         "powercfg /q SCHEME_CURRENT SUB_SLEEP STANDBYIDLE; "
+         "powercfg /q SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE"],
         capture_output=True, text=True, timeout=60)
     return r.stdout or ""
 
@@ -152,28 +164,38 @@ def standby_problem(query=_powercfg):
         out = query()
     except Exception:                                             # noqa: BLE001
         return None
-    ac = re.search(r"Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
-    dc = re.search(r"Current DC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
-    if not (ac and dc):
+    # ALL FOUR TIMERS. powercfg prints one AC/DC pair per subgroup queried, in the order
+    # asked: STANDBYIDLE first, then HIBERNATEIDLE. Pairing them positionally is what lets
+    # the message say WHICH of the two will suspend the build.
+    acs = re.findall(r"Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
+    dcs = re.findall(r"Current DC Power Setting Index:\s*0x([0-9a-fA-F]+)", out or "")
+    if not (acs and dcs):
         return None                                               # cannot tell -> allow
-    bad = []
-    if int(ac.group(1), 16):
-        bad.append(f"on MAINS after {_mins(int(ac.group(1), 16))}")
-    if int(dc.group(1), 16):
-        bad.append(f"on BATTERY after {_mins(int(dc.group(1), 16))}")
+    bad, cmds = [], []
+    for i, (what, flag) in enumerate((("sleep", "standby"), ("hibernate", "hibernate"))):
+        if i >= len(acs) or i >= len(dcs):
+            continue                       # older powercfg, or a subgroup not reported
+        a, d = int(acs[i], 16), int(dcs[i], 16)
+        if a:
+            bad.append(f"{what} on MAINS after {_mins(a)}")
+        if d:
+            bad.append(f"{what} on BATTERY after {_mins(d)}")
+        if a or d:
+            cmds += [f"      powercfg /change {flag}-timeout-ac 0",
+                     f"      powercfg /change {flag}-timeout-dc 0"]
     if not bad:
         return None
     return (
-        "THIS MACHINE WILL FALL ASLEEP UNDER A BUILD — it is set to sleep "
-        + " and ".join(bad) + ".\n"
+        "THIS MACHINE WILL SUSPEND A BUILD — it is set to "
+        + ", ".join(bad) + ".\n"
         "    Sleep cost EP14 fourteen hours: the engine is suspended, the ffmpeg "
         "timeout is wall-clock so it fires late on waking and kills work that was "
-        "nearly done.\n"
-        "    Windows keeps SEPARATE timers for mains and battery, so setting one and "
-        "not the other looks fixed and is not — which is exactly what happened here.\n"
-        "    Fix BOTH, then this starts by itself within five minutes:\n"
-        "      powercfg /change standby-timeout-ac 0\n"
-        "      powercfg /change standby-timeout-dc 0")
+        "nearly done. HIBERNATE does the same thing by another name.\n"
+        "    Windows keeps SEPARATE timers for mains and battery, AND separate ones "
+        "again for sleep and hibernate, so setting one and not the others looks fixed "
+        "and is not — which is exactly what happened here.\n"
+        "    Fix them, then this starts by itself within five minutes:\n"
+        + "\n".join(cmds))
 
 
 def environment_problem(standby=_powercfg):
