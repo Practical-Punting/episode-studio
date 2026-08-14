@@ -313,5 +313,52 @@ check("  ONE definition serves both funnels",
       R.FIXES["orientation"] is R.ORIENTATION,
       "a second copy of the line is a second thing to keep in step")
 
+# ══ THE AUTO-INJECT, SWEPT OVER THE REAL EPISODES (0b20c05, verified 14 Aug 2026) ══
+#
+# Every case above is a FIXTURE — a prompt written here to have the gap being tested.
+# That proves the rule and says nothing about the prompts episodes actually carry, which
+# is the same distance as "the check works" from "the check is reaching the artefact".
+# This reads the real `broll[]` of every episode A21 grades and asserts the property that
+# matters: after the auto-apply, a human is left with NO MECHANICAL WORK — only genuine
+# ambiguity may survive. The coverage is DERIVED from what is on disk, so the next
+# episode is swept the day it exists, with nothing to add here.
+import os                                                            # noqa: E402
+PP = Path(os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos"))
+import ep_paths as _ep                        # renamed on publish; resolve by NUMBER
+
+print(f"\n-- the auto-inject over REAL prompts, EP{R.FROM_EP} forward --")
+graded, injected, leftovers = 0, 0, []
+for _d in sorted(PP.glob("PP-EP*")):
+    try:
+        _n = int(_d.name.split("-")[1][2:])
+    except (IndexError, ValueError):
+        continue
+    _epj = _d / "docs/episode.json"
+    if _n < R.FROM_EP or not _epj.is_file():
+        continue
+    for _b in json.loads(_epj.read_text(encoding="utf-8")).get("broll") or []:
+        _p = _b.get("prompt") or ""
+        if not R.has_horses(_p) and not R.CROWD_WORDS.search(_p):
+            continue
+        graded += 1
+        _new, _applied, _unfix = R.apply_rules(_p)
+        if _applied:
+            injected += 1
+        _after = {g["key"] for g in R.check_prompt(_new)}
+        if _after:
+            leftovers.append(f"EP{_n}: {sorted(_after)} still missing after auto-apply")
+        # A CONTRADICTION is allowed to survive as unfixable — that is the decision.
+        # A merely ABSENT line is not.
+        if _unfix and not R._BEYOND_NON_TURF.search(_p):
+            leftovers.append(f"EP{_n}: halted a human over {_unfix}")
+
+if graded:
+    check(f"{graded} real racing/crowd prompt(s) graded, {injected} had lines injected",
+          True)
+    check("  a MECHANICALLY short prompt never reaches a human",
+          not leftovers, "; ".join(leftovers[:4]))
+else:
+    print(f"  ·  skipped — no episode from EP{R.FROM_EP} on this machine")
+
 print(f"\ntotal: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
