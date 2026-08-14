@@ -84,14 +84,42 @@ not, the run log says which timer is still set and what to type.
 
 **This is what killed EP23's engine overnight.**
 
-1. **Settings → Windows Update → Advanced options → Active hours**
-2. Change **"Adjust active hours"** from *Automatically* to **Manually**
-3. Set the range to **cover the hours you build overnight** (Windows will not
-   auto-restart inside active hours)
-4. On the same page, turn **OFF** *"Restart this device as soon as possible when a restart
-   is required to install an update"*
-5. Turn **ON** *"Notify me when a restart is required to finish updating"* — so a pending
-   restart is something you choose, at a moment you pick
+### ✅ ACTIVE HOURS — DONE 14 Aug 2026, and the previous setting was the trap
+
+**Set and verified: `ActiveHoursStart=18`, `ActiveHoursEnd=12`,
+`SmartActiveHoursState=0` (Manual).** 18:00 → 12:00 is 18 hours, the maximum Windows
+allows, and it **covers the overnight build window**.
+
+> 🔴 **WHAT WAS THERE BEFORE READ AS FINE AND WAS EXACTLY WRONG.** Active hours were
+> already `07:00 → 01:00` — also a full 18 hours, also looking thoroughly set — and the
+> gap it left was **01:00 to 07:00**. That is precisely when an unattended overnight
+> build runs, and when EP23's engine was killed by a Windows update. *A wide range is not
+> the same as the RIGHT range, and only the gap matters.*
+
+That leaves noon → 6pm as the restart window: hours she is normally at the machine and
+not part-way through an overnight build.
+
+### 🔒 STILL TO DO — needs an ADMINISTRATOR terminal
+
+`NoAutoRebootWithLoggedOnUsers` lives under `HKLM\SOFTWARE\Policies\…`, which a normal
+user cannot write. Run this in an **Administrator** PowerShell:
+
+```powershell
+New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Force | Out-Null
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' `
+  -Name NoAutoRebootWithLoggedOnUsers -Value 1 -Type DWord
+```
+
+Verify it took:
+
+```powershell
+Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' |
+  Select-Object NoAutoRebootWithLoggedOnUsers
+```
+
+⚠️ **Active hours alone is not the whole guard.** It stops a restart *inside* the window;
+this stops one while anybody is logged on. Both, or an update can still take the machine
+at 12:30pm with a build running.
 
 ⚠️ **Active hours is a maximum of 18 hours**, so it cannot cover a whole day. Pick the
 window that actually matters and accept a restart outside it — §1.5 means a restart can no
