@@ -744,3 +744,58 @@ double it.
 different image to E16 — which costs nothing here: a hero already ON DISK is never
 re-bought, so only a hero that was going to be generated anyway is generated from the
 better words.**
+
+## A23 · 14 Aug 2026 — ⏱️ A MECHANICAL FIX APPLIES ITSELF; ONLY THE EDITORIAL HALF HALTS · **Jodie**
+
+**The fault, on EP25: `CARD-CARD overlap C26/END: 0.34s`.** Three tenths of a second
+stopped the build and waited for a person.
+
+### THE RULE
+
+> **When a card overruns the next and the arithmetic alone can clear it — the card FITS
+> the room it has, at its own lawful floor — the engine BRINGS THE HOLD DOWN and carries
+> on. It never asks.**
+> **When clearing it means deciding WHICH ROW FOLDS INTO WHICH, it halts, because that
+> changes what the card says.**
+> **`SPLIT` is offered as the alternative. `DROP` never is — a fact does not come out to
+> save three tenths of a second.**
+
+### 🔴 THE TWO-PART CATCH, WHICH IS THE WHOLE REASON THIS KEPT COMING BACK
+
+**Folding a row lowers the FLOOR. It does not move the PLANNED HOLD.** `hold_for()`
+returns `build.holds[cid]` if it exists and otherwise the episode default — so a card
+folded from four items to three has a floor of 9.0s and is **still planned at 10.0s, and
+still overlaps.**
+
+> **A human who folds the card and stops has fixed nothing, and gets the identical halt
+> back with no clue why.** EP25 needed **both** writes and a person did **both** by hand.
+
+**So the floor moving is now what MAKES the hold move.** The mechanical half can no longer
+be forgotten, because nobody has to remember it. *That is the general shape, and it is the
+point of the ruling: when a fix has an obvious half and a bookkeeping half, the bookkeeping
+half is where it silently half-lands — automate that one FIRST.*
+
+### WHERE THE LINE IS, AND WHY IT IS THERE
+
+**Automation eats chores, never decisions** (A12, and the Script Gate record). Bringing a
+hold down to a floor the tool already computed is a chore: **no fact moves, no cue moves,
+nothing a viewer reads changes.** Choosing that "the bank" and "the stake" share one cell —
+which is what EP25's fix actually was — **changes what the card says**, and stays Jodie's.
+
+**SUPERSEDES:** nothing. It is the third of the same argument: `--apply-broll` (12 Aug),
+`--apply-wide` (13 Aug), and now `--apply-hold`. **Every one was a halt that had never
+been a decision, and every one was applied verbatim by hand before it was automated.**
+
+**DOES NOT COVER:** a card that does not fit **even at its floor** (still halts, and must);
+a card too big for **any** window (`NOTHING FITS THIS WINDOW` — it moves or it comes out,
+and that is a decision); the midroll and b-roll overlap classes, which have their own rules.
+
+🔒 **GUARDED.** `--apply-hold` in `derive_card_timings.py`, one derived condition —
+*floor fits the window AND the planned hold is above the floor* — so no episode is named
+and no list is maintained. Proved in `engine/test_shot_map_flows.py` **PART D**, on EP25's
+real C26: the four-cell card still halts and `build.holds` is left untouched; the folded
+card with its hold unset is brought down to **9.0**, which is exactly the number the human
+wrote. EP22's pre-fix halts still halt, and EP19/20/21 still derive clean and unchanged.
+📌 **And the halt now names the one thing it wants** — *"the ONLY thing needed from you is
+WHICH row folds into which… the hold then comes down by itself; you do not have to set
+build.holds"* — so the person in front of it is asked for a judgement, never for arithmetic.

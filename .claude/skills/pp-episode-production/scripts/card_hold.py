@@ -101,6 +101,16 @@ def options_for(card: dict, build: dict, available: float) -> str:
         lines.append(f"FOLD to {k} item(s) and it fits ({got:.1f}s) — fold a row into "
                      f"its parent, never drop the fact")
         lines.append(f"or SPLIT it: {k} item(s) here and the rest on another cue")
+        # 🔴 SAY WHICH HALF IS ACTUALLY BEING ASKED FOR. (EP25 C26, 14 Aug 2026.)
+        # This message used to leave a person with TWO jobs and name only one: fold the
+        # card, AND remember that folding lowers the floor without moving the planned
+        # hold, so `build.holds` needs the new number too. A human who did the first and
+        # not the second got the identical halt back and no clue why. The second half is
+        # arithmetic and is applied automatically now, so the ask is one decision.
+        lines.append(f"the ONLY thing needed from you is WHICH row folds into which — "
+                     f"that changes what the card says, so it stays yours. The hold "
+                     f"then comes down to {got:.1f}s by itself; you do not have to set "
+                     f"build.holds, and nothing is dropped either way")
     else:
         lines.append(f"NOTHING FITS THIS WINDOW: even one item needs "
                      f"{ABSOLUTE_FLOOR_S:.1f}s and there are only {available:.2f}s, so "

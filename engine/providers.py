@@ -555,7 +555,16 @@ def derive_timings(ep_dir: Path) -> str:
          # moved C3's cue past a beat boundary, beat 32 because C21 was changed to
          # panel-push and framing was never re-derived. Widening a beat cannot lose a
          # fact, which is what makes it safe to apply where a too-big card is not.
-         str(ep_dir), "--write", "--apply-broll", "--apply-wide"],
+         #
+         # 🔴 --apply-hold: THE THIRD, AND THE ONE THAT WAS HALF-DONE BY HAND. A card
+         # that overlaps the next but FITS the room at its own lawful floor is not a
+         # decision — its planned hold is simply still the episode default. EP25's C26
+         # overran by 0.34s. And folding it was TWO writes, not one: the fold lowers the
+         # floor, the planned hold does not follow, so a human who folded and stopped
+         # got the same halt back. The hold now moves with the floor.
+         #     WHICH ROW FOLDS INTO WHICH still halts, because that changes what the
+         # card says. Automation eats chores, never decisions.
+         str(ep_dir), "--write", "--apply-broll", "--apply-wide", "--apply-hold"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     out = (r.stdout or "") + (r.stderr or "")
     if r.returncode:
