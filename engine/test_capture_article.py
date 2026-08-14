@@ -276,6 +276,57 @@ if msg_h is None:
     body_h, _, _, _ = ca.extract(heading)
     check("  rendered as bold", "**Geelong:**" in body_h, body_h[-140:])
 
+# ══ A NUMBERED LIST SURVIVES THE CAPTURE (EP25, 14 Aug 2026) ═════════════════════
+# `<li>` carries no whitespace, so the tag-strip used to leave NOTHING between items —
+# not even a space. Fifty tips became one 3,900-word paragraph, and the e-book then
+# reproduced that paragraph perfectly. The control runs both ways: the list must come
+# out numbered, and the words must be unchanged by the change that numbers them.
+print("\n-- CONTROL: an <ol> stays a numbered list --")
+LIST_PAGE = (ca.CONTAINER + "<p>" + ("word " * 320) + "</p>"
+             "<p><b>Now for the tips:</b></p>"
+             "<ol><li>Never bet more than you can afford to lose.</li>"
+             "<li>Always have a sizeable betting bank.</li>"
+             "<li>*Treat each bet separately.</li></ol>"
+             "<p>* Indicates extract from Commonsense Punting.</p></div>")
+body_l, _, _, _ = ca.extract(LIST_PAGE)
+blocks_l = [b for b in body_l.split("\n\n") if b.strip()]
+nums = [b for b in blocks_l if re.match(r"^\d+\. ", b)]
+check("three <li> become three numbered blocks", len(nums) == 3,
+      f"got {len(nums)}: {nums}")
+check("  numbered 1, 2, 3 — the article's own numbering",
+      [b.split(".")[0] for b in nums] == ["1", "2", "3"], str(nums))
+check("  the items do not run together",
+      "lose.Always" not in body_l and "bank.*Treat" not in body_l, body_l[-300:])
+check("  a leading '*' extract-marker survives",
+      any(b.startswith("3. *Treat") for b in nums), str(nums))
+check("  the footnote is its own block, unnumbered",
+      "* Indicates extract from Commonsense Punting." in blocks_l, str(blocks_l[-2:]))
+
+# THE FAILURE THIS REPLACES — with the fix disabled, the same page must run together.
+_real = ca.lists_to_blocks
+ca.lists_to_blocks = lambda frag: frag
+try:
+    body_before, _, _, _ = ca.extract(LIST_PAGE)
+finally:
+    ca.lists_to_blocks = _real
+check("  and WITHOUT the fix the same page runs together (the control)",
+      "lose.Always have a sizeable" in body_before, body_before[-200:])
+
+# A list inside a list REFUSES rather than inventing a numbering scheme.
+NESTED = (ca.CONTAINER + "<p>" + ("word " * 320) + "</p>"
+          "<ol><li>One.<ol><li>One a.</li></ol></li><li>Two.</li></ol></div>")
+msg_n = refuses(NESTED, "")
+check("a list inside a list is REFUSED, not guessed at",
+      msg_n is not None and "list inside a list" in msg_n, f"got: {msg_n}")
+
+# An UNORDERED list is separated but NOT numbered — we do not invent numbers.
+UL = (ca.CONTAINER + "<p>" + ("word " * 320) + "</p>"
+      "<ul><li>First bullet point here.</li><li>Second bullet point here.</li></ul></div>")
+body_u, _, _, _ = ca.extract(UL)
+check("a <ul> is separated but NOT numbered",
+      "here.Second" not in body_u and not re.search(r"(?m)^1\. First bullet", body_u),
+      body_u[-200:])
+
 print(f"\n{'=' * 70}")
 if DRIFTED:
     print(f"⚠️  PAGE DRIFT on EP{DRIFTED}: the live article has been EDITED since that "

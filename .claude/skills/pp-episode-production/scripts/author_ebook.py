@@ -201,7 +201,41 @@ P_CLASSES = {None: "article prose", "lead": "editorial", "byline": "editorial",
 IMG_CLASSES = {"illus", "illus portrait"}
 DIV_CLASSES = {None, "kicker", "pagebreak", "avoid", "divider"}
 TAGS_OK = {"p", "h1", "h2", "h3", "div", "span", "img", "br", "b", "strong",
-           "i", "em", "blockquote", "a"}
+           "i", "em", "blockquote", "a", "ol", "li"}
+
+# ══ A NUMBERED LIST IS A STRUCTURE, NOT A PARAGRAPH ══════════════════════════
+# (EP25, 14 Aug 2026 — "50 Great Staking Ideas".)
+#
+# The article is an `<ol>` of exactly 50 `<li>`. The CAPTURE flattened it — `<li>`
+# carries no whitespace, so stripping it left the fifty tips abutting with no space
+# at all — and the e-book body then reproduced that one 3,900-word paragraph
+# FAITHFULLY. **The fidelity gate passed.** It compares the body to the capture, the
+# capture had already lost the structure, and so every check downstream agreed.
+#
+# 🔴 THAT IS THE LESSON, AND IT IS FAULT #1 AT ONE REMOVE: the gate asserted the
+# artefact it was given, and nobody asked whether the artefact still had the article's
+# SHAPE in it. A reproduction can be character-perfect and still not be the article.
+#
+# The capture now writes an ordered list as markdown's own `1. …` blocks
+# (`capture_article.lists_to_blocks`), so the article of record has fifty paragraphs
+# where it had one. This file's side of that bargain:
+#   · a NUMBERED article paragraph must be reproduced by an `<li>`, never a bare `<p>`;
+#   · an UNNUMBERED one must be reproduced by a bare `<p>`, never an `<li>`;
+#   · N numbered items in the article means EXACTLY N `<li>` in the body — the check
+#     the whole fix hangs on, and the one that would have caught EP25 on sight;
+#   · the figures sit WITH THE TIP THEY ILLUSTRATE, derived from each card's own
+#     trace, because EP25's six all went to the end where they illustrate nothing.
+# The number itself is the article's OWN MARKUP, exactly as `**BOLD**` is for a
+# heading — an `<ol>` numbers its items whether or not the digits are in the HTML —
+# so it is stripped before the words are compared, and the words are still compared
+# character for character, folding nothing.
+NUMBERED = re.compile(r"^(\d+)\.\s+(.*)$", re.S)
+
+
+def split_number(paragraph: str):
+    """('12', 'the words') for a numbered article paragraph, else (None, the words)."""
+    m = NUMBERED.match(paragraph)
+    return (int(m.group(1)), m.group(2).strip()) if m else (None, paragraph)
 
 # Text that belongs to the SHELL. If the body carries it too, the book would
 # print the page twice — and the second copy would not be the approved one.
@@ -455,24 +489,45 @@ def parse_body(body: str, source_figures: dict | None = None):
                  for m in re.finditer(r"<h([123])(?:\s[^>]*)?>(.*?)</h\1>", body, re.S))
                 if t]
 
+    # ── THE ORDERED WALK: bare <p> AND <li>, in the order they appear on the page ──
+    # One sweep over both, because the fidelity walk is about ORDER and two separate
+    # passes cannot say which came first. `prose` is a list of (kind, text) pairs —
+    # ONE list, so the kind can never drift away from the words it describes.
     prose, quoted = [], []
-    for m in re.finditer(r"<p(\s[^>]*)?>(.*?)</p>", body, re.S):
-        cls = re.search(r'class="([^"]*)"', m.group(1) or "")
-        key = cls.group(1).strip() if cls else None
-        if key not in P_CLASSES:
-            raise Halt(f'ebook/{BODY_FILE}: <p class="{key}"> is not in the e-book class '
-                       f"vocabulary. Allowed: a bare <p> for the article's own prose, or "
-                       f"{', '.join(repr(k) for k in P_CLASSES if k)}. A new class is not a "
-                       f"way round the fidelity check.")
-        t = text_of(m.group(2))
-        if not t:
-            continue
-        (prose if key is None else quoted if key == "pullquote" else []).append(t)
+    for m in re.finditer(r"<p(\s[^>]*)?>(.*?)</p>|<li(\s[^>]*)?>(.*?)</li>", body, re.S):
+        if m.group(0)[:2].lower() == "<p":
+            cls = re.search(r'class="([^"]*)"', m.group(1) or "")
+            key = cls.group(1).strip() if cls else None
+            if key not in P_CLASSES:
+                raise Halt(f'ebook/{BODY_FILE}: <p class="{key}"> is not in the e-book '
+                           f"class vocabulary. Allowed: a bare <p> for the article's own "
+                           f"prose, or {', '.join(repr(k) for k in P_CLASSES if k)}. A new "
+                           f"class is not a way round the fidelity check.")
+            t = text_of(m.group(2))
+            if not t:
+                continue
+            if key is None:
+                prose.append(("p", t))
+            elif key == "pullquote":
+                quoted.append(t)
+        else:
+            t = text_of(m.group(4))
+            if not t:
+                continue
+            prose.append(("li", t))
     for m in re.finditer(r"<blockquote(\s[^>]*)?>(.*?)</blockquote>", body, re.S):
         t = text_of(m.group(2))
         if t:
             quoted.append(t)
-    return prose, quoted, figures, headings
+
+    # EACH LIST ITEM AND THE FIGURES INSIDE IT. This is what lets the gate say that
+    # figure 3 sits with tip 23 rather than in a pile at the end of the book.
+    items = [(text_of(m.group(1)),
+              [int(n) for n in re.findall(r'src="figure-(\d+)\.png"', m.group(1))])
+             for m in re.finditer(r"<li(?:\s[^>]*)?>(.*?)</li>", body, re.S)]
+    items = [(t, f) for t, f in items if t]
+    ols = [m.group(1) or "" for m in re.finditer(r"<ol(\s[^>]*)?>", body)]
+    return prose, quoted, figures, headings, items, ols
 
 
 # ------------------------------------------------------------------ the gate
@@ -664,6 +719,135 @@ def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
     return got, notes
 
 
+def check_list_shape(art: list[str], items, ols):
+    """THE CHECK EP25 WOULD HAVE FAILED ON SIGHT: N numbered items, N list items.
+
+    The article of record either is a numbered list or it is not, and that question is
+    answered by COUNTING the article's own numbered paragraphs — nothing is configured,
+    nothing is declared, and no episode can opt out. If the source numbers fifty tips
+    and the body carries one paragraph, this says so and stops.
+
+    It also pins the RENDERED numbering, which is the part a reader actually sees: one
+    `<ol>` holding all of them, starting where the article starts. Split the list across
+    two `<ol>`s and the second silently restarts at 1 — the book would print two tip
+    ones, and every word in it would still be character-perfect.
+    """
+    numbered = [split_number(p)[0] for p in art if split_number(p)[0] is not None]
+    if not numbered:
+        if items:
+            raise Halt(
+                f"ebook/{BODY_FILE} uses {len(items)} <li> list item(s), but the source "
+                f"article has no numbered list in it. A list the article does not print "
+                f"is structure we invented, and §0a's mirror applies to shape as well as "
+                f"to words: never add what the article does not say.")
+        return None
+    n = len(numbered)
+    if len(items) != n:
+        raise Halt(
+            f"E-BOOK LIST SHAPE: the source article is a NUMBERED LIST of {n} items, and "
+            f"the body contains {len(items)} list item(s).\n"
+            f"    The article numbers them {numbered[0]} to {numbered[-1]}; each one is "
+            f"its own paragraph in the capture and each one must be its own <li>.\n"
+            f"    This is EP25's fault exactly: all {n} tips were reproduced inside a "
+            f"single <p>, every character correct, and the book printed a 3,900-word "
+            f"block where the article prints a numbered list. A reproduction can be "
+            f"character-perfect and still not be the article.")
+    if numbered != list(range(numbered[0], numbered[0] + n)):
+        raise Halt(
+            f"E-BOOK LIST SHAPE: the article's numbering is not contiguous — it runs "
+            f"{numbered[:3]}…{numbered[-3:]}. The capture writes the article's own "
+            f"numbers, so this says the SOURCE skips or repeats one. That is an "
+            f"editorial judgement about the article of record, not something to "
+            f"renumber quietly.")
+    if len(ols) != 1:
+        raise Halt(
+            f"E-BOOK LIST SHAPE: the body has {len(ols)} <ol> element(s) and needs "
+            f"exactly one. An <ol> restarts at 1 unless told otherwise, so splitting "
+            f"{n} items across {len(ols)} lists would print more than one item number "
+            f"{numbered[0]} — with every word still correct. Put a figure INSIDE the "
+            f"<li> it illustrates rather than breaking the list around it.")
+    m = re.search(r'start\s*=\s*"?(\d+)', ols[0] or "")
+    start = int(m.group(1)) if m else 1
+    if start != numbered[0]:
+        raise Halt(
+            f"E-BOOK LIST SHAPE: the article's list starts at {numbered[0]} and the "
+            f'body\'s <ol> starts at {start}. Write <ol start="{numbered[0]}"> so the '
+            f"printed numbers are the article's own.")
+    return (f"list shape: {n} numbered items, one <ol> starting at {numbered[0]} — "
+            f"the article's own numbering")
+
+
+def check_figure_placement(ep, art: list[str], items, figures):
+    """A figure belongs BESIDE THE TIP IT ILLUSTRATES, and the card says which one.
+
+    🔴 EP25's six figures were all placed after the last tip, where they illustrate
+    nothing — the reader meets a picture of the betting bank thirty-nine tips after the
+    tip about the betting bank. Nothing caught it, because `check_figures` only asks
+    whether the right figures are PRESENT.
+
+    WHICH tip is DERIVED, never declared (rule #7): each figure maps to a card, and the
+    card already carries a `trace` whose values are the article's own sentences. The tip
+    a figure belongs to is the numbered item those sentences live in. So the coverage
+    cannot go stale — adding a figure adds its own answer, and a card whose trace does
+    not reach the list is simply not required to sit in it.
+    """
+    if not items:
+        return None
+    numbered = [(i, split_number(p)) for i, p in enumerate(art)]
+    tips = [(num, words) for _i, (num, words) in numbered if num is not None]
+    where = {}                       # figure -> the tip number its card traces into
+    for n in sorted(set(figures)):
+        card = _card_for_figure(ep, n)
+        if not card:
+            continue
+        sentences = [v for v in (card.get("trace") or {}).values()
+                     if isinstance(v, str) and len(v.split()) >= 4]
+        if not sentences:
+            continue
+        score = {}
+        for num, words in tips:
+            hit = sum(1 for s in sentences if _squash(s) and _squash(s) in _squash(words))
+            if hit:
+                score[num] = max(score.get(num, 0), hit)
+        if score:
+            where[n] = max(score, key=lambda k: (score[k], -k))
+    if not where:
+        return None
+
+    first = tips[0][0]
+    holder = {}                      # figure -> the tip number whose <li> holds it
+    for idx, (_text, figs) in enumerate(items):
+        for f in figs:
+            holder[f] = first + idx
+    wrong, missing = [], []
+    for n, tip in sorted(where.items()):
+        if n not in holder:
+            missing.append((n, tip))
+        elif holder[n] != tip:
+            wrong.append((n, tip, holder[n]))
+    if missing or wrong:
+        bits = []
+        for n, tip in missing:
+            bits.append(f"figure {n} illustrates tip {tip} and does not sit in it — "
+                        f"it is outside the list altogether")
+        for n, tip, got in wrong:
+            bits.append(f"figure {n} illustrates tip {tip} but sits in tip {got}")
+        raise Halt(
+            "E-BOOK FIGURES: a figure belongs beside the tip it illustrates.\n      "
+            + "\n      ".join(bits)
+            + f"\n    Each figure is the print render of a card, and that card's trace "
+              f"names the article sentence it came from — which is how the tip above "
+              f"was worked out, not from a list anybody maintains. Put the <img> "
+              f"INSIDE that <li>, after the tip's words.\n"
+              f"    EP25 put all six at the end of the book, where a picture of the "
+              f"betting bank landed thirty-nine tips after the tip about the betting "
+              f"bank. Every figure was present and correct; not one of them was next "
+              f"to the thing it explains.")
+    return (f"figure placement: {len(where)} figure(s) sit in the tip their card traces "
+            f"to (" + ", ".join(f"figure {n}->tip {t}" for n, t in sorted(where.items()))
+            + ")")
+
+
 def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None):
     """HARD-FAIL unless the body reproduces the article, departures aside.
 
@@ -736,13 +920,40 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
               "recognises it on its own.")
     accounted = omitted | set(elsewhere)
 
-    # every prose paragraph must be an article paragraph, in order, once each
-    ai, matched = 0, 0
-    for bp in prose:
-        k = next((i for i in range(ai, len(art)) if art[i] == bp), None)
+    # every prose paragraph must be an article paragraph, in order, once each — AND IN
+    # THE RIGHT ELEMENT. A numbered article paragraph is reproduced by an <li>, an
+    # unnumbered one by a bare <p>; the number is the article's own markup and is
+    # stripped before the words are compared, so the comparison still folds nothing.
+    ai, matched, as_items = 0, 0, 0
+    for kind, bp in prose:
+        def fits(i, _bp=bp, _kind=kind):
+            num, words = split_number(art[i])
+            return words == _bp and (num is not None) == (_kind == "li")
+        k = next((i for i in range(ai, len(art)) if fits(i)), None)
         if k is None:
-            near = closest(bp, art[ai:])
-            detail = (f"\n    Nearest article paragraph:\n      {first_difference(bp, art[ai + near])}"
+            # BEFORE BLAMING THE WORDS, ASK WHETHER ONLY THE ELEMENT IS WRONG. The body
+            # reproducing a numbered tip inside a <p> is a STRUCTURE fault, and saying
+            # "this paragraph is not in the source article" about words that are in it,
+            # character for character, is fault #6 — a wrong cause whose fix makes it
+            # worse, because the writer's next move is to edit the article's own prose.
+            misplaced = next((i for i in range(len(art))
+                              if split_number(art[i])[1] == bp), None)
+            if misplaced is not None:
+                num = split_number(art[misplaced])[0]
+                raise Halt(
+                    f"E-BOOK FIDELITY: the right words in the wrong element.\n"
+                    f"      {bp[:120]}{'…' if len(bp) > 120 else ''}\n"
+                    + (f"    The article prints this as item {num} of a numbered list, so "
+                       f"the body must reproduce it as an <li> inside the <ol>. It is a "
+                       f"bare <p> here.\n"
+                       if kind == "p" else
+                       f"    The article prints this as an ordinary paragraph, not as a "
+                       f"numbered item, so the body must reproduce it as a bare <p>. It "
+                       f"is an <li> here.\n")
+                    + f"    The words are correct — do not change them.")
+            near = closest(bp, [split_number(p)[1] for p in art[ai:]])
+            detail = (f"\n    Nearest article paragraph:\n      "
+                      f"{first_difference(bp, split_number(art[ai + near])[1])}"
                       if near >= 0 else
                       "\n    No article paragraph is even close — is this original prose? The "
                       "e-book body is the article, near-verbatim; the only original prose in "
@@ -765,6 +976,7 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                     f"it." + _why_not(art[j], headings or [], near_misses))
         ai = k + 1
         matched += 1
+        as_items += 1 if kind == "li" else 0
     for j in range(ai, len(art)):
         if j not in accounted:
             raise Halt(
@@ -780,7 +992,8 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                        f"article verbatim:\n      {q[:150]}\n    A quote that is not a quote "
                        f"is an invention with quotation marks round it.")
 
-    lines = [f"fidelity: {matched}/{len(article)} article paragraphs reproduced verbatim"]
+    lines = [f"fidelity: {matched}/{len(article)} article paragraphs reproduced verbatim"
+             + (f" ({as_items} of them as numbered list items)" if as_items else "")]
     # SAY WHAT WAS RECOGNISED, not merely that nothing halted. A build that reports only
     # a count cannot be audited, and this is the line that shows a heading was compared
     # WORD FOR WORD rather than waved through by a declaration.
@@ -909,9 +1122,14 @@ def main():
             print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
                   f"named in {os.path.basename(cap_path)}", file=sys.stderr)
 
-    prose, quoted, figures, headings = parse_body(body, src_figs)
-    report = [check_fidelity(prose, quoted, ep, article, headings, figures),
-              check_figures(figures, ep)]
+    prose, quoted, figures, headings, items, ols = parse_body(body, src_figs)
+    # THE SHAPE BEFORE THE WORDS. EP25 passed every word-level check ever written while
+    # printing a numbered list as one paragraph, so the shape is asked FIRST — and its
+    # message is the useful one when both are wrong.
+    report = [r for r in (check_list_shape(article, items, ols),) if r]
+    report += [check_fidelity(prose, quoted, ep, article, headings, figures),
+               check_figures(figures, ep)]
+    report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
 
     if a.check_only:
         print("\n".join(report))

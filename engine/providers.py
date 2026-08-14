@@ -1085,7 +1085,28 @@ def _ebook_vocabulary_note() -> str:
             "prints a grid, this episode has a CARD for it and that card is one of "
             "the figures[]: place the <img> and let it carry the grid. Do NOT also "
             "re-type the values as text. An episode did both, and the same nine "
-            "numbers appeared twice on the page, once in a form the gate rejects.\n\n")
+            "numbers appeared twice on the page, once in a form the gate rejects.\n"
+            # 🔴 EP25, 14 Aug 2026. The article is an <ol> of fifty <li>; the body
+            # reproduced all fifty tips inside ONE <p>, character for character, and
+            # the fidelity gate passed it. The gate now counts the article's numbered
+            # paragraphs and refuses a body that does not carry the same number of
+            # <li> — so this paragraph is telling the writer what the machine will
+            # already insist on, not adding a preference.
+            "🔢 WHERE THE ARTICLE PRINTS A NUMBERED LIST, THE BODY REPRODUCES A "
+            "NUMBERED LIST. The capture writes such an article's items as its own "
+            "numbered paragraphs — '1. …', '2. …' — and each one must become an <li> "
+            "inside a SINGLE <ol>, one item per numbered paragraph, in order. Do NOT "
+            "write the number into the text: the <ol> prints it. Do not run them "
+            "together into a paragraph, and do not split them across two <ol> "
+            "elements — the second would restart at 1. An ordinary paragraph is still "
+            "a bare <p>; only the numbered items are <li>. A machine counts both, and "
+            "one paragraph holding fifty tips is refused however perfect its words.\n"
+            "🖼️ AND THE FIGURES GO WITH THE TIP THEY ILLUSTRATE — inside that <li>, "
+            "after its words — not in a pile at the end. Each figure renders a card, "
+            "that card's trace names the article sentence it came from, and the "
+            "machine works out which item that sentence is in and checks the figure "
+            "is there. EP25 put all six at the end, where a picture of the betting "
+            "bank sat thirty-nine tips after the tip about the betting bank.\n\n")
     except Exception:                                  # noqa: BLE001
         return ""      # the brief is still usable; the gate still holds
 

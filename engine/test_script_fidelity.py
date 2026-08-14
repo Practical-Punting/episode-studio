@@ -391,6 +391,37 @@ def main():                                                            # noqa: C
           F.check("He was sent out at 7/4.", FAKE_CAP, PACK) == [],
           str(F.check("He was sent out at 7/4.", FAKE_CAP, PACK)))
 
+    # ══ A LIST MARKER IS NOT A FIGURE THE ARTICLE STATES ═══════════════════════
+    # (EP25, 14 Aug 2026.) The capture now restores an ordered list as `1. …` through
+    # `50. …`. Those markers are the article's own MARKUP; if this gate reads them as
+    # figures, a script may claim any number from 1 to 50 and be believed.
+    #
+    # 🔴 THE CASE IS THE ONE THAT ACTUALLY HAPPENED. EP25's first fresh draft was
+    # rejected for inventing 'forty seven' — and `47.` is now the forty-seventh tip's
+    # marker. So this asserts the gate did NOT go soft in the very place it had just
+    # proved itself, which is the whole risk of making a capture richer.
+    # EP25's real shape: 50 is BOTH a marker and a figure the article states in prose,
+    # while 47 is only ever a marker. The strip has to tell those two apart.
+    listed = ("---- ARTICLE TEXT BEGINS ----\n\n"
+              "I've drawn up a list of 50 staking tips.\n\n"
+              "1. Never bet more than you can afford to lose.\n\n"
+              "47. Always keep a record of every bet you have.\n\n"
+              "50. Always bet with money you can afford to lose.\n\n"
+              "---- ARTICLE TEXT ENDS ----\n")
+    marker_only = F.check("He found forty seven of them.", listed, None)
+    check("a number that is only a LIST MARKER is still an invention",
+          any("forty seven" in p for p in marker_only),
+          f"the 47. marker licensed 'forty seven': {marker_only}")
+
+    # …and the mirror, so the strip cannot be over-eager: a figure the article really
+    # states inside a numbered item is still the article's own.
+    inside = F.check("Never bet more than you can afford to lose.", listed, None)
+    check("the WORDS of a numbered item are still the article's",
+          inside == [], str(inside))
+    fifty = F.check("He drew up a list of fifty staking tips.", listed, None)
+    check("a figure the article states in PROSE still passes, though it is also "
+          "a marker", fifty == [], str(fifty))
+
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     for f in FAIL:
         print(f"  FAILED: {f}")
