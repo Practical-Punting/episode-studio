@@ -109,6 +109,57 @@ def _odds_on(m) -> str:
     return _odds(m) + " on"
 
 
+def _dec_words(x: str) -> str:
+    """"12.5" -> "twelve point five"; "1" -> "one". One side of a price."""
+    if "." not in x:
+        return int_words(int(x))
+    whole, frac = x.split(".", 1)
+    return f"{int_words(int(whole))} point " + " ".join(
+        int_words(int(d)) for d in frac)
+
+
+def _odds_dec(m) -> str:
+    """`12.5-1` READ AS ODDS — "twelve point five to one".
+
+    ══ EP25, 14 Aug 2026 ═══════════════════════════════════════════════════════
+    A PRICE COULD ONLY BE READ WHEN IT WAS WHOLE. The article says "a bet of $1
+    each way on a winner at 20-1 means combined odds of only 12.5-1". `20-1` folded
+    correctly and `12.5-1`, eleven words later in the SAME SENTENCE, did not: the
+    decimal rule ran first, turned it into "twelve point five-1", and the hyphen
+    rule below then found no digit in front of the hyphen to work with. So the
+    article's own printed price was untraceable and every script that said it aloud
+    was called an invention.
+
+    It cost EP25 all three drafting attempts. Each one wrote a complete script, each
+    was rejected for this one figure, and each writer refused to remove a number the
+    article prints — which was the right call, three times over.
+
+    🔒 IT FIRES ONLY WHERE A DECIMAL IS PRESENT, so every pair that folds correctly
+    today takes exactly the path it takes today. This can only reach strings the fold
+    was already getting wrong, which is the narrowest widening available.
+
+    ⚠️ AND IT IS A READING, NEVER A CONVERSION. It spells the digits either side of
+    the hyphen; it cannot turn one figure into another. FRACTIONAL ODDS STAY LOCKED
+    (Jodie, 9 Aug 2026) — `6/4` never becomes 1.5, because nothing here touches a
+    slash, and the suite proves both directions still refuse.
+    """
+    a, b = m.group(1), m.group(2)
+    if "." not in a and "." not in b:
+        return m.group(0)          # a whole pair — the existing rule's business
+    return f"{_dec_words(a)} to {_dec_words(b)}"
+
+
+# A `.5` PRICE IS SAID TWO WAYS AND THE STUDIO USED BOTH. EP25's first attempt said
+# "twelve and a half to one", its second and third "twelve point five to one". Both
+# are how the price is spoken, so both are offered — see haystacks().
+_HALF_SAID = re.compile(r"\b(point five)\b")
+
+
+def half_reading(s: str) -> str:
+    """"twelve point five" -> "twelve and a half". A rendering, not a value change."""
+    return _HALF_SAID.sub("and a half", s)
+
+
 def _frac_named(m) -> str:
     n, d = int(m.group(1)), int(m.group(2))
     w = _FRACTION.get(d)
@@ -264,6 +315,16 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     s = re.sub(r"\b(\d[\d,]*)\s*(kg|km|m|f)\b",
                lambda m: (_num_readings(int(m.group(1).replace(",", "")), reading)
                           + " " + UNITS[m.group(2)]), s)
+    # ODDS CARRYING A DECIMAL, BEFORE `_decimals` SPELLS THE POINT OUT. Once `12.5`
+    # has become "twelve point five" there is no digit left in front of the hyphen
+    # for the odds rule at the foot of this function to see. See `_odds_dec` for the
+    # episode it cost. It is inert on a whole pair, so nothing else moves.
+    # ⚠️ THE LOOKAHEAD ALLOWS A FULL STOP, and that is not a detail. Written `(?![\d.])`
+    # it refused to match `12.5-1.` at the END OF A SENTENCE — which is exactly how
+    # EP25's article prints it, so the synthetic test passed and the real capture still
+    # failed. Only a following DIGIT may extend the figure; a full stop ends it.
+    s = re.sub(r"(?<![\d$.,-])(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?!\.?\d)",
+               _odds_dec, s)
     s = _decimals(s)
     if reading in ("pairs", "hundreds"):
         # OFFERED AS AN EXTRA READING, NEVER AS A REPLACEMENT — see haystacks().
@@ -337,6 +398,15 @@ def haystacks(capture_text: str) -> list[list[str]]:
                 # for both rather than for money alone.
                 units = r"\b(?:" + "|".join(["dollars?"] + list(UNITS.values())) + r")\b"
                 out.append(norm_words(re.sub(units, " ", s)))
+                # A HALF SAID AS A HALF. "twelve point five to one" is also spoken
+                # "twelve and a half to one" — EP25 used both forms across its three
+                # attempts. Offered exactly as the unit-less variant above is: an
+                # EXTRA rendering of a figure the article already states, so it can
+                # widen what the source may be READ as and never what it says.
+                h = half_reading(s)
+                if h != s:
+                    out.append(norm_words(h))
+                    out.append(norm_words(re.sub(units, " ", h)))
     return out
 
 

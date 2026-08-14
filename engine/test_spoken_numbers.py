@@ -106,6 +106,46 @@ def main():
               "odds must stay fractional — converting them is forbidden in BOTH "
               "directions (Jodie, 9 Aug 2026)")
 
+    print("\n-- 🔴 EP25: ODDS MAY CARRY A DECIMAL, AND A HALF IS SAID TWO WAYS --")
+    # EP25, 14 Aug 2026. The article says "a bet of $1 each way on a winner at 20-1
+    # means combined odds of only 12.5-1". THREE drafting attempts wrote that figure
+    # faithfully and the gate called it an invention all three times, so the episode
+    # parked with no attempts left and no script saved.
+    #
+    # The cause was ORDER, not arithmetic: `_decimals` ran before the odds rule, so
+    # `12.5-1` became "twelve point five-1" and the hyphen was never read as "to" —
+    # while `20-1` in the very same sentence folded correctly. The gate could read a
+    # price only when it was whole.
+    #
+    # AND A `.5` PRICE IS SAID BOTH WAYS. Attempt 1 said "twelve and a half to one";
+    # attempts 2 and 3 said "twelve point five to one". Both are how an Australian
+    # says that price, so both must trace or the next run re-parks on a coin toss.
+    for art, spoken in [
+        ("combined odds of only 12.5-1", "twelve point five to one"),
+        ("combined odds of only 12.5-1", "half to one"),      # "twelve AND A half to one"
+        ("combined odds of only 12.5-1", "twelve"),
+        ("a winner at 20-1",             "twenty to one"),    # unchanged, same sentence
+        ("returned 2.5-1",               "two point five to one"),
+        ("returned 2.5-1",               "half to one"),
+        ("at 7.5-2 in the market",       "seven point five to two"),
+    ]:
+        check(f"{art.split()[-1]} reads {spoken!r}", says(art, spoken))
+
+    print("\n-- 🔴 AND A DECIMAL PRICE DOES NOT BECOME A DIFFERENT ONE --")
+    for art, spoken in [
+        ("combined odds of only 12.5-1", "thirteen to one"),
+        ("combined odds of only 12.5-1", "twelve to one"),
+        ("combined odds of only 12.5-1", "twelve point six to one"),
+        ("combined odds of only 12.5-1", "twelve point five to two"),
+        ("returned 2.5-1",               "two and a quarter to one"),
+        # 🔒 The lock, from the other side: reading a HALF must not start converting
+        # fractional odds. 6/4 is 1.5 in arithmetic and must stay "six to four".
+        ("at odds of 6/4",               "one and a half"),
+        ("at odds of 6/4",               "one point five to one"),
+    ]:
+        check(f"  {spoken!r} is REFUSED", not says(art, spoken),
+              "the gate has gone soft — this figure is not in the article")
+
     print("\n-- the readings are OFFERED, never chosen for you --")
     check("all three readings are declared in one place", len(sf.READINGS) == 3,
           f"{sf.READINGS}")
@@ -133,6 +173,38 @@ def main():
               bool(out) and "twenty three hundred and ten" in out[0])
     else:
         check("EP21's capture is on this machine", False)
+
+    print("\n-- THE WHOLE GATE, on EP25's REAL article: FIFTY ideas, one long line --")
+    # 🔴 THE SHAPE THAT HID IT. This article is fifty numbered tips and its whole body
+    # arrives as ONE unbroken line, so it carries far more figures per page than any
+    # episode before it — prices, stakes, banks, percentages and unit counts, mixed.
+    # A gate that reads a price only when it is whole will meet a decimal somewhere in
+    # fifty tips, and it did. This keeps EP25's own sentence in the suite so the hole
+    # cannot silently reopen on the next many-item article.
+    cap25 = PP / "docs/EP25-source-article-50-great-staking-ideas.md"
+    if cap25.is_file():
+        art25 = cap25.read_text(encoding="utf-8")
+        good25 = (
+            "Here is the trap in each way betting, and it is worth hearing twice.\n\n"
+            "A bet of one dollar each way on a winner at twenty to one means combined "
+            "odds of only twelve point five to one.\n\nIf your twenty to one chance "
+            "runs second or third you lose the one dollar win stake and win five "
+            "dollars for the place bet.\n")
+        out25 = sf.check(good25, art25)
+        check("EP25's real figures, spoken correctly, PASS", not out25, f"{out25[:1]}")
+        half25 = good25.replace("twelve point five to one",
+                                "twelve and a half to one")
+        out_h = sf.check(half25, art25)
+        check("  and the same price said 'twelve and a half' passes too",
+              not out_h, f"{out_h[:1]}")
+        bad25 = good25.replace("twelve point five to one", "thirteen to one")
+        out_b = sf.check(bad25, art25)
+        check("  and rounding that price to a whole one still BLOCKS",
+              len(out_b) == 1, f"{out_b}")
+        check("    naming the figure it refused",
+              bool(out_b) and "thirteen to one" in out_b[0])
+    else:
+        check("EP25's capture is on this machine", False)
 
     print(f"\nspoken numbers: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0
