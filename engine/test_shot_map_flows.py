@@ -272,6 +272,29 @@ else:
               "applied build.holds['C26'] = 9.0" in out1 and "for 3 item(s)" in out1,
               out1[-400:])
 
+# 🔴 AND IT MUST BE WIRED WHERE THE ENGINE ACTUALLY CALLS THE TOOL. Everything above
+# drives derive_card_timings directly, which proves the FLAG and says nothing about
+# whether a build ever passes it. That is the A22 lesson from the same day: the
+# orientation rule was correct, tested and green while the funnel that mattered never
+# called it. So this reads the engine's own invocation.
+# ⚠️ SCOPED TO THE FUNCTION, and that took a second go. `derive_timings` is module
+# level, so splitting on a 4-space `def ` ran past it to the first CLASS METHOD —
+# 39,000 characters, in which almost any string would be found. A check whose window is
+# most of the file is a check that cannot fail. Cut at the next TOP-LEVEL def.
+_prov_src = (REPO / "engine/providers.py").read_text(encoding="utf-8")
+_derive = _prov_src.split("def derive_timings")[1].split("\ndef ")[0]
+# The bound is a SCOPE guard, not a style rule: derive_timings is ~5.7k characters
+# because it carries the three auto-apply reasonings in full. What it must never be is
+# the 39k the first version read. If this ever trips, the split stopped matching — fix
+# the split, do not raise the number.
+check(f"the wiring check reads derive_timings ONLY ({len(_derive)} chars)",
+      len(_derive) < 9000, "the window is too wide to prove anything")
+for _flag in ("--apply-broll", "--apply-wide", "--apply-hold"):
+    check(f"providers.derive_timings passes {_flag}", _flag in _derive,
+          "the tool can apply it and the build never asks it to")
+check("  CONTROL: a flag that is NOT wired is reported as missing",
+      "--apply-nonsense" not in _derive)
+
 print()
 print("=" * 78)
 print("PART C - nothing already shipped moves")
