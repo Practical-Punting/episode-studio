@@ -838,9 +838,18 @@ not, the episode carries no byline.** The test is what the page says, not a hous
 - **A CHART THE ARTICLE PRINTS IS KEPT. It is never dropped. (Jodie, 15 Aug 2026 — EP26.)**
   A table in the article reaches the book ONE of two ways, and exactly one: **(a)** if one of
   the episode's motion CARDS renders the grid, place that figure and let it carry it —
-  preferred, because the book then cannot drift from the video; **(b)** otherwise reproduce
-  it as `<table class="chart">`, one `<tr>` per row and one `<td>` per cell, in the article's
-  own order. Doing BOTH halts: EP19 typed a grid and placed the card figure of the same grid,
+  preferred, because the book then cannot drift from the video; **(b)** otherwise the body
+  declares an EMPTY SLOT — `<table class="chart" data-article-table="1"></table>` — and
+  `author_ebook.py` **lifts the article's own cells into it**.
+  > 🔴 **DATA IS LIFTED FROM THE SOURCE, NEVER RE-TYPED BY THE MODEL. A number is a READING,
+  > not a value.** (Jodie, 15 Aug 2026.) The writer never types a cell: a slot with rows typed
+  > into it is refused. EP26's chart is 201 cells, and transcription would produce a wrong
+  > number at some rate above zero — which the cell-for-cell gate would catch, correctly, at
+  > ~8 minutes and ~$3 a bounce. **The gate is a NET, and a net you plan to land in is a bad
+  > plan.** It is the same rule that makes every figure a render of a motion card rather than
+  > fresh art, and §0a-i's *"the scan IS the article"*: reproducing beats re-drawing, every
+  > time. **The gate still runs** — with the cells lifted it passes by construction, which is
+  > what proves the lift worked. Doing BOTH halts: EP19 typed a grid and placed the card figure of the same grid,
   and the same nine numbers appeared twice on the page. A chart table is checked **cell for
   cell** against the article — a *stricter* check than (a), which asks only for every number
   and every word — and a chart table reproducing no article table halts, because it would be

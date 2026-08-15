@@ -34,9 +34,11 @@
           .kicker / h1.section / h2.rule / .lead / blockquote / .pullquote /
           .byline / .note / .divider / img.illus (+ .portrait) /
           div.pagebreak / div.avoid / ol > li / table.chart
-          — and where the ARTICLE prints a CHART, the body reproduces it as one
-          <table class="chart">, cell for cell (EP26). A chart is never dropped;
-          author_ebook.py refuses one declared in ebook.omit_paragraphs.
+          — and where the ARTICLE prints a CHART, the body declares an EMPTY SLOT,
+          <table class="chart" data-article-table="1"></table>, and author_ebook.py
+          LIFTS the article's own cells into it (EP26). Never type the cells: data
+          is lifted from the source, never re-typed. A chart is never dropped
+          either — a chart in ebook.omit_paragraphs is refused.
           — and where the ARTICLE prints a numbered list, the body reproduces it
           as one <ol> with one <li> per numbered item, each figure sitting inside
           the <li> it illustrates. author_ebook.py counts both and refuses a body

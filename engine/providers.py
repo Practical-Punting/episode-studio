@@ -1105,13 +1105,25 @@ def _ebook_vocabulary_note() -> str:
             "  (a) if one of this episode's CARDS already renders the grid, place "
             "that figure's <img> and let it carry the grid — preferred, because the "
             "book then cannot drift from the video;\n"
-            '  (b) otherwise reproduce it as <table class="chart"> — one <tr> per '
-            "row of the article's table, one <td> per cell, in the article's own "
-            "order. Every cell is checked against the article, character for "
-            "character; it is a stricter check than (a), not a looser one.\n"
-            "Do NOT do both. An episode typed a grid AND placed the card figure of "
-            "the same grid, and the same nine numbers appeared twice on the page; "
-            "the gate now refuses that too. And a chart table carries CELLS only — "
+            "  (b) otherwise DECLARE A SLOT, and the article's own cells are lifted "
+            "into it for you:\n"
+            '        <table class="chart" data-article-table="1"></table>\n'
+            "      Leave it EMPTY. The index is the 1-based position of the table in "
+            "the article, and may be omitted when the article has only one; slots "
+            "fill the article's tables in order. Put it where the article prints "
+            "it.\n"
+            # 🔴 WHY THIS IS A SLOT AND NOT AN INSTRUCTION TO TYPE (Jodie, 15 Aug
+            # 2026). EP26's chart is 201 cells. Asking a writer to transcribe it is
+            # asking for a wrong number at some rate above zero — and the cell-for-cell
+            # gate would then bounce the whole body, correctly, at ~8 minutes and ~$3
+            # a bounce. The gate is a net, and a net you plan to land in is a bad plan.
+            "🔴 DO NOT TYPE THE CELLS. A number in this studio is a READING, not a "
+            "value: data is LIFTED from the source, never re-typed by a writer. A slot "
+            "with rows typed into it is REFUSED. This is the same rule that makes "
+            "every figure a render of a motion card rather than fresh art.\n"
+            "Do NOT do both (a) and (b). An episode typed a grid AND placed the card "
+            "figure of the same grid, and the same nine numbers appeared twice on the "
+            "page; the gate refuses that too. And a chart table carries CELLS only — "
             "no <p>, <li> or <img> inside it.\n"
             # 🔴 EP25, 14 Aug 2026. The article is an <ol> of fifty <li>; the body
             # reproduced all fifty tips inside ONE <p>, character for character, and
