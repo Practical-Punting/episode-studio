@@ -1110,8 +1110,18 @@ def _ebook_vocabulary_note() -> str:
             '        <table class="chart" data-article-table="1"></table>\n'
             "      Leave it EMPTY. The index is the 1-based position of the table in "
             "the article, and may be omitted when the article has only one; slots "
-            "fill the article's tables in order. Put it where the article prints "
-            "it.\n"
+            "fill the article's tables in order.\n"
+            # 🔴 THE EP25 FIGURE RULE, APPLIED TO CHARTS (Jodie, 15 Aug 2026). Note
+            # this is NOT "where the article prints it": EP26's page prints the whole
+            # 45-row table at the very end, after the sign-off, which would put it four
+            # pages from the sentence that sends you to it.
+            "📍 PUT THE SLOT BESIDE THE SECTION IT EXPLAINS — immediately after the "
+            "first paragraph that names the chart ('Chart B shows the results') — NOT "
+            "at the end of the body, and NOT necessarily where the source page prints "
+            "the table. A chart is a figure: it goes where it explains something. The "
+            "machine works out which paragraph that is, from the chart's own heading "
+            "rows and the prose that refers to them, and refuses a chart sitting "
+            "anywhere else.\n"
             # 🔴 WHY THIS IS A SLOT AND NOT AN INSTRUCTION TO TYPE (Jodie, 15 Aug
             # 2026). EP26's chart is 201 cells. Asking a writer to transcribe it is
             # asking for a wrong number at some rate above zero — and the cell-for-cell

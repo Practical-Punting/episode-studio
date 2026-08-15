@@ -640,6 +640,73 @@ case("a slot with rows TYPED into it is refused",
 ok("a literal chart table with no slot index is left alone and still checked",
    article=ART_C, body=BODY_C, ebook_block=H1_ONLY)
 
+# ── A CHART SITS BESIDE THE SECTION IT EXPLAINS (Jodie, 15 Aug 2026) ─────────────
+#
+# The EP25 lesson applied to charts: EP25's six figures all went to the end of the book,
+# where a picture of the betting bank landed thirty-nine tips after the tip about the
+# betting bank. A chart is worse, because the prose points AT it — "Chart B shows the
+# results" is a sentence that fails if the reader has to leaf four pages on.
+#
+# WHICH section is DERIVED: the table names its own charts in its heading rows, and the
+# article's prose refers to them by those names. So the fixture's article names the chart
+# in the middle, and the chart must land there — not where the ARTICLE prints the table,
+# which on the real EP26 page is at the very end, after the sign-off.
+ART_P = ARTICLE.replace(
+    "A recent instance of this was joie",
+    "Chart A shows the results.\n\nA recent instance of this was joie").replace(
+    "How many times has it won firstup?", f"{CHART}\n\nHow many times has it won firstup?")
+BODY_P = GOOD_BODY.replace(
+    "<p>A recent instance",
+    "<p>Chart A shows the results.</p>\n" + SLOT + "\n<p>A recent instance")
+
+out = ok("a chart placed beside the paragraph that names it passes",
+         article=ART_P, body=BODY_P, ebook_block=H1_ONLY)
+if out and "sits straight after the paragraph that sends the reader to it" not in out:
+    FAIL.append(("the placement is REPORTED, so a build can be audited",
+                 f"the report does not say where the chart sits: {out!r}"))
+else:
+    PASS.append(("the placement is REPORTED, so a build can be audited",
+                 "the report names the paragraph the chart sits beside"))
+
+# THE CONTROL, AND IT IS EP26'S ACTUAL MISTAKE: the chart dumped at the end.
+case("a chart dumped at the END of the body halts",
+     "belongs beside the section it explains",
+     article=ART_P,
+     body=GOOD_BODY.replace("<p>A recent instance",
+                            "<p>Chart A shows the results.</p>\n<p>A recent instance")
+     + "\n" + SLOT,
+     ebook_block=H1_ONLY)
+
+# …and the halt must say WHERE it belongs, not merely that it is wrong.
+case("the halt names the paragraph the chart belongs after",
+     "Chart A shows the results",
+     article=ART_P,
+     body=GOOD_BODY.replace("<p>A recent instance",
+                            "<p>Chart A shows the results.</p>\n<p>A recent instance")
+     + "\n" + SLOT,
+     ebook_block=H1_ONLY)
+
+# THE RULE ONLY SPEAKS WHERE THE ARTICLE GAVE IT A NAME TO SPEAK WITH. A chart the prose
+# never refers to has no derived home, and inventing one would be a preference dressed as
+# a rule — so the earlier fixture, whose prose names no chart, must still pass at the end.
+ok("a chart the prose never names is left where the body puts it",
+   article=ART_C, body=GOOD_BODY.replace("<p>How many times",
+                                         "<p>How many times") + "\n" + SLOT,
+   ebook_block=H1_ONLY)
+
+# "Charts A and B" — plural, and the case is the author's. Built from the NAME, so this
+# is not a phrase list anybody maintains.
+_names = ae._chart_names([], ae._md_table_rows(CHART))
+for phrase, want in (("When I showed Rick Charts A and B he was puzzled", True),
+                     ("(see Chart C)", False),
+                     ("chart a shows the results", True),
+                     ("The charter was signed", False),
+                     ("Rick runs a business", False)):
+    got = ae._names_in(phrase, _names)
+    (PASS if got == want else FAIL).append(
+        (f"prose reference: {phrase[:44]!r} -> {'names' if want else 'does not name'} a chart",
+         "as expected" if got == want else f"got {got}, wanted {want}"))
+
 # ── THE EP26 CHART ITSELF, END TO END (Jodie asked for this one by name) ──────────
 # The fixture above is four rows because the count is what the code reads. THIS one is
 # the real article's real chart — three sections, a colspan heading each, a
