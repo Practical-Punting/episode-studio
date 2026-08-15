@@ -2146,12 +2146,20 @@ class RealProvider:
         # way up the picture goes, applied here because this is the single funnel every
         # generated hero comes through. Applied, not asked: there is one lawful answer and
         # it is written down. (Same ruling as the b-roll standing lines, A21.)
-        fa, ca = broll_prompt_rules.apply_orientation(a)
-        fb, cb = broll_prompt_rules.apply_orientation(b)
+        #
+        # 🆕 AND IT IS NO LONGER ONLY THE ORIENTATION (Jodie, 15 Aug 2026, EP26 faults 6
+        # and 7). `apply_frame_rules` carries the FRAME rules — which way up, the LIGHT,
+        # and the rail's own line — from the ONE set of definitions in
+        # broll_prompt_rules. Two funnels, one vocabulary: A22's lesson was that a guard
+        # at one funnel says nothing about the other, and the answer is not to write the
+        # words twice.
+        fa, ca = broll_prompt_rules.apply_frame_rules(a)
+        fb, cb = broll_prompt_rules.apply_frame_rules(b)
         if ca or cb:
             self._save_cover_prompts(ep, fa, fb)
-            which = ", ".join(n for n, c in (("hero A", ca), ("hero B", cb)) if c)
-            print(f"    cover prompts: added the upright-orientation line to {which}")
+            for name, added in (("hero A", ca), ("hero B", cb)):
+                if added:
+                    print(f"    cover prompts: added to {name} — {'; '.join(added)}")
         return fa, fb
 
     def _save_cover_prompts(self, ep, a: str, b: str) -> None:

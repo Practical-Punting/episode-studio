@@ -60,12 +60,19 @@ GOOD_RAIL = ("The whole field runs on ONE side of a single white running rail �
 # is where EP25's six prompts were found with no orientation at all. Every case below
 # derives from GOOD by REMOVING one clause, so the fixture has to state everything the
 # rules ask for or the removals stop being the only difference.
+# ⚠️ AND THE LAST TWO CLAUSES WERE ADDED 15 Aug 2026, FOR THE SAME REASON A THIRD TIME
+# (EP26 faults 6 and 7 — the dark images and the kinked rail). "Fully specified" is not a
+# fixed sentence, it is whatever the standing rules currently ask for; every time a rule
+# is added, this fixture has to gain its line or every case below starts failing for a
+# reason that has nothing to do with the clause it removes.
 GOOD = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
         "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
         "bright racing silks, actively riding. Natural daylight, horizon level and near "
-        "the middle with sky at the top and turf at the bottom, horses upright.")
+        "the middle with sky at the top and turf at the bottom, horses upright. The rail "
+        "is one clean unbroken line, evenly spaced upright posts and a level top rail. "
+        "Warm golden-hour light, generously exposed.")
 
 print("\n-- a prompt that states everything is quiet --")
 check("the fully-specified racing shot raises nothing", keys(GOOD) == set(), keys(GOOD))
@@ -94,9 +101,16 @@ print("\n-- a NON-racing shot is not graded as one --")
 kitchen = ("Photoreal cinematic close overhead shot of a person's hands working at a "
            "kitchen table, one hand holding a pencil and marking a ruled notebook page, "
            "a mug and reading glasses beside it, warm daylight from a window.")
-check("the kitchen-table clip raises nothing", keys(kitchen) == set(),
+# ⚠️ "RAISES NOTHING" BECAME "RAISES NO RACING LINE" ON 15 Aug 2026, and the change is
+# the rule, not a loosening. Fault 6 put the LIGHT in the universal tier deliberately —
+# EP26's discarded card was a man at a desk, so a lighting rule that skipped the
+# kitchen-table clip would skip the exact picture it was written for. What must still
+# never appear here is a racing line: no rail, no silks, no strides.
+check("the kitchen-table clip raises no RACING line", keys(kitchen) <= {"lighting"},
       "EP23's broll-ratings-pencil-and-weights is exactly this and must stay exempt; "
       "a guard everyone ignores is worse than no guard")
+check("  …and it IS asked for the light, which is the point of the universal tier",
+      keys(kitchen) == {"lighting"}, keys(kitchen))
 
 print("\n-- crowd lines are asked of crowd shots ONLY --")
 crowd = GOOD + " A crowd of spectators along the fence in present-day Australian dress."
@@ -152,8 +166,9 @@ if broll:
           sum("straight-rail-on-a-bend" in v for v in graded.values()) == 2,
           "EP23 asked for a dead-straight rail in coming-from-well-back and "
           "inside-barriers-turn-for-home, both of which bend")
-    check("the non-racing clip is left alone",
-          graded.get("broll-ratings-pencil-and-weights") == set())
+    check("the non-racing clip is given no RACING line",
+          graded.get("broll-ratings-pencil-and-weights", set()) <= {"lighting"},
+          graded.get("broll-ratings-pencil-and-weights"))
     # 🔴 AND THE QUIET HALF, WHICH IS WHAT MAKES THIS A CHECK AND NOT A COMPLAINT.
     check("it does NOT re-flag the lines EP23 already got right (strides, silks, turf)",
           all(not ({"strides", "silks", "turf"} & graded[t]) for t in racing),
@@ -217,8 +232,14 @@ lawn = ("Photoreal cinematic medium wide shot of a busy Australian racecourse la
         "natural colours, a grandstand thrown well out of focus behind.")
 check("a lawn crowd shot is not treated as a racing shot", not R.has_horses(lawn))
 l_fixed, l_applied, l_unfix = R.apply_rules(lawn)
-check("  nothing is added to it", (l_applied, l_unfix) == ([], []), (l_applied, l_unfix))
+# The LIGHT is added — it is added to every picture — and nothing else is. That is the
+# assertion that survives Fault 6: what this case has always been about is that no RACING
+# line reaches a shot of a crowd, and a lighting line is not a racing line.
+check("  only the light is added to it — no racing line",
+      [a for a in l_applied if "Bright, warm" not in a] == [] and l_unfix == [],
+      (l_applied, l_unfix))
 check("  no silks are written into it", "silks" not in l_fixed)
+check("  and no rail is written into it", "running rail" not in l_fixed)
 check("  and 'a RANGE of natural colours' counts as the hat range",
       "hat-variety" not in keys(lawn),
       "demanding the synonym 'variety' asks for a copy-paste, not for the fact")
@@ -276,8 +297,8 @@ check("a NON-racing image is not given racing orientation",
       "orientation is stated for the racing images, not for every picture")
 
 prov_cov = prov.split("def _cover_prompts")[1].split("\n    def _save_cover_prompts")[0]
-check("_cover_prompts applies it to BOTH heroes",
-      prov_cov.count("apply_orientation") == 2,
+check("_cover_prompts applies the frame rules to BOTH heroes",
+      prov_cov.count("apply_frame_rules(") == 2,
       "one hero left unstated is the one that comes back wrong")
 check("  and returns the CORRECTED prompts", "return fa, fb" in prov_cov)
 check("  and writes them back to episode.json",
@@ -295,7 +316,9 @@ bare = ("Photoreal cinematic wide shot of a field of racehorses galloping on lus
         "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding.")
+        "bright racing silks, actively riding. The rail is one clean unbroken line, "
+        "evenly spaced upright posts and a level top rail. Warm golden-hour light, "
+        "generously exposed.")
 check("a racing b-roll prompt with everything BUT orientation is not clean",
       keys(bare) == {"orientation"}, keys(bare))
 fixed_b, applied_b, unfix_b = R.apply_rules(bare)
@@ -313,6 +336,108 @@ check("  ONE definition serves both funnels",
       R.FIXES["orientation"] is R.ORIENTATION,
       "a second copy of the line is a second thing to keep in step")
 
+# ══ FAULTS 6 AND 7 — THE LIGHT, AND THE RAIL'S OWN LINE (Jodie, 15 Aug 2026) ══════
+#
+# EP26's images came back too DARK, and its running rail had an unnatural KINK. Both are
+# stated POSITIVELY, because a model cannot draw "not dark" or "no kink": told nothing it
+# picks the safe middle exposure and an arbitrary line.
+print("\n-- Fault 6: the LIGHT, on EVERY generated image --")
+
+DESK = ("Photoreal close shot of a man at a desk in a quiet room, a printed form guide "
+        "open in front of him and a pen in his hand.")
+check("a desk scene has no horses, no crowd and no rail",
+      not R.has_horses(DESK) and not R.CROWD_WORDS.search(DESK)
+      and not R.shows_a_rail(DESK))
+check("  …and is STILL asked for the light — the universal tier",
+      keys(DESK) == {"lighting"}, keys(DESK))
+lit, applied_l, unfix_l = R.apply_rules(DESK)
+check("  apply_rules lights it, with no other line added",
+      "golden-hour" in lit and "running rail" not in lit and not unfix_l, lit[-140:])
+check("  and the indoor case is named — 'golden hour' means nothing at a desk",
+      "indoor, desk or portrait scene is warmly and generously lit" in lit)
+check("  EP26's actual complaint is answered: the subject is bright and visible",
+      "subject bright and clearly visible" in lit)
+
+# THE CONTROL THAT MAKES THE RULE WORTH HAVING. The cover brief ALREADY said "bright
+# natural daylight" while EP26 came back dim — a pattern the failing prompts match is a
+# rule that changes nothing.
+check('  "bright natural daylight" alone does NOT satisfy it',
+      "lighting" in keys("A man at a desk in bright natural daylight, clean and cheerful."))
+check("  a prompt that already says golden hour is left alone",
+      "lighting" not in keys(DESK + " Warm golden-hour light across the room."))
+check("  …and so is one that says it in its own words",
+      "lighting" not in keys(DESK + " The room is warmly and generously lit."))
+
+print("\n-- Fault 7: the RAIL is one smooth, true line --")
+RAILED = ("Photoreal wide shot of a field of racehorses on lush green turf, the whole "
+          "field running on ONE side of a single white running rail, open green turf "
+          "infield beyond it.")
+check("a shot with a rail is asked for the rail's LINE",
+      "rail-smooth" in keys(RAILED), keys(RAILED))
+r_fixed, r_applied, _ = R.apply_rules(RAILED)
+# ⚠️ THE TAIL, NOT THE WHOLE STRING. `_add_sentence` capitalises the first letter as it
+# appends, so the constant itself — which starts lower-case, to read as a clause — is
+# never literally present in the result. Asserting the constant tested the capitalisation,
+# not the wording.
+check("  the line is added, and it is the STRAIGHT wording here",
+      "running true and even along the track" in r_fixed
+      and "sweeping curve" not in r_fixed, r_fixed[-200:])
+check("  it says the posts are even and the top rail level",
+      "evenly spaced upright posts and a level top rail" in r_fixed)
+b_fixed, _, _ = R.apply_rules(RAILED + " The field rounds the home turn.")
+check("  on a BEND it is the sweeping-curve wording, because a curve is CORRECT",
+      "single smooth even sweeping curve" in b_fixed)
+# 🔴 THE COLLISION THIS RULE COULD HAVE CAUSED. `STRAIGHT_RAIL` looks for "dead straight"
+# and "perfectly level"; either phrase inside these lines would manufacture the
+# straight-rail-on-a-bend contradiction the checker already halts on.
+for _name, _line in (("straight", R.RAIL_SMOOTH_STRAIGHT), ("bend", R.RAIL_SMOOTH_BEND)):
+    check(f"  the {_name} wording cannot trip the straight-rail-on-a-bend contradiction",
+          not R.STRAIGHT_RAIL.search(_line), _line)
+check("  and neither leaves anything missing after auto-apply",
+      not keys(b_fixed) and not keys(r_fixed), f"{keys(r_fixed)} / {keys(b_fixed)}")
+
+# 🔴 THE REGRESSION, AND IT IS EP26'S REAL COVER. Hero A is a man at a desk with FRAMED
+# RACING PHOTOGRAPHS behind him: it mentions racehorses, jockeys and galloping — so
+# `has_horses` is true, correctly — and then spends a clause saying there is no rail.
+# Gated on horses, this rule appended "The white running rail is one clean unbroken
+# line…" to it. That is not a missing line, it is a CONTRADICTION, and a worse picture
+# than the kink the rule exists to prevent. Found by the control, on the real artefact,
+# before this test existed.
+print("\n-- the rail rule may only be applied to a picture that HAS a rail --")
+NO_RAIL = ("Photoreal portrait of a man at a desk, framed horse racing photographs on "
+           "the wall behind him — racehorses and mounted jockeys galloping on lush green "
+           "turf. NO FENCE, NO RUNNING RAIL AND NO RAILINGS anywhere in the photograph "
+           "or inside any of the framed pictures.")
+check("EP26's cover hero A shape: horses ARE mentioned", R.has_horses(NO_RAIL))
+check("  …but the picture has no rail, and the word appears only inside negations",
+      not R.shows_a_rail(NO_RAIL))
+check("  so the rail rule does not fire", "rail-smooth" not in keys(NO_RAIL), keys(NO_RAIL))
+nr_fixed, nr_applied = R.apply_frame_rules(NO_RAIL)
+check("  and the cover funnel never writes a rail into it",
+      "unbroken line" not in nr_fixed, nr_fixed[-160:])
+check("  while the LIGHT still reaches it — the point of the universal tier",
+      "golden-hour" in nr_fixed)
+check("  an affirmative rail in the SAME prompt would still count",
+      R.shows_a_rail("No dirt or sand. A single white running rail runs along the inside."))
+check("  a negation in an EARLIER sentence does not suppress a real rail",
+      R.shows_a_rail("There are no hats in this shot. The white running rail curves away."))
+
+print("\n-- both new rules come through BOTH funnels, from ONE definition --")
+check("the cover funnel calls apply_frame_rules, not a second copy of the words",
+      prov_cov.count("apply_frame_rules(") == 2
+      and "apply_orientation(" not in prov_cov,
+      "providers must ask this module for the lines")
+check("  FRAME_KEYS is what a cover takes: the light, which way up, the rail's line",
+      set(R.FRAME_KEYS) == {"lighting", "orientation", "rail-smooth"}, str(R.FRAME_KEYS))
+check("  ONE definition of the light serves both funnels",
+      R.FIXES["lighting"] is R.LIGHTING)
+check("  the rail's line is SHOT-AWARE, so it is derived not stored",
+      R.FIXES["rail-smooth"] is None and R.rail_smooth_for("a bend") is R.RAIL_SMOOTH_BEND)
+_cov_railed, _cov_applied = R.apply_frame_rules(
+    "Portrait hero, racehorses galloping past a single white running rail on green turf.")
+check("  a cover that DOES show a rail gets the rail line through the cover funnel",
+      "unbroken line" in _cov_railed, str(_cov_applied))
+
 # ══ THE AUTO-INJECT, SWEPT OVER THE REAL EPISODES (0b20c05, verified 14 Aug 2026) ══
 #
 # Every case above is a FIXTURE — a prompt written here to have the gap being tested.
@@ -327,7 +452,18 @@ PP = Path(os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos"))
 import ep_paths as _ep                        # renamed on publish; resolve by NUMBER
 
 print(f"\n-- the auto-inject over REAL prompts, EP{R.FROM_EP} forward --")
-graded, injected, leftovers = 0, 0, []
+#
+# 🆕 EXTENDED 15 AUG 2026 FOR FAULTS 6 AND 7, AND THE EXTENSION IS THE POINT.
+# It used to sweep the B-ROLL only, and only the prompts with horses or a crowd in them —
+# which is exactly the coverage that would have missed both new faults: the light belongs
+# on the DESK scenes this loop skipped, and the covers go through the OTHER funnel, which
+# it never opened at all. **A sweep that only looks where the old rules applied is a
+# sweep that can only confirm the old rules.** It now reads EVERY generated-image prompt
+# on this machine — both funnels, every clip, covers included — and asserts the two
+# properties Jodie asked for:
+#     · EVERY generated image carries the light;
+#     · the rail's line lands ONLY where the picture actually has a rail.
+graded, injected, leftovers, covers, unlit, wrong_rail = 0, 0, [], 0, [], []
 for _d in sorted(PP.glob("PP-EP*")):
     try:
         _n = int(_d.name.split("-")[1][2:])
@@ -336,27 +472,54 @@ for _d in sorted(PP.glob("PP-EP*")):
     _epj = _d / "docs/episode.json"
     if _n < R.FROM_EP or not _epj.is_file():
         continue
-    for _b in json.loads(_epj.read_text(encoding="utf-8")).get("broll") or []:
+    _ep = json.loads(_epj.read_text(encoding="utf-8"))
+
+    # ── FUNNEL 1: the cover heroes, which this sweep never used to open ──────────
+    for _slot in ("hero_a_prompt", "hero_b_prompt"):
+        _p = (_ep.get("cover") or {}).get(_slot)
+        if not _p:
+            continue
+        covers += 1
+        _new, _applied = R.apply_frame_rules(_p)
+        _after = {g["key"] for g in R.check_prompt(_new)}
+        if "lighting" in _after:
+            unlit.append(f"EP{_n} {_slot}")
+        if "unbroken line" in _new and "unbroken line" not in _p \
+                and not R.shows_a_rail(_p):
+            wrong_rail.append(f"EP{_n} {_slot}: a rail written into a picture with none")
+
+    # ── FUNNEL 2: every b-roll prompt, INCLUDING the ones with no horses in them ──
+    for _b in _ep.get("broll") or []:
         _p = _b.get("prompt") or ""
-        if not R.has_horses(_p) and not R.CROWD_WORDS.search(_p):
+        if not _p.strip():
             continue
         graded += 1
         _new, _applied, _unfix = R.apply_rules(_p)
         if _applied:
             injected += 1
         _after = {g["key"] for g in R.check_prompt(_new)}
-        if _after:
+        if "lighting" in _after:
+            unlit.append(f"EP{_n} {_b.get('target', '?')}")
+        if "unbroken line" in _new and "unbroken line" not in _p \
+                and not R.shows_a_rail(_p):
+            wrong_rail.append(f"EP{_n} {_b.get('target', '?')}: a rail written in")
+        # The older assertion, kept, but now only for the shots the older rules grade.
+        if (R.has_horses(_p) or R.CROWD_WORDS.search(_p)) and _after:
             leftovers.append(f"EP{_n}: {sorted(_after)} still missing after auto-apply")
         # A CONTRADICTION is allowed to survive as unfixable — that is the decision.
         # A merely ABSENT line is not.
         if _unfix and not R._BEYOND_NON_TURF.search(_p):
             leftovers.append(f"EP{_n}: halted a human over {_unfix}")
 
-if graded:
-    check(f"{graded} real racing/crowd prompt(s) graded, {injected} had lines injected",
-          True)
+if graded or covers:
+    check(f"{graded} real b-roll prompt(s) and {covers} real cover hero(es) swept — "
+          f"BOTH funnels, {injected} had lines injected", True)
     check("  a MECHANICALLY short prompt never reaches a human",
           not leftovers, "; ".join(leftovers[:4]))
+    check("  FAULT 6: every generated image on this machine carries the light",
+          not unlit, "; ".join(unlit[:6]))
+    check("  FAULT 7: the rail's line lands ONLY where the picture has a rail",
+          not wrong_rail, "; ".join(wrong_rail[:6]))
 else:
     print(f"  ·  skipped — no episode from EP{R.FROM_EP} on this machine")
 

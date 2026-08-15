@@ -76,6 +76,110 @@ ORIENTATION = ("Correct upright orientation — horizon level and near the middl
 ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
                      r"horizon .{0,20}(level|middle|centre|center)"]
 
+# ── FAULT 6, THE LIGHT ──────────────────────────────────────────────────────────
+#
+# 🔴 EP26's IMAGES CAME BACK TOO DARK. (Jodie, 15 Aug 2026.) A "man at a desk" card was
+# discarded for nothing but being dim and murky — the composition was right, the picture
+# was unusable, and the credit was spent.
+#
+# ⚠️ THIS ONE IS UNIVERSAL, AND THAT IS THE WHOLE POINT OF WHERE IT LIVES. Every other
+# rule in this file is about horses, a rail or a crowd, so every other rule is gated on
+# the shot containing one. **The light is a property of every generated image** — the
+# cover, the racing wides, and the indoor desk scene that has no horse in it and would
+# be skipped by every gate below. So it sits in UNIVERSAL, not in RULES.
+#
+# ⚠️ NOT A NEGATION — the same reasoning as ORIENTATION, and it matters more here. A
+# model cannot draw "not dark": it has to choose an exposure, and told nothing it chooses
+# the safe middle, which prints murky. The line says what the light IS, and names the
+# indoor case explicitly because "golden hour" means nothing at a desk.
+LIGHTING = (
+    "Bright, warm and luminous light, generously exposed and richly cinematic — a low "
+    "dramatic late-afternoon sun, long warm golden-hour light and a warm sunset glow "
+    "through the scene; an indoor, desk or portrait scene is warmly and generously lit, "
+    "warm sunlight through a window and lamp-warm highlights, the subject bright and "
+    "clearly visible")
+# Any ONE of these says the fact. "Bright natural daylight" is deliberately NOT enough:
+# it is what the cover brief already said while EP26 came back dim, and a pattern that
+# the failing prompts already match is a rule that changes nothing.
+LIGHTING_NEEDS = [r"golden.?hour", r"late.?afternoon sun", r"low,? dramatic sun",
+                  r"warm (golden |afternoon |sunset )?light", r"sunset glow",
+                  r"warmly (and generously )?lit", r"luminous", r"generously exposed",
+                  r"lamp.?warm", r"warm sunlight through a window"]
+
+# ── FAULT 7, THE RUNNING RAIL'S LINE ────────────────────────────────────────────
+#
+# 🔴 EP26's RAIL HAD AN UNNATURAL KINK. (Jodie, 15 Aug 2026.)
+# This EXTENDS A21/Fault 4 rather than repeating it: that rule says the field is all on
+# ONE SIDE of the rail. This one says the rail is a smooth, true line. A rail can be
+# perfectly one-sided and still jag.
+#
+# ⚠️ CURVES ARE CORRECT AND EXPECTED — a real racecourse is an oval. The fault is an
+# abrupt kink, and "no kinks" is unrenderable, so the line describes the line the rail
+# SHOULD trace: continuous, evenly posted, level along the top.
+#
+# ⚠️ AND IT IS SHOT-AWARE, for A21's second finding: a straight line pasted into a bend
+# is the incoherent geometry this whole family of faults grows in. Two variants, and
+# NEITHER contains "dead straight" or "perfectly level" — those two phrases are what
+# STRAIGHT_RAIL looks for, and injecting one into a bend shot would manufacture the very
+# contradiction the checker halts on.
+RAIL_SMOOTH_STRAIGHT = (
+    "the white running rail is one clean unbroken line running true and even along the "
+    "track, evenly spaced upright posts and a level top rail")
+RAIL_SMOOTH_BEND = (
+    "the white running rail is one clean unbroken line that follows the track in a "
+    "single smooth even sweeping curve, evenly spaced upright posts and a level top rail")
+# The FACT is smoothness and regularity, so a prompt that already says it in its own
+# words passes. Deliberately NOT satisfied by "a single white running rail" — that is the
+# A21 rail-side line, and letting it count here would mean this rule never fires.
+RAIL_SMOOTH_NEEDS = [r"unbroken line", r"continuous line",
+                     r"smooth[^.]{0,30}(curve|sweep)", r"sweeping curve",
+                     r"level top rail", r"evenly[ -]spaced[^.]{0,20}post",
+                     r"true and even"]
+
+
+def rail_smooth_for(text: str) -> str:
+    """The smoothness line in the form THIS shot can be — curve wording only on a bend."""
+    return RAIL_SMOOTH_BEND if BEND_WORDS.search(text or "") else RAIL_SMOOTH_STRAIGHT
+
+
+# 🔴 A RULE MAY ONLY BE APPLIED TO A SHOT IT IS ACTUALLY ABOUT — and this rule is about a
+# RAIL, not about a horse. FOUND BY THE CONTROL, ON A REAL COVER, BEFORE ANY TEST WAS
+# WRITTEN, which is the only reason it was found at all.
+#
+# EP26's cover hero A is a man at a desk with FRAMED RACING PHOTOGRAPHS on the wall behind
+# him. It mentions racehorses, jockeys and galloping — so `has_horses` is true, correctly
+# — and it ends with:
+#
+#     "NO FENCE, NO RUNNING RAIL AND NO RAILINGS anywhere in the photograph or inside
+#      any of the framed pictures."
+#
+# Gated on horses, this rule appended "The white running rail is one clean unbroken
+# line…" to a prompt that had just spent a clause excluding one. **That is not a missing
+# line, it is a contradiction** — the same fault `_BEYOND_NON_TURF` exists to refuse, and
+# a worse picture than the kink it was written to prevent.
+#
+# So the gate is: DOES THIS PICTURE HAVE A RAIL IN IT. Not "is there a horse", and not a
+# plain search for the word — the word is present in that cover, three times, every one
+# of them inside a negation.
+RAIL_WORDS = re.compile(r"\brail(?:s|ing|ings)?\b", re.I)
+_NEGATED = re.compile(r"\b(no|without|never|not)\b", re.I)
+
+
+def shows_a_rail(prompt: str) -> bool:
+    """True when the picture actually contains a running rail.
+
+    Every mention of the rail is examined, and one that sits inside a NEGATION does not
+    count — "no running rail anywhere" is a prompt saying there is no rail, however many
+    times the word appears in it. The look-back stops at a sentence boundary so a
+    negation about something else, a clause earlier, cannot suppress a real rail.
+    """
+    for m in RAIL_WORDS.finditer(prompt or ""):
+        back = (prompt or "")[max(0, m.start() - 60):m.start()]
+        back = back[back.rfind(".") + 1:]          # this sentence only
+        if not _NEGATED.search(back):
+            return True                            # an affirmative rail: the rule applies
+    return False
+
 # ── the standing lines ──────────────────────────────────────────────────────────
 # Each rule is (key, human name, what it must SAY, why it exists). `needs` is a list of
 # alternatives — any ONE satisfies it — so a prompt may phrase a line in its own words
@@ -149,6 +253,56 @@ RULES = [
     ),
 ]
 
+# ── THE UNIVERSAL TIER — asked of EVERY generated image, whatever is in it ───────
+#
+# 🔴 EVERYTHING IN `RULES` IS GATED ON THE SHOT CONTAINING A HORSE, and that is right for
+# every rule that was in it: a kitchen table needs no silks. **The light is not like
+# that.** EP26's discarded card was a man at a desk — no horse, no crowd, no rail — and
+# it would be skipped by every gate in this file. A rule that only reaches racing shots
+# would have missed the exact picture that caused it.
+#
+# This is the third tier, beside RULES (horses) and CROWD_RULE (people). Adding one here
+# means it applies to the covers, the racing wides, the crowd shots and the desk scenes
+# alike — which is what "every generated image" has to mean if it is to mean anything.
+UNIVERSAL = [
+    dict(
+        key="lighting",
+        name="bright, warm, generously exposed light",
+        needs=LIGHTING_NEEDS,
+        why=("EP26's images came back too DARK (Jodie, 15 Aug 2026) and a 'man at a "
+             "desk' card was discarded for nothing but being dim and murky. A model "
+             "cannot draw 'not dark' — told nothing it picks the safe middle, which "
+             "prints murky. State the light positively, and name the indoor case, "
+             "because 'golden hour' means nothing at a desk."),
+    ),
+]
+
+# ── THE CONDITIONAL TIER — a rule with its own question about the shot ───────────
+# `RULES` asks "are there horses", `CROWD_RULE` asks "are there people". Fault 7 asks a
+# third question — "is there a rail" — and it has to be its own, because the two are not
+# the same picture: an empty-track wide shot has a rail and no horses, and EP26's desk
+# cover has horses (in framed photographs) and explicitly no rail. Each rule carries the
+# question it is entitled to be applied on.
+CONDITIONAL = [
+    dict(
+        key="rail-smooth",
+        name="the rail as one smooth, true, evenly-posted line",
+        needs=RAIL_SMOOTH_NEEDS,
+        when=shows_a_rail,
+        why=("EP26's running rail had an unnatural KINK (Jodie, 15 Aug 2026). This "
+             "EXTENDS the one-side rule rather than repeating it: a rail can be "
+             "perfectly one-sided and still jag. Curves are correct and expected — a "
+             "racecourse is an oval — so the line describes the line the rail should "
+             "trace, because 'no kinks' cannot be drawn."),
+    ),
+]
+
+# THE FRAME RULES — the ones that describe the PICTURE rather than the horses in it, and
+# so the ones a portrait cover hero takes. This is the list the cover funnel asks for;
+# see apply_frame_rules() at the foot of this file. Keys, not copies, so there is exactly
+# one definition of each line and both funnels read it.
+FRAME_KEYS = ("lighting", "orientation", "rail-smooth")
+
 # Only where the clip actually contains a crowd — demanding hat colours of a head-on
 # gallop would be noise, and a guard everyone ignores is worse than no guard.
 # ⚠️ `grandstand` WAS IN HERE AND IS NOT A CROWD. It is a building, and it stands in the
@@ -178,13 +332,20 @@ STRAIGHT_RAIL = re.compile(r"dead straight|perfectly level", re.I)
 def check_prompt(prompt: str) -> list[dict]:
     """Every standing line this prompt fails to state. Empty list = nothing to say."""
     out = []
-    rules = []
+    # THE UNIVERSAL TIER FIRST, and unconditionally. A prompt with no horses, no crowd
+    # and no rail still has a light in it, and EP26's discarded desk card is why that
+    # sentence had to be written down. Every other rule below stays gated on the shot
+    # actually being about the thing the rule is about (the HORSE_WORDS note).
+    rules = list(UNIVERSAL)
     if has_horses(prompt):
         rules += RULES                 # a kitchen table is not a racing shot
     if CROWD_WORDS.search(prompt or ""):
         rules.append(CROWD_RULE)       # …and a crowd shot needs its hats, horses or not
-    if not rules:
-        return []
+    # …and a rule that carries its own question answers it here. One place, so a new
+    # conditional rule cannot be added and then forgotten by one of the three callers.
+    rules += [r for r in CONDITIONAL if r["when"](prompt or "")]
+    if not (prompt or "").strip():
+        return []                      # nothing to grade; an empty prompt is a different fault
     for r in rules:
         if not any(re.search(p, prompt, re.I) for p in r["needs"]):
             out.append({"key": r["key"], "name": r["name"], "why": r["why"]})
@@ -236,6 +397,11 @@ FIXES = {
     # A22, and the one line the cover funnel shares with this one. Stated POSITIVELY —
     # see the note by ORIENTATION: "not upside down" cannot be drawn.
     "orientation": ORIENTATION,
+    # Fault 6. Universal, so this is the one fix that can land on a prompt with no horse
+    # in it. Stated positively for the same reason as orientation.
+    "lighting": LIGHTING,
+    # Fault 7 is SHOT-AWARE and so cannot be a constant here — see rail_smooth_for().
+    "rail-smooth": None,
 }
 
 # The rail sentence depends on the shot, which is the whole point of A21's second finding:
@@ -320,10 +486,27 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
         applied.append("the field runs on ONE side of the rail, with open green turf "
                        "infield beyond it" + (" (bend wording)" if bend else ""))
 
+    # 2b. The rail's LINE, which is a different claim from which side the field is on.
+    #
+    # 🔴 RE-ASKED HERE, AGAINST THE UPDATED TEXT, AND NOT READ OFF `gaps`. The gaps were
+    # computed before step 2 ran, and step 2 may have just INTRODUCED the rail — a racing
+    # prompt that never mentioned one is given "…a single white running rail…" and only
+    # then has a rail whose line can be wrong. Read off the stale `gaps`, this rule never
+    # fired on exactly those prompts, and the re-check at the foot of this function
+    # reported "rail-smooth — still missing after auto-apply", which is the tool telling
+    # a human to do something the tool could do. Caught by the existing auto-inject
+    # tests, which is what they are for.
+    if any(g["key"] == "rail-smooth" for g in check_prompt(text)):
+        text = _add_sentence(text, rail_smooth_for(text))
+        applied.append("the rail is one smooth, true, evenly-posted line"
+                       + (" (bend wording)" if BEND_WORDS.search(text) else ""))
+
     # 3. Everything else is a fact appended in the registry's own words.
-    # `orientation` LAST, because it is a statement about the whole frame and reads as
-    # the closing instruction rather than as one more fact about the horses.
-    for key in ("strides", "silks", "turf", "anatomy", "hat-variety", "orientation"):
+    # `orientation` and `lighting` LAST, because they are statements about the whole
+    # frame and read as the closing instruction rather than as one more fact about the
+    # horses. Lighting last of all: it is the only one that lands on every picture.
+    for key in ("strides", "silks", "turf", "anatomy", "hat-variety", "orientation",
+                "lighting"):
         if key in gaps and FIXES.get(key):
             text = _add_sentence(text, FIXES[key])
             applied.append(FIXES[key][:60] + "…")
@@ -356,10 +539,46 @@ def needs_orientation(prompt: str) -> bool:
 
 
 def apply_orientation(prompt: str) -> tuple[str, bool]:
-    """Add the orientation line if it is missing. Returns (prompt, changed)."""
+    """Add the orientation line if it is missing. Returns (prompt, changed).
+
+    ⚠️ KEPT, AND NARROW. `apply_frame_rules` is what the cover funnel calls now — this
+    remains because it says one thing and says it plainly, and a caller that genuinely
+    wants only the orientation line should not have to ask for three.
+    """
     if not needs_orientation(prompt):
         return prompt, False
     return _add_sentence(prompt.rstrip(), ORIENTATION), True
+
+
+def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
+    """Add every FRAME rule this image prompt is missing. Returns (prompt, applied).
+
+    🔴 THIS IS THE DOOR THE COVER FUNNEL COMES THROUGH, and it is deliberately the SAME
+    definitions the b-roll funnel uses — FRAME_KEYS names keys, and the words come from
+    UNIVERSAL/RULES/FIXES. A22's whole lesson was that a guard installed at one funnel
+    says nothing about the other; the answer is not to install it twice, it is to have
+    one set of words with two doors onto it.
+
+    Why the covers take these three and not the rest: a portrait cover hero is a still,
+    and the strides / silks / rail-side lines are about a field of horses in motion.
+    Orientation, the light and the rail's own line are properties of the PICTURE, which
+    is what a cover is.
+    """
+    gaps = {g["key"] for g in check_prompt(prompt or "")} & set(FRAME_KEYS)
+    if not gaps:
+        return prompt, []
+    text, applied = (prompt or "").rstrip(), []
+    # Same order as apply_rules, and for the same reason: the rail is a fact about the
+    # scene, orientation and the light are statements about the whole frame.
+    if "rail-smooth" in gaps:
+        text = _add_sentence(text, rail_smooth_for(text))
+        applied.append("the rail is one smooth, true, evenly-posted line")
+    for key in ("orientation", "lighting"):
+        if key in gaps and FIXES.get(key):
+            text = _add_sentence(text, FIXES[key])
+            applied.append({"orientation": "the upright-orientation line",
+                            "lighting": "the bright, warm lighting line"}[key])
+    return text, applied
 
 
 def check_episode(broll: list[dict], ep_number: int | None) -> list[str]:
