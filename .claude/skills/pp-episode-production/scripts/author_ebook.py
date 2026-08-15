@@ -689,7 +689,18 @@ def parse_body(body: str, source_figures: dict | None = None):
     # passes cannot say which came first. `prose` is a list of (kind, text) pairs —
     # ONE list, so the kind can never drift away from the words it describes.
     prose, quoted = [], []
-    for m in re.finditer(r"<p(\s[^>]*)?>(.*?)</p>|<li(\s[^>]*)?>(.*?)</li>", body, re.S):
+    # A CHART JOINS THE SAME WALK. `tables_at[i]` is how many body paragraphs come before
+    # chart i — which is the whole of what check_chart_placement needs to say a chart sits
+    # beside its words rather than in a heap at the end. Counted HERE, in the one walk, so
+    # "where the table is" and "where the paragraphs are" are answered by the same pass and
+    # cannot drift; a separate count would have to re-decide which <p> are article prose,
+    # and the classed ones (.lead/.byline/.pullquote) are not.
+    tables_at = []
+    for m in re.finditer(r"<p(\s[^>]*)?>(.*?)</p>|<li(\s[^>]*)?>(.*?)</li>"
+                         r"|<table(\s[^>]*)?>.*?</table>", body, re.S):
+        if m.group(0)[:6].lower().startswith("<table"):
+            tables_at.append(len(prose))
+            continue
         if m.group(0)[:2].lower() == "<p":
             cls = re.search(r'class="([^"]*)"', m.group(1) or "")
             key = cls.group(1).strip() if cls else None
@@ -748,7 +759,7 @@ def parse_body(body: str, source_figures: dict | None = None):
              for m in re.finditer(r"<li(?:\s[^>]*)?>(.*?)</li>", body, re.S)]
     items = [(t, f) for t, f in items if t]
     ols = [m.group(1) or "" for m in re.finditer(r"<ol(\s[^>]*)?>", body)]
-    return prose, quoted, figures, headings, items, ols, tables
+    return prose, quoted, figures, headings, items, ols, tables, tables_at
 
 
 # ------------------------------------------------------------------ the gate
@@ -1155,6 +1166,113 @@ def check_figure_placement(ep, art: list[str], items, figures):
             + ")")
 
 
+def _chart_names(cells: list[str], rows: list[list[str]] | None = None) -> list[str]:
+    """What the article CALLS the charts in this table — its own section headings.
+
+    "CHART A", "CHART B", "CHART C" are rows of the table itself, so the names are read
+    off the data rather than configured anywhere. A table with no section headings has
+    no names, and then nothing below applies: the rule can only speak where the article
+    gave the thing a name to refer to it by.
+    """
+    if rows is None:
+        return []
+    out = []
+    for r in rows:
+        filled = [c for c in r if c]
+        if len(filled) == 1 and r and r[0] and len(r) > 1:
+            out.append(r[0])
+    return out
+
+
+def _names_in(paragraph: str, names: list[str]) -> bool:
+    """Does this paragraph send the reader to one of these charts?
+
+    "Chart B shows the results", "Charts A and B", "(see Chart C)" — so the label may be
+    plural and the case is the author's. Built from the NAME, not from a list of phrases
+    somebody maintains: "CHART A" becomes /chart s? \\s+ a/ and nothing else is assumed.
+    """
+    for n in names:
+        parts = n.split()
+        if not parts:
+            continue
+        label, ident = " ".join(parts[:-1]) or parts[0], parts[-1]
+        pat = (re.escape(label) + r"s?\s+" + re.escape(ident)) if len(parts) > 1 \
+            else re.escape(ident)
+        if re.search(r"\b" + pat + r"\b", paragraph, re.I):
+            return True
+    return False
+
+
+def check_chart_placement(art, tables, tables_at, pos, blocks=None):
+    """A CHART SITS BESIDE THE SECTION IT BELONGS TO, never dumped at the end.
+
+    🔴 JODIE, 15 AUG 2026 — and it is the EP25 lesson applied to charts. EP25's six
+    figures were all placed after the last tip, where a picture of the betting bank
+    landed thirty-nine tips after the tip about the betting bank; every figure was
+    present and correct and not one was next to the thing it explains. A chart is worse,
+    because the prose points AT it: "Chart B shows the results" is a sentence that fails
+    if the reader has to leaf four pages on.
+
+    WHICH SECTION IS DERIVED, NEVER DECLARED (rule #7). The table names its own charts in
+    its section-heading rows, and the article's prose refers to them by those names — so
+    the chart's home is THE FIRST ARTICLE PARAGRAPH THAT NAMES ONE, and the coverage
+    cannot go stale: an article that renames its charts moves its own answer.
+
+    ⚠️ THIS IS A PLACEMENT RULE, NOT A FIDELITY ONE, AND THE DIFFERENCE MATTERS. §0a
+    governs the WORDS, and every word is still reproduced in the article's own order. A
+    chart is a FIGURE in e-book terms, and figures go where they explain something —
+    exactly as figure-N.png does. EP26's source prints the whole 45-row table at the very
+    end of the page, after the sign-off; reproducing that position would put it four
+    pages from the sentence that sends you to it.
+
+    Returns a plain-English line, or None where the article never names a chart.
+    """
+    if not tables or not pos:
+        return None
+    reports = []
+    for i, cells in enumerate(tables):
+        rows = _md_table_rows(blocks[i]) if blocks and i < len(blocks) else None
+        names = _chart_names(cells, rows)
+        if not names:
+            continue
+        # ⚠️ THE TABLE NAMES ITSELF, so the table's OWN paragraph is not a reference to
+        # it. Missed at first because EP26's chart is the article's LAST block and the
+        # search reached the real reference before ever meeting it; the fixture, whose
+        # table sits mid-article, matched the chart to itself and the whole rule went
+        # quiet. A rule that fails silently on the case it was built for is worse than
+        # no rule — and only the fixture could show it, because the live episode's
+        # layout hid it.
+        home = next((j for j, p in enumerate(art)
+                     if not MD_TABLE.match(p.strip()) and _names_in(p, names)), None)
+        if home is None:
+            continue                    # the article never sends the reader to it
+        # WHERE THAT PARAGRAPH LANDED IN THE BODY. The chart belongs immediately after it.
+        want = next((n for n, k in enumerate(pos) if k == home), None)
+        if want is None:
+            continue                    # the naming paragraph is not reproduced as prose
+        got = tables_at[i] if i < len(tables_at) else None
+        if got == want + 1:
+            reports.append(
+                f"chart placement: the chart sits straight after the paragraph that "
+                f"sends the reader to it ({', '.join(names)} — \"{art[home][:60]}…\")")
+            continue
+        raise Halt(
+            f"E-BOOK CHART: a chart belongs beside the section it explains.\n"
+            f"      This chart ({', '.join(names)}) sits after body paragraph {got}, and "
+            f"the article first sends the reader to it in paragraph {want + 1}:\n"
+            f"        \"{art[home][:110]}{'…' if len(art[home]) > 110 else ''}\"\n"
+            f"    Move the chart slot to immediately after that paragraph.\n"
+            + ("    It is at the END of the body, which is where EP25 put all six of its "
+               "figures — every one present and correct, not one of them next to the "
+               "thing it explains. The source page prints the table at the end too; that "
+               "is the page's layout, not the reader's need.\n"
+               if got is not None and got >= len(pos) else "")
+            + f"    Which paragraph is DERIVED from the article's own words — the chart "
+              f"names itself in its heading rows and the prose refers to it by that name "
+              f"— so nothing here is a list anybody maintains.")
+    return "; ".join(reports) if reports else None
+
+
 def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None,
                    tables=None):
     """HARD-FAIL unless the body reproduces the article, departures aside.
@@ -1280,6 +1398,11 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
     # unnumbered one by a bare <p>; the number is the article's own markup and is
     # stripped before the words are compared, so the comparison still folds nothing.
     ai, matched, as_items = 0, 0, 0
+    # WHICH ARTICLE PARAGRAPH EACH BODY PARAGRAPH IS, recorded as the walk decides it.
+    # check_chart_placement needs exactly this to say where a chart belongs, and working
+    # it out a second time would be two walks that can drift apart — the same fault the
+    # card-carries-this-table comparison was collapsed into one function to avoid.
+    pos = []
     for kind, bp in prose:
         def fits(i, _bp=bp, _kind=kind):
             num, words = split_number(art[i])
@@ -1329,6 +1452,7 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                     f"    §0a's mirror: never add what the article does not say, and never "
                     f"REMOVE what it does. Reproduce it, or declare the omission by quoting "
                     f"it." + _why_not(art[j], headings or [], near_misses))
+        pos.append(k)
         ai = k + 1
         matched += 1
         as_items += 1 if kind == "li" else 0
@@ -1365,7 +1489,7 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
         lines.append(f"          departure {name!r}: {desc}")
     if not fns:
         lines.append("          no declared departures — the body is the article, exactly")
-    return "\n".join(lines)
+    return "\n".join(lines), pos
 
 
 def check_figures(figures, ep):
@@ -1484,15 +1608,21 @@ def main():
             print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
                   f"named in {os.path.basename(cap_path)}", file=sys.stderr)
 
-    prose, quoted, figures, headings, items, ols, tables = parse_body(body, src_figs)
+    prose, quoted, figures, headings, items, ols, tables, tables_at = parse_body(
+        body, src_figs)
     # THE SHAPE BEFORE THE WORDS. EP25 passed every word-level check ever written while
     # printing a numbered list as one paragraph, so the shape is asked FIRST — and its
     # message is the useful one when both are wrong.
     report = [f"chart lift: {line}" for line in lifted]
     report += [r for r in (check_list_shape(article, items, ols),) if r]
-    report += [check_fidelity(prose, quoted, ep, article, headings, figures, tables),
-               check_figures(figures, ep)]
+    fidelity, pos = check_fidelity(prose, quoted, ep, article, headings, figures, tables)
+    report += [fidelity, check_figures(figures, ep)]
     report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
+    # WHERE THE CHART SITS. Asked after the words are proved, because "this chart is in
+    # the wrong place" is only worth saying about a chart that is the right chart.
+    art_tables = [b for b in blocks if MD_TABLE.match(re.sub(r"\s+", " ", b))]
+    report += [r for r in (check_chart_placement(article, tables, tables_at, pos,
+                                                 art_tables),) if r]
 
     if a.check_only:
         print("\n".join(report))

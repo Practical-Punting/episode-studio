@@ -856,6 +856,19 @@ not, the episode carries no byline.** The test is what the page says, not a hous
   the one place in the book where words appear unchecked.
   **`ebook.omit_paragraphs` may never contain a chart**, and the halt for a dropped one names
   the two routes above.
+- **A CHART SITS BESIDE THE SECTION IT EXPLAINS — never dumped at the end.** (Jodie, 15 Aug
+  2026.) It is the EP25 figure rule applied to charts, and a chart needs it more, because the
+  prose points *at* it: *"Chart B shows the results"* is a sentence that fails if the reader
+  has to leaf four pages on. **Which section is DERIVED, never declared:** the table names its
+  own charts in its section-heading rows, the article's prose refers to them by those names,
+  and the chart belongs immediately after the first paragraph that does so. An article that
+  renames its charts moves its own answer, so the coverage cannot go stale.
+  > ⚠️ **This is a PLACEMENT rule, not a fidelity one, and the difference matters.** §0a
+  > governs the WORDS, and every word is still reproduced in the article's own order. A chart
+  > is a FIGURE in e-book terms and goes where it explains something, exactly as
+  > `figure-N.png` does. **EP26's source page prints its whole 45-row table at the very end,
+  > after the sign-off** — reproducing that position would put it four pages from the sentence
+  > that sends you to it. *That is the page's layout, not the reader's need.*
   > 🔴 **Why this rule exists, and it is not the fidelity gate's failure.** EP26's article
   > prints three staking charts as one 45-row table and its prose points at them by name;
   > no card carries 225 cells, and the writer's brief said in terms that there is no `<table>`
