@@ -18,6 +18,44 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 15 AUG 2026 — found by the control while baking in EP26 faults 6 and 7
+
+## 🟠 THE A21 RAIL LINE IS GATED ON HORSES, AND IT HAS WRITTEN A RUNNING RAIL INTO INDOOR SHOTS
+
+**Found on REAL EP26 prompts, by running the two funnels over them before writing a test —
+not by reading the code.** Not fixed: this is a change to a landed rule (A21) with its own
+history, EP26's clips are already generated, and re-gating it could change what every
+genuine racing prompt receives. **It needs its own session and Jodie's call.**
+
+`rail-side` / `rail-beyond` apply when `has_horses(prompt)` is true. That question is the
+right one for silks and strides. It is the **wrong** question for a rail, and two of EP26's
+b-roll prompts show why:
+
+- **`broll-tab-counter-printout`** — *"Photoreal cinematic close shot at an Australian
+  betting counter, a pair of hands taking a freshly printed ticket as it comes off the
+  terminal…"* — an INDOOR close shot, hands and a terminal. The auto-inject appended
+  *"The whole field running on ONE side of a single white running rail — the rail is the
+  inside boundary of the track, open green turf infield beyond it, no horses on the far
+  side."*
+- **`broll-three-hours-over-the-form`** — a form-study scene. Same line, same reason.
+
+**This is the fault the `HORSE_WORDS` note in `broll_prompt_rules.py` already warns
+about**, arriving through a different rule than the one it was written for: *"NOW IT WOULD
+WRITE HORSES INTO A SHOT OF A CROWD, which is a worse clip than the one the rule exists to
+prevent."* It writes a RACECOURSE into a shot of a TAB counter.
+
+⚠️ **The mechanism is already built and proved.** Fault 7's rule (`rail-smooth`, 15 Aug
+2026) hit exactly this and answers it with `shows_a_rail()` — a rail is counted only where
+the prompt affirms one, and a mention inside a negation does not count. Re-gating
+`rail-side` / `rail-beyond` the same way is a small change; **what needs a human is the
+consequence**, because a racing prompt that never mentions a rail would then stop being
+given one at all, and A21's whole point was that the rail must be a BOUNDARY with a rule
+about it. That is Jodie's decision, not a refactor.
+
+📌 **Do not re-generate EP26's b-roll for this.** The clips exist and the episode is built.
+
+---
+
 # 🆕 LOGGED 15 AUG 2026 — found while re-publishing EP26's e-book
 
 ## 🟢 "PUBLISHED" IS NOT "THE READER GETS THE NEW FILE" — the publish check can pass on a stale cached copy

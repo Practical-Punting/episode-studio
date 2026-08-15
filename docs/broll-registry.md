@@ -199,12 +199,52 @@ are the REASONING and the evidence; this is the checklist.)**
 > with the silk cover on. Crowd in present-day Australian dress, Akubra-style hats in a
 > VARIETY of natural colours — fawn, sand, tan, brown, grey, black, olive — worn at
 > different angles, no two neighbours alike; the Australian ethnic mix and a wide range
-> of ages. Photoreal, cinematic, natural daylight.*
+> of ages. **The white running rail is ONE CLEAN UNBROKEN LINE that follows the track —
+> true and even along the straights, a single smooth even sweeping curve through the
+> bends — with evenly spaced upright posts and a level top rail.** Photoreal, cinematic.
+> **Bright, warm and luminous light, generously exposed and richly cinematic — a low
+> dramatic late-afternoon sun, long warm golden-hour light and a warm sunset glow.***
 
 **Every clause is there because something went wrong without it** — the rail side (EP23),
 the strides (EP16 1:25), the silks (EP16 8:11), the hat range (EP18), the turf (US dirt
-is the model's default). **Nothing here is decoration and nothing here is a negation**,
-which is the rule the whole file is built on: *describe the thing you want to SEE.*
+is the model's default), **the rail's own LINE and the LIGHT (EP26, 15 Aug 2026)**.
+**Nothing here is decoration and nothing here is a negation**, which is the rule the
+whole file is built on: *describe the thing you want to SEE.*
+
+### 💡 THE LIGHT IS NOT ONLY FOR RACING SHOTS (Fault 6, EP26, 15 Aug 2026)
+**EP26's images came back too DARK, and a "man at a desk" card was discarded for nothing
+but being dim and murky** — the composition was right, the credit was spent. So the
+lighting line is the one standing line that applies to **EVERY generated image**: the
+covers, the racing wides, the crowd shots, and the indoor scenes that contain no horse,
+no crowd and no rail and are skipped by every other rule in the file.
+
+> *An indoor, desk or portrait scene is warmly and generously lit — warm sunlight through
+> a window, lamp-warm highlights, the subject bright and clearly visible.*
+
+⚠️ **"Bright natural daylight" is not enough, and that is not a quibble.** The cover brief
+already said exactly that while EP26 came back dim. A model cannot draw *"not dark"*: it
+must choose an exposure, and told nothing specific it chooses the safe middle, which
+prints murky. Name the warmth and the hour.
+
+### 🚧 A CURVE IS CORRECT; A KINK IS NOT (Fault 7, EP26, 15 Aug 2026)
+**EP26's running rail had an unnatural KINK.** This **extends** the rail-side rule (EP23)
+rather than repeating it: *a rail can be perfectly one-sided and still jag.* A real
+racecourse is an oval, so curves are expected and must not be argued away — what must
+never appear is an abrupt kink, jag, zig-zag, wobble or warp. Since *"no kinks"* cannot be
+drawn, the line describes **the line the rail should trace**: continuous, evenly posted,
+level along the top.
+
+⚠️ **And it is stated in the form the shot can be.** The straight wording and the bend
+wording are different sentences, and neither contains *"dead straight"* or *"perfectly
+level"* — those two phrases are what the straight-rail-on-a-bend contradiction check looks
+for, and pasting one into a bend shot manufactures the very incoherent geometry this
+family of faults grows in.
+
+⚠️ **The rule applies to a picture that HAS a rail — asked directly, not inferred from a
+horse.** EP26's cover hero is a man at a desk with framed racing photographs behind him:
+it mentions racehorses, jockeys and galloping, and then says *"NO FENCE, NO RUNNING RAIL
+AND NO RAILINGS anywhere."* Gated on horses, the rule wrote a running rail into it — not
+a missing line but a **contradiction**, and a worse picture than the kink.
 
 ---
 
