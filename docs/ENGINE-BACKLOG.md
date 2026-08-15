@@ -18,6 +18,50 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 15 AUG 2026 — found while re-publishing EP26's e-book
+
+## 🟢 "PUBLISHED" IS NOT "THE READER GETS THE NEW FILE" — the publish check can pass on a stale cached copy
+
+**Small hardening item. Logged for its own session; deliberately NOT taken during the
+EP26 chart work, because nothing about EP26 was blocked by it.**
+
+`RealProvider._publish_asset()` uploads with `x-upsert: true`, then verifies the public
+URL by reading **64 bytes** and asserting the **Content-Type**. Both checks are good and
+both were written against real faults (a PDF served as `image/png` downloads instead of
+opening). **Neither of them proves the bytes are THIS build.**
+
+**The observation, from a real re-publish.** EP26's e-book was rebuilt with its chart
+moved beside its words and re-uploaded through `publish_artefact()`. The upload
+succeeded — a cache-busted URL (`?v=…`) returned the new object immediately — but the
+plain public URL served the **OLD** bytes for roughly twenty seconds, with a different
+`etag` and `cache-control: no-cache`. It converged on its own.
+
+> **A stale edge copy answers 200, with bytes, of the right content type.** It passes
+> every check `_publish_asset` makes. The only reason this was noticed is that the
+> re-publish script hashed the served copy against the local one — which the engine
+> does not do.
+
+**Why it matters, and why it is 🟢 and not 🟠.** The window is short and self-healing,
+and the engine publishes an artefact once, well before anybody opens it — so this has
+probably never bitten a real episode. It would bite exactly where it hurts most: an
+artefact **RE-published after a fix**, where somebody is about to look at it precisely
+because it changed. That is the EP25 shape one layer down — *the served bytes were not
+the rebuild* — with the twist that here the upload is fine and the CDN is not.
+
+**The fix, when it is taken:** after upload, fetch and compare by HASH rather than by
+existence — cache-busting the URL, or retrying the plain URL until the hash matches with
+a short bounded wait, and flagging if it never does. Keep both existing checks; they
+answer different questions. **Do not "fix" it by trusting the upload response** — the
+whole point of the visibility check is that we assert what a person receives, not what
+we sent (see the comment already in `_publish_asset`).
+
+⚠️ **AND CHECK WHETHER ANY OTHER CALLER NEEDS IT** before assuming this is one line:
+`publish_artefact` is used for the video, the e-book and the thumbnail, and
+`_publish_asset` also serves `publish_thumbnail_preview` / `publish_title_preview`,
+where a stale preview beside a fresh flag is the same fault wearing different clothes.
+
+---
+
 # 🆕 LOGGED 14 AUG 2026 — found on EP24
 
 ## 🟠 A CARD'S CUE IS A QUOTE FROM THE SPOKEN TRACK — AND SPOKEN NUMBERS ARE WORDS
@@ -1332,3 +1376,18 @@ on a public repo is not a trade worth making**).
 > the thing.)*
 
 > **"A single frame of an animated card is not evidence about the card."**
+
+> **"A gate is a NET, and a net you plan to land in is a bad plan."** *(Why the e-book
+> chart became a SLOT the code fills rather than 201 cells a writer types: the
+> cell-for-cell gate would have caught a wrong number, correctly, at ~8 minutes and ~$3
+> a bounce. A guard that fires often is not a working guard — it is a design that has
+> not been finished.)*
+
+> **"A rule that leaves no legal way to do the right thing has already chosen the wrong
+> one."** *(EP26 declared its charts omitted because the vocabulary had no `<table>` and
+> no card carried 225 cells. The gate was right; the vocabulary was the bug.)*
+
+> **"A rule that fails silently on the case it was built for is worse than no rule."**
+> *(The chart matched ITSELF as the section it belongs beside, because its own paragraph
+> carries its name. EP26 hid it — its table is the article's last block — and only a
+> fixture with the table mid-article showed it.)*
