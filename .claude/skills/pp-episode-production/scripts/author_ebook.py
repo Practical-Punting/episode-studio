@@ -288,12 +288,19 @@ def text_of(fragment: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", fragment))).strip()
 
 
-def article_paragraphs(path: str) -> list[str]:
-    """The source article's paragraphs, verbatim.
+def article_blocks(path: str) -> list[str]:
+    """The source article's blocks, RAW — line breaks and all.
 
     Reads only between the ARTICLE TEXT BEGINS/ENDS markers, so the source file's
     provenance header, its fidelity notes and its 'HOW TO USE' block are never
     mistaken for prose the book has to reproduce.
+
+    ⚠️ SEPARATED FROM article_paragraphs() FOR ONE REASON: a markdown table's ROW
+    STRUCTURE lives entirely in its newlines, and the whitespace collapse below
+    destroys it. The fidelity comparison wants the collapsed form (a line break in
+    markup is not a difference in the prose); the chart EXPANSION wants the raw one.
+    Same blocks, same order, one split — so the two can never disagree about which
+    block is which.
     """
     raw = open(path, encoding="utf-8").read()
     if "---- ARTICLE TEXT BEGINS ----" not in raw or "---- ARTICLE TEXT ENDS ----" not in raw:
@@ -303,7 +310,162 @@ def article_paragraphs(path: str) -> list[str]:
                    f"notes. Add the markers around the article text.")
     body = raw.split("---- ARTICLE TEXT BEGINS ----")[1] \
               .split("---- ARTICLE TEXT ENDS ----")[0]
-    return [re.sub(r"\s+", " ", p.strip()) for p in re.split(r"\n\s*\n", body) if p.strip()]
+    return [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
+
+
+def article_paragraphs(path: str) -> list[str]:
+    """The source article's paragraphs, verbatim, with whitespace collapsed."""
+    return [re.sub(r"\s+", " ", b) for b in article_blocks(path)]
+
+
+# ══ THE CHART SLOT — THE MODEL NEVER TYPES A NUMBER ══════════════════════════
+# (Jodie, 15 Aug 2026, on the back of EP26.)
+#
+# 🔴 THE STUDIO'S RULE: DATA IS LIFTED FROM THE SOURCE, NEVER RE-TYPED BY THE MODEL.
+# A number is a READING, not a value. It is the same rule that makes every e-book
+# figure a render of a motion card rather than fresh art, and the same one behind
+# §0a-i's "the scan IS the article" — reproducing beats re-drawing, every time.
+#
+# EP26's chart is 201 cells. Asking a writer to transcribe it is asking for a wrong
+# number at some rate above zero, and the cell-for-cell gate would then bounce the
+# whole body — correct, and ~8 minutes and ~$3 per bounce. The gate is a NET, and a
+# net you plan to land in is a bad plan.
+#
+# So the body declares a SLOT and this code fills it, exactly as the standing
+# template declares ONE SLOT for the body itself:
+#
+#     <table class="chart" data-article-table="1"></table>
+#
+# `data-article-table` is the 1-based index of the markdown table in the article, and
+# it is OPTIONAL — slots bind to the article's tables in document order, and an index,
+# where given, must agree with that order. The slot must be EMPTY: a slot with rows
+# typed into it is the transcription this exists to remove, and it halts.
+#
+# ⚠️ `ebook/body.html` KEEPS THE SLOT. It is not rewritten. The expansion happens on
+# the way to the page, which is the same arrangement the figures already have — the
+# body carries `<img src="figure-3.png">`, not a picture. The editorial file stays
+# editorial, and the data stays lifted.
+#
+# THE GATE IS UNCHANGED AND STILL RUNS. Filling the slot from the article means the
+# cell-for-cell check passes by construction — which is the point, not a reason to
+# drop it. It is what proves the lift worked, and it still catches a literal table in
+# a hand-authored body (EP11/EP12 have no slots and never will).
+CHART_TABLE = re.compile(r'<table\s+class="chart"([^>]*)>(.*?)</table>', re.S)
+_SLOT_INDEX = re.compile(r'data-article-table\s*=\s*"?(\d+)"?')
+
+
+def _md_table_rows(block: str) -> list[list[str]]:
+    """A raw markdown-table block as rows of cells, the separator row dropped.
+
+    The cells are the article's own, stripped of the surrounding pipes and of the
+    padding whitespace `table_to_md` writes — and of nothing else.
+    """
+    rows = []
+    for line in block.strip().split("\n"):
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if cells and all(re.fullmatch(r":?-{2,}:?", c or "-") for c in cells):
+            continue                       # the |---|---| separator is markup, not data
+        rows.append(cells)
+    return rows
+
+
+def _chart_html(rows: list[list[str]]) -> str:
+    """Rows of cells as an e-book chart table, the structure DERIVED from the shape.
+
+    Nothing about the layout is declared anywhere. Three rules, in order, and each of
+    them is a fact about the markdown rather than a preference:
+
+      · a full-width row whose ONLY value sits in the FIRST column is a SECTION
+        HEADING — "CHART A" — and is set as one <th colspan>. EP26's page writes
+        exactly that, a colspan-5 <th>, and markdown can only render it as a row of
+        padding cells.
+      · the row FOLLOWING a section heading is that section's COLUMN HEADERS.
+      · otherwise the first row of the table is the column header row, because a
+        markdown table always heads its columns before the separator.
+
+    ⚠️ THE CLOSING-BALANCE ROW IS WHY RULE ONE SAYS "FIRST COLUMN", and it was found
+    by looking at the rendered page rather than at the code: EP26's `|  | 5200 |  |  |`
+    is also a row with one value, and the first draft printed it as a chart title in PP
+    orange — a fourth chart called 5200. It is a data row; the source prints it as one.
+    """
+    if not rows:
+        return ""
+    width = max(len(r) for r in rows)
+    out, head_next = ['<table class="chart">'], False
+    for i, r in enumerate(rows):
+        r = r + [""] * (width - len(r))
+        filled = [c for c in r if c]
+        if len(filled) == 1 and r[0]:
+            out.append(f'<tr><th colspan="{width}">{html.escape(r[0])}</th></tr>')
+            head_next = True
+            continue
+        tag = "th" if (head_next or i == 0) else "td"
+        head_next = False
+        out.append("<tr>" + "".join(f"<{tag}>{html.escape(c)}</{tag}>" for c in r)
+                   + "</tr>")
+    out.append("</table>")
+    return "\n".join(out)
+
+
+def expand_chart_slots(body: str, blocks: list[str]) -> tuple[str, list[str]]:
+    """Fill every chart SLOT in the body from the article's own tables.
+
+    Returns (body, [what was filled]). A body with no slots comes back untouched, so
+    a hand-authored book that carries a literal table is unaffected.
+    """
+    tables = [b for b in blocks if MD_TABLE.match(re.sub(r"\s+", " ", b))]
+    filled, seen = [], 0
+
+    def one(m):
+        nonlocal seen
+        attrs, inner = m.group(1) or "", m.group(2)
+        if "<tr" in inner.lower():
+            if _SLOT_INDEX.search(attrs):
+                raise Halt(
+                    "ebook/body.html: a chart slot has rows typed into it as well as a "
+                    "data-article-table index. It is one or the other, and it should be "
+                    "the slot: write <table class=\"chart\" data-article-table=\"N\"></table> "
+                    "EMPTY and the article's own cells are lifted into it.\n"
+                    "    A number in this studio is a READING, not a value — nothing "
+                    "re-types data the source already holds.")
+            return m.group(0)              # a literal hand-authored table; leave it
+        seen += 1
+        want = int(_SLOT_INDEX.search(attrs).group(1)) if _SLOT_INDEX.search(attrs) else seen
+        if want != seen:
+            raise Halt(
+                f"ebook/body.html: chart slot {seen} declares data-article-table="
+                f"\"{want}\". Slots fill the article's tables IN ORDER, so this one is "
+                f"table {seen}. Renumber it, or move the slot — the order on the page "
+                f"has to be the order in the article.")
+        if want > len(tables):
+            raise Halt(
+                f"ebook/body.html: chart slot declares data-article-table=\"{want}\" and "
+                f"the source article contains {len(tables)} markdown table(s). A slot "
+                f"names a table the article prints; there is nothing to lift here.")
+        rows = _md_table_rows(tables[want - 1])
+        htm = _chart_html(rows)
+        # THE CONTROL, RUN EVERY TIME AND NOT ONLY IN A TEST. What the gate will read
+        # off this table must be what it reads off the article — if the two ever
+        # disagree, the lift is wrong and this is the moment to say so, not three
+        # checks later where it would read as the writer's mistake.
+        got = [t for t in (text_of(c.group(2)) for c in
+                           re.finditer(r"<t[dh](\s[^>]*)?>(.*?)</t[dh]>", htm, re.S)) if t]
+        expect = _table_cells(re.sub(r"\s+", " ", tables[want - 1]))
+        if got != expect:
+            raise Halt(
+                f"CHART LIFT FAILED on article table {want} — the table this built is "
+                f"not the table the article prints:\n      "
+                f"{_first_cell_difference(expect, got)}\n"
+                f"    This is a fault in author_ebook.py's own expansion, not in the "
+                f"body. Nothing was written.")
+        filled.append(f"article table {want} lifted into the body: {len(rows)} rows, "
+                      f"{len(expect)} cells, verbatim from the capture")
+        return htm
+
+    return CHART_TABLE.sub(one, body), filled
 
 
 # A paragraph OPENS WITH A HEADING when its first thing is a bold run. Both shapes the
@@ -713,13 +875,16 @@ def _why_not(paragraph: str, headings, near_misses) -> str:
         # could see was `omit_paragraphs` — which is exactly how EP26 came to declare a
         # chart dropped. There is a legal way to keep it; the halt has to name it.
         return ("\n    " + "\n    ".join(near_misses) if near_misses else "") + (
-            "\n    THIS IS A CHART, AND A CHART IS KEPT. Reproduce it as "
-            '<table class="chart"> — one <tr> per row of the article\'s table, one <td> '
-            "per cell, in its own order — and every cell will be checked against the "
-            "article. If one of this episode's motion CARDS already renders the grid, "
-            "place that figure instead and it will be recognised. Do not do both, and "
-            "never declare a chart omitted: the prose refers to it, and a book without "
-            "it prints sentences about a table the reader cannot see.")
+            "\n    THIS IS A CHART, AND A CHART IS KEPT. Declare an EMPTY SLOT where "
+            "the article prints it —\n"
+            '      <table class="chart" data-article-table="1"></table>\n'
+            "    — and the article's own cells are lifted into it. DO NOT TYPE THE "
+            "CELLS: data is lifted from the source, never re-typed, and a slot with "
+            "rows in it is refused. If one of this episode's motion CARDS already "
+            "renders the grid, place that figure instead and it will be recognised. "
+            "Do not do both, and never declare a chart omitted: the prose refers to "
+            "it, and a book without it prints sentences about a table the reader "
+            "cannot see.")
     return ""
 
 
@@ -1048,10 +1213,11 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                 f"kept, never a paragraph that is quoted away — the article's prose points "
                 f"at these charts by name, and a book that drops them prints sentences "
                 f"about a table the reader cannot see.\n"
-                f'    Reproduce it as <table class="chart"> — one <tr> per row, one <td> '
-                f"per cell, in the article's own order — and the gate will check it cell "
-                f"for cell. If a motion CARD already renders this grid, place that figure "
-                f"instead; do not do both.")
+                f"    Declare an EMPTY SLOT where the article prints it — "
+                f'<table class="chart" data-article-table="1"></table> — and the '
+                f"article's own cells are lifted into it. DO NOT TYPE THE CELLS. If a "
+                f"motion CARD already renders this grid, place that figure instead; do "
+                f"not do both.")
         # WHITESPACE IS COLLAPSED ON BOTH SIDES, and it has to be. article_paragraphs()
         # collapses a paragraph's own line breaks (a newline in markup is not a
         # difference in the prose — the same reasoning as text_of), so a quote copied
@@ -1284,7 +1450,14 @@ def main():
             f"it.")
     body = open(body_path, encoding="utf-8").read().strip()
 
-    article = article_paragraphs(source_article_path(ep, ep_dir))
+    blocks = article_blocks(source_article_path(ep, ep_dir))
+    article = [re.sub(r"\s+", " ", b) for b in blocks]
+
+    # THE CHART SLOTS ARE FILLED BEFORE ANYTHING LOOKS AT THE BODY, so every check
+    # downstream sees the page as it will print. `body.html` on disk is untouched —
+    # it keeps the slot, the way it keeps <img src="figure-3.png"> rather than a
+    # picture. See the note by CHART_TABLE for why the model never types a cell.
+    body, lifted = expand_chart_slots(body, blocks)
 
     # DECLARED SOURCE FIGURES: each must EXIST, and must be NAMED IN THE CAPTURE FILE.
     # The second check is the provenance one — it ties the image to the studio's own
@@ -1315,7 +1488,8 @@ def main():
     # THE SHAPE BEFORE THE WORDS. EP25 passed every word-level check ever written while
     # printing a numbered list as one paragraph, so the shape is asked FIRST — and its
     # message is the useful one when both are wrong.
-    report = [r for r in (check_list_shape(article, items, ols),) if r]
+    report = [f"chart lift: {line}" for line in lifted]
+    report += [r for r in (check_list_shape(article, items, ols),) if r]
     report += [check_fidelity(prose, quoted, ep, article, headings, figures, tables),
                check_figures(figures, ep)]
     report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
@@ -1340,7 +1514,9 @@ def main():
             f"{len(prose)}/{len(article)} paragraphs verbatim; "
             f"declared departures: {', '.join(deps) if deps else 'none'}; "
             f"declared omissions: {len(ebook.get('omit_paragraphs') or [])}. "
-            f"The check is in author_ebook.py and it HARD-FAILS; it is not advisory. -->")
+            + (f"{len(lifted)} chart(s) LIFTED from the capture into a slot the body "
+               f"declared — no cell was re-typed. " if lifted else "")
+            + f"The check is in author_ebook.py and it HARD-FAILS; it is not advisory. -->")
     page = tpl.replace(SLOT_BODY, head + "\n" + mark_headings(body))
 
     os.makedirs(a.out_dir, exist_ok=True)

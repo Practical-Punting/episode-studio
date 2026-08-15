@@ -23,6 +23,7 @@ reference implementation must pass unmodified.
 """
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -556,6 +557,116 @@ CARD_CHART = [{"id": "C1", "content": {
 case("a chart printed BOTH as a table and as its card's figure is refused",
      "on the page TWICE",
      article=ART_C, body=BODY_C, ebook_block=H1_ONLY, ep_over={"cards": CARD_CHART})
+
+# ══ THE CHART SLOT — THE MODEL NEVER TYPES A NUMBER (Jodie, 15 Aug 2026) ═════════
+#
+# 🔴 THE STUDIO'S RULE: data is LIFTED from the source, never re-typed by the model.
+# A number is a reading, not a value. EP26's chart is 201 cells; transcribing it is
+# asking for a wrong number at some rate above zero, and the cell-for-cell gate would
+# then bounce the whole body — correct, and ~8 minutes and ~$3 a bounce. The gate is a
+# NET, and a net you plan to land in is a bad plan.
+#
+# The body declares an EMPTY slot and the code fills it from the article. These cases
+# are the controls on that lift: it must be exact, it must refuse a slot that names a
+# table the article has not got, and it must refuse the transcription sneaking back in.
+SLOT = '<table class="chart" data-article-table="1"></table>'
+BODY_S = GOOD_BODY.replace("<p>How many times", SLOT + "\n<p>How many times")
+
+out = ok("a chart SLOT is filled from the article, and the gate then passes it",
+         article=ART_C, body=BODY_S, ebook_block=H1_ONLY)
+if out and "201" not in out and "12 cells" not in out and "cells, verbatim" not in out:
+    FAIL.append(("the lift is REPORTED, so a build can be audited",
+                 f"the report does not say what was lifted: {out!r}"))
+else:
+    PASS.append(("the lift is REPORTED, so a build can be audited",
+                 "the report names the rows and cells it lifted"))
+
+# THE CONTROL THAT MATTERS MOST: what the slot produces must be, cell for cell, what
+# the writer would have had to type — asked directly rather than inferred from a pass.
+_rows = ae._md_table_rows(CHART)
+_html = ae._chart_html(_rows)
+_got = [t for t in (ae.text_of(m.group(2)) for m in
+                    re.finditer(r"<t[dh](\s[^>]*)?>(.*?)</t[dh]>", _html, re.S)) if t]
+_want = ae._table_cells(re.sub(r"\s+", " ", CHART))
+if _got == _want:
+    PASS.append(("the lifted cells ARE the article's cells",
+                 f"{len(_want)} cells, identical"))
+else:
+    FAIL.append(("the lifted cells ARE the article's cells",
+                 ae._first_cell_difference(_want, _got)))
+
+# THE STRUCTURE IS DERIVED, AND THE CLOSING-BALANCE ROW IS THE CASE THAT CAUGHT IT.
+# EP26's "|  | 5200 |  |  |" is a row with ONE value, exactly like "CHART A" — and the
+# first draft printed it as a chart title in PP orange, a fourth chart called 5200. The
+# rule is FIRST COLUMN, and this is the case that says so.
+_bal = ae._chart_html(ae._md_table_rows(
+    "| CHART A |  |  |\n|---|---|---|\n| Mon | Bank | Bet |\n| Jan | 1000 | 50 |\n"
+    "|  | 5200 |  |"))
+if '<th colspan="3">CHART A</th>' in _bal and "<td></td><td>5200</td><td></td>" in _bal:
+    PASS.append(("a closing-balance row stays a DATA row, not a chart heading",
+                 "one value in the Bank column is a <td>, not a <th colspan>"))
+else:
+    FAIL.append(("a closing-balance row stays a DATA row, not a chart heading",
+                 f"got: {_bal}"))
+
+case("a slot naming a table the article has NOT got is refused",
+     "there is nothing to lift here",
+     article=ARTICLE,
+     body=GOOD_BODY.replace("<p>How many times", SLOT + "\n<p>How many times"),
+     ebook_block=H1_ONLY)
+
+case("a slot numbered out of order is refused",
+     "fill the article's tables IN ORDER",
+     article=ART_C,
+     body=GOOD_BODY.replace(
+         "<p>How many times",
+         '<table class="chart" data-article-table="2"></table>\n<p>How many times'),
+     ebook_block=H1_ONLY)
+
+# THE TRANSCRIPTION SNEAKING BACK IN. A slot with rows typed into it is the very thing
+# the slot exists to remove, and it is ambiguous besides — which of the two is the data?
+case("a slot with rows TYPED into it is refused",
+     "a READING, not a value",
+     article=ART_C,
+     body=GOOD_BODY.replace(
+         "<p>How many times",
+         CHART_HTML.replace('<table class="chart">',
+                            '<table class="chart" data-article-table="1">')
+         + "<p>How many times"),
+     ebook_block=H1_ONLY)
+
+# AND A HAND-AUTHORED LITERAL TABLE STILL WORKS. EP11 and EP12 have no slots and never
+# will; a body that carries a real table is checked, not expanded.
+ok("a literal chart table with no slot index is left alone and still checked",
+   article=ART_C, body=BODY_C, ebook_block=H1_ONLY)
+
+# ── THE EP26 CHART ITSELF, END TO END (Jodie asked for this one by name) ──────────
+# The fixture above is four rows because the count is what the code reads. THIS one is
+# the real article's real chart — three sections, a colspan heading each, a
+# closing-balance row each, 201 cells — driven through the slot and out the far side.
+EP26_SRC = r"G:\My Drive\PP Videos\docs\EP26-source-article-it-s-a-serious-business.md"
+if os.path.exists(EP26_SRC):
+    _blocks = ae.article_blocks(EP26_SRC)
+    _tables = [b for b in _blocks if ae.MD_TABLE.match(re.sub(r"\s+", " ", b))]
+    _out, _lift = ae.expand_chart_slots(f"<p>x</p>\n{SLOT}\n", _blocks)
+    _cells = [t for t in (ae.text_of(m.group(2)) for m in
+                          re.finditer(r"<t[dh](\s[^>]*)?>(.*?)</t[dh]>", _out, re.S))
+              if t]
+    _expect = ae._table_cells(re.sub(r"\s+", " ", _tables[0]))
+    checks = [
+        ("EP26: the article has exactly one markdown table", len(_tables) == 1),
+        ("EP26: 201 cells lifted, and they are the article's own", _cells == _expect),
+        ("EP26: all three chart headings survive as colspan rows",
+         all(f'<th colspan="5">CHART {c}</th>' in _out for c in "ABC")),
+        ("EP26: the three closing-balance rows stay DATA rows",
+         all(f"<td></td><td>{v}</td>" in _out for v in ("5200", "2210", "1332"))),
+        ("EP26: nothing was re-typed — the lift is reported", bool(_lift)),
+    ]
+    for name, good in checks:
+        (PASS if good else FAIL).append(
+            (name, "as expected" if good else f"FAILED — {len(_cells)} cells lifted"))
+else:
+    PASS.append(("EP26 chart end-to-end", "SKIPPED — the media root is not on this machine"))
 
 # THE QUOTING BUG UNDERNEATH THE HALT, fixed in its own right: article_paragraphs()
 # collapses a block's line breaks, so an omission quoted out of the capture WITH its
