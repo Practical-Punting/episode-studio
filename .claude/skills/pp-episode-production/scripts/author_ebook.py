@@ -42,7 +42,11 @@ Every ARTICLE-PROSE paragraph in the body (a plain `<p>` with no class) must be
 character-for-character equal to a paragraph of the source article, after the
 DECLARED departures are applied to the article. In order. Each article paragraph
 used at most once. Any article paragraph the body does not reproduce must be
-declared in `ebook.omit_paragraphs[]`, quoted.
+declared in `ebook.omit_paragraphs[]`, quoted — EXCEPT a paragraph the body
+reproduces in another element, which is RECOGNISED and verified rather than
+declared away: a heading whose words are identical, a figure of the card that
+renders the article's table, or a `<table class="chart">` checked cell for cell.
+A CHART MAY NEVER BE DECLARED OMITTED (Jodie, 15 Aug 2026 — see TABLE_CLASSES).
 
 That single rule catches, without any of them being special-cased:
   * silent normalisation   — "firstup" -> "first-up" is not equal, so it halts
@@ -201,7 +205,36 @@ P_CLASSES = {None: "article prose", "lead": "editorial", "byline": "editorial",
 IMG_CLASSES = {"illus", "illus portrait"}
 DIV_CLASSES = {None, "kicker", "pagebreak", "avoid", "divider"}
 TAGS_OK = {"p", "h1", "h2", "h3", "div", "span", "img", "br", "b", "strong",
-           "i", "em", "blockquote", "a", "ol", "li"}
+           "i", "em", "blockquote", "a", "ol", "li",
+           # ── A CHART IS KEPT, NOT DROPPED (Jodie, 15 Aug 2026 — EP26) ──────────
+           # See the long note by TABLE_CLASSES. These tags exist ONLY to reproduce
+           # a table the article itself prints, and every cell is checked against it.
+           "table", "tbody", "thead", "tr", "th", "td"}
+
+# ══ THE CHART THE BOOK MUST KEEP (EP26, 15 Aug 2026) ═════════════════════════
+# "Betting — It's a serious business" prints three staking charts as ONE 45-row
+# <table>, and its prose points at them by name eleven times ("Chart B shows the
+# results", "see Chart C"). The e-book writer had nowhere to put them:
+#   · the class vocabulary said, in terms, "a table in the article is carried by
+#     its FIGURE, not by markup — there is no <table> here";
+#   · and no motion card carries 225 cells, nor should one — the SPOKEN script
+#     correctly refers to the charts rather than reading them out.
+# So the only door left open was `omit_paragraphs`, and the writer took it. The
+# gate refused, rightly, and the halt was the system working; but a rule that
+# leaves no legal way to do the right thing has already chosen the wrong one.
+#
+# 🔴 JODIE'S RULING: the charts MUST APPEAR IN THE E-BOOK. A chart is a FIGURE
+# that is kept — never a paragraph that is quoted away. So the vocabulary gains
+# ONE element, on the tightest possible terms:
+#   · a <table class="chart"> is legal ONLY if its cells are, in order and
+#     character for character, the cells of a table THE ARTICLE PRINTS;
+#   · a card figure that renders the same table is still preferred and still
+#     recognised (EP19) — and doing BOTH is refused, because that prints the same
+#     numbers twice, which is the exact fault EP19 was pulled up for;
+#   · a chart may never appear in `omit_paragraphs`, whatever it is quoted as.
+# This is not a loophole in the fidelity gate. It is a stricter check than the
+# card path: every cell must match, not merely every number and word.
+TABLE_CLASSES = {"chart"}
 
 # ══ A NUMBERED LIST IS A STRUCTURE, NOT A PARAGRAPH ══════════════════════════
 # (EP25, 14 Aug 2026 — "50 Great Staking Ideas".)
@@ -520,6 +553,32 @@ def parse_body(body: str, source_figures: dict | None = None):
         if t:
             quoted.append(t)
 
+    # THE CHART TABLES, as cell lists, in order. Collected the same way headings are,
+    # and for the same reason: so check_fidelity can RECOGNISE that the article's table
+    # is on the page and then VERIFY it, rather than being told it is absent.
+    tables = []
+    for m in re.finditer(r"<table(\s[^>]*)?>(.*?)</table>", body, re.S):
+        cls = re.search(r'class="([^"]*)"', m.group(1) or "")
+        key = cls.group(1).strip() if cls else None
+        if key not in TABLE_CLASSES:
+            raise Halt(
+                f'ebook/{BODY_FILE}: every table must be <table class="chart">, which is '
+                f"the ONE element allowed to reproduce a table the article prints, and it "
+                f"is checked cell for cell against it. Found: {m.group(0)[:120]}")
+        inner = m.group(2)
+        for bad in ("<p", "<li", "<img", "<h1", "<h2", "<blockquote"):
+            if bad in inner.lower():
+                raise Halt(
+                    f'ebook/{BODY_FILE}: a <table class="chart"> contains {bad!r}. A chart '
+                    f"table carries the article's CELLS and nothing else — article prose "
+                    f"lives in a bare <p> where the fidelity walk can see it, and a "
+                    f"paragraph hidden inside a table cell would never be compared to "
+                    f"anything.")
+        tables.append([t for t in (text_of(c.group(2))
+                                   for c in re.finditer(r"<t[dh](\s[^>]*)?>(.*?)</t[dh]>",
+                                                        inner, re.S))
+                       if t])
+
     # EACH LIST ITEM AND THE FIGURES INSIDE IT. This is what lets the gate say that
     # figure 3 sits with tip 23 rather than in a pile at the end of the book.
     items = [(text_of(m.group(1)),
@@ -527,7 +586,7 @@ def parse_body(body: str, source_figures: dict | None = None):
              for m in re.finditer(r"<li(?:\s[^>]*)?>(.*?)</li>", body, re.S)]
     items = [(t, f) for t, f in items if t]
     ols = [m.group(1) or "" for m in re.finditer(r"<ol(\s[^>]*)?>", body)]
-    return prose, quoted, figures, headings, items, ols
+    return prose, quoted, figures, headings, items, ols, tables
 
 
 # ------------------------------------------------------------------ the gate
@@ -648,12 +707,70 @@ def _why_not(paragraph: str, headings, near_misses) -> str:
         return ("\n    This is a HEADING in the article and the body has no heading "
                 "carrying these words. Set it as <h2 class=\"rule\">, and it will be "
                 "recognised and checked word for word.")
-    if MD_TABLE.match(paragraph.strip()) and near_misses:
-        return "\n    " + "\n    ".join(near_misses)
+    if MD_TABLE.match(paragraph.strip()):
+        # THE CHART CASE ALWAYS SAYS WHAT TO DO. Before this, a table with no card and
+        # no near miss produced no explanation at all, and the only move the writer
+        # could see was `omit_paragraphs` — which is exactly how EP26 came to declare a
+        # chart dropped. There is a legal way to keep it; the halt has to name it.
+        return ("\n    " + "\n    ".join(near_misses) if near_misses else "") + (
+            "\n    THIS IS A CHART, AND A CHART IS KEPT. Reproduce it as "
+            '<table class="chart"> — one <tr> per row of the article\'s table, one <td> '
+            "per cell, in its own order — and every cell will be checked against the "
+            "article. If one of this episode's motion CARDS already renders the grid, "
+            "place that figure instead and it will be recognised. Do not do both, and "
+            "never declare a chart omitted: the prose refers to it, and a book without "
+            "it prints sentences about a table the reader cannot see.")
     return ""
 
 
-def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
+def _card_missing(card: dict, paragraph: str, cells: list[str]) -> tuple[list, list]:
+    """What a card LACKS of the article table it claims to render: (numbers, cells).
+
+    Empty and empty means the card carries the table. ONE function, because two places
+    now ask this question — the recognition loop, and the double-print check that has
+    to know whether a card carries a table the body ALSO typed out. Two copies of a
+    comparison is two comparisons that drift.
+
+    WHAT "THE CARD CARRIES THIS TABLE" HAS TO MEAN, and the naive version does not
+    work: a cell reads "Win 9 pts" while the card holds place:"Win" and
+    points:["9 pts"] separately, so the cell text never appears contiguously. Comparing
+    the whole cell would reject a card that renders the table perfectly. So: EVERY
+    NUMBER THE TABLE STATES must be in the card, and every word of every cell must be
+    too. The numbers are the claim — a card missing one is not a reproduction of this
+    table, whatever it looks like.
+
+    ⚠️ BOTH SIDES SQUASHED BY THE SAME FUNCTION. The first version stripped all
+    punctuation from the word but only whitespace from the card, so "2nd-last" became
+    "2ndlast" and was hunted for inside "2nd-laststart" — never found, and the table was
+    reported unreproduced by a card that reproduces it exactly. Asymmetric normalisation
+    is a comparison between two different things.
+    """
+    blob = json.dumps(card.get("content") or {}, ensure_ascii=False).lower()
+    flat = _squash(blob)
+    want_nums = sorted(re.findall(r"\d+(?:\.\d+)?", paragraph))
+    have_nums = re.findall(r"\d+(?:\.\d+)?", blob)
+    lost_n = [x for x in want_nums if x not in have_nums]
+    lost_w = [c for c in cells
+              if any(_squash(w) and _squash(w) not in flat for w in c.split())]
+    return lost_n, lost_w
+
+
+def _first_cell_difference(want: list[str], got: list[str]) -> str:
+    """Point at the first cell that differs, the way first_difference points at a word.
+
+    "the table does not match" sends the writer back to re-type 225 cells. "cell 47:
+    the body says '1182' where the article says '1187'" is the finding.
+    """
+    for i in range(max(len(want), len(got))):
+        a = want[i] if i < len(want) else "<end of table>"
+        b = got[i] if i < len(got) else "<end of table>"
+        if a != b:
+            return (f"cell {i + 1}: the article says {a!r} where the body says {b!r}"
+                    f"  ({len(want)} cells in the article, {len(got)} in the body)")
+    return "the tables differ only in whitespace"
+
+
+def _satisfied_elsewhere(art, ep, headings, figures, tables=None) -> tuple[dict, list]:
     """Which article paragraphs the body reproduces somewhere other than a bare <p>.
 
     Returns ({index: why}, [complaints]). A complaint is a NEAR miss — the body has a
@@ -662,6 +779,7 @@ def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
     """
     got, notes = {}, []
     pool = list(headings)
+    tpool = [list(t) for t in (tables or [])]      # consumed as headings are consumed
     for i, p in enumerate(art):
         # THE BOLD MARKERS ARE THE ARTICLE'S OWN MARKUP, not part of the words — an
         # article that writes "**THE 10K SYSTEM**" and a body that sets "THE 10K SYSTEM"
@@ -680,35 +798,46 @@ def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
             continue                       # a heading in the article, absent from the body
         if MD_TABLE.match(p.strip()):
             cells = _table_cells(p)
-            # WHAT "THE CARD CARRIES THIS TABLE" HAS TO MEAN, and the naive version does
-            # not work: a cell reads "Win 9 pts" while the card holds place:"Win" and
-            # points:["9 pts"] separately, so the cell text never appears contiguously.
-            # Comparing the whole cell would reject a card that renders the table
-            # perfectly. So: EVERY NUMBER THE TABLE STATES must be in the card, and every
-            # word of every cell must be too. The numbers are the claim — a card missing
-            # one is not a reproduction of this table, whatever it looks like.
-            want_nums = sorted(re.findall(r"\d+(?:\.\d+)?", p))
+            # ── FIRST: IS THE CHART ON THE PAGE AS A CHART? ──────────────────────
+            # Cell for cell, in order, folding nothing but whitespace — a stricter
+            # comparison than the card path below, because here the body claims to BE
+            # the table rather than to picture it. Matched by content, not position,
+            # and consumed, so two identical charts need two tables in the body.
+            as_table = next((k for k, t in enumerate(tpool) if t == cells), None)
+            if as_table is not None:
+                tpool.pop(as_table)
+                # 🔴 BOTH IS A DOUBLE PRINT, AND THAT IS THE EP19 FAULT VERBATIM: the
+                # body typed the grid AND placed the card figure of the same grid, and
+                # the same nine numbers appeared twice on the page. Recognising the
+                # table must not quietly make that legal.
+                def _also_a_card(n, _p=p, _cells=cells):
+                    c = _card_for_figure(ep, n)
+                    return bool(c) and not any(_card_missing(c, _p, _cells))
+                twice = next((n for n in figures if _also_a_card(n)), None)
+                if twice is not None:
+                    raise Halt(
+                        f"E-BOOK CHART: the article's table is on the page TWICE — once "
+                        f'as a <table class="chart"> and again as figure {twice}, the '
+                        f"render of card {_card_for_figure(ep, twice).get('id')}, which "
+                        f"carries the same values.\n"
+                        f"    Print it ONE way. The card figure is the better one where "
+                        f"a card genuinely renders the grid, because the book then cannot "
+                        f"drift from the video; the chart table is for a data chart no "
+                        f"card carries. EP19 did both and the same nine numbers appeared "
+                        f"twice on the page.")
+                got[i] = (f"reproduced as a chart table — all {len(cells)} cells, in "
+                          f"order, character for character")
+                continue
+            # SECOND: does a CARD carry it? (EP19 — the grid the video already draws.)
             for n in figures:
                 card = _card_for_figure(ep, n)
                 if not card:
                     continue
-                blob = json.dumps(card.get("content") or {}, ensure_ascii=False).lower()
-                # ⚠️ BOTH SIDES SQUASHED BY THE SAME FUNCTION. The first version stripped
-                # all punctuation from the word but only whitespace from the card, so
-                # "2nd-last" became "2ndlast" and was hunted for inside "2nd-laststart"
-                # — never found, and the table was reported unreproduced by a card that
-                # reproduces it exactly. Asymmetric normalisation is a comparison
-                # between two different things.
-                flat = _squash(blob)
-                lost_n = [x for x in want_nums if x not in re.findall(
-                    r"\d+(?:\.\d+)?", blob)]
-                lost_w = [c for c in cells
-                          if any(_squash(w) and _squash(w) not in flat
-                                 for w in c.split())]
+                lost_n, lost_w = _card_missing(card, p, cells)
                 if not lost_n and not lost_w:
                     got[i] = (f"carried by figure {n} — the render of card "
-                              f"{card.get('id')}, which holds all {len(want_nums)} of "
-                              f"its numbers and every word of its {len(cells)} cells")
+                              f"{card.get('id')}, which holds every number it states "
+                              f"and every word of its {len(cells)} cells")
                     break
                 notes.append(
                     f"figure {n} (card {card.get('id')}) is the nearest thing to the "
@@ -716,7 +845,20 @@ def _satisfied_elsewhere(art, ep, headings, figures) -> tuple[dict, list]:
                     + (f"the number(s) {lost_n[:4]}" if lost_n
                        else f"the cell(s) {lost_w[:3]}")
                     + " — so it is not a reproduction of it")
-    return got, notes
+            # THIRD: say what the body's OWN tables got wrong, if it has any. Without
+            # this, a chart typed with one digit out reports as "the body skips this
+            # paragraph" about a chart sitting on the page — true, useless, and the
+            # writer's next move is to declare it omitted.
+            if i not in got:
+                for t in tpool:
+                    notes.append(
+                        'a <table class="chart"> in the body is close to the article\'s '
+                        "table but is not it — " + _first_cell_difference(cells, t))
+    # WHAT IS LEFT OVER IS THE OTHER HALF OF THE BARGAIN. A body table that reproduces
+    # NO article table has never been compared to anything — it would be the one place
+    # in the book where words appear unchecked, which is precisely what the vocabulary
+    # was closed to prevent. The caller refuses it.
+    return got, notes, tpool
 
 
 def check_list_shape(art: list[str], items, ols):
@@ -848,7 +990,8 @@ def check_figure_placement(ep, art: list[str], items, figures):
             + ")")
 
 
-def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None):
+def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None,
+                   tables=None):
     """HARD-FAIL unless the body reproduces the article, departures aside.
 
     Returns a plain-English report of what it verified, so a passing build says
@@ -893,7 +1036,30 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                    "heading rather than as body prose.")
     omitted = set()
     for quote in omits:
-        hits = [i for i, p in enumerate(article) if p.startswith(quote.strip())]
+        # 🔴 A CHART IS NEVER "LEFT OUT" (Jodie, 15 Aug 2026). Asked BEFORE the match,
+        # because EP26's entry matched nothing — and "it matches 0 paragraphs" sends the
+        # writer off to re-quote a table it must not be quoting at all. The ruling is
+        # about the CHART, not about the quoting of it, so the message has to be too.
+        if MD_TABLE.match(re.sub(r"\s+", " ", quote.strip())):
+            raise Halt(
+                f"ebook.omit_paragraphs declares a CHART: {quote[:60]!r}…\n"
+                f"    A CHART IS KEPT. A chart the article prints goes IN THE BOOK — it "
+                f"is a figure that is "
+                f"kept, never a paragraph that is quoted away — the article's prose points "
+                f"at these charts by name, and a book that drops them prints sentences "
+                f"about a table the reader cannot see.\n"
+                f'    Reproduce it as <table class="chart"> — one <tr> per row, one <td> '
+                f"per cell, in the article's own order — and the gate will check it cell "
+                f"for cell. If a motion CARD already renders this grid, place that figure "
+                f"instead; do not do both.")
+        # WHITESPACE IS COLLAPSED ON BOTH SIDES, and it has to be. article_paragraphs()
+        # collapses a paragraph's own line breaks (a newline in markup is not a
+        # difference in the prose — the same reasoning as text_of), so a quote copied
+        # out of the capture file with its line breaks intact could NEVER match a
+        # multi-line block. That is not a strictness, it is a comparison between two
+        # different things: EP26's table quote was character-perfect and matched 0.
+        q = re.sub(r"\s+", " ", quote.strip())
+        hits = [i for i, p in enumerate(article) if p.startswith(q)]
         if len(hits) != 1:
             raise Halt(f"ebook.omit_paragraphs entry {quote[:60]!r} matches the start of "
                        f"{len(hits)} article paragraphs (needs exactly 1). Quote the "
@@ -904,7 +1070,30 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
     # …and what the body reproduces somewhere OTHER than a bare <p>: a heading with
     # identical words, or a figure of the card that renders the article's table. These
     # are RECOGNISED and verified, never declared away — see the note by BOLD_ONLY.
-    elsewhere, near_misses = _satisfied_elsewhere(art, ep, headings or [], figures or [])
+    elsewhere, near_misses, spare = _satisfied_elsewhere(
+        art, ep, headings or [], figures or [], tables or [])
+    if spare:
+        # WHICH FAULT IT IS DEPENDS ON WHETHER THERE WAS A TABLE TO REPRODUCE. A chart
+        # typed with one digit out and a chart invented from nothing are different
+        # mistakes with different fixes, and "reproduces no table in the source article"
+        # about a 225-cell grid that is 224 cells right would send the writer to retype
+        # the lot instead of to cell 47.
+        if near_misses:
+            raise Halt(
+                'E-BOOK CHART: the body\'s <table class="chart"> is not the article\'s '
+                "table.\n      " + "\n      ".join(near_misses[:3])
+                + "\n    A chart is checked cell for cell, in order, folding nothing but "
+                  "whitespace — it is the article's own grid or it is not. Fix the cell; "
+                  "do not declare the chart omitted.")
+        raise Halt(
+            f'E-BOOK CHART: the body carries {len(spare)} <table class="chart"> that '
+            f"reproduces no table in the source article. Its first cells are "
+            f"{spare[0][:6]}.\n"
+            f"    A chart table is allowed for ONE reason — to keep a chart the article "
+            f"prints — and it is checked cell for cell against it. A table the article "
+            f"does not print is invented structure with invented numbers in it, and it "
+            f"would be the only place in the book where words appear unchecked.\n"
+            f"    §0a's mirror: never add what the article does not say.")
     # AN ENTRY THAT IS NOW REDUNDANT IS A BUG, NOT A TIDY. If a paragraph is both
     # declared omitted AND visibly reproduced, one of the two is wrong, and the
     # dangerous one is the declaration: it stops the checker looking at words that ARE
@@ -1122,12 +1311,12 @@ def main():
             print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
                   f"named in {os.path.basename(cap_path)}", file=sys.stderr)
 
-    prose, quoted, figures, headings, items, ols = parse_body(body, src_figs)
+    prose, quoted, figures, headings, items, ols, tables = parse_body(body, src_figs)
     # THE SHAPE BEFORE THE WORDS. EP25 passed every word-level check ever written while
     # printing a numbered list as one paragraph, so the shape is asked FIRST — and its
     # message is the useful one when both are wrong.
     report = [r for r in (check_list_shape(article, items, ols),) if r]
-    report += [check_fidelity(prose, quoted, ep, article, headings, figures),
+    report += [check_fidelity(prose, quoted, ep, article, headings, figures, tables),
                check_figures(figures, ep)]
     report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
 

@@ -33,7 +33,10 @@
           one author_ebook.py enforces:
           .kicker / h1.section / h2.rule / .lead / blockquote / .pullquote /
           .byline / .note / .divider / img.illus (+ .portrait) /
-          div.pagebreak / div.avoid / ol > li
+          div.pagebreak / div.avoid / ol > li / table.chart
+          — and where the ARTICLE prints a CHART, the body reproduces it as one
+          <table class="chart">, cell for cell (EP26). A chart is never dropped;
+          author_ebook.py refuses one declared in ebook.omit_paragraphs.
           — and where the ARTICLE prints a numbered list, the body reproduces it
           as one <ol> with one <li> per numbered item, each figure sitting inside
           the <li> it illustrates. author_ebook.py counts both and refuses a body
@@ -151,6 +154,27 @@ ol { margin: 14px 0 14px 0; padding-left: 26px; }
 ol li { margin: 0 0 11px 0; padding-left: 4px; orphans: 2; widows: 2; }
 ol li::marker { color:#DA532C; font-weight:800; }
 ol li .illus { margin: 12px auto 4px auto; max-width: 88%; max-height: 70mm; }
+/* A CHART THE ARTICLE PRINTS. (EP26, 15 Aug 2026 — "It's a serious business" prints
+   three staking charts as one 45-row table and its prose points at them by name.)
+   The video refers to the charts rather than reading them out, and that is right; the
+   BOOK has to show them, so `table.chart` is the one element allowed to reproduce a
+   table the article prints, and author_ebook.py checks it cell for cell.
+   A long chart MUST be allowed to break across pages — `page-break-inside: avoid` on a
+   45-row table pushes the whole thing to a fresh page and then overflows it anyway —
+   so the table breaks freely and only a ROW is kept whole. Figures are right-aligned
+   because every column but the first is money. */
+table.chart { width:100%; border-collapse:collapse; margin:16px 0; font-size:10.5pt;
+              page-break-inside:auto; }
+table.chart tr { page-break-inside: avoid; }
+table.chart th, table.chart td { border:1px solid #ddd; padding:3px 8px; text-align:right; }
+table.chart td:first-child, table.chart th:first-child { text-align:left; }
+table.chart th { background:#f4f4f4; color:#1e1e1e; font-weight:800;
+                 font-family:'Helvetica Neue',sans-serif; font-size:10pt; }
+/* A row whose cells are all empty but one is a section head inside the chart — the
+   "CHART A" colspan row the source prints. It gets the accent so the three charts read
+   as three charts, which is how the page prints them. */
+table.chart th[colspan] { background:#DA532C; color:#fff; text-align:left;
+                          letter-spacing:0.5px; text-transform:uppercase; }
 .pagebreak { page-break-before: always; }
 .avoid { page-break-inside: avoid; }
 .note { font-size:10pt; color:#666; font-style:italic; }

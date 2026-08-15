@@ -457,6 +457,127 @@ case("a table whose figure's card gets a number wrong still halts",
      "does not carry",
      article=ART_T, body=GOOD_BODY, ebook_block=H1_ONLY, ep_over={"cards": CARD_BAD})
 
+# ══ A CHART NO CARD CARRIES (EP26, 15 Aug 2026) ══════════════════════════════════
+#
+# "Betting — It's a serious business" prints THREE staking charts as one 45-row table,
+# and its prose points at them by name ("Chart B shows the results", "see Chart C").
+# The video refers to the charts rather than reading them out — right, and kept. The
+# BOOK dropped them: no card carries 225 cells, the vocabulary said a table is carried
+# by its figure and there is no <table>, so the only door left was omit_paragraphs and
+# the writer took it. The gate refused, and the refusal was correct.
+#
+# 🔴 JODIE'S RULING: THE CHART GOES IN THE BOOK. So the vocabulary gains
+# `table.chart`, checked cell for cell — and every case below exists to stop that
+# becoming a way to put ANY table on the page, or a way to drop one.
+#
+# The fixture is a chart with a card that does NOT carry it, because that is EP26: a
+# chart whose figures illustrate the article's argument, not its grid.
+CHART = ("| CHART A |  |  |  |\n|---|---|---|---|\n| Mon | Bank | Bet | 10pc |\n"
+         "| Jan | 1000 | 50 | 150.00 |\n| Feb | 1150 | 55 | 165.00 |")
+ART_C = ARTICLE.replace("How many times has it won firstup?",
+                        f"{CHART}\n\nHow many times has it won firstup?")
+CHART_HTML = """<table class="chart">
+<tr><th colspan="4">CHART A</th></tr>
+<tr><th>Mon</th><th>Bank</th><th>Bet</th><th>10pc</th></tr>
+<tr><td>Jan</td><td>1000</td><td>50</td><td>150.00</td></tr>
+<tr><td>Feb</td><td>1150</td><td>55</td><td>165.00</td></tr>
+</table>
+"""
+BODY_C = GOOD_BODY.replace("<p>How many times", CHART_HTML + "<p>How many times")
+
+out = ok("a chart no card carries is KEPT as a chart table, and needs no declaration",
+         article=ART_C, body=BODY_C, ebook_block=H1_ONLY)
+if out and "reproduced as a chart table" not in out:
+    FAIL.append(("the recognised chart is REPORTED, so a build can be audited",
+                 f"the report does not say what it verified: {out!r}"))
+else:
+    PASS.append(("the recognised chart is REPORTED, so a build can be audited",
+                 "the report names the cells it checked"))
+
+# THE CONTROL FOR THAT PASS, and the reason a chart table is not a loophole: ONE digit
+# out and it is not the article's table. 1150 -> 1450 is the class of defect nobody
+# proof-reads out of a 225-cell grid.
+case("a chart table with ONE cell wrong still halts, naming the cell",
+     "the article says '1150' where the body says '1450'",
+     article=ART_C, body=BODY_C.replace("<td>1150</td>", "<td>1450</td>"),
+     ebook_block=H1_ONLY)
+
+# …and it must say WHICH cell, not merely that the chart is wrong. A grid this size
+# is unproofreadable without the pointer.
+case("a chart table missing a whole row still halts, naming the cell",
+     "the article says",
+     article=ART_C,
+     body=BODY_C.replace("<tr><td>Feb</td><td>1150</td><td>55</td><td>165.00</td></tr>\n", ""),
+     ebook_block=H1_ONLY)
+
+# THE RULING ITSELF, AS A GUARD. This is EP26's actual episode.json entry, and it is
+# refused for what it IS rather than for how it was quoted.
+case("declaring a CHART in omit_paragraphs is refused outright",
+     "a chart is kept",
+     article=ART_C, body=GOOD_BODY,
+     ebook_block={"departures": ["spaced-hyphen-em-dash"],
+                  "omit_paragraphs": ["TEST: FIRST-UPPERS AND THE VALUE FACTOR", CHART]})
+
+# …and with the chart neither on the page nor declared, the halt must NAME THE WAY TO
+# KEEP IT. EP26's writer reached for omit_paragraphs because nothing said there was
+# anything else to reach for.
+case("a dropped chart halts, and the message names the legal way to keep it",
+     "a chart is kept",
+     article=ART_C, body=GOOD_BODY, ebook_block=H1_ONLY)
+
+# A TABLE IS NOT A DOOR INTO THE BODY. Cells that are not the article's cells are
+# refused exactly as invented prose is.
+case("a table the article does NOT print is refused",
+     "reproduces no table in the source article",
+     article=ARTICLE,
+     body=GOOD_BODY.replace("<p>How many times",
+                            '<table class="chart"><tr><td>Invented</td>'
+                            "<td>99</td></tr></table>\n<p>How many times"),
+     ebook_block=H1_ONLY)
+
+case("a table without class=\"chart\" is refused",
+     'class="chart"',
+     article=ART_C, body=BODY_C.replace('<table class="chart">', "<table>"),
+     ebook_block=H1_ONLY)
+
+case("article prose hidden inside a chart table is refused",
+     "carries the article's CELLS and nothing else",
+     article=ART_C,
+     body=BODY_C.replace("<tr><td>Jan</td>", "<tr><td><p>Jan</p></td>"),
+     ebook_block=H1_ONLY)
+
+# EP19'S FAULT, WHICH RECOGNISING THE TABLE MUST NOT MAKE LEGAL: the same numbers
+# printed twice, once as a grid and once as the card that renders the same grid.
+CARD_CHART = [{"id": "C1", "content": {
+    "columns": ["Mon", "Bank", "Bet", "10pc"],
+    "rows": [{"place": "CHART A", "points": ["Jan", "1000", "50", "150.00",
+                                             "Feb", "1150", "55", "165.00"]}]}},
+    {"id": "C2", "content": {}}]
+case("a chart printed BOTH as a table and as its card's figure is refused",
+     "on the page TWICE",
+     article=ART_C, body=BODY_C, ebook_block=H1_ONLY, ep_over={"cards": CARD_CHART})
+
+# THE QUOTING BUG UNDERNEATH THE HALT, fixed in its own right: article_paragraphs()
+# collapses a block's line breaks, so an omission quoted out of the capture WITH its
+# newlines could never match anything — however character-perfect it was. It reported
+# "matches the start of 0 article paragraphs", which reads as "you quoted it wrong" at
+# a quote that is character-perfect. Any multi-line block was unquotable; EP26's chart
+# was simply the first one anybody tried to quote.
+MULTILINE = "A recent instance of this was joie Denise's\nfirst-up win at Randwick"
+out = ok("a genuinely omitted paragraph can be quoted ACROSS LINE BREAKS",
+         body=GOOD_BODY.replace(
+             "<p>A recent instance of this was joie Denise's first-up win at Randwick "
+             "in August. She was DOWN in class.</p>\n", ""),
+         ebook_block={"departures": ["spaced-hyphen-em-dash"],
+                      "omit_paragraphs": ["TEST: FIRST-UPPERS AND THE VALUE FACTOR",
+                                          MULTILINE]})
+if out and "2 declared omission" not in out:
+    FAIL.append(("the multi-line omission is COUNTED, not silently ignored",
+                 f"the report does not show two omissions: {out!r}"))
+else:
+    PASS.append(("the multi-line omission is COUNTED, not silently ignored",
+                 "the report counts both declared omissions"))
+
 # ══ A NUMBERED LIST (EP25, 14 Aug 2026) ══════════════════════════════════════════
 #
 # The article is an `<ol>` of fifty `<li>`; the body reproduced all fifty tips inside
