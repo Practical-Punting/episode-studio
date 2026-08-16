@@ -1,0 +1,51 @@
+<!--@schema
+{
+  "precedent": ["EP27 c15"],
+  "note": "THE CONVERSION LADDER — a big table's SHAPE, not its data. Five to seven ANCHOR rows lifted from the article's own table and drawn as bars whose height is the figure, under a footer stating how many rows there are in all. THE LAW (Jodie, 16 Aug 2026): the video tells the table's STORY - one hero number or trend, never a data dump - and the FULL table lives in the e-book, which reproduces it cell for cell. The cap of 7 IS that law: a card that could hold thirty-four rows would be asked to. Cells are LIFTED from the capture by card_lift.py and asserted against it; the writer picks which rows carry the shape and types no figure. Bar height is computed from the row's own lifted value, so a bar cannot misstate the proportion it draws.",
+  "required": [],
+  "optional": ["footer"],
+  "lists": {"rows": {"min": 3, "max": 7, "fields": ["label", "value"],
+                     "numeric": ["value"], "shows_numeric": true,
+                     "scale": {"field": "value", "span": 235}}},
+  "anim": {"rows": {"base": 1400, "step": 320}},
+  "fit": {
+    "value_size": [".ladder .pc", "font-size"],
+    "label_size": [".ladder .odds", "font-size"],
+    "footer_size": [".lfoot", "font-size"]
+  }
+}
+-->
+<!--@css-->
+/* 🔴 THE COLUMN IS TALLER THAN ITS BAR, and EP27's first render proved it the hard
+   way: a column is [figure] + [bar] + [label], so the TALLEST column is the bar PLUS
+   both labels — 464px against a 430px row — and the overflow went UPWARDS, putting
+   "50.0" into the descenders of the headline. That is the collision class card_check
+   exists to catch, and on a bespoke page it was the one card card_check never saw.
+   Sized so the whole column fits inside the row with room to spare:
+       68 (figure) + 16 + 235 (max bar) + 20 + 52 (label) = 391 < 420. */
+.ladder{margin-top:52px;display:flex;align-items:flex-end;gap:34px;height:420px;}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;}
+.col .pc{font-family:'Anton','Barlow',sans-serif;font-weight:400;font-size:68px;
+  line-height:1.0;color:#DA532C;margin-bottom:16px;}
+.col .bar{width:100%;background:#DA532C;border-radius:8px 8px 0 0;transform-origin:bottom center;}
+.col .odds{margin-top:20px;font-family:'Anton','Barlow',sans-serif;font-weight:400;
+  text-transform:uppercase;font-size:52px;color:#C9C9C9;letter-spacing:0.02em;}
+.lfoot{margin-top:38px;font-size:40px;font-weight:600;font-style:italic;color:#8F8F8F;
+  max-width:1400px;line-height:1.2;}
+<!--@print-->
+body.print .col .bar{background:#B4B4B4}
+body.print .col .pc{color:#C0472A}
+body.print .col .odds{color:#555}
+body.print .lfoot{color:#777}
+<!--@markup-->
+  <div class="ladder">
+<!--@each rows-->
+    <div class="col" id="k{{I}}"><div class="pc">{{ITEM.value}}</div><div class="bar" style="height:{{WIDTH}}px"></div><div class="odds">{{ITEM.label}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="lfoot" id="lfoot">{{footer}}</div>
+<!--@anim-->
+<!--@each rows-->
+ {"sel":"#k{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#lfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":4300,"easing":"ease-out"}}

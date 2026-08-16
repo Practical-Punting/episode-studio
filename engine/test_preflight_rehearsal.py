@@ -232,7 +232,12 @@ def main():
     REH = {"esc", "_first_each", "expand_each", "fill", "fit_css", "apply_rail",
            "render_card", "assert_no_invented_text",
            "assert_measured_items_show_a_figure"}             # reached by the rehearsal
-    CAPTURE = {"source_article_text"}                         # capture_reference_faults
+    # The capture lookup. `source_article_text` is now a one-line reading of
+    # `source_article_raw` (the RAW file, which a lift needs because a markdown
+    # table's rows live in its newlines), so both halt on the same two conditions —
+    # source names no capture, or the file is not on disk — and BOTH are covered at
+    # the commission by capture_reference_faults, which blocks on exactly that.
+    CAPTURE = {"source_article_text", "source_article_raw"}   # capture_reference_faults
     reached = NAMED | LISTY | REH | CAPTURE
     import re as _re
     fn, orphans, sites = None, [], 0
@@ -250,6 +255,33 @@ def main():
           f"or to this set with a reason")
     check("  and there are enough of them for that to mean something", sites >= 30,
           f"only {sites} found — has the file moved?")
+
+    # ── THE SAME PROPERTY FOR THE LIFT (16 Aug 2026) ────────────────────────────
+    # `card_lift.py` reads a card's data out of the capture and halts on every doubt:
+    # a missing anchor, a renamed column, a footer whose count disagrees with the
+    # table. Those halts are worth nothing at cards_render — the whole point of the
+    # lift is that a wrong reading is caught before a credit moves. The audit above
+    # would not have noticed the new module at all, which is the "a sweep that only
+    # looks where the old rules applied" failure: widen the sweep WITH the rule.
+    lift_src = (HERE.parent / ".claude/skills/pp-episode-production/scripts/card_lift.py"
+                ).read_text(encoding="utf-8")
+    LIFT_REACHED = {"apply_lifts",                        # the entry point itself
+                    "_capture_blocks", "tables", "numbered",
+                    "_one_table", "_column", "_lift_table", "_assert_count"}
+    fn, lift_orphans, lift_sites = None, [], 0
+    for line in lift_src.splitlines():
+        m = _re.match(r"def (\w+)", line)
+        if m:
+            fn = m.group(1)
+        if "raise Halt" in line and not line.strip().startswith("#"):
+            lift_sites += 1
+            if fn not in LIFT_REACHED:
+                lift_orphans.append(fn)
+    check(f"all {lift_sites} `raise Halt` sites in card_lift are reachable from apply_lifts",
+          not lift_orphans, f"no route to: {sorted(set(lift_orphans))}")
+    check("  and the pre-flight actually CALLS apply_lifts, so they run at the commission",
+          "ac.apply_lifts(" in (HERE / "preflight_cards.py").read_text(encoding="utf-8"),
+          "a lift graded only at cards_render is a lift graded after the money")
 
     print(f"\npreflight rehearsal: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0

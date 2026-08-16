@@ -118,7 +118,8 @@ def _contiguous(needle: list[str], hay: list[str]) -> bool:
 
 
 # --------------------------------------------------------------- the authoring
-def authoring_faults(epj: dict, article_norm: str | None) -> list[str]:
+def authoring_faults(epj: dict, article_norm: str | None,
+                     capture_text: str | None = None) -> list[str]:
     """Call author_cards' OWN validators. No vocabulary is restated here."""
     if str(SKILL_SCRIPTS) not in sys.path:
         sys.path.insert(0, str(SKILL_SCRIPTS))
@@ -130,6 +131,22 @@ def authoring_faults(epj: dict, article_norm: str | None) -> list[str]:
                 "problem with this episode."]
 
     out: list[str] = []
+    # 🔴 LIFT FIRST, EXACTLY AS `author_cards.main` DOES. A card that reads its data
+    # out of the article arrives here with an EMPTY slot where its rows go, so every
+    # check below would grade a card nobody will ever see — and would report a card
+    # with no rows, which is true and useless.
+    #     THE SAME ACT, EARLIER: this is the rehearsal principle applied to the lift.
+    # A capture whose table has gained a row, a renamed column, an anchor that is no
+    # longer in the chart — every one of those is knowable HERE, at audit_inputs,
+    # before a credit moves, rather than at cards_render twelve hours in. It needs
+    # nothing that does not exist yet: episode.json and the capture, both on disk.
+    # ⚠️ IT MUTATES `epj` IN MEMORY, which is what makes the checks below real. The
+    # file is never rewritten — `_lifted` and the filled rows exist for this process
+    # only, and card_lift refuses a `_lifted` key that arrives from disk.
+    try:
+        ac.apply_lifts(list(epj.get("cards") or []), capture_text)
+    except Exception as e:
+        out.append(_readable("the card data", e))
     # BESPOKE CARDS ARE HAND-AUTHORED BY DESIGN and author_cards.py never
     # generates them. Including them here reported TITLE, END and WARRANTY as
     # "unknown block 'bespoke'" on a perfectly good episode — three false
@@ -500,7 +517,7 @@ def preflight_cards(epj: dict, *, script_text: str = "",
     """Return {'blockers': [...], 'warnings': [...]}. Callers decide to halt."""
     blockers = []
     blockers += capture_reference_faults(epj, capture_text, capture_looked_for)
-    blockers += authoring_faults(epj, article_norm)
+    blockers += authoring_faults(epj, article_norm, capture_text)
     if script_text:
         blockers += cue_faults(epj, script_text)
     blockers += capture_faults(capture_text)

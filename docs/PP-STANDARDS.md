@@ -366,6 +366,29 @@ surfaced, and the run is recorded in the episode's run log.**
 - **Bottom-right PP logo for the ENTIRE video, sitting on a semi-transparent black rounded panel** (reuse the EXACT EP02/03/04 dark-chip treatment — opacity, radius, padding, size, position). Never the bare logo. Bake into the standing logo template. Logo also appears on the warranty slide. Use the WHITE-wordmark logo on dark art.
 
 ## Motion-graphic cards
+- **📊 A BIG TABLE REACHES THE VIDEO AS ITS SHAPE, NEVER AS ITS DATA. (Jodie, 16 Aug 2026 — EP27.)**
+  > **The video tells the table's STORY — one hero number or trend, not a data dump. The
+  > FULL table lives in the e-book. Data is LIFTED from the capture and asserted, never typed.**
+  The `ladder` block is that rule built: **five to seven ANCHOR rows** lifted out of the
+  article's own table and drawn as bars whose height is the figure, under a footer stating
+  how many rows there are in all — *"34 prices in all — the full chart is in the guide"* —
+  and **that count is asserted against the table's own row count**, so a card cannot state a
+  number the article has stopped agreeing with. The **cap of seven IS the law**: a block that
+  could hold thirty-four rows would be asked to.
+  - **The writer picks the anchors; the code reads the cells.** Which rows carry the shape is
+    an editorial judgement and stays with a person. Reading a figure off a page and typing it
+    is the chore, and the only part that can be silently wrong — so `card_lift.py` does it,
+    against the capture, and **halts on any disagreement before a byte is written**.
+  - **This does NOT change the e-book's route.** A ladder shows 7 of 34 rows, so it is not a
+    card that "renders the grid" in the sense of the chart rule under §E-book: the book still
+    takes route **(b)**, the empty `<table class="chart" data-article-table="N">` slot filled
+    cell for cell. **A card carrying the SHAPE and a table carrying the DATA are two
+    artefacts, and the standard wants both.**
+  - **Why it is a rule and not a preference:** EP27's C15 was a 34-row chart and C17 a
+    ten-item checklist; the largest list in the whole vocabulary held six, so both went
+    `block:"bespoke"` — **and a bespoke card is skipped by the schema, the job check, the
+    trace gate and the invented-text gate together.** The class of card that most needed
+    checking was the one class that got none. *Nothing is licensed by being hand-made.*
 - **⏱ CARD ENTRY = SPOKEN CUE + 3.0 SECONDS (Jodie, 27 Jul 2026 — supersedes the old "on or just after the cue").**
   Jodie watched EP11's first build with cards entering 0.4s after the cue and they **still read
   as early**. The standing value is now **a full 3.0 seconds after the cue is spoken**, timed
