@@ -838,6 +838,24 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟠 **E31 — "THE LATEST CUE THAT STILL FITS" READS AS AN INSTRUCTION TO GO LATER, AND
+  IT MEANS THE OPPOSITE.** *(EP29, 16 Aug 2026. Jodie: "worth making that message
+  clearer for Hugh's sake.")*
+  The shot-map halt ends: *"beat 9 is 14.40s and the card needs 13.00s, so the latest cue
+  that still fits starts at 154.91s."* Every word of that is true, and it is a **CEILING**
+  — the cue must land at or BEFORE 154.91. Read quickly it sounds like a floor, and the
+  operator goes hunting for a cue at or after that time, which is exactly the set of cues
+  that CANNOT work. It sent this session's first reading the wrong way, and the person it
+  is written for does not have a shot map to cross-check against.
+  **THE FIX IS WORDING, NOT ARITHMETIC** — the number is right and nothing about the
+  placement logic needs to move. Say the direction and the deficit in the operator's own
+  terms, e.g.: *"C7's cue is spoken at 158.96s and must move EARLIER — to 154.91s or
+  before — because the card needs 13.00s and beat 9 ends at 167.91s. It is 4.05s too
+  late. The only earlier cue in this beat is 'Here's Roy again…' at 153.51s."*
+  ⚠️ **And name the ONE candidate when there is only one.** The tool already knows the
+  beat's spoken units; listing the cues that DO fit turns a decision into a choice, which
+  is what the halt is for. *(Deliberately not done during EP29's build: it is engine code,
+  and changing it would have exited a running engine mid-episode.)*
 - 🟠 **E30 — AN OLD ARTICLE'S "TODAY" IS SPOKEN AS IF IT WERE TODAY, AND ITS "I" IS
   SPOKEN AS IF IT WERE GORDON.** *(Found by sweeping EP29's approved draft, 16 Aug 2026.
   Noted by Jodie as a FUTURE systemic improvement — EP29 itself ships as approved.)*

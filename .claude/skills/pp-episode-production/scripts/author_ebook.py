@@ -771,7 +771,12 @@ def parse_body(body: str, source_figures: dict | None = None):
               [int(n) for n in re.findall(r'src="figure-(\d+)\.png"', m.group(1))])
              for m in re.finditer(r"<li(?:\s[^>]*)?>(.*?)</li>", body, re.S)]
     items = [(t, f) for t, f in items if t]
-    ols = [m.group(1) or "" for m in re.finditer(r"<ol(\s[^>]*)?>", body)]
+    # EACH <ol> WITH THE NUMBER OF <li> INSIDE IT. The flat `items` above says how many
+    # list items the book has; this says how they are DIVIDED, which is the question an
+    # article with more than one list asks (EP29). Non-greedy, so each list closes at
+    # its own </ol>.
+    ols = [(m.group(1) or "", len(re.findall(r"<li(?:\s[^>]*)?>", m.group(2))))
+           for m in re.finditer(r"<ol(\s[^>]*)?>(.*?)</ol>", body, re.S)]
     return prose, quoted, figures, headings, items, ols, tables, tables_at
 
 
@@ -1083,29 +1088,71 @@ def check_list_shape(art: list[str], items, ols):
             f"single <p>, every character correct, and the book printed a 3,900-word "
             f"block where the article prints a numbered list. A reproduction can be "
             f"character-perfect and still not be the article.")
-    if numbered != list(range(numbered[0], numbered[0] + n)):
+
+    # ── AN ARTICLE MAY HAVE MORE THAN ONE LIST (EP29, 16 Aug 2026) ──────────────
+    # This check was built from EP25 — ONE run of fifty tips — and assumed every
+    # article was that shape. EP29 is four staking plans and numbers the rules of
+    # each plan FROM 1: three lists of 2, 2 and 6. The capture reproduced that
+    # faithfully, the body reproduced it faithfully, and this refused them both,
+    # reading 1,2,1,2,1,2,3,4,5,6 as one broken sequence and blaming the source.
+    # There was nothing to fix in the article or the book: the vocabulary could not
+    # say what the page is. (EP26's charts, and EP29's own "one dollar fifty", are
+    # the same shape — the guard right, its words too few.)
+    #
+    # A RESTART AND A SKIP ARE TOLD APART BY DIRECTION, which is the whole trick:
+    #   · the next number GOES BACK (1,2 -> 1) — a new list begins. Real and common.
+    #   · the next number JUMPS FORWARD (1,2 -> 4) — the source skipped one, and
+    #     that is still an editorial judgement about the article of record.
+    runs, run = [], [numbered[0]]
+    for prev, cur in zip(numbered, numbered[1:]):
+        if cur == prev + 1:
+            run.append(cur)
+        elif cur <= prev:
+            runs.append(run)
+            run = [cur]
+        else:
+            raise Halt(
+                f"E-BOOK LIST SHAPE: the article's numbering SKIPS — it goes from "
+                f"{prev} straight to {cur}. A list that restarts is an ordinary second "
+                f"list and is fine; a list that jumps forward means the SOURCE misses "
+                f"one, and that is an editorial judgement about the article of record, "
+                f"not something to renumber quietly.")
+    runs.append(run)
+
+    if len(ols) != len(runs):
+        shape = " + ".join(str(len(r)) for r in runs)
         raise Halt(
-            f"E-BOOK LIST SHAPE: the article's numbering is not contiguous — it runs "
-            f"{numbered[:3]}…{numbered[-3:]}. The capture writes the article's own "
-            f"numbers, so this says the SOURCE skips or repeats one. That is an "
-            f"editorial judgement about the article of record, not something to "
-            f"renumber quietly.")
-    if len(ols) != 1:
-        raise Halt(
-            f"E-BOOK LIST SHAPE: the body has {len(ols)} <ol> element(s) and needs "
-            f"exactly one. An <ol> restarts at 1 unless told otherwise, so splitting "
-            f"{n} items across {len(ols)} lists would print more than one item number "
-            f"{numbered[0]} — with every word still correct. Put a figure INSIDE the "
-            f"<li> it illustrates rather than breaking the list around it.")
-    m = re.search(r'start\s*=\s*"?(\d+)', ols[0] or "")
-    start = int(m.group(1)) if m else 1
-    if start != numbered[0]:
-        raise Halt(
-            f"E-BOOK LIST SHAPE: the article's list starts at {numbered[0]} and the "
-            f'body\'s <ol> starts at {start}. Write <ol start="{numbered[0]}"> so the '
-            f"printed numbers are the article's own.")
-    return (f"list shape: {n} numbered items, one <ol> starting at {numbered[0]} — "
-            f"the article's own numbering")
+            f"E-BOOK LIST SHAPE: the article prints {len(runs)} numbered list(s) of "
+            f"{shape} item(s), and the body has {len(ols)} <ol> element(s).\n"
+            f"    Each of the article's lists starts its own numbering again, so each "
+            f"one needs its own <ol>. Run them together and the book prints "
+            f"{n} items in one sequence where the article prints {len(runs)} lists — "
+            f"every word correct, and not what the page says. Break one apart and the "
+            f"second <ol> restarts at 1, printing an item number 1 the article never "
+            f"started. Put a figure INSIDE the <li> it illustrates rather than breaking "
+            f"a list around it.")
+    for i, (attrs, count) in enumerate(ols):
+        want = runs[i]
+        if count != len(want):
+            raise Halt(
+                f"E-BOOK LIST SHAPE: list {i + 1} in the body holds {count} item(s) and "
+                f"the article's list {i + 1} has {len(want)} (numbered {want[0]} to "
+                f"{want[-1]}). The lists are in the article's order, so list {i + 1} "
+                f"here is that one — the split is in the wrong place.")
+        m = re.search(r'start\s*=\s*"?(\d+)', attrs or "")
+        start = int(m.group(1)) if m else 1
+        if start != want[0]:
+            raise Halt(
+                f"E-BOOK LIST SHAPE: the article's list {i + 1} starts at {want[0]} and "
+                f'the body\'s <ol> starts at {start}. Write <ol start="{want[0]}"> so '
+                f"the printed numbers are the article's own.")
+
+    if len(runs) == 1:
+        return (f"list shape: {n} numbered items, one <ol> starting at {numbered[0]} — "
+                f"the article's own numbering")
+    return (f"list shape: {len(runs)} numbered lists of "
+            f"{' + '.join(str(len(r)) for r in runs)} items, each starting at its own "
+            f"number — the article's own numbering")
 
 
 def check_figure_placement(ep, art: list[str], items, figures):
@@ -1126,7 +1173,30 @@ def check_figure_placement(ep, art: list[str], items, figures):
         return None
     numbered = [(i, split_number(p)) for i, p in enumerate(art)]
     tips = [(num, words) for _i, (num, words) in numbered if num is not None]
-    where = {}                       # figure -> the tip number its card traces into
+    # 🔴 POSITION, NOT PRINTED NUMBER. (EP29, 16 Aug 2026 — the same fault as the list
+    # shape above, one layer on.) A figure's home was matched by the article's own tip
+    # NUMBER while the <li> holding it was identified by its FLAT POSITION in the book
+    # (`first + idx`). Those agree only while the article has ONE list. EP29 has three,
+    # numbered 1,2 / 1,2 / 1..6, so "tip 1" names three different paragraphs and the
+    # check reported figures as misplaced that are sitting exactly where they belong.
+    #     Both sides now speak in POSITIONS — the nth numbered paragraph of the article
+    # against the nth <li> of the book — which is one identity that cannot repeat. The
+    # printed number is kept for the MESSAGE only, because that is what a person reads
+    # in the book, and it is shown with its list when there is more than one.
+    lists = []                       # which list each numbered paragraph belongs to
+    li_no, seen = 0, None
+    for num, _w in tips:
+        if seen is not None and num <= seen:
+            li_no += 1
+        lists.append(li_no)
+        seen = num
+
+    def _say(pos):
+        """How a human would point at this item: 'tip 4', or 'list 2, item 1'."""
+        num = tips[pos][0]
+        return f"tip {num}" if li_no == 0 else f"list {lists[pos] + 1}, item {num}"
+
+    where = {}                       # figure -> the POSITION its card traces into
     for n in sorted(set(figures)):
         card = _card_for_figure(ep, n)
         if not card:
@@ -1136,20 +1206,19 @@ def check_figure_placement(ep, art: list[str], items, figures):
         if not sentences:
             continue
         score = {}
-        for num, words in tips:
+        for pos, (_num, words) in enumerate(tips):
             hit = sum(1 for s in sentences if _squash(s) and _squash(s) in _squash(words))
             if hit:
-                score[num] = max(score.get(num, 0), hit)
+                score[pos] = max(score.get(pos, 0), hit)
         if score:
             where[n] = max(score, key=lambda k: (score[k], -k))
     if not where:
         return None
 
-    first = tips[0][0]
-    holder = {}                      # figure -> the tip number whose <li> holds it
+    holder = {}                      # figure -> the POSITION of the <li> holding it
     for idx, (_text, figs) in enumerate(items):
         for f in figs:
-            holder[f] = first + idx
+            holder[f] = idx
     wrong, missing = [], []
     for n, tip in sorted(where.items()):
         if n not in holder:
@@ -1159,10 +1228,10 @@ def check_figure_placement(ep, art: list[str], items, figures):
     if missing or wrong:
         bits = []
         for n, tip in missing:
-            bits.append(f"figure {n} illustrates tip {tip} and does not sit in it — "
+            bits.append(f"figure {n} illustrates {_say(tip)} and does not sit in it — "
                         f"it is outside the list altogether")
         for n, tip, got in wrong:
-            bits.append(f"figure {n} illustrates tip {tip} but sits in tip {got}")
+            bits.append(f"figure {n} illustrates {_say(tip)} but sits in {_say(got)}")
         raise Halt(
             "E-BOOK FIGURES: a figure belongs beside the tip it illustrates.\n      "
             + "\n      ".join(bits)
@@ -1174,8 +1243,12 @@ def check_figure_placement(ep, art: list[str], items, figures):
               f"betting bank landed thirty-nine tips after the tip about the betting "
               f"bank. Every figure was present and correct; not one of them was next "
               f"to the thing it explains.")
+    # ⚠️ THE REPORT SPEAKS THE READER'S LANGUAGE, NOT THE LOOP'S. `where` holds
+    # POSITIONS now, and printing one raw gave "figure 1->tip 0" in the run log — a tip
+    # number no book has ever had. Same `_say` the halt uses, so the two can never
+    # describe the same item differently.
     return (f"figure placement: {len(where)} figure(s) sit in the tip their card traces "
-            f"to (" + ", ".join(f"figure {n}->tip {t}" for n, t in sorted(where.items()))
+            f"to (" + ", ".join(f"figure {n}->{_say(t)}" for n, t in sorted(where.items()))
             + ")")
 
 
