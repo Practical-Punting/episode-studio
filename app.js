@@ -462,6 +462,19 @@ function stageLine(ep) {
     return "Paused — needs a look" +
       (ss && STEP_LABELS[ss.step] ? " (" + STEP_LABELS[ss.step] + ")" : "");
   }
+  /* 🔴 A FINISHED EPISODE IS NOT DESCRIBED BY THE LAST STEP THAT RAN. (16 Aug 2026,
+   * the third sighting of C2 in one day.) EP28 sat at `ready` with all four
+   * approvals TRUE while the rail advertised "Waiting on you — four approvals", and
+   * this function — falling through to the step still sitting in build_state —
+   * called it "Waiting on the YouTube copy". Both describe a moment that has passed;
+   * one sends the operator hunting for ticks that are already ticked, and the other
+   * describes a step that finished, about an episode waiting on a person.
+   *     `ready` and `published` are STATES, not steps: what is true about them comes
+   * from the status itself, which cannot go stale because it IS the thing. Below this
+   * line lives the step machinery, and none of it applies to an episode that has
+   * stopped stepping. The flag and the dead-engine checks stay ABOVE, because both
+   * outrank a finished status and both are derived too. */
+  if (DONE_STATUSES.indexOf(ep.status) !== -1) return st.label;
   // THE ENGINE'S OWN SENTENCE WINS OVER THE STEP NAME. `label` is set by the engine
   // when it knows something the step name cannot say — "a writer is working, this
   // normally takes 15-25 minutes" beats "Checking the inputs", which is what the card
@@ -2168,7 +2181,17 @@ $("lanes").addEventListener("click", async (e) => {
     patch[field] = true;
     // Closing the fourth gate advances the episode, in the same write.
     const rest = APPROVALS.filter((a) => a.field !== field);
-    if (rest.every((a) => ep[a.field])) patch.status = "ready";
+    if (rest.every((a) => ep[a.field])) {
+      patch.status = "ready";
+      // 🔴 AND THE SENTENCE THAT HAS JUST EXPIRED GOES WITH IT. `progress_step` was
+      // written "Waiting on you — four approvals" when the build parked here, and
+      // THIS is the moment it stops being true — the board is the only thing that
+      // ever sets `ready`, so there is nowhere else it could be cleared. Left
+      // behind, it is what the rail row and the engine's `status` output go on
+      // saying about a finished episode, which is how EP28 read all afternoon.
+      // Derive it where it is shown; clear it where it dies.
+      patch.progress_step = null;
+    }
     if (await writeEpisode(id, patch, id + ":" + field, btn)) {
       toast("toast", patch.status === "ready"
         ? "All four approved — ready to publish."
@@ -2275,7 +2298,11 @@ $("lanes").addEventListener("click", async (e) => {
         "live YouTube descriptions.\n\nPublish without it anyway?")) {
       return;
     }
-    const patch = { status: "published", published_url: url, finished_at: new Date().toISOString() };
+    // `progress_step: null` for the same reason as the fourth approval above: the
+    // stored line is about a stage this episode has now left, and a published
+    // episode carrying "Your turn — publish" is the same lie one step further on.
+    const patch = { status: "published", published_url: url, progress_step: null,
+                    finished_at: new Date().toISOString() };
     if (ebook) patch.ebook_link = ebook;
     else patch.notes = ((ep.notes ? ep.notes + "\n" : "") +
       "ebook_link skipped deliberately at publish, " + new Date().toISOString().slice(0, 10));
