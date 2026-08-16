@@ -1884,6 +1884,28 @@ function harvestDrafts() {
 }
 /* Once a write lands, the saved row is the truth — drop the in-progress copies
  * for that episode so they can't overwrite what was just stored. */
+/* ONE FIELD has been saved. It stops pausing the board, and nothing else does.
+ *
+ * 🔴 THE FREEZE JODIE AND HUGH HIT WHILE PUBLISHING (16 Aug 2026). The rule below
+ * in clearWordDrafts — "a saved field is no longer unsaved, so it must stop pausing
+ * the board… a guard that never lets go is its own fault" — was written for the
+ * words gate and only ever applied there. The publish card never released anything,
+ * so after Save the box stayed marked as being typed in, renderBoard() went on
+ * returning early ("the node she is in is never touched"), and the card could not
+ * redraw. THE WRITES ALL LANDED — EP25, EP26 and EP27 are published with both links
+ * — and the board simply never said so.
+ *
+ * ⚠️ PER FIELD, NEVER PER EPISODE, and that is not fussiness. clearWordDrafts(id)
+ * releases everything on the card, and the publish card exists precisely so the two
+ * links can be banked ONE AT A TIME while the other is still half-typed (C1, 2 Aug:
+ * "it keeps disappearing if I move away to get the youtube link"). Releasing the
+ * whole card on a single save would drop the pause protecting the other box — the
+ * same fault, one field over. */
+function fieldSaved(boxId) {
+  UI.words.delete(boxId);
+  UI.dirty.delete(boxId);
+}
+
 function clearWordDrafts(id) {
   [...UI.words.keys()].forEach((k) => { if (k.endsWith("-" + id)) UI.words.delete(k); });
   // A saved field is no longer unsaved, so it must stop pausing the board.
@@ -1923,6 +1945,13 @@ async function writeEpisode(id, patch, key, btn) {
     return false;
   }
   await loadAll();
+  // 🔴 RE-ENABLE ON SUCCESS TOO, not only on error. The button was normally replaced
+  // by the redraw inside loadAll(), so leaving it disabled looked harmless — until a
+  // redraw legitimately did NOT happen (another field on the card still unsaved), and
+  // then the operator was left holding a permanently greyed button on a write that had
+  // in fact succeeded. "It just sits there hanging, greyed out slightly." A disabled
+  // control is a claim that something is still in flight, and nothing is.
+  if (btn) btn.disabled = false;
   return true;
 }
 
@@ -2220,8 +2249,10 @@ $("lanes").addEventListener("click", async (e) => {
     patch[isEbook ? "ebook_link" : "published_url"] = val;
     if (await writeEpisode(id, patch, id + ":" + act, btn)) {
       // The saved row is now the truth for THIS field, so drop its in-progress copy
-      // — otherwise the draft would keep overwriting what was just stored.
-      UI.words.delete(boxId);
+      // — otherwise the draft would keep overwriting what was just stored — AND stop
+      // it pausing the board, or the card can never redraw to show the save landed.
+      fieldSaved(boxId);
+      renderBoard();               // say so now, not at the next 30s poll
       toast("toast", isEbook ? "E-book link saved." : "YouTube link saved.", true);
     }
     return;
@@ -2248,7 +2279,16 @@ $("lanes").addEventListener("click", async (e) => {
     if (ebook) patch.ebook_link = ebook;
     else patch.notes = ((ep.notes ? ep.notes + "\n" : "") +
       "ebook_link skipped deliberately at publish, " + new Date().toISOString().slice(0, 10));
-    if (await writeEpisode(id, patch, id + ":publish", btn)) toast("toast", "Published — nice one.", true);
+    if (await writeEpisode(id, patch, id + ":publish", btn)) {
+      // Both links are now stored, so neither box is unsaved typing any more. Without
+      // this the card goes on offering "Mark as published" for an episode that IS
+      // published — the stale-surface fault E23c is about, and the shape that had
+      // Hugh clicking a dead button.
+      fieldSaved("pub-url-" + id);
+      fieldSaved("pub-ebook-" + id);
+      renderBoard();
+      toast("toast", "Published — nice one.", true);
+    }
     return;
   }
 
