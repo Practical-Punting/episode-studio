@@ -438,6 +438,103 @@ _cov_railed, _cov_applied = R.apply_frame_rules(
 check("  a cover that DOES show a rail gets the rail line through the cover funnel",
       "unbroken line" in _cov_railed, str(_cov_applied))
 
+# ══ EP27 — A BEND MUST NEVER RECEIVE "DEAD STRAIGHT" (Jodie's law, 16 Aug 2026) ═══
+#
+# 🔴 EP27 HALTED ON `broll-the-field-turning-for-home`, and the halt was correct: nothing
+# was generated and nothing was charged. The CAUSE was fault #2 in its purest form — two
+# descriptions of one thing, drifted apart:
+#
+#     detector: re.compile(r"dead straight|perfectly level", re.I)    ← any case, either
+#     remover:  re.sub(r"\s*dead straight and perfectly level\s*",…)  ← ONE literal, CASE
+#                                                                       SENSITIVE, "and"
+#
+# The prompt said "a single DEAD STRAIGHT, PERFECTLY LEVEL white running rail". The check
+# fired; the fix could not find a phrase that was plainly there; the tool halted a human
+# over words it was looking straight at.
+#
+# THE LAW: real racing tracks curve. A rail is wrong only when it KINKS. On a bend it
+# sweeps in a long, smooth, even curve; on a straight it runs straight; and "dead
+# straight" / "straight and true" / "perfectly level" are never forced onto a bend.
+print("\n-- EP27: the straight-rail claim is found AND removed, in any wording --")
+
+EP27_SHAPE = ("Photoreal cinematic wide side-on shot of a full field of racehorses "
+              "sweeping around a bend and straightening for home. The whole field "
+              "running on ONE side of a single DEAD STRAIGHT, PERFECTLY LEVEL white "
+              "running rail — the rail is the inside boundary of the track, open green "
+              "turf infield beyond it and no horses on the far side. The white running "
+              "rail is one clean unbroken line that follows the track in a single smooth "
+              "even sweeping curve, evenly spaced upright posts and a level top rail. "
+              "Warm golden-hour light, generously exposed.")
+check("EP27's shape is a bend shot carrying a dead-straight claim",
+      bool(R.BEND_WORDS.search(EP27_SHAPE)) and bool(R.STRAIGHT_RAIL.search(EP27_SHAPE)))
+e_fixed, e_applied, e_unfix = R.apply_rules(EP27_SHAPE)
+check("  it is REMOVED, not reported as unlocatable", not e_unfix, str(e_unfix))
+check("  and the claim is gone", not R.STRAIGHT_RAIL.search(e_fixed),
+      [m.group(0) for m in R.STRAIGHT_RAIL.finditer(e_fixed)])
+check("  the sentence still reads — no stranded comma left behind",
+      "single white running rail" in e_fixed and " , " not in e_fixed
+      and ", ," not in e_fixed, e_fixed[:200])
+check("  the message QUOTES what it removed", any("DEAD STRAIGHT" in a for a in e_applied),
+      str(e_applied))
+check("  nothing is left failing", not keys(e_fixed), keys(e_fixed))
+
+# EVERY WORDING THE PHRASE HAS EVER ARRIVED IN, and the ones Jodie's law names. The point
+# is that DETECTION AND REMOVAL CANNOT DISAGREE — they are built from one list now.
+BENDY = ("Wide shot of a field of racehorses rounding the home turn on lush green turf, "
+         "the whole field on ONE side of a single white running rail, open green turf "
+         "infield beyond it, jockeys in silks at different points of stride, "
+         "anatomically correct, horizon level and sky at the top, warm golden-hour light.")
+for _variant in ("dead straight and perfectly level", "DEAD STRAIGHT, PERFECTLY LEVEL",
+                 "Dead Straight and Perfectly Level", "dead-straight", "straight and true",
+                 "perfectly level", "ruler-straight", "perfectly straight"):
+    _p = BENDY.replace("a single white running rail",
+                       f"a single {_variant} white running rail")
+    _f, _a, _u = R.apply_rules(_p)
+    check(f"  {_variant!r} is detected and removed",
+          R.STRAIGHT_RAIL.search(_p) and not R.STRAIGHT_RAIL.search(_f) and not _u,
+          f"unfix={_u}")
+
+# 🔴 THE STRUCTURAL ASSERTION, and it is the one that stops EP27 recurring in a NEW
+# wording: every claim the DETECTOR knows about must also be removable, because they are
+# generated from the same list. Read off `_STRAIGHT_CLAIMS` itself, so a claim added
+# later is covered the day it is added, with nothing to remember here.
+for _pat in R._STRAIGHT_CLAIMS:
+    _sample = _pat.replace("[- ]", " ")
+    _p = BENDY.replace("a single white running rail",
+                       f"a single {_sample} white running rail")
+    _f, _a, _u = R.apply_rules(_p)
+    check(f"  every DETECTED claim is also REMOVABLE: {_sample!r}",
+          bool(R.STRAIGHT_RAIL.search(_p)) and not R.STRAIGHT_RAIL.search(_f) and not _u,
+          f"detectable-but-unremovable is the EP27 halt; unfix={_u}")
+
+print("\n-- a bend must SAY it sweeps; a straight must not be given a curve --")
+# On a bend, "true and even along the track" is not enough: it is right for a straight and
+# says nothing about the shot. The model chooses the line it is not told, and the line it
+# chose is the one that kinked.
+_bend_flat = BENDY + " The rail is one clean unbroken line running true and even along " \
+                     "the track, evenly spaced upright posts and a level top rail."
+check("straight wording does NOT satisfy the rule on a bend",
+      "rail-smooth" in keys(_bend_flat), keys(_bend_flat))
+_bf, _ba, _bu = R.apply_rules(_bend_flat)
+check("  and the CURVE wording is applied",
+      "sweeping curve" in _bf and not _bu, _bf[-180:])
+
+# THE OTHER DIRECTION, which is the control: a straight shot keeps the straight wording
+# and is never handed a curve it does not have.
+STRAIGHTY = ("Wide shot of a field of racehorses galloping down the straight on lush "
+             "green turf, the whole field on ONE side of a single white running rail, "
+             "open green turf infield beyond it, jockeys in silks at different points of "
+             "stride, anatomically correct, horizon level and sky at the top, warm "
+             "golden-hour light.")
+check("a straight shot is not a bend", not R.BEND_WORDS.search(STRAIGHTY))
+_sf, _sa, _su = R.apply_rules(STRAIGHTY)
+check("  it gets the STRAIGHT wording",
+      "running true and even along the track" in _sf and not _su, _sf[-180:])
+check("  and is never given a sweeping curve", "sweeping curve" not in _sf)
+check("  and no dead-straight claim is invented for it",
+      not R.STRAIGHT_RAIL.search(_sf),
+      "the fix removes the phrase; it must never ADD it")
+
 # ══ THE AUTO-INJECT, SWEPT OVER THE REAL EPISODES (0b20c05, verified 14 Aug 2026) ══
 #
 # Every case above is a FIXTURE — a prompt written here to have the gap being tested.
