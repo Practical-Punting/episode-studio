@@ -339,6 +339,24 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     would never see `1600m` at all.
     """
     s = text or ""
+    # 🔴 THE AUTHOR'S OWN DOLLARS-AND-CENTS TYPING, UN-GLUED. (EP29, 16 Aug 2026.)
+    # Philip Roy's 1997 worked example prints `$1.67c` — a dollar sign AND a cents
+    # mark on the one figure, which is how these old pages were set. spoken_form
+    # folds the `$1.67` and leaves the `c` welded to the last word, giving
+    # "one dollars sixty sevenC": a token no human being will ever say. So EVERY
+    # spoken form of that amount was refused — "one dollar sixty seven", the
+    # plural, and the bare "sixty seven" alike.
+    #
+    #     THERE WAS NO LEGAL WAY TO COMPLY. The writer could not say the figure and
+    #     could not delete it either, because deleting a figure the author printed
+    #     is the same offence as inventing one. It spent all three attempts saying
+    #     so, correctly, and stopped rather than damage the script.
+    #
+    # This is the racing layer's business and not spoken_form's, by the ruling at
+    # the top of this module: it is PP's house typography, not how anyone speaks.
+    # The `c` is dropped only where a dollar amount already carries its cents, so
+    # a bare `50c` is untouched and still reads "fifty cents".
+    s = re.sub(r"(\$\s?\d[\d,]*\.\d{2})\s*c\b", r"\1", s)
     s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
                lambda m: ordinal_words(int(m.group(1))), s)
     # A DECADE, before anything else can mistake it for a year. See `_decade`.
@@ -450,6 +468,25 @@ def haystacks(capture_text: str) -> list[list[str]]:
                 if h != s:
                     out.append(norm_words(h))
                     out.append(norm_words(re.sub(units, " ", h)))
+                # 🔴 A SINGLE DOLLAR IS SAID "ONE DOLLAR". (EP29, 16 Aug 2026.)
+                # The money fold always writes the plural — `$1.50` becomes "one
+                # dollarS fifty" — so the ONLY grammatical way to say it, "one
+                # dollar fifty", matched nothing and was reported as an invented
+                # figure. EP29's writer was told twice to delete an amount its
+                # article prints twice, refused both times, and burned all three
+                # attempts being right.
+                #     THE PROOF IT IS GRAMMAR AND NOT FIGURES is inside that same
+                # draft: it says "three dollars fifty" and that PASSED, while
+                # "one dollar fifty" blocked. The gate was marking English.
+                # Offered as an EXTRA reading beside the unit-less and half ones,
+                # so the plural stays valid wherever it is the right word — this
+                # widens what the SOURCE MAY BE READ AS and never what the script
+                # may say. An amount the article does not print is still refused
+                # in the singular exactly as it always was in the plural.
+                sing = re.sub(r"\bone dollars\b", "one dollar", s)
+                if sing != s:
+                    out.append(norm_words(sing))
+                    out.append(norm_words(re.sub(units, " ", sing)))
     return out
 
 
