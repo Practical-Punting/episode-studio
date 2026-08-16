@@ -302,9 +302,22 @@ def article_blocks(path: str) -> list[str]:
     Same blocks, same order, one split — so the two can never disagree about which
     block is which.
     """
-    raw = open(path, encoding="utf-8").read()
+    return article_blocks_from_text(open(path, encoding="utf-8").read(),
+                                    where=f"the source article {os.path.basename(path)}")
+
+
+def article_blocks_from_text(raw: str, where: str = "the source article") -> list[str]:
+    """article_blocks, for text already in hand.
+
+    ⚠️ THE SPLIT ITSELF LIVES HERE AND NOWHERE ELSE. `card_lift.py` reads the same
+    article to fill a card's cells, and the e-book reads it to reproduce the prose.
+    If those two ever disagreed about where the article BEGINS, a card could lift a
+    figure out of the capture's own header notes about the scan repairs — which is
+    the exact trap the markers were introduced to close (EP16, `ebook_pdf`). Two
+    readers, one definition.
+    """
     if "---- ARTICLE TEXT BEGINS ----" not in raw or "---- ARTICLE TEXT ENDS ----" not in raw:
-        raise Halt(f"the source article {os.path.basename(path)} has no "
+        raise Halt(f"{where} has no "
                    f"'---- ARTICLE TEXT BEGINS ----' / '---- ARTICLE TEXT ENDS ----' "
                    f"markers, so there is no way to tell its prose from its header "
                    f"notes. Add the markers around the article text.")

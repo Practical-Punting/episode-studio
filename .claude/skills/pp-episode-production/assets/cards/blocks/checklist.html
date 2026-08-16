@@ -1,20 +1,39 @@
 <!--@schema
 {
-  "precedent": ["EP11 c02", "EP12 c06"],
+  "precedent": ["EP11 c02", "EP12 c06", "EP27 c17"],
+  "note": "A list of any length the article actually prints. THE CAP WAS SIX AND EP27's ARTICLE PRINTS TEN, so C17 went block:'bespoke' — past the schema, the trace gate and the invented-text gate, to a hand-rendered page nothing measured. A layout limit turned itself into a hole in the gates. It resizes now instead of halting: the `reflow` below picks the type size, the row gap and the column count from HOW MANY items there are, through the same numeric-only fit channel a human uses. Twelve is still a cap, because thirty is a data dump - the same reason the ladder stops at seven. AT SIX ITEMS OR FEWER THE PICTURE DOES NOT MOVE: the first rung restates this block's own base values (52/34/56, one column), MEASURED pixel-for-pixel against the previous version of the block on a six-item card - 1920x1080, zero differing pixels. The FILE is not byte-identical, because those values are now also stated in the fit block, so an already-built page will be re-authored the next time author_cards runs over it: same picture, new bytes.",
   "required": [],
   "optional": [],
-  "lists": {"items": {"min": 2, "max": 6, "fields": null}},
+  "lists": {"items": {"min": 2, "max": 12, "fields": null}},
   "anim": {"items": {"base": 1150, "step": 550}},
+  "reflow": {
+    "list": "items",
+    "steps": [
+      {"upto": 6,  "fit": {"item_size": "52px", "item_gap": "34px", "tick_size": "56px", "columns": "1"}},
+      {"upto": 8,  "fit": {"item_size": "44px", "item_gap": "26px", "tick_size": "48px", "columns": "1"},
+                   "anim": {"base": 1150, "step": 420}},
+      {"upto": 12, "fit": {"item_size": "35px", "item_gap": "20px", "tick_size": "38px", "columns": "2"},
+                   "anim": {"base": 1150, "step": 300}}
+    ]
+  },
   "fit": {
     "list_top": [".qs", "margin-top"],
     "item_gap": [".q", "margin-top"],
-    "item_size": [".q", "font-size"]
+    "item_size": [".q", "font-size"],
+    "tick_size": [".q .t", "font-size"],
+    "columns": [".qs", "column-count"]
   }
 }
 -->
 <!--@css-->
-.qs{margin-top:50px;}
-.q{display:flex;gap:30px;align-items:flex-start;margin-top:34px;font-size:52px;font-weight:600;color:#EDEDED;line-height:1.16;}
+.qs{margin-top:50px;column-count:1;column-gap:70px;}
+/* A ROW MUST NOT BE CUT IN HALF BY A COLUMN BREAK. Multi-column layout will
+   happily split a flex row between the tick and its words, and the reader gets
+   half a question at the bottom of column one and the rest at the top of column
+   two. It is the same class as a clipped word, and card_check cannot see it —
+   both halves are inside the card. */
+.q{display:flex;gap:30px;align-items:flex-start;margin-top:34px;font-size:52px;font-weight:600;color:#EDEDED;line-height:1.16;
+   break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;}
 .q .t{flex:none;color:#DA532C;font-weight:800;font-size:56px;line-height:1;}
 <!--@print-->
 body.print .q{color:#444}

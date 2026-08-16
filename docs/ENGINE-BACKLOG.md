@@ -1107,6 +1107,22 @@ on a public repo is not a trade worth making**).
   3. **A regeneration is only proven by the BALANCE MOVING.** A status field, a fresh
      mtime, a byte count and a "completed" job all said these were new. Only the
      unchanged balance and a byte-compare said otherwise. [[assert-the-artefact]]
+- ✅ **E14 — LANDED 16 Aug 2026, in three parts, on the back of EP27.**
+  **The class is mostly GONE rather than guarded:** a big table is now a `ladder` card
+  and a long list a `checklist` that holds twelve, so the two shapes that kept going
+  bespoke are generated — and therefore schema-checked, trace-gated and
+  invented-text-gated like everything else. What stays bespoke gets (a) **ONE ask at
+  `audit_inputs` naming every page**, so a person is told the whole job before a credit
+  moves rather than one deep halt at a time, and (b) **a words-and-figures gate on the
+  finished page** plus the `ppDuration` check this entry asked for by name.
+  ⚠️ **ONE CORRECTION TO THIS ENTRY, MEASURED:** *"a bespoke page gets the same CHECK
+  with none of the FITTING"* is right about autofit and **wrong about `card_check`** —
+  it is handed the whole `overlay/export` directory and has always measured every page
+  in it. EP27's C15 collision survived because **the page did not exist when the step
+  ran**, so it was hand-authored AND hand-rendered afterwards, outside the checked
+  moment. Proved both ways in `engine/test_bespoke_gates.py`, which feeds card_check a
+  deliberately colliding bespoke page and watches it fail.
+  *Original entry kept below — it is the case that justified all of it.*
 - 🔴 **E14 — A BESPOKE CARD CARRIES A LAYOUT RISK AUTHORED CARDS DO NOT, AND IT IS
   CAUGHT AT THE WRONG END.** *(EP15, 4 Aug 2026.)*
   **The ONE card in EP15 that nothing generates is the ONE that failed the layout
