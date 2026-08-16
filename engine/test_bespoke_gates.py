@@ -51,6 +51,7 @@ sys.path.insert(0, str(SKILL / "scripts"))
 
 import preflight_cards as pc                                          # noqa: E402
 import bespoke_gate as bg                                             # noqa: E402
+import card_lift as cl                                                # noqa: E402
 from providers import pipeline_authors_page                           # noqa: E402
 
 PASS, FAIL = [], []
@@ -209,6 +210,11 @@ standing = page("<div class='x'>the full chart is in the guide</div>")
 check("🔴 the standing footer does NOT flag 'full' on a hand-authored page",
       not any("full" in p for p in bg.page_faults(card15, standing, CAPTURE, FRAME)),
       bg.page_faults(card15, standing, CAPTURE, FRAME))
+check("🔴 and the excused phrase IS the canonical footer, not a copy of it",
+      bg._STANDING_TAIL.lower() in cl.LADDER_FOOTER.lower(),
+      f"bespoke_gate excuses {bg._STANDING_TAIL!r} and card_lift prints "
+      f"{cl.LADDER_FOOTER!r} — reword the house line and a hand-authored page "
+      f"would start flagging a sentence the generated cards are still printing")
 check("  it is the PHRASE that is excused, never the words in it",
       any("full" in p for p in bg.page_faults(
           card15, page("<div class='x'>the full field went round</div>"),

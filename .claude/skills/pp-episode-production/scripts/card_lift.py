@@ -88,6 +88,10 @@ def _ae():
 # "from": "the article" through, and the whole point is that it names a READER.
 SOURCES = ("table", "numbered")
 
+# Every key a lift spec may carry. Closed, and checked — see the halt in apply_lifts.
+KEYS = {"from", "into",                                  # both kinds
+        "table", "key_column", "value_column", "anchors", "as", "footer_into"}
+
 MARK = "_lifted"
 
 
@@ -183,37 +187,86 @@ def _lift_table(card: dict, spec: dict, capture_text: str) -> tuple[list, list[s
     return items, values
 
 
-def _assert_count(card: dict, spec: dict, n_rows: int) -> list[str]:
-    """`count_in` names the key that states HOW MANY there are in all.
+# ══ THE CANONICAL LADDER FOOTER (Jodie, 16 Aug 2026) ═════════════════════════
+#
+#     "<N> <unit> in all — the full chart is in the guide."
+#
+# 🔒 ONE SENTENCE, IN ONE PLACE, ON EVERY LADDER CARD THERE WILL EVER BE. It is
+# the house line that sends a viewer from the card's SHAPE to the book's DATA, so
+# it is furniture in exactly the sense the frame's "Rule N of M" is furniture —
+# and furniture is written once, not re-composed per episode by whoever is writing.
+#
+# NOT ONE CHARACTER OF IT IS TYPED BY A WRITER:
+#   · N        — the table's own data-row count, counted here.
+#   · <unit>   — a CONTROLLED word chosen by the table's own key-column heading
+#                (see UNITS). Not free text: an unknown heading halts and names
+#                the known set, so widening it is a reviewed one-line change
+#                rather than something a card can decide for itself.
+#   · the rest — a literal in this file.
+# So the whole footer is trusted by construction, and `assert_no_invented_text`
+# has nothing to flag: every word of it arrives through content the same way a
+# lifted cell does. (`bespoke_gate.STANDING_LINES` excuses the same sentence on a
+# HAND-AUTHORED page, where there is no lift to vouch for it.)
+LADDER_FOOTER = "{n} {unit} in all — the full chart is in the guide."
 
-    The number is the table's own row count, asserted — never believed. EP27's
-    footer reads "34 prices in all"; if the article's table gains a row, the card
-    stops the build instead of stating a number that is no longer true.
+# The key column's heading -> the word for one of its rows, plural. A CLOSED SET,
+# like the block names, the four jobs and `ebook.departures`: the point is that a
+# card cannot invent the noun it counts. Add to it deliberately, in a commit.
+UNITS = {
+    "price": "prices", "prices": "prices",
+    "odds": "prices",                       # an odds column IS a column of prices
+    "row": "rows", "rows": "rows",
+    "track": "tracks", "tracks": "tracks",
+    "course": "courses", "courses": "courses",
+    "horse": "horses", "horses": "horses",
+    "runner": "runners", "runners": "runners",
+    "race": "races", "races": "races",
+    "start": "starts", "starts": "starts",
+    "year": "years", "years": "years",
+    "day": "days", "days": "days",
+    "stake": "stakes", "stakes": "stakes",
+    "bet": "bets", "bets": "bets",
+}
+
+
+def _unit_for(heading: str, cid: str) -> str:
+    """The controlled noun for one row, taken from the table's own heading."""
+    h = re.sub(r"[^a-z ]", " ", str(heading or "").lower()).strip()
+    for word in [h] + h.split():
+        if word in UNITS:
+            return UNITS[word]
+    raise Halt(
+        f"card {cid}: the footer says how many rows the full chart has, and the word for "
+        f"one of them is taken from the table's own key column — which is headed "
+        f"{heading!r}, and that is not a word this knows. Known: "
+        f"{', '.join(sorted(set(UNITS.values())))}.\n"
+        f"    It is a CLOSED SET on purpose: the alternative is a writer typing the noun, "
+        f"and the whole point of this footer is that no part of it is typed. Add the "
+        f"heading to card_lift.UNITS in a commit, where somebody reviews it.")
+
+
+def _canonical_footer(card: dict, spec: dict, n_rows: int, heading: str) -> list[str]:
+    """Write the house footer into the card. Refuses a typed one.
+
+    The number is the table's own row count, COUNTED — never believed. If the
+    article's table gains a row the sentence changes with it, so a card cannot go
+    on stating a figure the source has stopped agreeing with.
     """
     cid = card.get("id", "<no id>")
-    key = spec.get("count_in")
+    key = spec.get("footer_into")
     if not key:
         return []
-    content = card.get("content") or {}
-    if key not in content:
-        raise Halt(f"card {cid}: lift.count_in names {key!r} and content has no such key.")
-    text = content.get(key)
-    if not isinstance(text, str) or not text.strip():
-        raise Halt(f"card {cid}: lift.count_in names {key!r}, which must be a line of text "
-                   f"stating how many rows the full table has.")
-    found = _digits(text)
-    if len(found) != 1:
+    content = card.setdefault("content", {})
+    if content.get(key):
         raise Halt(
-            f"card {cid}: {key} = {text!r} carries {len(found)} figure(s) and must carry "
-            f"exactly one — the number of rows in the full table. It is the only figure on "
-            f"this card that is not lifted from a cell, so it is the only one that could be "
-            f"wrong without anything noticing.")
-    if found[0] != str(n_rows):
-        raise Halt(
-            f"card {cid}: {key} says {found[0]!r} and the article's table has {n_rows} data "
-            f"row(s). The card would tell a viewer there are {found[0]} when there are "
-            f"{n_rows}. Write {n_rows}; the count is asserted against the table itself, so "
-            f"it cannot drift when the article does.")
+            f"card {cid}: {key!r} has a line TYPED into it, and this card's footer is the "
+            f"house sentence — {LADDER_FOOTER.format(n='N', unit='<unit>')!r} — written "
+            f"from the table itself. Leave it out of episode.json entirely. It is one or "
+            f"the other, and it should be the standard: the count is the table's real row "
+            f"count and the noun comes from its own column heading, so nothing in it can "
+            f"be out of date or invented.\n"
+            f"    It currently says: {str(content.get(key))[:120]!r}")
+    content[key] = LADDER_FOOTER.format(n=n_rows, unit=_unit_for(heading, cid))
     return [key]
 
 
@@ -247,6 +300,23 @@ def apply_lifts(cards: list, capture_text: str | None) -> list:
             raise Halt(f"card {cid}: `lift` must be an object describing where the data is "
                        f"read from, e.g. "
                        f'{{"from": "table", "table": 1, "key_column": …}}')
+        # 🔴 AN UNKNOWN KEY IN A LIFT SPEC HALTS. (16 Aug 2026, found by running the
+        # real EP27 file through a renamed field.) `count_in` was replaced by
+        # `footer_into` when the footer became the house sentence — and a card still
+        # carrying the old key sailed straight through, silently unasserted, because
+        # nothing reads a key that no longer exists. That is EP18's fault exactly:
+        # *a field the machine cannot read turns a check OFF*, and the report comes
+        # back clean having checked nothing. A closed vocabulary is the only version
+        # of this that cannot happen.
+        unknown = sorted(set(spec) - KEYS)
+        if unknown:
+            raise Halt(
+                f"card {cid}: lift has key(s) {unknown} that this does not read. Known: "
+                f"{', '.join(sorted(KEYS))}.\n"
+                f"    A key nobody reads is worse than a missing one: the card looks "
+                f"configured and the check it was meant to switch on never runs. If this "
+                f"is `count_in`, it became `footer_into` when the footer became the house "
+                f"sentence — delete the typed footer and the line is written for you.")
         src = spec.get("from")
         if src not in SOURCES:
             raise Halt(f"card {cid}: lift.from = {src!r} is not one of {list(SOURCES)}. "
@@ -271,14 +341,16 @@ def apply_lifts(cards: list, capture_text: str | None) -> list:
 
         if src == "table":
             items, values = _lift_table(c, spec, capture_text)
-            n_rows = len(_one_table(capture_text, spec, cid)) - 1
-            counted = _assert_count(c, spec, n_rows)
+            rows = _one_table(capture_text, spec, cid)
+            counted = _canonical_footer(c, spec, len(rows) - 1,
+                                        spec.get("key_column"))
+            values += [content[k] for k in counted]      # the footer is lifted too
         else:
             items = numbered(capture_text)
             if not items:
                 raise Halt(f"card {cid}: this card lifts the article's NUMBERED items and "
                            f"the capture has none.")
-            values, counted = list(items), _assert_count(c, spec, len(items))
+            values, counted = list(items), []
         content[into] = items
         c[MARK] = {"lists": [into], "keys": list(counted), "values": values}
         done.append(cid)
