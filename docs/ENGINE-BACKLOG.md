@@ -838,6 +838,30 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟠 **E30 — AN OLD ARTICLE'S "TODAY" IS SPOKEN AS IF IT WERE TODAY, AND ITS "I" IS
+  SPOKEN AS IF IT WERE GORDON.** *(Found by sweeping EP29's approved draft, 16 Aug 2026.
+  Noted by Jodie as a FUTURE systemic improvement — EP29 itself ships as approved.)*
+  These articles are twenty and thirty years old, and the writer reproduces their words
+  faithfully — which is right, and is exactly what §0a asks for. Two classes come with
+  it that no gate can see, because **every word is the article's own**:
+  1. **THE ARTICLE'S PRESENT TENSE.** EP29 says *"introduced some **sixty years ago** by
+     the late Rufe Naylor"* — the 1997 article means **1937**, and a listener in 2026
+     hears 1966. Also *"the professionals **of today**"* and *"One pro told me
+     **recently**"*. The episode does open with *"back in May nineteen ninety-seven"*,
+     which carries most of it; the bare figure is the one that drifts.
+  2. **THE AUTHOR'S FIRST PERSON.** The draft frames it well in places — *"Here's Roy
+     again"*, *"He calls it the Super Target Plan"* — and elsewhere slides into Roy's
+     "I" unframed: *"Many readers have contacted me **since I joined the team**"*,
+     *"We have stated many times before **in this magazine**"*, *"the aim of **this
+     article**"*. In Gordon's mouth those say he joined the team and is presenting a
+     magazine.
+  **WHY IT IS A BRIEF PROBLEM AND NOT A GATE PROBLEM.** A fidelity gate compares the
+  script to the article and both classes PASS, correctly — the words are quoted exactly.
+  What is wrong is the FRAME they are spoken in, and that is a decision the writer makes
+  while drafting. So the fix belongs in `pp-episode-script`'s brief — say the year when
+  the article says "today", and keep the author's "I" attributed — not in a checker.
+  ⚠️ **AND IT IS NOT A LICENCE TO PARAPHRASE.** §0a still governs: the words stay the
+  article's. This is about ATTRIBUTION and DATING around them.
 - 🟠 **E29 — THE SUITE WRITES TO THE LIVE RAIL, AND THE LIVE ENGINE EATS ITS TICKETS.**
   *(Found 16 Aug 2026, during the tables/lists batch.)*
   `test_dead_zone.py` creates a real rail row at a working status with a dead lease —
