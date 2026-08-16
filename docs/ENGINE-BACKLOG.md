@@ -838,6 +838,28 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟠 **E29 — THE SUITE WRITES TO THE LIVE RAIL, AND THE LIVE ENGINE EATS ITS TICKETS.**
+  *(Found 16 Aug 2026, during the tables/lists batch.)*
+  `test_dead_zone.py` creates a real rail row at a working status with a dead lease —
+  **which is precisely the shape `reclaim_stale()` hunts for** — so a running engine
+  takes it mid-test. Caught in the act, with the engine's own log as the evidence:
+  ```
+  [03:45:32] reclaimed a stale-leased episode PP-EP9019 at building
+  [03:45:52] !! lost ownership of the episode (lease reclaimed) — stopping work
+  ```
+  `PP-EP9019` is the test's own synthetic ticket. The suite reported
+  `dead zone: 2 passed, 1 failed`; the same test passes on its own, and passed in two
+  earlier runs. **A gate that is green or red depending on what else is running is not
+  a gate** — and the failure mode is the dangerous direction, because the natural
+  reading of a red dead-zone test is "the dead zone is back".
+  **THE WORKAROUND USED TODAY:** `python engine/stop_engine.py "<reason>"` before a full
+  suite, `--release` after. It works and it is not a fix — it relies on whoever runs the
+  suite remembering.
+  **THE FIX, WHEN IT IS ITS TURN:** the rail-writing tests should use an episode-number
+  range the engine's claim and reclaim filters EXCLUDE (a `9xxx` test range is already
+  the convention in the fixtures, so the filter has something to key on), or a separate
+  test table. Then the suite is honest with the engine running, which is how it will
+  actually be run.
 - 🔴 **E23c — THE STALE LABEL BECAME A SAFETY SURFACE.** `progress_step` read
   **"Waiting on you — four approvals"** while the episode was mid-rebuild with 16 of 18
   steps done. **The first two stale labels made Jodie think the machine had frozen. This

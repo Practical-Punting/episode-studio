@@ -162,6 +162,18 @@ if blk:
               f"missing from the page: {[a for a in ANCHORS if PCT[a].lower() not in vis]}")
         check("  and the footer's count is on it",
               f"{len(DATA)} prices in all" in vis, vis[:160])
+        # 🔒 THE FOOTER IS THE STUDIO'S OWN LINE, AND NO ARTICLE CONTAINS IT.
+        # (Jodie, 16 Aug 2026 — EP27's C15.) It points at the e-book, so "full",
+        # "chart" and "guide" appear on the card and need not appear in the source.
+        # A generated ladder card is safe by construction: the footer is a content
+        # value in episode.json, so the invented-text gate allows it like any other.
+        # Pinned HERE because it is the EP28-onwards case — every ladder card ever
+        # built carries this sentence, and a regression would halt all of them.
+        check("🔴 the footer's own words never trip the invented-text gate",
+              "full" in vis and not halts(lambda: ac.assert_no_invented_text(
+                  page, card, ac.load_frame("fullscreen"), blk))[0],
+              "the footer is authored in episode.json, so it is allowed there — "
+              "no article will ever contain a sentence about the e-book")
 
 # ══ 2. THE THINGS THAT MUST HALT ═════════════════════════════════════════════
 print("\n-- a typed cell is REFUSED, exactly as the e-book's chart slot refuses one --")

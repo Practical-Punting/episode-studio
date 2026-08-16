@@ -77,8 +77,38 @@ def needs_a_human(cards, is_pipeline_page) -> list:
             if (c.get("block") or "") == "bespoke" and not is_pipeline_page(c)]
 
 
+# ── THE STUDIO'S STANDING CARD SENTENCES (Jodie, 16 Aug 2026) ────────────────
+# Furniture, not claims about the article — the same standing as the frame's own
+# "Rule N of M". The pointer from a card showing a table's SHAPE to the book that
+# carries the whole thing is a house line: it appears on every ladder card there
+# will ever be, and it is about the E-BOOK, so no article will ever contain it.
+#
+# 🔒 IT EXCUSES THE PHRASE, NOT THE WORDS IN IT. The whole sentence is lifted out
+# of the page before the word check, so "full" is allowed HERE and nowhere else —
+# a hand-authored page that says "the full field went round" still has to answer
+# for it. Excusing the words themselves would open a hole the width of the
+# vocabulary, which is how an allowlist quietly becomes a bypass.
+#
+# ⚠️ AND IT DOES NOT TOUCH THE FIGURE CHECK, on purpose. "34 prices in all" makes
+# a claim about the article — how many rows the chart has — and on a bespoke page
+# NOTHING asserts it. On a generated `ladder` card `card_lift` asserts that count
+# against the table's own row count before a byte is written, which is exactly the
+# difference between the two kinds of page. A bespoke page states the number on
+# its own authority and must therefore declare it in `bespoke_licence`.
+STANDING_LINES = (
+    r"the full chart is in the guide",
+)
+
+
 def _visible(page_html: str) -> str:
     return _ac().visible_text(page_html)
+
+
+def _without_standing_lines(vis: str) -> str:
+    out = vis
+    for pat in STANDING_LINES:
+        out = re.sub(pat, " ", out)
+    return out
 
 
 def _allowed_text(card, capture_text, frame_tpl) -> str:
@@ -143,7 +173,8 @@ def page_faults(card, page_html: str, capture_text: str | None,
     # what has to come from somewhere real; where the sentence happens to break is
     # not a claim about anything. (The figures half is untouched: a digit run has
     # no punctuation in it.)
-    words = [w.strip(".,;:!?()[]\"'“”‘’…-–—") for w in vis.split()]
+    words = [w.strip(".,;:!?()[]\"'“”‘’…-–—")
+             for w in _without_standing_lines(vis).split()]
     stray = sorted({w for w in words
                     if w and not w.replace(".", "").isdigit()
                     and w not in allowed and w not in licensed})
