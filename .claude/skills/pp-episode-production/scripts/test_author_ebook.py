@@ -875,6 +875,100 @@ case("a list the ARTICLE does not print HALTS",
          "<ol><li>How many times has it won firstup? Is it capable of repeating the "
          "performance?</li></ol>"))
 
+# ══ AN ARTICLE MAY HAVE MORE THAN ONE LIST (EP29, 16 Aug 2026) ═══════════════
+#
+# 🔴 THE GUARD WAS BUILT FROM ONE ARTICLE AND ASSUMED EVERY ARTICLE LOOKED LIKE IT.
+# EP25 was a single run of ~50 tips flattened into one paragraph, so the check counts
+# EVERY numbered paragraph in the article as one list and demands exactly one <ol>.
+#
+# EP29's article is four plans, and it numbers the rules of each plan FROM 1 — three
+# separate lists of 2, 2 and 6. The capture reproduced that faithfully and the e-book
+# body reproduced it faithfully, and the gate refused BOTH: it read 1,2,1,2,1,2,3,4,5,6
+# as one broken sequence and said "the SOURCE skips or repeats one". There was nothing
+# to fix in the article or the book — the vocabulary could not say what the page is.
+# Same shape as EP26's charts and EP29's own "one dollar fifty": the guard is right and
+# the words it knows are too few.
+#
+# 🔒 WHAT MUST NOT MOVE: every case above still halts. A list flattened into a
+# paragraph, a list split across two <ol>s WHEN THE ARTICLE HAS ONE, a missing item, a
+# list the article never printed — all of them are still faults and are still caught.
+ART_MULTI = """# TEST ARTICLE
+
+---- ARTICLE TEXT BEGINS ----
+
+TEST: THREE PLANS
+
+**THE FIRST PLAN**
+
+1. Back the top weight in every race.
+
+2. Never bet more than four races a day.
+
+**THE SECOND PLAN**
+
+1. Wait for a beaten favourite.
+
+2. Take the best price on offer.
+
+**THE THIRD PLAN**
+
+1. Set a target for the day.
+
+2. Divide it by three.
+
+3. Stop when you reach it.
+
+---- ARTICLE TEXT ENDS ----
+"""
+M_HEAD = ('<div class="kicker">Practical Punting Guide</div>\n'
+          '<h1 class="section">TEST: THREE PLANS</h1>\n')
+M_RUNS = [["Back the top weight in every race.",
+           "Never bet more than four races a day."],
+          ["Wait for a beaten favourite.", "Take the best price on offer."],
+          ["Set a target for the day.", "Divide it by three.",
+           "Stop when you reach it."]]
+M_HEADS = ["THE FIRST PLAN", "THE SECOND PLAN", "THE THIRD PLAN"]
+
+
+def multi_body(runs=None):
+    runs = runs if runs is not None else M_RUNS
+    out = [M_HEAD]
+    flat = [t for r in M_RUNS for t in r]
+    i = 0
+    for h, run in zip(M_HEADS, runs):
+        out.append(f'<h2 class="rule">{h}</h2>\n<ol>\n')
+        for _ in run:
+            out.append(f"  <li>{flat[i]}</li>\n")
+            i += 1
+        out.append("</ol>\n")
+    return "".join(out)
+
+
+M_EP = {"figures": [], "cards": []}          # this fixture illustrates nothing
+M_BOOK = {"departures": [], "omit_paragraphs": []}
+
+ok("🔴 THREE lists in the article, three <ol> in the book — PASSES",
+   article=ART_MULTI, body=multi_body(), ebook_block=M_BOOK, ep_over=M_EP)
+
+case("all three lists crammed into ONE <ol> HALTS",
+     "3 numbered list", article=ART_MULTI, ebook_block=M_BOOK, ep_over=M_EP,
+     body=(M_HEAD + '<h2 class="rule">THE FIRST PLAN</h2>\n<ol>\n'
+           + "".join(f"  <li>{t}</li>\n" for r in M_RUNS for t in r)
+           + "</ol>\n" + "".join(f'<h2 class="rule">{h}</h2>\n' for h in M_HEADS[1:])))
+
+case("three <ol> SPLIT IN THE WRONG PLACES HALTS",
+     "the split is in the wrong place", article=ART_MULTI,
+     ebook_block=M_BOOK, ep_over=M_EP,
+     body=multi_body(runs=[["a", "b", "c"], ["d"], ["e", "f", "g"]]))
+
+# 🔒 A SKIP IS STILL A SKIP. The whole point of telling a restart from a skip by
+# DIRECTION: going back to 1 is a new list, jumping 2 -> 4 is the source missing one,
+# and that judgement about the article of record is still refused.
+case("article numbering that JUMPS FORWARD still HALTS",
+     "SKIPS", ebook_block=M_BOOK, ep_over=M_EP,
+     article=ART_MULTI.replace("3. Stop when you reach it.", "5. Stop when you reach it."),
+     body=multi_body())
+
 print("\nE-BOOK FIDELITY GATE — every guard must fire\n" + "=" * 76)
 for n, m in PASS:
     print(f"  ✓ {n}\n      {m[:150]}")
