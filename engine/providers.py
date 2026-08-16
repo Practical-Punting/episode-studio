@@ -200,6 +200,106 @@ def stage_card_furniture(export: Path) -> list[str]:
     return added
 
 
+def assert_bespoke_pages_are_sound(ep, provider, ep_dir: Path, export: Path) -> str:
+    """Run the words-and-figures gate over every page a HUMAN wrote. Raises EngineFlag.
+
+    🔴 EP27, 16 Aug 2026. C15's "50.0" reached a rendered frame and only a person's
+    eye caught it. The collision half of that is card_check's job and card_check was
+    always looking (it is given the whole export directory); what NOTHING looked at
+    is whether the words and figures on a hand-authored page came from anywhere real.
+    On a generated card `assert_no_invented_text` makes a made-up figure structurally
+    impossible. On a bespoke page it is one keystroke.
+
+    THE STANDING FURNITURE IS NOT ASKED THIS QUESTION, and it must not be: the
+    warranty slide is verbatim standing text that appears in no article, so grading
+    it against the capture would fail every episode for ever. Which pages those are
+    is derived by pipeline_authors_page, one source of truth with the ask at
+    audit_inputs.
+    """
+    # ⚠️ THE PATH INSERT IS NOT DECORATION — it is fault #4 in this repo's own list.
+    # engine/ is on sys.path when the engine runs; the SKILL's scripts are not, and
+    # every other skill-script import in this file inserts it first. Without it this
+    # function raises ModuleNotFoundError at cards_render, on the real build, while
+    # passing every test — because a test that imports bespoke_gate itself has already
+    # put the folder on the path. That is EP15's NameError exactly: a call site proved
+    # by a suite that set up the very thing the engine does not.
+    # Pinned by test_bespoke_gates' clean-interpreter case, which calls this function
+    # in a subprocess that imports nothing but providers — and which was MEASURED
+    # failing with this line removed, not assumed to cover it.
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+    import bespoke_gate as bg
+    # Callers pass Paths; a string is a perfectly reasonable thing to hand a function
+    # that takes a folder, and `str / str` is a TypeError three lines later rather than
+    # anything a person could read. Coerced once, here.
+    ep_dir, export = Path(ep_dir), Path(export)
+    epj = provider.epjson(ep)
+    mine = bg.needs_a_human(epj.get("cards") or [], pipeline_authors_page)
+    if not mine:
+        return "bespoke pages: none — every card in this episode is generated"
+    cap = None
+    rel = None
+    try:
+        import preflight_cards as _pc
+        rel = _pc.capture_rel(epj)
+        for base in (provider.pp, ep_dir):
+            p = Path(base) / (rel or "")
+            if rel and p.is_file():
+                cap = p.read_text(encoding="utf-8")
+                break
+    except Exception:                                            # noqa: BLE001
+        cap = None
+    frame = ""
+    fp = SKILL_DIR / "assets/cards/frame-fullscreen.html"
+    if fp.is_file():
+        frame = fp.read_text(encoding="utf-8")
+
+    problems, checked = [], []
+    for c in mine:
+        page = export / str(c.get("page") or "")
+        if not page.is_file():
+            problems.append(
+                f"{c.get('id', '?')}: {c.get('page', '?')} is marked block:\"bespoke\" "
+                f"and is not on disk, so there is nothing to render and nothing to "
+                f"check. It should have been asked for at the head of the build.")
+            continue
+        checked.append(c.get("id", "?"))
+        problems += bg.page_faults(c, page.read_text(encoding="utf-8"), cap, frame)
+    if problems:
+        raise EngineFlag(
+            "A hand-authored card page says something that is not in the source "
+            "article. A block:\"bespoke\" page is skipped by every gate that protects "
+            "a generated card, so this is the only check standing between it and the "
+            "screen.\n" + "\n".join(f"  - {p}" for p in problems))
+    return (f"bespoke pages: {len(checked)} hand-authored page(s) checked against the "
+            f"capture ({', '.join(checked)}) — every figure and every word accounted for")
+
+
+def pipeline_authors_page(card) -> bool:
+    """Does some step of the BUILD produce this `block:"bespoke"` page?
+
+    🔴 TITLE, END AND WARRANTY ARE ALL block:"bespoke" ON EVERY EPISODE EVER BUILT.
+    They are standing furniture — two are copied by stage_card_furniture and the
+    title is authored by author_title_card — and a "these pages need a human"
+    guard that listed them would fire on every episode, for ever. That is the
+    guard-somebody-switches-off failure, and it is the reason this function exists
+    rather than a list of ids somewhere.
+
+    THE ANSWER IS DERIVED FROM THE PRODUCERS THEMSELVES: the destination names in
+    STANDING_CARDS, and author_title_card's own rule for what it treats as its
+    page (any *title*.html in the export folder). A page that stops being standing
+    tomorrow stops being excused here on the same day, with nothing to remember.
+    """
+    page = str(card.get("page") or "").strip().lower()
+    if not page:
+        return False
+    if page in {dst.lower() for _src, dst in STANDING_CARDS}:
+        return True
+    # author_title_card.py claims any page with "title" in its name, and writes
+    # <stem>-title.html. Matched the same way it matches, not by card id, because
+    # the id is a convention and the filename is what that script actually reads.
+    return "title" in page and page.endswith(".html")
+
+
 def author_missing_cover(ep_dir: Path) -> str:
     """Author ebook/cover-src/cover.html when it does not exist yet.
 
@@ -2683,6 +2783,13 @@ class RealProvider:
         #     assert_standing_assets() names the standing pages, stage_title_hero()
         #     names the title hero, and this file was on neither.
         print(f"    {assert_page_images(export)}")
+        # 2d. THE GATES A HAND-AUTHORED PAGE NEVER HAD. author_cards skips a
+        #     block:"bespoke" card entirely — no schema, no trace gate, no
+        #     invented-text gate — so for those pages this is the ONLY thing between
+        #     a typed-in number and the screen. It asks the ARTEFACT what a generated
+        #     card is asked of its episode.json, because for a bespoke card the
+        #     episode.json is empty and the page is all there is.
+        print(f"    {assert_bespoke_pages_are_sound(ep, self, d, export)}")
         # 3. HARD GATE before we spend Chromium on clips: a card with a collision
         #    would ship into the video AND the matching e-book figure (design §12).
         try:

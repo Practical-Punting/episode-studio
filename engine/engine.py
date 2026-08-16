@@ -550,8 +550,12 @@ def _preflight_cards(ctx) -> list[str]:
 
     # capture_looked_for=True: this caller DID go to disk for it, so "named but not
     # there" is a real finding here and not merely an argument nobody supplied.
+    # `pages_dir` is how the bespoke ask CLEARS: a page a human has already written
+    # is not an ask any more, so the same check passes on the next run without
+    # anyone editing a gate.
     res = pc.preflight_cards(epj, script_text=script, capture_text=capture,
-                             article_norm=article, capture_looked_for=bool(rel))
+                             article_norm=article, capture_looked_for=bool(rel),
+                             pages_dir=d / "overlay/export")
     lines = framing_lines + pc.format_report(res).splitlines()
     if res["blockers"]:
         raise EngineFlag(

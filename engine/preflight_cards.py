@@ -140,11 +140,18 @@ def authoring_faults(epj: dict, article_norm: str | None,
     # longer in the chart — every one of those is knowable HERE, at audit_inputs,
     # before a credit moves, rather than at cards_render twelve hours in. It needs
     # nothing that does not exist yet: episode.json and the capture, both on disk.
-    # ⚠️ IT MUTATES `epj` IN MEMORY, which is what makes the checks below real. The
-    # file is never rewritten — `_lifted` and the filled rows exist for this process
-    # only, and card_lift refuses a `_lifted` key that arrives from disk.
+    # 🔒 ON A DEEP COPY, AND THAT IS LOAD-BEARING. The lift fills a card's rows and
+    # stamps `_lifted` on it, and `card_lift` HALTS on a `_lifted` key that arrives
+    # from disk — it can only mean somebody hand-wrote provenance a figure does not
+    # have. Meanwhile `engine._preflight_cards` writes episode.json back after the
+    # framing re-derive. Today that write happens BEFORE this runs, so filling the
+    # live object would be harmless; it would stop being harmless the day somebody
+    # reorders two blocks, and the symptom would be an episode that halts on a key
+    # it never contained. Copying costs nothing and removes the whole class.
+    import copy
+    cards_for_checks = copy.deepcopy(list(epj.get("cards") or []))
     try:
-        ac.apply_lifts(list(epj.get("cards") or []), capture_text)
+        ac.apply_lifts(cards_for_checks, capture_text)
     except Exception as e:
         out.append(_readable("the card data", e))
     # BESPOKE CARDS ARE HAND-AUTHORED BY DESIGN and author_cards.py never
@@ -153,7 +160,10 @@ def authoring_faults(epj: dict, article_norm: str | None,
     # positives on the first real run, i.e. a guard that fires on every episode,
     # which is the version somebody switches off. Excluded the way the authoring
     # code excludes them.
-    cards = [c for c in epj.get("cards", [])
+    # …and every check below reads the FILLED copy, never the file's own cards.
+    # A lifted card is an empty slot in episode.json; grading the unfilled version
+    # would report "this card has no rows", which is true and useless.
+    cards = [c for c in cards_for_checks
              if c.get("block") and c.get("block") != "bespoke"]
     for c in cards:
         cid = c.get("id", "?")
@@ -402,6 +412,72 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     return out
 
 
+# ─────────────── the pages a human has to write, ALL OF THEM, AT ONCE (E14) ──
+def bespoke_faults(epj: dict, pages_dir=None, is_pipeline_page=None) -> list[str]:
+    """Every `block:"bespoke"` page nobody is going to author unless a person does.
+
+    🔴 ONE FLAG, LISTING EVERY ONE, AT PLAN TIME. EP27 raised this fault the worst
+    possible way: `cards_render` halted on "Card C15 has no clip", a person wrote
+    C15 — and C17 was sitting behind it, identical, unmentioned. TWO DEEP HALTS,
+    hours apart, when one sentence at the head of the build would have described
+    the whole job.
+
+        A CHECK THAT REPORTS ONE FAULT PER ATTEMPT CANNOT BE USED IN A LOOP.
+        That rule is already written into `_epjson_gate` ("the writer gets every
+        complaint at once") and into assert_measured_items_show_a_figure. This is
+        the same rule, applied to the one class of work that goes to a HUMAN.
+
+    ⚠️ AND IT IS THE CHEAPEST POSSIBLE MOMENT. At audit_inputs nothing has been
+    spent: no b-roll, no covers, no Chromium. The person is being told what the
+    episode needs from them BEFORE the machine spends anything on it, instead of
+    twelve hours in with a paid render already sitting on the disk.
+
+    STANDING FURNITURE IS NOT A JOB FOR A HUMAN — see providers.pipeline_authors_page
+    for why that is derived and not a list of ids.
+
+    ⚠️ IT FIRES ONLY WHEN THE CALLER SAYS IT LOOKED — `pages_dir` is that signal,
+    and it is the SAME rule `capture_reference_faults` already carries two hundred
+    lines down, for the same reason and at the same cost. "You did not give me a
+    folder" is not "the page is missing": EP15 and EP19 each shipped one genuine
+    bespoke card, so a version that halted without looking reported both of those
+    finished episodes as unbuildable in the existing suite, which is how this
+    class of guard gets switched off. The engine always passes the folder.
+    """
+    if pages_dir is None:
+        return []
+    if is_pipeline_page is None:
+        from providers import pipeline_authors_page as is_pipeline_page
+    if str(SKILL_SCRIPTS) not in sys.path:
+        sys.path.insert(0, str(SKILL_SCRIPTS))
+    import bespoke_gate as bg
+
+    want = bg.needs_a_human(epj.get("cards") or [], is_pipeline_page)
+    # A page a person has ALREADY written is not an ask. This is what lets the
+    # flag clear: author the pages, clear it, and the same check passes.
+    missing = [c for c in want
+               if not (pages_dir and (Path(pages_dir) / str(c.get("page") or "")).is_file())]
+    if not missing:
+        return []
+    lines = [f"    · {c.get('id', '?')} — {c.get('page', '?')}"
+             + (f"\n        {str(c.get('detail') or '').strip()[:240]}"
+                if c.get("detail") else "")
+             for c in missing]
+    n = len(missing)
+    return ["THIS EPISODE NEEDS {} HAND-AUTHORED CARD PAGE{} BEFORE IT CAN BE BUILT, "
+            "AND HERE THEY ALL ARE:\n{}\n"
+            "    These cards are marked block:\"bespoke\", which means nothing generates "
+            "them — not now and not at cards_render, where this used to surface one "
+            "page at a time as \"has no clip\".\n"
+            "    Before writing one by hand, ask whether it still has to be: a big TABLE "
+            "is a `ladder` card (five to seven anchor rows lifted from the article, the "
+            "full chart staying in the e-book) and a long LIST is a `checklist`, which "
+            "now holds twelve. Both are generated, and both are checked. A page that "
+            "stays bespoke is checked too, but only for what a machine can see.\n"
+            "    If it must be bespoke: scripts/bespoke/README.md, and the data comes "
+            "out of the capture programmatically."
+            .format(n, "" if n == 1 else "S", "\n".join(lines))]
+
+
 def layout_is_not_here() -> str:
     """Why `autofit_cards` and `card_check` are NOT run at audit_inputs yet.
 
@@ -513,11 +589,13 @@ def capture_reference_faults(epj: dict, capture_text: str | None,
 def preflight_cards(epj: dict, *, script_text: str = "",
                     capture_text: str | None = None,
                     article_norm: str | None = None,
-                    capture_looked_for: bool = False) -> dict:
+                    capture_looked_for: bool = False,
+                    pages_dir=None) -> dict:
     """Return {'blockers': [...], 'warnings': [...]}. Callers decide to halt."""
     blockers = []
     blockers += capture_reference_faults(epj, capture_text, capture_looked_for)
     blockers += authoring_faults(epj, article_norm, capture_text)
+    blockers += bespoke_faults(epj, pages_dir)
     if script_text:
         blockers += cue_faults(epj, script_text)
     blockers += capture_faults(capture_text)
