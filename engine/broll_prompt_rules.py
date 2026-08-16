@@ -136,6 +136,15 @@ RAIL_SMOOTH_NEEDS = [r"unbroken line", r"continuous line",
                      r"level top rail", r"evenly[ -]spaced[^.]{0,20}post",
                      r"true and even"]
 
+# 🔴 ON A BEND, ONLY THE CURVE WORDING WILL DO. (Jodie's law, 16 Aug 2026.)
+# The list above is satisfied by "true and even along the track" — which is right for a
+# straight and says nothing about a shot that bends. A bend shot has to state the SWEEP
+# positively, because that is the whole instruction: the rail follows the track in one
+# long, smooth, even curve. Saying only "unbroken" leaves the model to choose the line,
+# and the line it chooses when it is not told is the one that kinked.
+RAIL_CURVE_NEEDS = [r"smooth[^.]{0,30}(curve|sweep)", r"sweeping curve",
+                    r"curves? with the track", r"follows the track[^.]{0,40}curve"]
+
 
 def rail_smooth_for(text: str) -> str:
     """The smoothness line in the form THIS shot can be — curve wording only on a bend."""
@@ -288,6 +297,9 @@ CONDITIONAL = [
         key="rail-smooth",
         name="the rail as one smooth, true, evenly-posted line",
         needs=RAIL_SMOOTH_NEEDS,
+        # THE SHOT DECIDES WHAT SATISFIES IT — a bend must say it SWEEPS.
+        needs_for=lambda p: (RAIL_CURVE_NEEDS if BEND_WORDS.search(p or "")
+                             else RAIL_SMOOTH_NEEDS),
         when=shows_a_rail,
         why=("EP26's running rail had an unnatural KINK (Jodie, 15 Aug 2026). This "
              "EXTENDS the one-side rule rather than repeating it: a rail can be "
@@ -323,10 +335,77 @@ CROWD_RULE = dict(
          "A model fills a crowd by repeating ONE thing; uniformity is its default."),
 )
 
-# A bend and a dead-straight rail cannot both be true. EP23 asked for both, twice.
+# ══ THE LAW ON THE RAIL'S SHAPE, WRITTEN HERE BECAUSE HERE IS WHERE IT IS ENFORCED ══
+# (Jodie, 16 Aug 2026, on EP27's halt. Embedded, not referenced: a rule that lives in a
+# doc and is enforced in code is two rules, and the doc is the one that goes stale.)
+#
+#   REAL RACING TRACKS CURVE. A rail is WRONG only when it has an abrupt KINK, jag,
+#   zig-zag, wobble or warp.
+#
+#   · On a BEND — "turning for home", "rounding the turn" — the white running rail
+#     follows the track as a single clean continuous line that SWEEPS in a long, smooth,
+#     even curve.
+#   · On a STRAIGHT it runs straight.
+#   · NEVER force "dead straight", "straight and true" or "perfectly level" onto a shot
+#     that bends.
+#
+# A bend and a dead-straight rail cannot both be true. EP23 asked for both, twice; EP27
+# asked for both again in different words, and THAT is the fault below.
 BEND_WORDS = re.compile(r"\b(bend|turn for home|home turn|turning for home|curv\w*|"
                         r"rounding)\b", re.I)
-STRAIGHT_RAIL = re.compile(r"dead straight|perfectly level", re.I)
+
+# 🔴 ONE PATTERN, READ BY BOTH THE DETECTOR AND THE REMOVER. (EP27, 16 Aug 2026.)
+# This is what halted EP27, and it is fault #2 in its purest form — two descriptions of
+# the same thing, drifted apart:
+#
+#     detector: re.compile(r"dead straight|perfectly level", re.I)   ← flexible, any case
+#     remover:  re.sub(r"\s*dead straight and perfectly level\s*",…) ← ONE literal, CASE
+#                                                                      SENSITIVE, joined
+#                                                                      by the word "and"
+#
+# EP27's prompt says "a single DEAD STRAIGHT, PERFECTLY LEVEL white running rail" — upper
+# case, comma-joined. **The detector fired and the remover could not find a thing that was
+# certainly there**, so the tool reported "the phrase could not be located to remove" and
+# halted a human over a phrase it was staring at.
+#
+# The claims are now listed ONCE. `STRAIGHT_RAIL` finds them and `_STRAIGHT_RUN` removes
+# them, and both are built from `_STRAIGHT_CLAIMS`, so a new wording cannot be detectable
+# and unremovable at the same time.
+_STRAIGHT_CLAIMS = (r"dead[- ]straight", r"perfectly level", r"straight and true",
+                    r"dead[- ]level", r"perfectly straight", r"absolutely straight",
+                    r"ruler[- ]straight")
+_CLAIM = "(?:" + "|".join(_STRAIGHT_CLAIMS) + ")"
+STRAIGHT_RAIL = re.compile(r"\b" + _CLAIM + r"\b", re.I)
+
+# A RUN of them — "DEAD STRAIGHT, PERFECTLY LEVEL", "dead straight and perfectly level" —
+# taken out together with the connector between them, because removing them one at a time
+# leaves the "and" or the comma stranded and the sentence reads like a mistake. Trailing
+# comma swallowed too, so "a single DEAD STRAIGHT, PERFECTLY LEVEL white rail" comes back
+# as "a single white rail" and not "a single , white rail".
+_STRAIGHT_RUN = re.compile(
+    r"\s*\b" + _CLAIM + r"\b(?:\s*(?:,|and|&|,\s*and)\s*\b" + _CLAIM + r"\b)*\s*,?\s*",
+    re.I)
+
+
+def strip_straight_claims(text: str) -> tuple[str, list[str]]:
+    """Remove every "dead straight"-family claim. Returns (text, what was removed).
+
+    Best-effort AND VERIFIED: the caller re-checks, so a claim this cannot remove cleanly
+    still reaches a human rather than being generated. What it must never do again is
+    fail to find one it can see.
+    """
+    found = [m.group(0) for m in STRAIGHT_RAIL.finditer(text or "")]
+    if not found:
+        return text, []
+    out = _STRAIGHT_RUN.sub(" ", text)
+    # Tidy what the removal leaves behind, so the prompt reads like a sentence. These
+    # are read by a person as often as by a model when somebody is working out why a
+    # clip came back wrong, and a prompt that reads like a mistake gets treated as one.
+    out = re.sub(r"\s+,", ",", out)
+    out = re.sub(r",\s*,", ",", out)
+    out = re.sub(r"\s+\.", ".", out)
+    out = re.sub(r"\s{2,}", " ", out).strip()
+    return out, found
 
 
 def check_prompt(prompt: str) -> list[dict]:
@@ -347,7 +426,12 @@ def check_prompt(prompt: str) -> list[dict]:
     if not (prompt or "").strip():
         return []                      # nothing to grade; an empty prompt is a different fault
     for r in rules:
-        if not any(re.search(p, prompt, re.I) for p in r["needs"]):
+        # `needs_for` lets a rule ask a DIFFERENT question of a different shot — the rail
+        # on a bend must say it sweeps, where the same rail on a straight need only say
+        # it is unbroken and evenly posted. One rule, one key, one fix; the shot decides
+        # what counts as stating it.
+        pats = r["needs_for"](prompt) if r.get("needs_for") else r["needs"]
+        if not any(re.search(p, prompt, re.I) for p in pats):
             out.append({"key": r["key"], "name": r["name"], "why": r["why"]})
     # THE CONTRADICTION, which is its own fault and not a missing line.
     if BEND_WORDS.search(prompt) and STRAIGHT_RAIL.search(prompt):
@@ -470,15 +554,26 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
 
     # 1. THE CONTRADICTION FIRST, because it is a REWRITE and the rail sentence added
     #    below has to agree with what is left behind.
+    #
+    # 🔴 THE REMOVER IS THE DETECTOR'S OWN PATTERN NOW (EP27, 16 Aug 2026). It used to be
+    # a case-sensitive literal — "dead straight and perfectly level" — while the detector
+    # was case-insensitive and matched either half. EP27 said "DEAD STRAIGHT, PERFECTLY
+    # LEVEL", so the check fired and the fix could not find a phrase that was plainly
+    # there. See the note by _STRAIGHT_CLAIMS.
     if "straight-rail-on-a-bend" in gaps:
-        fixed = re.sub(r"\s*dead straight and perfectly level\s*", " ", text)
-        fixed = re.sub(r"\s{2,}", " ", fixed)
-        if fixed != text:
+        fixed, removed = strip_straight_claims(text)
+        if removed and not STRAIGHT_RAIL.search(fixed):
             text = fixed
-            applied.append('removed "dead straight and perfectly level" — the shot bends')
+            applied.append("removed " + ", ".join(f'"{r}"' for r in removed)
+                           + " — the shot bends, and a bend is not a fault")
         else:
-            unfixable.append('a "dead straight" rail in a shot that bends, and the '
-                             "phrase could not be located to remove")
+            # It is still worth halting when the claim survives the removal, and the
+            # message now QUOTES what it found rather than naming a phrase that may not
+            # be the one in the prompt.
+            unfixable.append(
+                'a "dead straight" rail in a shot that bends — found '
+                + ", ".join(f'"{r}"' for r in (removed or ["it"]))
+                + ", and it could not be removed cleanly")
 
     # 2. The rail sentence, in the form this shot can actually be.
     if gaps & {"rail-side", "rail-beyond"}:

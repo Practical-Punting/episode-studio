@@ -178,9 +178,37 @@ what, it will reach for the subject you have spent the rest of the sentence desc
 (*"curving away on the inside"*) and in `inside-barriers-turn-for-home` (*"sweeps around
 a bend"*) — **a standing line pasted in unconditionally, contradicting the shot around
 it.** Asking a model for a straight rail on a bend is asking for incoherent geometry, and
-incoherent geometry is the soil the both-sides fault grows in. On a bend the line is
-*"the rail curves with the track and the field stays outside it"*; keep *"dead straight
-and perfectly level"* for the straights, where it is true.
+incoherent geometry is the soil the both-sides fault grows in.
+
+> ## 🔴 THE LAW ON THE RAIL'S SHAPE (Jodie, 16 August 2026, after EP27 halted)
+> **REAL RACING TRACKS CURVE.** A rail is WRONG only when it has an abrupt **kink, jag,
+> zig-zag, wobble or warp**.
+> - On a **BEND** — *turning for home*, *rounding the turn* — the white running rail
+>   follows the track as **a single clean continuous line that SWEEPS in a long, smooth,
+>   even curve.**
+> - On a **STRAIGHT** it runs straight.
+> - **NEVER force *"dead straight"*, *"straight and true"* or *"perfectly level"* onto a
+>   shot that bends.**
+>
+> **The law is enforced in `engine/broll_prompt_rules.py`, and it is written out in full
+> at the top of that file** — not referenced from here. A rule that lives in a doc and is
+> enforced in code is two rules, and the doc is the one that goes stale.
+
+⚠️ **THIS PARAGRAPH USED TO END "keep *dead straight and perfectly level* for the
+straights, where it is true" — AND THAT SENTENCE IS WHY EP27 HALTED.** It is a ready-made
+phrase, so it got copied; the copy landed in `broll-the-field-turning-for-home`, in capitals
+and joined by a comma, and the whole episode stopped. **The phrase is no longer offered
+here in any form.** Use the wording the code applies, which is stated positively and is
+different for the two shots:
+
+| the shot | the wording |
+|---|---|
+| **straight** | *the white running rail is one clean unbroken line running true and even along the track, evenly spaced upright posts and a level top rail* |
+| **bend** | *the white running rail is one clean unbroken line that follows the track in a single smooth even sweeping curve, evenly spaced upright posts and a level top rail* |
+
+**You do not have to remember which.** The engine detects the bend and applies the right
+one; on a bend it also strips any *"dead straight"* claim it finds, in any casing and
+however the words are joined.
 
 ---
 
