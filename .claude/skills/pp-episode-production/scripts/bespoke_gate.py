@@ -51,6 +51,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import card_lift                                             # noqa: E402
 from card_lift import Halt                                   # noqa: E402,F401
 
 
@@ -95,8 +96,15 @@ def needs_a_human(cards, is_pipeline_page) -> list:
 # against the table's own row count before a byte is written, which is exactly the
 # difference between the two kinds of page. A bespoke page states the number on
 # its own authority and must therefore declare it in `bespoke_licence`.
+# 🔴 DERIVED FROM THE CANONICAL FOOTER, NEVER RETYPED HERE. `card_lift` owns the
+# sentence; this takes the standing half of it — everything after the dash, which
+# is the part that carries no figures and is identical on every ladder card. Copy
+# it instead and the day the house line is reworded is the day a hand-authored
+# page starts flagging a sentence the generated cards are still printing. That is
+# the one-value-in-two-places fault this repo keeps paying for.
+_STANDING_TAIL = card_lift.LADDER_FOOTER.split("—")[-1].strip().rstrip(".")
 STANDING_LINES = (
-    r"the full chart is in the guide",
+    re.escape(_STANDING_TAIL.lower()),
 )
 
 

@@ -267,7 +267,10 @@ def main():
                 ).read_text(encoding="utf-8")
     LIFT_REACHED = {"apply_lifts",                        # the entry point itself
                     "_capture_blocks", "tables", "numbered",
-                    "_one_table", "_column", "_lift_table", "_assert_count"}
+                    "_one_table", "_column", "_lift_table",
+                    # the canonical footer: composed by apply_lifts, and the
+                    # controlled noun it takes from the table's own heading
+                    "_canonical_footer", "_unit_for"}
     fn, lift_orphans, lift_sites = None, [], 0
     for line in lift_src.splitlines():
         m = _re.match(r"def (\w+)", line)

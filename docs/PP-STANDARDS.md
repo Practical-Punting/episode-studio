@@ -370,11 +370,31 @@ surfaced, and the run is recorded in the episode's run log.**
   > **The video tells the table's STORY — one hero number or trend, not a data dump. The
   > FULL table lives in the e-book. Data is LIFTED from the capture and asserted, never typed.**
   The `ladder` block is that rule built: **five to seven ANCHOR rows** lifted out of the
-  article's own table and drawn as bars whose height is the figure, under a footer stating
-  how many rows there are in all — *"34 prices in all — the full chart is in the guide"* —
-  and **that count is asserted against the table's own row count**, so a card cannot state a
-  number the article has stopped agreeing with. The **cap of seven IS the law**: a block that
-  could hold thirty-four rows would be asked to.
+  article's own table and drawn as bars whose height is the figure. The **cap of seven IS
+  the law**: a block that could hold thirty-four rows would be asked to.
+  - ### 🔒 THE CANONICAL LADDER FOOTER (Jodie, 16 Aug 2026). One sentence, every ladder card.
+    > **`<N> <unit> in all — the full chart is in the guide.`**
+    > *e.g. "34 prices in all — the full chart is in the guide."*
+
+    It is the line that sends a viewer from the card's SHAPE to the book's DATA, so it is
+    **house furniture in exactly the sense the frame's "Rule N of M" is** — written once, in
+    `card_lift.LADDER_FOOTER`, never re-composed per episode by whoever is writing.
+    **NOT ONE CHARACTER OF IT IS TYPED INTO `episode.json`**, and a card that types one is
+    refused:
+    - **`N`** is the table's own data-row count, **counted at build time**. If the article's
+      table gains a row the sentence changes with it, so a card can never state a figure the
+      source has stopped agreeing with.
+    - **`<unit>`** — the word for one row — is taken from **the table's own key-column
+      heading** through the closed set in `card_lift.UNITS` (`PRICE`/`ODDS` → *prices*,
+      `TRACK` → *tracks*, …). An unknown heading **halts and names the set**, so widening it
+      is a reviewed one-line commit rather than something a card decides for itself.
+    - the rest is a literal in the code.
+
+    **Why it is worth fixing rather than leaving to the writer:** the footer is the one part
+    of a ladder card that is not a lifted cell, so a free-written one is the only thing on
+    the card nothing vouches for — which is exactly how EP27's C15 ended up carrying a
+    sentence that existed only on the rendered page. Fixed, the whole footer is trusted by
+    construction and the invented-text gate has nothing to flag.
   - **The writer picks the anchors; the code reads the cells.** Which rows carry the shape is
     an editorial judgement and stays with a person. Reading a figure off a page and typing it
     is the chore, and the only part that can be silently wrong — so `card_lift.py` does it,

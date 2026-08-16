@@ -47,6 +47,7 @@ for _s in (sys.stdout, sys.stderr):
 
 import author_cards as ac                                    # noqa: E402
 import author_ebook as ae                                    # noqa: E402
+import card_lift as cl                                       # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -91,8 +92,9 @@ def ladder_card(**over):
         "headline_display": "The Bookies'<br>Percentages",
         "lift": {"from": "table", "table": 1,
                  "key_column": "PRICE", "value_column": "ODDS AGAINST",
-                 "anchors": list(ANCHORS), "into": "rows", "count_in": "footer"},
-        "content": {"footer": f"{len(DATA)} prices in all — the full chart is in the guide."},
+                 "anchors": list(ANCHORS), "into": "rows", "footer_into": "footer"},
+        # NO FOOTER TEXT. It is the house sentence, written from the table itself.
+        "content": {},
         "trace": {},
     }
     c.update(over)
@@ -191,13 +193,72 @@ ok, why = halts(lambda: lift(ghost))
 check("🔴 an anchor missing from the table HALTS", ok, "a ghost anchor was accepted")
 check("  and it NAMES the one that is missing", "3-5" in why, why)
 
-print("\n-- the footer's count is asserted against the table, never believed --")
-wrong = ladder_card()
-wrong["content"]["footer"] = "30 prices in all — the full chart is in the guide."
-ok, why = halts(lambda: lift(wrong))
-check("🔴 a footer claiming the wrong number of prices HALTS", ok,
-      "the card would have told the viewer there are 30 prices")
-check("  and it states both numbers", "30" in why and str(len(DATA)) in why, why)
+print("\n-- THE CANONICAL FOOTER: one house sentence, no part of it typed --")
+# 🔒 Jodie, 16 Aug 2026. The line that sends a viewer from the card's SHAPE to the
+# book's DATA is furniture, exactly like the frame's "Rule N of M" — so it is
+# written once, in card_lift.LADDER_FOOTER, and composed from the table itself.
+foot = (lift(ladder_card()).get("content") or {}).get("footer")
+check("the card gets a footer without episode.json carrying one",
+      isinstance(foot, str) and foot.strip(), repr(foot))
+check("🔴 it is the CANONICAL sentence, from the one place it is written",
+      foot == cl.LADDER_FOOTER.format(n=len(DATA), unit="prices"), repr(foot))
+check("  the COUNT is the table's real data-row count, counted not believed",
+      str(len(DATA)) in foot and len(DATA) == len(_rows) - 1, repr(foot))
+check("  the UNIT comes from the table's own key column ('PRICE' -> 'prices')",
+      "prices" in foot, repr(foot))
+check("  and the guide pointer is the standing wording, word for word",
+      "the full chart is in the guide" in foot, repr(foot))
+
+typed_foot = ladder_card()
+typed_foot["content"]["footer"] = "34 prices in all — see the guide."
+ok, why = halts(lambda: lift(typed_foot))
+check("🔴 a TYPED footer is refused, like a typed cell", ok,
+      "a hand-written footer would be the one part of the card nothing vouches for")
+check("  and the halt shows the house sentence it should have left alone",
+      "in all" in why and "guide" in why, why)
+
+print("\n-- the count follows the ARTICLE, so it cannot go stale --")
+grown = CAP_TEXT.replace("| 99.0 | 100-1 | 01.0 |",
+                         "| 99.0 | 100-1 | 01.0 |\n| 99.2 | 125-1 | 00.8 |")
+grew = ladder_card()
+ac.apply_lifts([grew], grown)
+check("🔴 a table that gains a row moves the footer's number with it",
+      (grew["content"]["footer"]).startswith(str(len(DATA) + 1)),
+      f"{grew['content']['footer']!r} — the table now has {len(DATA) + 1} rows")
+
+print("\n-- the unit is a CONTROLLED word, not free text --")
+for heading, want in (("PRICE", "prices"), ("ODDS ON", "prices"),
+                      ("ODDS AGAINST", "prices"), ("TRACK", "tracks"),
+                      ("Course", "courses"), ("RUNNERS", "runners")):
+    got, why = None, ""
+    try:
+        got = cl._unit_for(heading, "C15")
+    except ac.Halt as e:
+        why = str(e)
+    check(f"  {heading!r} -> {want!r}", got == want, why or f"got {got!r}")
+bad_head = CAP_TEXT.replace("| ODDS ON | PRICE | ODDS AGAINST |",
+                            "| ODDS ON | WIDGET | ODDS AGAINST |")
+unknown = ladder_card()
+unknown["lift"]["key_column"] = "WIDGET"
+ok, why = halts(lambda: ac.apply_lifts([unknown], bad_head))
+check("🔴 an unknown heading HALTS rather than inventing a noun", ok,
+      "a card must not choose the word it counts")
+check("  and it names the closed set, so widening it is a reviewed change",
+      "prices" in why and "closed set" in why.lower(), why)
+
+print("\n-- a lift key nobody reads HALTS, rather than silently doing nothing --")
+# 🔴 EP18's fault, met again while building this: `count_in` became `footer_into`
+# when the footer became the house sentence, and a card still carrying the old key
+# passed straight through UNASSERTED — because nothing reads a key that no longer
+# exists. A field the machine cannot read turns a check OFF, and the report comes
+# back clean having checked nothing.
+stale = ladder_card()
+stale["lift"]["count_in"] = "footer"                 # the key as it used to be
+ok, why = halts(lambda: lift(stale))
+check("🔴 a renamed/stale lift key HALTS", ok,
+      "it would look configured and assert nothing")
+check("  and the halt names the key and what replaced it",
+      "count_in" in why and "footer_into" in why, why)
 
 print("\n-- the capture is the switch: no capture, no lift, and it says so --")
 ok, why = halts(lambda: ac.apply_lifts([ladder_card()], None))
