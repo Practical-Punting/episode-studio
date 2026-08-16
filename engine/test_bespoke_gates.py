@@ -198,6 +198,28 @@ check("  a licence excuses the FIGURE, never the prose beside it",
           licensed, page("<div class='x'>34 per cent at Randwick</div>"), CAPTURE, FRAME)),
       "a declaration about one number must not open the whole page")
 
+print("\n-- the studio's standing line is furniture, like the frame's own words --")
+# 🔒 JODIE'S RULING, 16 Aug 2026, on EP27's C15 footer: "the full chart is in the
+# guide" is a LEGITIMATE LINE, not an error. It points at the e-book, so no article
+# will ever contain it, and it appears on every ladder card there will ever be.
+#     A GENERATED ladder card never needed this — its footer is a content value in
+# episode.json and is allowed like any other (pinned in test_card_lift). This is
+# the HAND-AUTHORED case, and the excuse is deliberately narrow.
+standing = page("<div class='x'>the full chart is in the guide</div>")
+check("🔴 the standing footer does NOT flag 'full' on a hand-authored page",
+      not any("full" in p for p in bg.page_faults(card15, standing, CAPTURE, FRAME)),
+      bg.page_faults(card15, standing, CAPTURE, FRAME))
+check("  it is the PHRASE that is excused, never the words in it",
+      any("full" in p for p in bg.page_faults(
+          card15, page("<div class='x'>the full field went round</div>"),
+          CAPTURE, FRAME)),
+      "excusing the WORDS would open a hole the width of the vocabulary")
+counted = page("<div class='x'>34 per cent, the full chart is in the guide</div>")
+check("🔴 and the COUNT beside it still has to be declared",
+      any("34" in p for p in bg.page_faults(card15, counted, CAPTURE, FRAME)),
+      "on a ladder card card_lift asserts that count against the table's own row "
+      "count; a bespoke page states it on its own authority and must declare it")
+
 print("\n-- and with no capture it REFUSES rather than passing --")
 check("🔴 no capture means nothing was checked, and it says so",
       bg.page_faults(card15, good, None, FRAME) != [],
