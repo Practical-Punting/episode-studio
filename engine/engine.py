@@ -1382,6 +1382,18 @@ def _record_gate_answers(ctx) -> None:
         log(f"   (could not record a gate answer: {e} — the gate will ask again)")
 
 
+def _say_step(ctx, name) -> None:
+    """Put the TRUE current step on the rail's progress line, keeping the pct.
+
+    One writer, called from both ends of a flag — when it is raised and again the
+    moment it clears — so the two can never disagree about what the row says. The
+    percentage is carried through rather than recomputed: a flag does not move an
+    episode along, and inventing a number here would be a second thing to keep
+    true (CLAUDE.md fault #2).
+    """
+    rail.progress(ctx.id, STEP_LABEL.get(name, name), ctx.ep.get("progress_pct") or 0)
+
+
 def flag_and_wait(ctx, name, message):
     """Set the red flag (status unchanged), then wait — heartbeat stays LIVE the
     whole time, so the board shows a paused-but-alive engine, never a dead one."""
@@ -1393,8 +1405,25 @@ def flag_and_wait(ctx, name, message):
     ctx.state["flag_step"] = name
     ctx.save()
     rail.flag_needs_look(ctx.id, message)
-    rail.progress(ctx.id, f"Paused — needs a look ({STEP_LABEL[name]})",
-                  ctx.ep.get("progress_pct") or 0)
+    # 🔴 THE STORED COLUMN NEVER SAYS "PAUSED". (16 Aug 2026 — three sightings in
+    # one day.) This line used to write "Paused — needs a look (<step>)" into
+    # `progress_step`, and nothing rewrote it when the flag came down: the clear
+    # below returns and RETRIES the step, and the next `rail.progress` call is the
+    # start of the NEXT step. So a rolling engine — fresh heartbeat, needs_look
+    # false, work genuinely in flight — described itself as paused for the whole
+    # length of a step. On `cards_render` that is hours, and it is the shape that
+    # scares an operator into intervening in something that is working. It matters
+    # most for Hugh, who does not read the rail to cross-check.
+    #
+    #     E23c, ALREADY RULED, IN THESE WORDS: DERIVE IT, NEVER STORE IT.
+    #
+    # `app.js` obeys it — stageLine() builds "Paused — needs a look (…)" from the
+    # LIVE `needs_look` every render, so it cannot outlive the flag by one poll.
+    # This column simply says what it says on the tin: the step. The pause is
+    # carried by `needs_look`, a boolean that cannot lie about its own age, and the
+    # engine's own `status` output already prints it in its own column.
+    # A sentence that is never written cannot go stale.
+    _say_step(ctx, name)
     if not ctx.watch:
         log("   (not in --watch mode: exiting; restart the engine after clearing the flag)")
         raise SystemExit(3)
@@ -1428,6 +1457,14 @@ def flag_and_wait(ctx, name, message):
             # whatever the NEXT flag turns out to be about.
             if ctx.state.pop("flag_step", None) is not None:
                 ctx.save()
+            # AND SAY WHAT IS HAPPENING NOW, at the moment work resumes — belt and
+            # braces beside the line above. Not writing "Paused" is what makes the
+            # column incapable of lying; RE-STATING it here is what makes it CURRENT.
+            # `progress_pct` and the step can both have moved on while a human was
+            # away, and "still correct because nobody touched it" is not a property
+            # anyone can keep. The step is about to be retried, so this is exactly
+            # what the row should say for the whole of the retry.
+            _say_step(ctx, name)
             return
 
 
