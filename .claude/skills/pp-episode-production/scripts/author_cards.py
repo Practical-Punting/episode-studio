@@ -657,7 +657,7 @@ def _first_each(tpl):
     return tpl[:m.start()], m.group(1), tpl[m.end():close_at], tpl[pos:]
 
 
-def expand_each(tpl, content, blk, anim=False):
+def expand_each(tpl, content, blk, anim=False, anim_over=None):
     """Expand <!--@each name--> ... <!--@endeach--> regions.
 
     {{ITEM}} / {{ITEM.field}} — the value, escaped
@@ -675,6 +675,16 @@ def expand_each(tpl, content, blk, anim=False):
     """
     lists = blk["schema"].get("lists", {})
     anim_spec = blk["schema"].get("anim", {}) if anim else {}
+    # ⚠️ A LONGER LIST NEEDS A FASTER STAGGER, or it is still arriving when the
+    # card leaves. `checklist` staggers 550ms an item: fine for six (3.9s), and
+    # for TWELVE it means the last item appears at 7.2s on a card held ten. The
+    # reflow rung that widened the card to two columns lowers the step to match,
+    # so the whole list is on screen in about the same time it always was. Only
+    # the rung a card actually lands on is applied, so a six-item card keeps the
+    # exact timing it has always had.
+    if anim and anim_over:
+        anim_spec = dict(anim_spec)
+        anim_spec.update(anim_over)
 
     def one(name, body):
         items = content.get(name)
@@ -794,9 +804,56 @@ FRAME_FIT = {
 }
 
 
+def reflow_step(card, blk):
+    """The rung of the block's REFLOW ladder this card's item count lands on.
+
+    🔴 A CARD THAT IS TOO FULL SHOULD RESIZE, NOT HALT. (16 Aug 2026, EP27 C17.)
+    `checklist` capped at six; the article printed ten questions and nine of ten
+    would state a different method — so the card went `block:"bespoke"`, and a
+    bespoke card is skipped by the schema, the trace gate and the invented-text
+    gate together. A LAYOUT LIMIT TURNED ITSELF INTO A HOLE IN THE GATES. Type
+    size is a measurement, not a judgement (design §11), which is the same
+    reasoning that already removed the autofit halt.
+
+    THE BLOCK DECLARES ITS OWN LADDER, in its own schema, so a block added
+    tomorrow answers for itself and there is no list here to keep in sync. Each
+    rung is `fit` — the SAME numeric-only channel a human uses, validated by the
+    same FIT_NUM — so a reflow can move type and columns and can never introduce
+    a word.
+
+    🔒 THE FIRST RUNG RESTATES THE BLOCK'S OWN BASE VALUES, so a card small
+    enough to have been fine yesterday does not move. MEASURED, not assumed: a
+    six-item checklist rendered by this code and by the version before it differ
+    by ZERO PIXELS at 1920x1080. That is the property that makes it safe to
+    change a block every shipped episode has used.
+        ⚠️ THE FILE IS NOT BYTE-IDENTICAL, and the difference matters to exactly
+    one thing. The page now also STATES those values in its fit block, so
+    `main()`'s existing-vs-fresh comparison sees a changed page and re-authors an
+    already-built card the next time it runs over one. Same picture, new bytes —
+    which is the right behaviour (the definition did change) but is worth knowing
+    before it looks like a card moving on its own.
+    """
+    spec = (blk.get("schema") or {}).get("reflow")
+    if not spec:
+        return {}
+    items = (card.get("content") or {}).get(spec.get("list")) or []
+    steps = spec.get("steps") or []
+    for step in steps:
+        if len(items) <= int(step.get("upto", 0)):
+            return step
+    # Past the last rung the schema's own `max` has already halted; the last rung
+    # is the honest answer for anything that gets this far.
+    return steps[-1] if steps else {}
+
+
 def fit_css(card, blk):
-    """Build the fit override stylesheet. Values must be numeric."""
-    fit = card.get("fit") or {}
+    """Build the fit override stylesheet. Values must be numeric.
+
+    The reflow's choice goes in FIRST and the card's own `fit` on top of it: a
+    human who has looked at the rendered page outranks a rule that has not.
+    """
+    fit = dict((reflow_step(card, blk).get("fit") or {}))
+    fit.update(card.get("fit") or {})
     allowed = dict(FRAME_FIT)
     allowed.update({k: tuple(v) for k, v in blk["schema"].get("fit", {}).items()})
     rules = {}
@@ -863,9 +920,16 @@ def apply_rail(page, card):
 
 def render_card(card, blk, frame):
     content = card["content"]
+    # The reflow rung this card lands on, keyed by the list it governs — so the
+    # stagger override reaches expand_each in the same shape the block's own
+    # `anim` section already has, rather than in a second shape it has to learn.
+    step = reflow_step(card, blk)
+    rspec = (blk.get("schema") or {}).get("reflow") or {}
+    anim_over = ({rspec["list"]: step["anim"]}
+                 if step.get("anim") and rspec.get("list") else None)
     markup = expand_each(blk["markup"], content, blk)
     markup = fill(markup, content)
-    anim = expand_each(blk["anim"], content, blk, anim=True)
+    anim = expand_each(blk["anim"], content, blk, anim=True, anim_over=anim_over)
 
     last = max([int(d) for d in re.findall(r'"delay":(\d+)', anim)] or [500])
     page = frame
