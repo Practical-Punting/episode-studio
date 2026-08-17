@@ -838,6 +838,34 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🔴 **E32 — `center` IS THE WRONG DEFAULT CROP FOR A PORTRAIT HERO, AND IT COST TWO
+  HUMAN CATCHES ON ONE EPISODE.** *(EP30, 17 Aug 2026.)*
+  EP30's picked cover hero is **1696 × 2528** — portrait. A 16:9 window on it is
+  **954px tall**, so **1,574px of the photograph is discarded**. At the default
+  (`center` / `center 50%`) the visible band is **y 787 → 1741**. The field of eleven
+  horses occupies **y 1751 → 2098**.
+  > ### THE CROP MISSED THE HORSES BY TEN PIXELS. Twice.
+  Once on the **title card** and once on the **thumbnail** — two separate steps, the same
+  hero, the same default, and **both were caught by Jodie's eye**, not by the studio.
+  `center 72%` frames the field on both (verified: the authored pages are byte-identical
+  to the previews she approved). EP12 needed `center 62%` for the same reason.
+  **THE OBVIOUS FIX IS THE WRONG ONE.** "Detect the subject and crop to it" means guessing
+  from pixels, and **a wrong automatic crop is worse than a wrong default**, because the
+  default is caught by the review that already exists and a clever guess is not. Two
+  changes that are safe and do not guess:
+  1. **CARRY THE VALUE ACROSS THE ASSETS.** Both cards are 16:9 and use the SAME hero, so
+     an unset `thumbnail.hero_focus` should inherit `title_card.hero_focus`. Jodie fixed
+     the identical fault twice on one episode; once is enough.
+  2. **MEASURE, AND SAY SO IN THE FLAG.** The placement review already stops for a human;
+     it just tells them nothing. It knows the hero's dimensions and the window — so it can
+     say *"this hero is portrait: a 16:9 window shows 31%–69% of it and discards 62%"* and
+     name the value that would move the window down. **The human still decides**; they
+     stop deciding blind.
+  ⚠️ **AND ASK WHY THE HERO IS PORTRAIT AT ALL.** The cover heroes are generated for the
+  e-book cover, which IS portrait; the title card and thumbnail then crop 16:9 out of it.
+  A hero commissioned in both shapes, or framed for the crop, removes the class rather
+  than guarding it — that is a b-roll/cover PROMPT question, and it is Jodie's call
+  because it changes what is generated.
 - 🟠 **E31 — "THE LATEST CUE THAT STILL FITS" READS AS AN INSTRUCTION TO GO LATER, AND
   IT MEANS THE OPPOSITE.** *(EP29, 16 Aug 2026. Jodie: "worth making that message
   clearer for Hugh's sake.")*
