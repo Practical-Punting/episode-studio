@@ -191,5 +191,92 @@ case("CONTROL — with nothing to inherit, nothing is invented",
      _neither_set_still_leaves_it_missing)
 
 
+# ── FAULT 8 — FRAME THE HERO SO THE CROP LANDS ON THE HORSES ──────────────────
+# Jodie's answer to "why is the hero portrait at all": do not generate a second image,
+# FRAME the one we have. The arithmetic below is why the middle third is the right
+# fraction, and it is checked here rather than taken on trust.
+import broll_prompt_rules as bpr                                       # noqa: E402
+
+
+def _the_middle_third_is_the_right_fraction():
+    """The claim: a field in the middle third lands inside the DEFAULT 16:9 window.
+
+    On EP30's hero the window is 37.7% of the image height and at `center` it sees
+    31.1%–68.9%. The middle third is 33.3%–66.7% — inside it, with ~2 points of margin.
+    If that were false the rule would be worse than useless: it would frame heroes for
+    a window that does not exist.
+    """
+    win = W / (16 / 9)
+    spare = H - win
+    top, bot = spare * 0.5, spare * 0.5 + win
+    lo, hi = top / H, bot / H
+    assert lo <= 1 / 3 and hi >= 2 / 3, (
+        f"the default 16:9 window sees {lo:.1%}-{hi:.1%}, which does NOT contain the "
+        f"middle third (33.3%-66.7%). The prompt rule would frame the field for a "
+        f"window that does not exist — use the band the arithmetic gives instead.")
+    # …and EP30's actual field was below it, which is the whole case.
+    assert FIELD_TOP / H > hi, (
+        f"EP30's field at {FIELD_TOP / H:.1%} was NOT below the default window "
+        f"({hi:.1%}) — then the ten-pixel miss has some other cause and this rule is "
+        f"aimed at the wrong thing.")
+
+
+case("the MIDDLE THIRD really does sit inside the default 16:9 window",
+     _the_middle_third_is_the_right_fraction)
+
+
+def _a_horse_cover_gets_the_framing_line():
+    out, applied = bpr.apply_frame_rules(
+        "Photoreal portrait cover hero of a field of racehorses in the straight.")
+    assert "MIDDLE THIRD" in out, f"a horse cover did not get the framing line:\n{out}"
+    assert any("MIDDLE THIRD" in a for a in applied), applied
+
+
+case("a cover hero with horses gets the middle-third framing line",
+     _a_horse_cover_gets_the_framing_line)
+
+
+def _a_cover_with_no_horses_does_not():
+    out, _ = bpr.apply_frame_rules(
+        "Photoreal portrait cover hero of a man at a desk studying the form.")
+    assert "MIDDLE THIRD" not in out, (
+        f"a desk cover was told to put a field of horses in the middle third:\n{out}")
+
+
+case("CONTROL — a cover with no horses is not told to frame a field",
+     _a_cover_with_no_horses_does_not)
+
+
+def _b_roll_prompts_are_never_graded_on_it():
+    """🔴 THE MISTAKE THIS CASE EXISTS FOR. The first version put middle-third in RULES,
+    where check_prompt grades EVERY b-roll prompt — the suite went red on 28 cases and a
+    human would have been halted on every racing clip. B-roll is delivered 16:9 and is
+    never cropped out of a portrait picture; the fault is about the COVER hero alone."""
+    assert "middle-third" not in {r["key"] for r in bpr.RULES}, (
+        "middle-third is back in RULES, so every b-roll prompt is graded against a rule "
+        "about cropping a portrait cover — a rule applied to something it is not about.")
+    gaps = {g["key"] for g in bpr.check_prompt(
+        "Photoreal side-on shot of a field of racehorses at full stride.")}
+    assert "middle-third" not in gaps, f"a b-roll prompt was graded on it: {gaps}"
+
+
+case("🔴 CONTROL — b-roll prompts are NEVER graded on the cover framing rule",
+     _b_roll_prompts_are_never_graded_on_it)
+
+
+def _it_is_labelled_probabilistic():
+    src = (HERE / "broll_prompt_rules.py").read_text(encoding="utf-8")
+    i = src.index("MIDDLE_THIRD = ")
+    head = src[max(0, i - 2600):i]
+    assert "PROBABILISTIC" in head.upper(), (
+        "the middle-third rule is not labelled as holding probabilistically. It is a "
+        "prompt rule: it improves the odds and does not close the case, and the rail "
+        "and stride lines proved that on EP30.")
+
+
+case("it is labelled a fault-8-class change that only improves the odds",
+     _it_is_labelled_probabilistic)
+
+
 print(f"\nE32 crop: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

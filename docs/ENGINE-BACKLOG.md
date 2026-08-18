@@ -838,6 +838,32 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🔴 **E34 — `publish_artefact` KEYS ON THE FILE'S NAME, AND THE CLOSE-OUT RENAMES THE
+  FILE. SO ANY RE-PUBLISH AFTER PUBLICATION MINTS A NEW URL AND LEAVES THE OLD ONE LIVE
+  AND WRONG.** *(Found 18 Aug 2026 while repairing EP30. LATENT, not a one-off.)*
+  ```python
+  def publish_artefact(self, ep, local):
+      return self._publish_asset(local, f"{ep_folder(ep)}/{local.name}")
+  ```
+  `_publish_asset` sends `x-upsert: true` to that key, so it replaces **in place** — as
+  long as the key is the same. But the **stage-8 close-out renames the folder AND the
+  files on publish**: EP30's `PP-EP30/output/PP-EP30-ebook.pdf` became
+  `PP-EP30-Feed-On-The-Favourites/output/PP-EP30-Feed-On-The-Favourites-ebook.pdf`.
+  `ep_folder()` still returns the OLD folder name, so the key becomes
+  `PP-EP30/PP-EP30-Feed-On-The-Favourites-ebook.pdf` — **a different object, a different
+  URL**, while the URL on the rail and in anyone's hands goes on serving the old bytes.
+  **THE DANGEROUS PART IS THAT IT LOOKS LIKE SUCCESS.** The upload returns 200, the
+  visibility check passes, a fresh URL is written to the rail, and the stale one is never
+  mentioned. Only `verify_published.py` against the ORIGINAL url would notice.
+  **WORKED AROUND FOR EP30, NOT FIXED:** the corrected PDF was published to the EXISTING
+  key by hand (`_publish_asset(pdf, "PP-EP30/PP-EP30-ebook.pdf")`), so the live link was
+  replaced in place and nothing stale was left behind.
+  **THE FIX, WHEN IT IS ITS TURN:** derive the object key from something that does NOT
+  change at close-out — the episode NUMBER and the artefact KIND (`PP-EP30/ebook.pdf`),
+  or reuse the key already recorded on the rail when one exists. Either way a re-publish
+  must land on the URL that is already out in the world. ⚠️ Changing the scheme for
+  EXISTING episodes would move their live URLs, so new episodes and old ones need
+  different answers — reusing the recorded key handles both.
 - 🟠 **E33 — IS EP30'S COPY ERROR ONE ARTICLE OR TWENTY? A READ-ONLY ARITHMETIC SWEEP
   OF THE SOURCE ARTICLES WE ALREADY HOLD.** *(Raised 18 Aug 2026. NOT STARTED — Jodie
   asked for it to be raised, not run.)*

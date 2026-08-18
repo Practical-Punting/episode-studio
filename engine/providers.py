@@ -544,6 +544,32 @@ def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None,
 _FOCUS_PCT = re.compile(r"(\d{1,3})\s*%\s*$")
 
 
+def published_links_match(ep: dict) -> str:
+    """One sentence for the build log: do this episode's published URLs serve the files
+    we just built? NEVER raises and never fails a build — see the note at the call site.
+
+    🚨 EP30, 18 Aug 2026. The e-book was corrected under A27, verified by reading the PDF
+    on disk, and the board's link went on serving the ORIGINAL — uncorrected, and
+    carrying the very note Hugh had asked to be removed. Every check we own asks whether
+    the FILE is right; none asked whether the file we SENT is the file we made.
+    """
+    try:
+        import verify_published as vp                                  # noqa: PLC0415
+        rows = vp.check_episode(ep)
+        if not rows:
+            return "published links: nothing published yet — nothing to compare"
+        bad = [r for r in rows if not r["ok"]]
+        if not bad:
+            return f"published links: all {len(rows)} match the files on disk ✅"
+        return ("🚨 PUBLISHED LINKS DO NOT MATCH WHAT IS ON DISK — a reader following "
+                "them gets a different document:\n        "
+                + "\n        ".join(f"{r['column']}: {r['why']}" for r in bad)
+                + "\n        Re-publish (re-run the step that made it), or the link is "
+                  "a lie. `python engine/verify_published.py <n>` re-checks it.")
+    except Exception as e:                                             # noqa: BLE001
+        return f"published links: could not be checked ({type(e).__name__}: {e})"
+
+
 def hero_size_and_focus(ep_dir: Path, ep: dict | None = None):
     """(w, h), focus for this episode's thumbnail hero — or (None, "center") if the
     picture cannot be read. NEVER raises: a measurement that fails must not become a
@@ -3479,6 +3505,17 @@ class RealProvider:
         self.py("qc_episode.py", final_path, d / "renders/shot-map.json",
                 d / "output/qc", "--head", head,
                 "--episode", d / "docs/episode.json", cwd=d, timeout=900)
+        # 🚨 AND DOES THE LINK SERVE WHAT WE JUST BUILT? (EP30, 18 Aug 2026.)
+        # Every other check in the studio asks whether the FILE is right. Not one asked
+        # whether the file we SENT is the file we made — and EP30's e-book was corrected
+        # under A27, verified on disk, and the board's link went on serving the old
+        # uncorrected book. Jodie's eye caught it; nothing in the engine would have.
+        #     Cheap here (two HEAD-sized fetches) and it costs a build nothing when it
+        # passes. It NEVER fails the build: a publish that has not caught up is a real
+        # thing to tell a human about, and not a reason to stop an episode that is
+        # otherwise finished. See engine/verify_published.py for the standalone form —
+        # which is the one that matters, because the dangerous rebuild happens LATER.
+        print(f"    {published_links_match(ep)}")
         return str(d / "output/qc/QC-REPORT.md")
 
     def build_ebook(self, ep) -> str:

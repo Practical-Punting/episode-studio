@@ -315,6 +315,43 @@ CONDITIONAL = [
 # one definition of each line and both funnels read it.
 FRAME_KEYS = ("lighting", "orientation", "rail-smooth")
 
+# ══ FAULT 8 — FRAME THE PORTRAIT HERO SO THE 16:9 CROP LANDS ON THE HORSES ═══
+# (Jodie, 18 Aug 2026, after E32. Her answer to "why is the hero portrait at all".)
+#
+# The cover heroes are generated PORTRAIT because the e-book cover is portrait; the
+# title card and the thumbnail then crop 16:9 out of the same picture. On EP30 that
+# window missed the field BY TEN PIXELS, twice, and both were caught by her eye.
+#
+# 🔴 THE CHEAPER FIX IS NOT A SECOND IMAGE — IT IS FRAMING THE ONE WE HAVE. And the
+# arithmetic says the middle third is almost exactly right. On EP30's 1696×2528 hero:
+#     · a 16:9 window is 954px — 37.7% of the image height;
+#     · at the DEFAULT `center` it sees 31.1%–68.9% of the frame;
+#     · the middle third is 33.3%–66.7% — INSIDE that, with ~2 points of margin
+#       top and bottom.
+# So a field framed to the middle third lands in the default window with room to spare,
+# and needs no per-episode `hero_focus` at all. (EP30's field sat at 69.3%–83.0% — wholly
+# below the window, which is the miss.) Stated POSITIVELY, like every rule here.
+#
+# ⚠️ THIS IS A PROMPT RULE, SO IT HOLDS PROBABILISTICALLY. It improves the odds that the
+# crop is right by construction; it does NOT close the case, and nobody may report it as
+# having done so — the same footing as the rail and stride lines, which were in EP30's
+# prompt in positive form on all four clips and still came back wrong once.
+#     THE PAIRING IS THE POINT: this makes the good crop likely, and `crop_report` in
+# providers.py shows a human the measurement when it was not.
+#
+# 🔴 AND IT IS A **COVER** RULE ONLY — DELIBERATELY NOT IN `RULES`.
+# The first version of this put it in RULES, where `check_prompt` grades every b-roll
+# prompt, and the suite went red on 28 cases: every racing clip was told it was missing
+# a line, and a human would have been halted over it on every episode. **B-roll clips
+# are delivered 16:9 already and are never cropped out of a portrait picture** — the
+# whole fault is about a PORTRAIT COVER HERO that two 16:9 cards crop from. A rule may
+# only be applied to the thing it is actually about (the same correction HORSE_WORDS
+# needed when it graded a shot of a crowd as a racing shot).
+MIDDLE_THIRD_NEEDS = [r"middle third", r"centre third", r"center third"]
+MIDDLE_THIRD = ("the field of horses fills the MIDDLE THIRD of the frame, with open sky "
+                "above them and turf below, so a 16:9 crop through the middle of the "
+                "picture lands on the horses")
+
 # Only where the clip actually contains a crowd — demanding hat colours of a head-on
 # gallop would be noise, and a guard everyone ignores is worse than no guard.
 # ⚠️ `grandstand` WAS IN HERE AND IS NOT A CROWD. It is a building, and it stands in the
@@ -481,6 +518,9 @@ FIXES = {
     # A22, and the one line the cover funnel shares with this one. Stated POSITIVELY —
     # see the note by ORIENTATION: "not upside down" cannot be drawn.
     "orientation": ORIENTATION,
+    # Fault 8 — see MIDDLE_THIRD. A prompt rule, so it improves the odds and does not
+    # close the case; crop_report() is what shows a human when it did not work.
+    "middle-third": MIDDLE_THIRD,
     # Fault 6. Universal, so this is the one fix that can land on a prompt with no horse
     # in it. Stated positively for the same reason as orientation.
     "lighting": LIGHTING,
@@ -719,6 +759,12 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
             text = _add_sentence(text, FIXES[key])
             applied.append({"orientation": "the upright-orientation line",
                             "lighting": "the bright, warm lighting line"}[key])
+    # Fault 8 — asked HERE and not through `gaps`, because this rule is about a PORTRAIT
+    # COVER HERO and must never be graded against a b-roll clip. See MIDDLE_THIRD.
+    # Gated on horses: a cover of a man at a desk has no field to put in the middle third.
+    if has_horses(text) and not any(re.search(p, text, re.I) for p in MIDDLE_THIRD_NEEDS):
+        text = _add_sentence(text, MIDDLE_THIRD)
+        applied.append("the field in the MIDDLE THIRD, so a 16:9 crop lands on it")
     return text, applied
 
 
