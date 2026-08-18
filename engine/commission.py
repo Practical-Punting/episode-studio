@@ -53,6 +53,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading          # batch 7: the stream is pumped on its own thread
 import time
 from pathlib import Path
 
@@ -105,6 +106,49 @@ EPJSON_PER_KB_S = int(os.environ.get("ENGINE_COMMISSION_EPJSON_PER_KB", "180"))
 EPJSON_MAX_S = int(os.environ.get("ENGINE_COMMISSION_EPJSON_MAX", "3600"))
 
 
+# ══ BATCH 7 — STREAM THE WRITER, SO A STALL IS TOLD APART FROM A LONG JOB ════
+#
+# 🔴 THE FAULT: three commissions have burned their whole ceiling and saved NOTHING —
+# two at 1800s and one at **3208s (53.5 minutes)**, from the engine's own log. A wall
+# clock cannot tell a writer that is thinking from one that is dead, so it waits for the
+# worst case and then reports nothing about what went wrong.
+#
+# ⚠️ AND THE REAL BLOCKER WAS NOT `subprocess.run` vs `Popen`, which is what the note
+# above assumed. It was `--output-format json`: ONE envelope, emitted at the end. During
+# the whole 25 minutes stdout produced nothing, so there was no silence to measure
+# against because there was no sound either. **A stream with no events in it is not a
+# stream.** The CLI does support `--output-format stream-json`, which emits NDJSON as it
+# works, and that is what makes any of this possible.
+#
+# ✅ THE ENVELOPE IS NOT RECONSTRUCTED — IT IS TAKEN. Measured 18 Aug 2026: the stream's
+# final `result` event carries **exactly the same 21 keys** as `--output-format json`
+# returns, none missing in either direction, including every key the twenty CommissionHalt
+# paths read (`is_error`, `subtype`, `result`, `total_cost_usd`, `num_turns`,
+# `permission_denials`). So the streaming path hands `_envelope_or_halt` a
+# CompletedProcess-shaped object with that event as its stdout, and **not one halt path
+# changes.** "Close enough" would have moved the failure to a 3am halt with a confusing
+# message; identical means there is nothing to get wrong.
+#
+# 🔒 ONE CONSTANT TO REVERT IT, like ALONGSIDE_ENABLED and CARD_SHARDS.
+COMMISSION_STREAMING = os.environ.get("ENGINE_COMMISSION_STREAMING", "1") != "0"
+
+# ⚠️ THE SILENCE THRESHOLD IS NOT SET YET, ON PURPOSE, AND THIS IS THE HONEST STATE.
+# A silence timeout needs a number and the number IS the design: too tight kills a writer
+# that was thinking, too loose is the wall clock with extra steps. The only capture
+# available today is a two-second trivial prompt — **a sample of one, of the wrong shape
+# entirely.** Its gaps say nothing about a 25-minute commission writing 40 beats.
+#     So this ships MEASURING and NOT HALTING: every inter-event gap is recorded and the
+# distribution is logged at the end of each commission, and the WALL CLOCK remains the
+# only thing that can fail a run — exactly as it is today. **The first real commission
+# (EP31) produces the distribution, and the threshold is set from it in a later pass**,
+# with the rejected numbers written down beside it the way CARD_SHARDS records the shard
+# counts that lost. Setting it now would be picking a round number, which is what this
+# batch exists to stop doing.
+#     ⚠️ AND THE READING MUST COME OFF A QUIET MACHINE (E39) — Jodie runs a second studio
+# on this box, and a contended run stretches every gap.
+COMMISSION_SILENCE_S = None       # None = measure only. A number here arms the halt.
+
+
 def epjson_timeout(script_chars: int | None = None) -> int:
     """The ceiling for the settings-and-cards commission, scaled by the script.
 
@@ -116,6 +160,145 @@ def epjson_timeout(script_chars: int | None = None) -> int:
         return TIMEOUT_EPJSON_S
     want = EPJSON_BASE_S + EPJSON_PER_KB_S * (script_chars / 1024.0)
     return int(max(TIMEOUT_EPJSON_S, min(EPJSON_MAX_S, want)))
+
+
+class _Streamed:
+    """What `subprocess.run` would have returned, plus what the stream showed.
+
+    Shaped as a CompletedProcess on purpose: `_envelope_or_halt` and the twenty halt
+    paths behind it read `.returncode`, `.stdout` and `.stderr` and must not know that
+    anything changed.
+    """
+
+    def __init__(self, returncode, stdout, stderr, events, gaps, last, raw_path=None):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+        self.events, self.gaps, self.last = events, gaps, last
+        self.raw_path = raw_path
+
+
+def gap_summary(gaps: list[float]) -> str:
+    """The inter-event gaps, in the words a threshold gets chosen from later."""
+    if not gaps:
+        return "no gaps recorded (fewer than two events)"
+    s = sorted(gaps)
+    mid = s[len(s) // 2]
+    return (f"{len(gaps)} gap(s): largest {max(s):.1f}s, median {mid:.1f}s, "
+            f"total {sum(s):.0f}s")
+
+
+def _describe_last(last: dict | None) -> str:
+    """What the writer was last seen doing — the half of the prize that is not speed."""
+    if not last:
+        return "it produced nothing at all"
+    t = last.get("type") or "?"
+    if t == "assistant":
+        msg = ((last.get("message") or {}).get("content") or [])
+        for blk in msg:
+            if isinstance(blk, dict) and blk.get("type") == "tool_use":
+                inp = blk.get("input") or {}
+                target = inp.get("file_path") or inp.get("path") or inp.get("command")
+                return (f"its last action was {blk.get('name', 'a tool')}"
+                        + (f" on {_safe(str(target))[:80]}" if target else ""))
+            if isinstance(blk, dict) and blk.get("type") == "text":
+                return f"it was last writing: {_safe(blk.get('text', ''))[:120]}"
+    return f"its last event was {_safe(t)}"
+
+
+def run_streamed(argv, prompt, timeout, cwd, env, log=print, raw_path=None,
+                 silence_s=None):
+    """Run the writer with `--output-format stream-json` and watch it work.
+
+    Returns a `_Streamed` that `_envelope_or_halt` can read unchanged. The wall clock is
+    still enforced; `silence_s`, when set, fails EARLIER and says how far it got.
+    """
+    argv = [*argv, "--verbose"] if "--verbose" not in argv else list(argv)
+    p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", cwd=cwd, env=env, bufsize=1)
+    events, gaps, last, result_line = [], [], None, None
+    raw = open(raw_path, "w", encoding="utf-8") if raw_path else None
+    started = last_at = time.time()
+    stop = threading.Event()
+
+    def pump():
+        nonlocal last, result_line, last_at
+        try:
+            for line in p.stdout:
+                now = time.time()
+                gaps.append(now - last_at)
+                last_at = now
+                if raw:
+                    raw.write(line)
+                    raw.flush()      # 🔴 the partial output must SURVIVE a kill
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                events.append(e.get("type"))
+                last = e
+                if e.get("type") == "result":
+                    result_line = line
+        finally:
+            stop.set()
+
+    t = threading.Thread(target=pump, daemon=True)
+    t.start()
+    try:
+        p.stdin.write(prompt)
+        p.stdin.close()
+    except Exception:                                                # noqa: BLE001
+        pass
+
+    while not stop.wait(1.0):
+        quiet = time.time() - last_at
+        if time.time() - started > timeout:
+            p.kill()
+            stop.wait(5)
+            raise CommissionHalt(
+                _stall_message(what="the draft", quiet=quiet, events=events, last=last,
+                               started=started, wall=True, raw_path=raw_path),
+                detail=f"wall-clock timeout after {timeout}s; {gap_summary(gaps)}")
+        if silence_s and quiet > silence_s:
+            p.kill()
+            stop.wait(5)
+            raise CommissionHalt(
+                _stall_message(what="the draft", quiet=quiet, events=events, last=last,
+                               started=started, wall=False, raw_path=raw_path),
+                detail=f"silent for {quiet:.0f}s (threshold {silence_s}s); "
+                       f"{gap_summary(gaps)}")
+    p.wait(timeout=30)
+    if raw:
+        raw.close()
+    err = ""
+    try:
+        err = p.stderr.read() or ""
+    except Exception:                                                # noqa: BLE001
+        pass
+    log(f"    stream: {len(events)} event(s), {gap_summary(gaps)}")
+    return _Streamed(p.returncode, result_line or "", err, events, gaps, last, raw_path)
+
+
+def _stall_message(what, quiet, events, last, started, wall, raw_path):
+    """🔴 A HALT MUST SAY HOW FAR IT GOT. Today a timeout returns NOTHING — 53 minutes
+    and no information. With a stream we know what the writer last produced, and that
+    turns a mystery into a finding somebody can act on at 3am."""
+    mins = (time.time() - started) / 60.0
+    n_assist = sum(1 for e in events if e == "assistant")
+    return (
+        f"The studio's writing assistant was asked to draft {what} and "
+        + (f"did not finish in the time allowed ({mins:.0f} minutes)."
+           if wall else
+           f"went quiet — nothing for {quiet / 60:.1f} minutes, after working for "
+           f"{mins:.0f}.")
+        + "\nNothing was saved.\n"
+        + f"HOW FAR IT GOT: {len(events)} step(s), {n_assist} from the writer itself, "
+        + _describe_last(last) + ".\n"
+        + (f"The partial output is kept at {raw_path} — not to salvage an episode from, "
+           f"to diagnose one.\n" if raw_path else "")
+        + "Retrying is worth one attempt.")
 
 
 def _safe(s) -> str:
@@ -694,6 +877,35 @@ def commission(*, prompt: str, place: Path, find_artefact, what: str,
                      f"15-25 minutes; nothing is stuck.")
         except Exception:                                            # noqa: BLE001
             pass          # a label is never worth failing a commission over
+
+    # ── THE STREAMED PATH (batch 7). Only when nothing has injected a runner: the
+    # tests drive `runner` to exercise the halt paths without spawning anything, and a
+    # streamed Popen would ignore them. Same argv, same stdin, same cwd, same env, same
+    # wall clock — the ONLY difference is that we watch it work.
+    if COMMISSION_STREAMING and runner is subprocess.run:
+        stream_argv = [a if a != "json" else "stream-json" for a in argv]
+        raw = None
+        try:
+            raw = str(Path(place) / f"commission-stream-{int(started)}.ndjson")
+        except Exception:                                            # noqa: BLE001
+            pass
+        r = run_streamed(stream_argv, prompt, timeout, str(place), child_env,
+                         log=log, raw_path=raw, silence_s=COMMISSION_SILENCE_S)
+        env = _envelope_or_halt(r, what)          # unchanged: same envelope, same keys
+        verdict = _verdict_or_halt(env, what)
+        path = _artefact_or_halt(find_artefact, started, what)
+        denials = env.get("permission_denials") or []
+        if denials:
+            names = sorted({_safe(d.get("tool_name", "?")) for d in denials
+                            if isinstance(d, dict)})
+            log(f"    (the writer was refused {len(denials)} action(s): "
+                f"{', '.join(names)} - place scoping held)")
+        log(f"    {what} written in {time.time() - started:.0f}s, "
+            f"${float(env.get('total_cost_usd') or 0):.2f}, "
+            f"{env.get('num_turns', '?')} turn(s)")
+        verdict["_path"] = str(path)
+        verdict["_cost_usd"] = float(env.get("total_cost_usd") or 0)
+        return verdict
 
     try:
         r = runner(argv, input=prompt, capture_output=True, text=True,

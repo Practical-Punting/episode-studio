@@ -16,7 +16,7 @@ human has been through at the four approvals — which is good evidence the epis
 — the day after.** So a fault-free row means "nothing was noticed", never "nothing was
 there". Every number below is the floor, not the figure.
 
-**2. DO NOT POOL CLIPS WITH COVERS AND CARD IMAGES.** They have different detectors. A
+**2. DO NOT POOL CLIPS WITH COVERS AND CARD IMAGES.** *(F7's resolution on 18 Aug made this sharper: **THREE** of the seven recorded faults — F5, F6 and F7 — were covers or card images caught at a pick and never shipped. Pooling them would both overstate the clip rate and hide that the picks are working.)* They have different detectors. A
 bad cover meets the cover-pick step and never ships; a bad card image is discarded at the
 pick. **A bad b-roll clip has nothing between it and the finished video.** Pooling would
 overstate the b-roll rate *and* hide that two of the seven recorded faults were caught by
@@ -40,7 +40,7 @@ are **excluded** from the rate.
 | EP23 | 6 | 1 | — | horses running on BOTH sides of the running rail (F4) — ⚠️ found by Hugh 14 Aug, the day AFTER it published with 4/4 approval | 2026-08-14 |
 | EP24 | 6 | 0 | — | — | 2026-08-14 |
 | EP25 | 6 | 0 | — | — | 2026-08-14 |
-| EP26 | 5 | 0 | — | ⚠️ SEE F7 BELOW — the rail kink may belong here; nobody has established whether it was a clip or a still, so it is NOT counted | 2026-08-15 |
+| EP26 | 5 | 0 | — | — *(F7, the kinked rail, was the rejected COVER HERO — a still, caught at the pick. It is in the not-b-roll table below.)* | 2026-08-15 |
 | EP27 | 5 | 0 | — | — | 2026-08-16 |
 | EP28 | 4 | 0 | — | — | 2026-08-17 |
 | EP29 | 5 | 0 | — | — | 2026-08-17 |
@@ -58,7 +58,7 @@ gets this to 100%.
 |---|---|---|---|
 | F5 | EP24 | **cover B upside down** | ✅ **caught by the cover-pick step — never shipped** |
 | F6 | EP26 | **card image**, man at a desk, too dark | ✅ **discarded at the pick — never shipped** |
-| F7 | EP26 | the white rail had an abrupt kink | ⚠️ **UNKNOWN whether clip or still.** The record points to a clip — `broll-the-field-sweeping-to-the-line.mp4` is EP26's only asset with a running rail, since its cover hero is a man at a desk with framed photographs. **Not visually confirmed, so not counted.** Counting it moves the rate from 5/88 to 6/88. |
+| F7 | EP26 | **cover hero**, the white rail had an abrupt kink | ✅ **RESOLVED 18 Aug 2026 by Jodie, who found it: it was the COVER HERO** — the rejected round-1 hero B (*"a full field of racehorses seen head-on"*). **Caught at the pick and never shipped**, and round 1 was regenerated entirely. NOT a b-roll clip and NOT in the rate. |
 
 ## 🔴 THE ANSWER IS SETTLED — DO NOT RE-PROPOSE A REVIEW STEP
 
