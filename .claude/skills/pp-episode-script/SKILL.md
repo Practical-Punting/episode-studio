@@ -37,6 +37,37 @@ what the article does not say, and never remove or alter what it does.**
 beaten horses and gave no placings. Deleting those placings RESTORED the article. Adding them
 was the edit.
 
+## 0b. 🕰️ AN OLD ARTICLE'S "TODAY" IS NOT TODAY, AND ITS "I" IS NOT GORDON (Jodie, 17 Aug 2026)
+
+These articles are twenty and thirty years old. **Reproduce their words — that is §0a — but
+Gordon is speaking NOW, to a viewer NOW**, and two things have to travel with the words.
+
+**1. DATE THE ARTICLE'S PRESENT TENSE.** EP29 said *"introduced some sixty years ago"* from a
+1997 page: the author meant **1937**, and a listener in 2026 hears 1966. Same trap in *"the
+professionals of today"* and *"one pro told me recently"*.
+
+> ⚠️ **AND HERE IS THE CATCH — A YEAR IS A FIGURE.** `script_fidelity` blocks any figure the
+> article does not state, and it is exact about which: against EP29's capture *"nineteen ninety
+> seven"* passes and *"nineteen eighty eight"* blocks. **Three of the twenty captures carry no
+> year at all** (EP11, EP12, EP13), and on those EVERY year blocks.
+>
+> **So: say the year ONLY when the article of record carries it** — the byline line is traceable
+> source (Jodie, 7 Aug) — *"back when he wrote this in ninety-seven"*. **When it does not, DROP
+> THE SPAN**: write *"introduced by the late Rufe Naylor"* and lose "sixty years ago" entirely.
+> Never reach for a year to be helpful; that is the studio inventing a figure, and it halts.
+
+**2. ATTRIBUTE THE AUTHOR'S "I".** *"Many readers have contacted me since I joined the team"* in
+Gordon's mouth says **he** joined the team. Frame it — *"Roy says the postbag…"* — or recast it.
+Likewise *"we have stated many times in this magazine"* and *"the aim of this article"*: **this
+is a video.** The draft already does this well in places (*"Here's Roy again"*, *"He calls it the
+Super Target Plan"*) and then slides out of it; be consistent.
+
+**3. NO RAW INITIALISMS.** *"All of us at PPM"* — say **Practical Punting**.
+
+⚠️ **THIS IS NOT LICENCE TO PARAPHRASE.** The words stay the article's; what changes is the
+FRAME around them. Both faults **pass the fidelity gate, correctly** — the quoting is exact — so
+nothing but this brief can catch them.
+
 ## 0. THE ONE GOLDEN RULE
 **The article is the star. LIFT it across the line — do NOT rewrite it.** *(v1.2 — tightened after EP10 drifted into paraphrase.)*
 Fidelity of **words**, not just facts. The article is **pre-approved content Hugh has signed off and PP owns** — so we publish *its* words, lightly tidied for the ear, **not a fresh paraphrase in our own words**. Keep the author's actual sentences and phrasing wherever they'll play aloud; reword only where the original genuinely won't lift to the spoken ear — and then as little as possible. (A heavy rewrite is effectively *new, unapproved* content and can quietly drift in meaning. Don't.)

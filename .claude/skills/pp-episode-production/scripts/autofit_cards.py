@@ -401,7 +401,7 @@ def main():
                 continue
             if a.dry_run:
                 stuck.append((f, [(o, why) for o, _fs, why, _p in first],
-                              {o: (fs, fs) for o, fs, _why, _p in first}))
+                              {o: (fs, fs) for o, fs, _why, _p in first}, []))
                 continue
 
             original = {o: fs for o, fs, _why, _p in first}
@@ -457,8 +457,23 @@ def main():
                 # Put the page back the way authoring left it — a half-shrunk page is
                 # worse than the original, because it hides how far off the design is.
                 write_autofit(path, "")
+                # 🔴 SAY WHAT IS ACTUALLY OFF THE CARD, NOT ONLY WHAT WE SHRANK.
+                # (EP30 C04, 17 Aug 2026.) The list above holds SHRINK TARGETS chosen
+                # by the rules at the top of this file — for a bottom overrun that is
+                # "the biggest type on the card", which is the right lever and is very
+                # often not the fault. C04's halt named `k5` at 52px; what was hanging
+                # 217px off the card was the FOOTER, pushed out by chips that had
+                # wrapped to four rows. A person reading that message looks at the
+                # wrong element, and I did.
+                #     Measured on the RESTORED page — the one the human will open —
+                # with card_check's own verdict, so the halt and the gate cannot
+                # describe the same page differently.
+                try:
+                    verdict = cc.check_page(page, f"{url}?fin={bust + 1}")
+                except Exception as e:                              # noqa: BLE001
+                    verdict = [f"(could not measure the restored page: {e})"]
                 stuck.append((f, [(o, why) for o, _fs, why, _p in problems],
-                              {o: (original[o], sizes[o]) for o in sizes}))
+                              {o: (original[o], sizes[o]) for o in sizes}, verdict))
             else:
                 fitted.append((f, steps,
                                {o: (original[o], sizes[o]) for o in sizes},
@@ -473,12 +488,19 @@ def main():
                   f"   [{why0.get(o, '')}]")
     for f, why in skipped:
         print(f"  · {f} — left alone: {why}")
-    for f, problems, sizes in stuck:
+    for f, problems, sizes, verdict in stuck:
         print(f"  ✗ {f} — STILL DOES NOT FIT at the floor "
               f"({FLOOR_FRAC:.0%} of the template size, or {FLOOR_PX:.0f}px)")
+        if verdict:
+            print("      WHAT IS ACTUALLY OFF THE CARD (measured on the restored page):")
+            for v in verdict:
+                print(f"        {v}")
+        if problems:
+            print("      WHAT WAS SHRUNK TRYING TO FIX IT — the lever, which is often "
+                  "NOT the element above:")
         for o, why in problems:
             was, now = sizes.get(o, (0, 0))
-            print(f"      {o}: tried down to {now:.1f}px from {was:.1f}px — {why}")
+            print(f"        {o}: tried down to {now:.1f}px from {was:.1f}px — {why}")
         print("      The page was restored to what authoring produced. This is a REAL halt: "
               "the words are longer than the design can hold, so it is a human choice "
               "between the words and the layout — not something to shrink away.")

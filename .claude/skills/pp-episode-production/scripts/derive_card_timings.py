@@ -551,8 +551,36 @@ def main():
                     f"floor of {min_hold:.2f}s ({min_need:.2f}s total). Bring the hold "
                     f"down to at most {round(length - ENTRY_DELAY, 2):.2f}s, or move it.")
         latest = round(bs + (length - need), 2)
-        return (f" — beat {n} is {length:.2f}s and the card needs {need:.2f}s, so "
-                f"the latest cue that still fits starts at {latest:.2f}s.")
+        # 🔴 A BOUND MUST READ AS WHAT IT IS. (EP29, 16 Aug 2026.) This said "the
+        # latest cue that still fits starts at 154.91s" — every word true, and it is a
+        # CEILING that reads as a floor. The first person to act on it went hunting for
+        # a cue at or AFTER that time, which is exactly the set that cannot work, and
+        # the person it is written for has no shot map to cross-check against.
+        #     So it says the DIRECTION and the DEFICIT in the operator's own terms, and
+        # names the cues that DO fit — the tool already knows the beat's spoken lines,
+        # and listing them turns a decision into a choice.
+        # The cue's own moment, read back off the window this tool computed: the card
+        # enters ENTRY_DELAY after the cue is spoken, so the cue is w[0] - ENTRY_DELAY.
+        # Derived, not re-found in the SRT, so it cannot disagree with the numbers above.
+        cue_at = round(w[0] - ENTRY_DELAY, 2)
+        # The spoken lines of THIS beat, with their start times — the candidates a
+        # person would otherwise have to go and find in the SRT by hand.
+        earlier_cues = sorted((c0, (txt or "").strip())
+                              for c0, _c1, txt in srt_cues if bs <= c0 < be)
+        late_by = round(cue_at - latest, 2) if cue_at is not None else None
+        out = (f" — beat {n} is {length:.2f}s long and this card needs {need:.2f}s, so "
+               f"its cue must be spoken at {latest:.2f}s or EARLIER")
+        if late_by is not None and late_by > 0:
+            out += (f". It is at {cue_at:.2f}s — {late_by:.2f}s TOO LATE. Move it "
+                    f"EARLIER, not later: every cue after {latest:.2f}s makes it worse")
+        fits = [t for t in (earlier_cues or []) if t[0] <= latest]
+        if fits:
+            out += (". The cue(s) in this beat that DO fit: "
+                    + "; ".join(f"{t[1]!r} at {t[0]:.2f}s" for t in fits[:3]))
+        elif earlier_cues is not None:
+            out += (". NOTHING spoken in this beat is early enough, so the card has to "
+                    "move to another beat or come down in size")
+        return out + "."
 
     def _fits_its_window(first, second):
         """Does `first` fit the room `second` leaves it, at its lawful floor?
