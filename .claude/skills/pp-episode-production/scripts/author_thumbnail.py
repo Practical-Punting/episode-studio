@@ -77,6 +77,38 @@ FOCUS = re.compile(r"^(center|\d{1,3}%)( (center|\d{1,3}%))?$")
 REQUIRED = ("l1", "l2", "part", "strap_break_after", "hero_focus")
 
 
+# ══ E32 — THE SAME HERO, THE SAME 16:9 WINDOW, THE SAME FIX, TWICE ═══════════
+# EP30's cover hero is 1696 × 2528 — portrait — and a 16:9 window at the default `center`
+# shows y787–1741 while the field of horses sits at y1751–2098. **The crop missed them by
+# ten pixels on the TITLE CARD and again on the THUMBNAIL**: two steps, one hero, one
+# default, and both caught by Jodie's eye rather than by the studio. She then typed the
+# same `center 72%` into two fields.
+#
+#     THE TITLE CARD AND THE THUMBNAIL ARE BOTH 16:9 ON THE SAME PHOTOGRAPH, so a
+#     thumbnail with no crop of its own inherits the one already settled next door.
+#
+# ⚠️ INHERITED, NEVER IMPOSED. An explicit `thumbnail.hero_focus` always wins: the two
+# cards carry different text over different parts of the picture, so a value chosen for
+# one is a starting point for the other and not a ruling about it. And nothing is
+# invented — with no title-card value there is nothing to carry, and `REQUIRED` above
+# still speaks, exactly as it did.
+def inherit_hero_focus(ep, th) -> str | None:
+    """Carry `title_card.hero_focus` across to an unset `thumbnail.hero_focus`.
+
+    Returns a sentence to print when it did, or None. It says so out loud because a
+    value that appears from another field in silence is the next hour somebody spends
+    working out where it came from.
+    """
+    if str(th.get("hero_focus") or "").strip():
+        return None
+    tc = str(((ep.get("title_card") or {}).get("hero_focus") or "")).strip()
+    if not tc:
+        return None
+    th["hero_focus"] = tc
+    return (f"hero_focus: thumbnail has none, so it inherits title_card's {tc!r} — same "
+            f"hero, same 16:9 window. Set thumbnail.hero_focus to override it.")
+
+
 # ══ THE SERIES PART NEVER REACHES THE HEADLINE ═══════════════════════════════
 # 🔴 EP24, 14 Aug 2026. Its rail title was typed with BRACKETS — "Track Secrets
 # (Part 4)" — so the whole string became `packaging.hook`. `check()` below insists the
@@ -285,6 +317,10 @@ def main():
     if note:
         th["l1"], th["l2"], th["part"] = l1, l2, part
         print(f"  {note}")
+    # E32 — before check(), because an inherited value is a value the check must see.
+    inherited = inherit_hero_focus(ep, th)
+    if inherited:
+        print(f"  {inherited}")
     check(ep, th)
 
     tpl = open(TEMPLATE, encoding="utf-8").read()

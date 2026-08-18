@@ -502,7 +502,8 @@ def listen_to_the_master(ep_dir: Path, master: Path):
         "it in HeyGen, save the new file, and say so — nothing here is wasted yet."))
 
 
-def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
+def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None,
+                               ep: dict | None = None):
     """Raise the ONE clearable flag this step is meant to raise.
 
     Placement is the craft: the template's own header says VIEW the hero first,
@@ -521,14 +522,102 @@ def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None):
     ask_once(
         ep_dir / "thumbnail", "placement-reviewed",
         legacy=ep_dir / "thumbnail/.placement-reviewed",   # pre-C3: already answered
-        message=(
+        message=thumbnail_placement_message(png, url,
+                                            *hero_size_and_focus(ep_dir, ep)))
+
+
+# ══ E32 — WHAT A 16:9 WINDOW ACTUALLY DISCARDS ═══════════════════════════════
+# EP30's picked hero is 1696 × 2528 — PORTRAIT. A 16:9 window on it is 954px tall, so
+# 1,574px of the photograph is not in the picture. At the default the visible band is
+# y787–1741 and the field of eleven horses sits at y1751–2098:
+#
+#     THE CROP MISSED THE HORSES BY TEN PIXELS. Twice — the title card and the
+#     thumbnail, two steps, the same hero, the same default — and BOTH were caught by
+#     Jodie's eye rather than by the studio.
+#
+# 🔴 AND THE OBVIOUS FIX IS THE WRONG ONE. "Detect the subject and crop to it" means
+# guessing from pixels, and a wrong AUTOMATIC crop is worse than a wrong DEFAULT: the
+# default is caught by the review that already exists, and a clever guess is not.
+# So this function measures and refuses to guess. It says what is off the picture and
+# what the arithmetic of moving the window is; where the horses are is the human's part,
+# and the flag it feeds is a step that already stops for one.
+_FOCUS_PCT = re.compile(r"(\d{1,3})\s*%\s*$")
+
+
+def hero_size_and_focus(ep_dir: Path, ep: dict | None = None):
+    """(w, h), focus for this episode's thumbnail hero — or (None, "center") if the
+    picture cannot be read. NEVER raises: a measurement that fails must not become a
+    second fault on top of the one a human is already being asked about."""
+    try:
+        from PIL import Image                                          # noqa: PLC0415
+        with Image.open(Path(ep_dir) / "thumbnail" / "hero.png") as im:
+            size = im.size
+    except Exception:                                                  # noqa: BLE001
+        return None, "center"
+    focus = "center"
+    try:
+        focus = str(((ep or {}).get("thumbnail") or {}).get("hero_focus")
+                    or ((ep or {}).get("title_card") or {}).get("hero_focus")
+                    or "center")
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return size, focus
+
+
+def crop_report(w: int, h: int, focus: str = "center", ratio: float = 16 / 9) -> str:
+    """What a `ratio` window on a w×h hero shows and discards, at `focus`.
+
+    Empty string when there is nothing worth saying — a hero already at the target
+    shape discards nothing, and a flag that always shouts is a flag nobody reads.
+    """
+    if not w or not h:
+        return ""
+    win_h = w / ratio
+    if win_h >= h * 0.97:                     # already 16:9 (or wider): nothing lost
+        return ""
+    win_h = round(win_h)
+    spare = h - win_h
+    m = _FOCUS_PCT.search(focus or "")
+    pct = int(m.group(1)) if m else 50        # bare `center` IS `center 50%`
+
+    def band(p):
+        top = round(spare * p / 100)
+        return top, top + win_h
+
+    top, bot = band(pct)
+    d0, d1 = band(0)
+    d50, d50b = band(50)
+    d100, d100b = band(100)
+    return (
+        f"THE CROP: this hero is PORTRAIT ({w}×{h}). A {ratio:.2f}:1 window on it is "
+        f"{win_h}px tall, so {spare:,}px — {100 * spare / h:.0f}% of the photograph — is "
+        f"NOT in the picture.\n"
+        f"  at {focus!r} the visible band is y{top}–{bot} "
+        f"({100 * top / h:.0f}%–{100 * bot / h:.0f}% down the image)\n"
+        f"  'center' / 'center 50%' shows y{d50}–{d50b} · 'center 0%' shows y{d0}–{d1} "
+        f"(the top) · 'center 100%' shows y{d100}–{d100b} (the bottom)\n"
+        f"  each 1% moves the window {spare / 100:.1f}px down.\n"
+        f"  Nothing here knows what is IN the photograph — that is what your eye is for.")
+
+
+def thumbnail_placement_message(png, url=None, hero_size=None, focus="center") -> str:
+    """The words of the placement ask, in ONE place.
+
+    ⚠️ IT IS ASKED FROM TWO PLACES NOW — here, at the step, and EARLY at an assembly
+    seam (engine `_raise_early_ask`). Two copies of this text would drift, and the
+    drift would show up as the board changing its wording halfway through a build for
+    no reason a reader could explain. One source of truth (CLAUDE.md).
+    """
+    measured = crop_report(*(hero_size or (0, 0)), focus=focus)
+    return (
         f"Have a look at the thumbnail: {url or png}\n"
         "It is built at the standard placement (text upper-left over the scrim), which "
         "is what EP11 and EP12 both used. What needs your eye is the HERO CROP — whether "
         "the horses are framed well and every line of text is clear of them.\n"
-        "Happy? Clear this flag and the build carries on. Not happy? Say so and the crop "
+        + (measured + "\n" if measured else "")
+        + "Happy? Clear this flag and the build carries on. Not happy? Say so and the crop "
         "is one value (thumbnail.hero_focus, e.g. \"center 62%\") — EP12 needed 62% "
-        "because its field sits low in the frame."))
+        "because its field sits low in the frame.")
 
 
 HEAD_BREATH = 0.4          # silence left before the first word, in seconds
@@ -1818,6 +1907,12 @@ class MockProvider:
                 "thumbnail-preview.png")
 
     def thumbnail_placement_review_for(self, ep, url=None):
+        return None
+
+    def early_ask_message(self, ep, step) -> str | None:
+        """The mock has no human to ask, and asking early is still not a halt — so it
+        stands in the same way the other gates do: the STEP is exercised, nothing is
+        raised. Present so the seam cannot AttributeError on the mock path."""
         return None
 
     def listen_to_the_master(self, ep) -> None:
@@ -3463,7 +3558,24 @@ class RealProvider:
         png = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         if not png.is_file():
             return
-        thumbnail_placement_review(d, png, url)
+        thumbnail_placement_review(d, png, url, ep)
+
+    def early_ask_message(self, ep, step) -> str | None:
+        """The words for an ask raised EARLY, at an assembly seam — or None if the
+        artefact it is about does not exist yet, in which case the seam does nothing
+        and the next seam asks again.
+
+        The picture is the whole precondition: an ask that points at a file which is
+        not there yet is worse than no ask.
+        """
+        if step != "thumbnail":
+            return None
+        d = self.dir(ep)
+        png = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
+        if not png.is_file():
+            return None
+        return thumbnail_placement_message(png, self.publish_thumbnail_preview(ep),
+                                           *hero_size_and_focus(d, ep))
 
     def listen_to_the_master(self, ep) -> None:
         """Ask the human to LISTEN, once per master. See listen_to_the_master()."""
