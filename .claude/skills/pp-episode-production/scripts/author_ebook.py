@@ -195,6 +195,147 @@ DEPARTURES = {
         "the article's spaced hyphens ( - ) are set as em dashes for print"),
 }
 
+# ══ CORRECTIONS — §0a-ii's ONE NARROW EXCEPTION (Jodie and Hugh, 18 Aug 2026) ═══
+#
+# §0a-ii ruled that a figure the source's own arithmetic contradicts is REPRODUCED, NOT
+# REPAIRED, and disclosed in a <p class="note">. EP30 is the case that changed it: the
+# article prints "$18.10 profit and 33 per cent POT" over its own 103 bets, and 18.10/103
+# is 17.5 per cent — the 33 is the STRIKE RATE from three words earlier, copied into the
+# POT slot. Every other figure in that article checks out exactly.
+#
+#     THESE ARE 2008 ARTICLES AND ~270 EPISODES ARE STILL TO COME. If one carries a copy
+#     error, others will. This is a mechanism PP uses for years, not a workaround.
+#
+# 🔴 WHY THIS IS NOT THE "DEPARTURE ENGINE" THE BAN ABOVE REFUSES. That ban exists
+# because "a departure engine that can do anything can hide anything" — its target is
+# EXPRESSIVE POWER, in SHARED code, applied INVISIBLY to every episode. A correction is
+# the inverse on all three counts: literals only, so no power; one episode's own file, so
+# no reach; and it cannot exist without a note the READER sees, so no invisibility.
+#
+# THE FIVE THINGS A CORRECTION MUST SURVIVE, and each has a case in
+# test_ebook_corrections.py that is red without it:
+#   1. `from` occurs EXACTLY ONCE in the article       (same discipline as omit_paragraphs)
+#   2. it CHANGES something                            (same as a departure that no-ops)
+#   3. `to` != `from`
+#   4. ONLY A FIGURE MAY CHANGE — strip digits, . , % and the words "per cent" from both
+#      sides and what is left must be identical. This is the rule that keeps the
+#      mechanism exactly as wide as the ruling: it cannot rewrite a sentence, rename a
+#      horse or reverse a claim. "33 per cent POT" -> "17.5% POT" passes (both reduce to
+#      "POT"); -> "the favourite always wins" does not; -> "17.5% POTS" does not.
+#      ⚠️ "%" and "per cent" are ONE UNIT WRITTEN TWO WAYS, and that is the only
+#      equivalence here. It is not a normalisation and there must never be a second one.
+#   5. it MUST carry a <p class="note"> quoting the declared note. The disclosure matters
+#      MORE now than it did when we were reproducing: the reader is being shown a number
+#      PP's own page does not print.
+#
+# ⚠️ THE RESIDUAL RISK, RECORDED BECAUSE IT IS REAL AND WAS ACCEPTED KNOWINGLY (A27).
+# This moves PP from "we reproduce" to "we reproduce, except where we judge the author
+# slipped". The guards bound the MECHANISM; nothing bounds the JUDGEMENT about when to
+# invoke it. The protection is that every use is a named per-episode decision carrying a
+# note the reader can see.
+_FIGURE = re.compile(r"[0-9.,%]+")
+_PER_CENT = re.compile(r"per\s+cent", re.I)
+
+
+def figure_stripped(s: str) -> str:
+    """What a phrase says APART from its figures — rule 4's whole implementation."""
+    return re.sub(r"\s+", " ", _FIGURE.sub(" ", _PER_CENT.sub(" ", s))).strip()
+
+
+def apply_corrections(art: list[str], ebook: dict, notes: list[str]) -> list[str]:
+    """Apply declared corrections to the ARTICLE side of the comparison.
+
+    🔴 TO THE ARTICLE, NEVER TO THE BODY, AND NEVER TO THE FILE ON DISK. The body must
+    still equal the article AS CORRECTED, character for character, so an UNDECLARED body
+    change halts exactly as it always did. Nothing is loosened; one declared, literal,
+    figure-only, disclosed exception is added.
+    """
+    # Absent means none. This is the ONE place the "a missing key halts" convention is
+    # not followed, deliberately: a forgotten correction cannot hide anything, because
+    # the body would not match and the gate would halt anyway — and requiring the key
+    # would halt all 30 existing episodes to record the absence of a thing none of them
+    # do. (Jodie, 18 Aug 2026, with that reasoning in front of her.)
+    declared = ebook.get("corrections") or []
+    if not isinstance(declared, list):
+        raise Halt("episode.json -> ebook.corrections must be a LIST of corrections.")
+    seen_notes = [re.sub(r"\s+", " ", n).strip() for n in notes]
+    for i, c in enumerate(declared):
+        where = f"ebook.corrections[{i}]"
+        if not isinstance(c, dict):
+            raise Halt(f"{where} must be an object with from/to/why/note.")
+        missing = [k for k in ("from", "to", "why")
+                   if not str(c.get(k) or "").strip()]
+        if missing:
+            raise Halt(
+                f"{where} is missing {', '.join(missing)}. A correction needs the literal "
+                f"it replaces, the literal it becomes, and WHY — the article's own "
+                f"arithmetic, so a reader of this file can check it without us.")
+        frm, to = c["from"], c["to"]
+        note = str(c.get("note") or "").strip()
+        waiver = str(c.get("note_waived") or "").strip()
+        if note and waiver:
+            raise Halt(
+                f"{where} declares BOTH a note and a note_waived. One or the other: "
+                f"either the book carries the disclosure or it is deliberately waived, "
+                f"and a correction that claims both leaves nobody able to say which "
+                f"happened.")
+        if not note and not waiver:
+            raise Halt(
+                f"{where} has no note and no waiver.\n"
+                f"    A corrected figure is disclosed in a <p class=\"note\"> (§0a-ii), or "
+                f"the disclosure is WAIVED and the waiver is declared — "
+                f'"note_waived": "who decided, when, and why". Silence is not a waiver: '
+                f"absence would let the book print a figure PP's own page does not, with "
+                f"nobody having decided that it should.")
+        if frm == to:
+            raise Halt(f"{where} changes nothing: from and to are identical.")
+        # 4 — ONLY A FIGURE.
+        if figure_stripped(frm) != figure_stripped(to):
+            raise Halt(
+                f"{where} changes WORDS, not just a figure.\n"
+                f"      from: {frm!r}  ->  {figure_stripped(frm)!r}\n"
+                f"      to:   {to!r}  ->  {figure_stripped(to)!r}\n"
+                f"    §0a-ii's exception is exactly this wide: a figure the article's OWN "
+                f"numbers contradict may be corrected, and the words around it stay the "
+                f"article's, character for character. Everything else is still 'we "
+                f"reproduce, we do not improve'. Fix the wording, or do not correct it.")
+        # 1 — EXACTLY ONCE, so nobody corrects a figure they have not located.
+        hits = [j for j, p in enumerate(art) if frm in p]
+        total = sum(p.count(frm) for p in art)
+        if total != 1:
+            raise Halt(
+                f"{where} from={frm!r} appears {total} time(s) in the source article "
+                f"(needs exactly 1).\n"
+                f"    Quote enough of the sentence to be unique. A correction that could "
+                f"land in two places is a correction nobody can check, and one that "
+                f"lands nowhere is a correction of something the article does not say.")
+        # 5 — THE DISCLOSURE, or a DECLARED WAIVER of it.
+        #
+        # 🔴 AMENDED 18 Aug 2026, hours after A27 was made (Hugh). The disclosure is now
+        # WAIVABLE — and the rule is NOT deleted, because a missing note with no waiver
+        # is still exactly the fault it always was. What changed is that a human may
+        # decide the subscriber does not see it, and must SAY SO, in the episode's own
+        # file, with their name on it.
+        #     WHAT IT COSTS, plainly: the book prints a figure PP's own website does not,
+        # with nothing on the page explaining the difference. That is the precise
+        # scenario §0a-ii's disclosure was written to prevent, traded away knowingly.
+        # Only the reader loses it — the correction is still literal, still figure-only,
+        # still one episode, still declared with its `why`, and still named in the PASS
+        # report along with the waiver.
+        want = re.sub(r"\s+", " ", note).strip()
+        if not waiver and not any(want in n for n in seen_notes):
+            raise Halt(
+                f'{where} has no <p class="note"> in ebook/{BODY_FILE} carrying it.\n'
+                f"      wanted: {want[:110]}{'…' if len(want) > 110 else ''}\n"
+                + (f"      the body's notes say: "
+                   f"{'; '.join(n[:70] for n in seen_notes)}\n" if seen_notes else
+                   "      the body has no notes at all.\n")
+                + "    A corrected figure without its note is the book printing a number "
+                  "PP's own page does not print, silently. §0a-ii's disclosure is what "
+                  "makes the correction lawful — it is not decoration.")
+        art[hits[0]] = art[hits[0]].replace(frm, to)
+    return declared
+
 # ------------------------------------------------------------------ vocabulary
 #
 # The class vocabulary PP-STANDARDS §E-book names. Enforced, so the body cannot
@@ -701,7 +842,7 @@ def parse_body(body: str, source_figures: dict | None = None):
     # One sweep over both, because the fidelity walk is about ORDER and two separate
     # passes cannot say which came first. `prose` is a list of (kind, text) pairs —
     # ONE list, so the kind can never drift away from the words it describes.
-    prose, quoted = [], []
+    prose, quoted, notes = [], [], []
     # A CHART JOINS THE SAME WALK. `tables_at[i]` is how many body paragraphs come before
     # chart i — which is the whole of what check_chart_placement needs to say a chart sits
     # beside its words rather than in a heap at the end. Counted HERE, in the one walk, so
@@ -729,6 +870,11 @@ def parse_body(body: str, source_figures: dict | None = None):
                 prose.append(("p", t))
             elif key == "pullquote":
                 quoted.append(t)
+            elif key == "note":
+                # KEPT, not discarded. A note used to be editorial furniture nothing
+                # looked at; since §0a-ii's correction amendment it is the DISCLOSURE a
+                # correction is only lawful with, so the gate has to be able to see it.
+                notes.append(t)
         else:
             t = text_of(m.group(4))
             if not t:
@@ -777,7 +923,7 @@ def parse_body(body: str, source_figures: dict | None = None):
     # its own </ol>.
     ols = [(m.group(1) or "", len(re.findall(r"<li(?:\s[^>]*)?>", m.group(2))))
            for m in re.finditer(r"<ol(\s[^>]*)?>(.*?)</ol>", body, re.S)]
-    return prose, quoted, figures, headings, items, ols, tables, tables_at
+    return prose, quoted, figures, headings, items, ols, tables, tables_at, notes
 
 
 # ------------------------------------------------------------------ the gate
@@ -1360,7 +1506,7 @@ def check_chart_placement(art, tables, tables_at, pos, blocks=None):
 
 
 def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures=None,
-                   tables=None):
+                   tables=None, notes=None):
     """HARD-FAIL unless the body reproduces the article, departures aside.
 
     Returns a plain-English report of what it verified, so a passing build says
@@ -1393,6 +1539,11 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
                        f"is not a departure this episode makes. Remove it — a departure "
                        f"list that gets copied forward unchanged stops meaning anything.")
         art = after
+
+    # §0a-ii's exception, applied AFTER departures and BEFORE anything is compared —
+    # see the long note by DEPARTURES. `art` is a copy; the article file is untouched.
+    corrections = apply_corrections(art, ebook, notes or [])
+
     art_joined = " \n ".join(art)
 
     # omissions must be declared by QUOTING the paragraph, so nothing can be
@@ -1575,6 +1726,24 @@ def check_fidelity(prose, quoted, ep, article: list[str], headings=None, figures
         lines.append(f"          departure {name!r}: {desc}")
     if not fns:
         lines.append("          no declared departures — the body is the article, exactly")
+    # 🔴 A CORRECTED BOOK MUST SAY SO IN ITS OWN PASS LINE. A gate that goes green on a
+    # book carrying a figure PP's page does not print, without naming it, is a gate
+    # nobody can audit afterwards — and this is the one exception in the whole standard.
+    for c in corrections:
+        lines.append(f"          🔴 CORRECTED (§0a-ii, A27): {c['from']!r} -> {c['to']!r}"
+                     f"\n             why: {c['why']}")
+        # A book that corrects a figure AND hides that it did so must say BOTH things
+        # in its own report, and the second at least as loudly as the first.
+        if str(c.get("note_waived") or "").strip():
+            lines[-1] += (
+                f"\n             🔴 DISCLOSURE WAIVED — THE READER IS TOLD NOTHING."
+                f"\n                {c['note_waived']}"
+                f"\n                The book prints a figure practicalpunting.com.au does"
+                f" not, with nothing on the page explaining the difference.")
+        else:
+            lines[-1] += f"\n             disclosed in the book: {c['note']}"
+    if not corrections:
+        lines.append("          no corrections — every figure is the article's own")
     return "\n".join(lines), pos
 
 
@@ -1694,14 +1863,15 @@ def main():
             print(f"    source figure {name} — {os.path.getsize(on_disk):,} bytes, "
                   f"named in {os.path.basename(cap_path)}", file=sys.stderr)
 
-    prose, quoted, figures, headings, items, ols, tables, tables_at = parse_body(
+    prose, quoted, figures, headings, items, ols, tables, tables_at, notes = parse_body(
         body, src_figs)
     # THE SHAPE BEFORE THE WORDS. EP25 passed every word-level check ever written while
     # printing a numbered list as one paragraph, so the shape is asked FIRST — and its
     # message is the useful one when both are wrong.
     report = [f"chart lift: {line}" for line in lifted]
     report += [r for r in (check_list_shape(article, items, ols),) if r]
-    fidelity, pos = check_fidelity(prose, quoted, ep, article, headings, figures, tables)
+    fidelity, pos = check_fidelity(prose, quoted, ep, article, headings, figures, tables,
+                                   notes)
     report += [fidelity, check_figures(figures, ep)]
     report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
     # WHERE THE CHART SITS. Asked after the words are proved, because "this chart is in

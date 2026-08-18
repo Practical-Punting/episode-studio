@@ -490,13 +490,37 @@ FIXES = {
 
 # The rail sentence depends on the shot, which is the whole point of A21's second finding:
 # a straight line pasted into a bend is what produced the incoherent geometry.
+# 🔴 THE TRAILING NEGATION IS GONE, AND THE SENTENCE MOVED TO THE FRONT.
+# (EP30, 18 Aug 2026 — and this is the SECOND time these two faults have shipped.)
+#
+# EP30 came back with horses on both sides of the rail AND the field in identical
+# stride, and BOTH rules were in the sent prompt, in positive form, on all four clips.
+# So the rules did not fail to be written and they did not fail to be applied: the
+# model did not follow them on one clip in four. Three of the four were correct, which
+# is the part worth saying out loud — **this is a rule that holds probabilistically,
+# not a rule that is missing.** No wording gets that to 100%.
+#
+# What we changed, because it is free and it is the only lever that costs nothing:
+#   · the sentence ENDED on "no horses on the far side" — a negation carrying the very
+#     words it forbids (horses / far side). It is dropped. What is beyond the rail is
+#     already stated positively, and a positive statement of the same fact is what the
+#     b-roll brief has asked for since 14 Aug: *"Name what must be true rather than
+#     what must not. Negative prompts are less reliable than positive statements."*
+#   · it was appended into a pile of ~2,400 characters of constraint, roughly 60% of
+#     the way through. It now goes IN THE SCENE, straight after the opening shot
+#     sentence, which is where the brief says the racing situation belongs.
+#
+# ⚠️ AND NOBODY MAY CLAIM THIS WORKED. At 6.5 clips an episode it would take 15–30
+# episodes per arm to tell a 25% fault rate from 15%. This is a free change made on
+# principle, not a measured fix, and the tally (docs/broll-fault-tally.md) is the only
+# thing that will ever turn it into a number.
 RAIL_STRAIGHT = ("the whole field running on ONE side of a single white running rail — "
                  "the rail is the inside boundary of the track, open green turf infield "
-                 "beyond it, no horses on the far side")
+                 "beyond it")
 RAIL_BEND = ("the whole field running on ONE side of a single white running rail — on "
              "this bend the rail curves with the track and the field stays outside it, "
              "the rail is the inside boundary of the track with open green turf infield "
-             "beyond it and no horses on the far side")
+             "beyond it")
 
 
 # 🔴 A COMPETING CLAIM ABOUT WHAT IS BEYOND THE RAIL IS A HUMAN'S CALL.
@@ -524,6 +548,27 @@ def _add_sentence(text: str, clause: str) -> str:
     mistake gets treated as one.
     """
     return text.rstrip(". ") + ". " + clause[0].upper() + clause[1:] + "."
+
+
+def _add_sentence_early(text: str, clause: str) -> str:
+    """Put a clause IN THE SCENE — straight after the opening shot sentence.
+
+    The rail fact is a fact about the picture, not one of the trailing production
+    constraints, and the b-roll brief says so: *"State the racing situation first."*
+    Appended at the end it sat ~60% of the way through 2,400 characters of constraint,
+    behind the anatomy line, the no-text line and the not-a-painting line.
+
+    The FIRST sentence still leads, because that is the shot itself — putting the rail
+    before "Photoreal cinematic side-on shot of…" would describe a rail before saying
+    there is a picture. Falls back to appending if there is no sentence break to find,
+    so a one-sentence prompt is never silently left without the rule.
+    """
+    body = text.rstrip()
+    cut = body.find(". ")
+    if cut == -1:
+        return _add_sentence(text, clause)
+    head, tail = body[:cut + 1], body[cut + 2:]
+    return f"{head} {clause[0].upper() + clause[1:]}. {tail}"
 
 
 def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
@@ -575,9 +620,10 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
                 + ", ".join(f'"{r}"' for r in (removed or ["it"]))
                 + ", and it could not be removed cleanly")
 
-    # 2. The rail sentence, in the form this shot can actually be.
+    # 2. The rail sentence, in the form this shot can actually be — placed EARLY, in
+    #    the scene, rather than appended to the constraint pile. See RAIL_STRAIGHT.
     if gaps & {"rail-side", "rail-beyond"}:
-        text = _add_sentence(text, RAIL_BEND if bend else RAIL_STRAIGHT)
+        text = _add_sentence_early(text, RAIL_BEND if bend else RAIL_STRAIGHT)
         applied.append("the field runs on ONE side of the rail, with open green turf "
                        "infield beyond it" + (" (bend wording)" if bend else ""))
 

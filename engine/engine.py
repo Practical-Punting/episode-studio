@@ -253,6 +253,15 @@ PHASES = {
 # of what these methods actually reach for.) Measured on EP28's clean run, assembly is
 # 9.8 minutes and these three are 5.7 that could hide inside it.
 #
+# ⚠️ THE ORDER HERE IS THE SIDE STREAM'S OWN ORDER, AND `thumbnail` IS FIRST ON PURPOSE.
+# (18 Aug 2026.) It is NOT the phase order — the phase keeps ebook_pdf first, because
+# that is the order the serial fallback must run in. The side stream builds the
+# thumbnail first so the picture EXISTS at the assemble_passA/passB seam, which is the
+# only place the main thread can put the placement ask on the board early. With
+# ebook_pdf first (3.8 min) the picture would not exist until well into passB and the
+# early ask would buy nothing. `web_copies` stays last either way — it needs the
+# full-size thumbnail this stream writes.
+#
 # ⚠️ WHAT GOES ALONGSIDE IS THE **WORK**, NEVER THE BOOKKEEPING AND NEVER THE ASK.
 # `thumbnail` is not the independent step it looks like: it raises a human flag
 # (`thumbnail_placement_review`), and `ebook_pdf` writes `ebook_url` to the rail.
@@ -261,7 +270,7 @@ PHASES = {
 # episode, so a full-object write is safe"). So the side stream builds artefacts and
 # returns them; every state write, every rail write and every flag stays on the main
 # thread, in the same order as before. The human is asked at exactly the same point.
-ALONGSIDE = ("ebook_pdf", "thumbnail", "web_copies")
+ALONGSIDE = ("thumbnail", "ebook_pdf", "web_copies")
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
     "script_sync":    "Re-reading the approved script from Drive",
@@ -1301,6 +1310,10 @@ def step_thumbnail(ctx):
     if url:
         ctx.state["thumbnail_preview_url"] = url
         ctx.save()                       # saved BEFORE the flag, or it is lost
+    # If the ask went up early and has already been answered, promote it here so the
+    # gate below sees an answer and returns instead of asking the same question twice.
+    # If it has NOT been answered, this does nothing and the gate waits, as it always has.
+    _take_early_answer(ctx, "thumbnail")
     ctx.provider.thumbnail_placement_review_for(ctx.ep, url)
     ctx.ep_set({"thumbnail_url": ctx.provider.publish_artefact(ctx.ep, out)})
     return {"thumbnail": out, "preview": url, "alongside": bool(got)}
@@ -1592,8 +1605,10 @@ def _start_alongside(ctx):
     """Start the side stream, or return None if there is nothing to gain."""
     if not ALONGSIDE_ENABLED:
         return None
-    names = [n for n in PHASES["assembling"]
-             if n in ALONGSIDE and not ctx.state["steps"].get(n, {}).get("done")]
+    # ITERATED IN **ALONGSIDE** ORDER, NOT PHASE ORDER — thumbnail first, so the picture
+    # exists at the seam where the early ask is raised. See the note on ALONGSIDE.
+    names = [n for n in ALONGSIDE
+             if not ctx.state["steps"].get(n, {}).get("done")]
     if not names:
         return None                      # a resume that already has them: nothing to do
     ctx.alongside_done = {}
@@ -1602,6 +1617,94 @@ def _start_alongside(ctx):
     t.start()
     log(f"   [alongside] building {', '.join(names)} while assembly runs")
     return t
+
+
+# ── THE EARLY ASK: RAISED AT A SEAM, WAITED ON WHERE IT ALWAYS WAS ──────────────
+# (Jodie, 18 Aug 2026.) RAISING a question and WAITING on the answer are two different
+# things, and only the second one costs a build any time. The thumbnail's placement ask
+# used to be both at once, after assembly: the machine sat idle and the whole stall was
+# however long it took a human to notice.
+#
+#     THE PICTURE IS NOW BUILT DURING ASSEMBLY, SO THE QUESTION CAN BE ASKED DURING IT.
+#
+# The ask goes on the board at the assemble_passA/passB seam. The BUILD does not block
+# one second earlier than it does today — `step_thumbnail` waits exactly where it always
+# waited. If Jodie has answered by the time we get there, there is no stall at all; if
+# she is at work and has not, nothing is worse than before. A saving with no new way to
+# lose, which is why this version was chosen over asking-and-waiting early.
+#
+# 🔴 RAISED ON THE MAIN THREAD, ALWAYS. The side stream builds the picture and writes
+# nothing — see ALONGSIDE. The main thread is inside a blocking ffmpeg subprocess for
+# the whole of a step and cannot raise anything then, so a SEAM between steps is the
+# only honest place for it.
+ALONGSIDE_ASKS = {
+    # step -> (marker dir under the episode, marker stem, pre-C3 legacy marker name)
+    #
+    # ⚠️ THE LEGACY MARKER IS NOT OPTIONAL. `ask_once` returns SILENTLY when it finds
+    # one — EP01–EP23 carry them, and a human answered under the old scheme. An early
+    # raise that only looked for `.answered-` would put the flag up on the board for a
+    # question that was settled months ago, on exactly the old episodes least able to
+    # absorb it. The early raise must be blind in precisely the same places the gate is.
+    "thumbnail": ("thumbnail", "placement-reviewed", ".placement-reviewed"),
+}
+
+
+def _raise_early_ask(ctx, name):
+    """Put a step's ask on the board WITHOUT waiting on it. Main thread only.
+
+    Does exactly what `flag_and_wait` does up to the point it starts sleeping, plus the
+    `.asked-` marker `ask_once` would have written — and then returns. `flag_step` is
+    written because it is the PROOF a flag was really raised; without it
+    `_record_gate_answers` will not promote the answer, and the whole saving evaporates
+    into asking Jodie the same question twice.
+    """
+    if name not in ALONGSIDE_ASKS or ctx.state.get("early_ask", {}).get(name):
+        return
+    sub, stem, legacy = ALONGSIDE_ASKS[name]
+    try:
+        d = ctx.provider.dir(ctx.ep) / sub
+        if (d / f".answered-{stem}").exists() or (d / legacy).exists():
+            return              # already answered — this run, or under the pre-C3 scheme
+        message = ctx.provider.early_ask_message(ctx.ep, name)
+        if not message:
+            return                        # the artefact is not ready yet — try next seam
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f".asked-{stem}").write_text(
+            f"asked {datetime.now(timezone.utc).isoformat(timespec='seconds')}"
+            " (EARLY, at an assembly seam)\n"
+            "THIS RECORDS THE QUESTION, NOT THE ANSWER. The build has NOT stopped for\n"
+            "it — it waits at the step, as it always did. It becomes .answered-… when a\n"
+            "human clears the flag.\n", encoding="utf-8")
+        ctx.state.setdefault("early_ask", {})[name] = True
+        ctx.state["flag_step"] = name
+        ctx.save()
+        rail.flag_needs_look(ctx.id, message)
+        log(f"   [early ask] {name}: on the board now — the build keeps going and waits "
+            f"for it at the {name} step")
+    except Exception as e:                                            # noqa: BLE001
+        # An early ask is an OPTIMISATION. If anything about it fails, the step raises
+        # the ask itself exactly as it always has; there is nothing to recover.
+        log(f"   [early ask] {name} could not be raised early ({e}) — it will be asked "
+            f"at its step, as before")
+
+
+def _take_early_answer(ctx, name) -> bool:
+    """Was an early ask ANSWERED? If so, promote it so the step does not re-ask.
+
+    🔴 THE GUARD IS `needs_look`, AND IT IS NOT OPTIONAL. `_record_gate_answers` does not
+    check whether anybody actually answered — its callers do, and getting that wrong here
+    would promote an UNANSWERED ask to an answer and walk a human gate through in
+    silence. That is EP23's fault rebuilt one layer up. So: we raised the flag; if the
+    board now says it is down, a human put it down.
+    """
+    if not ctx.state.get("early_ask", {}).get(name):
+        return False
+    if ctx.refresh().get("needs_look"):
+        log(f"   [early ask] {name} is still flagged — waiting for it here, as always")
+        return False
+    _record_gate_answers(ctx)
+    log(f"   [early ask] {name} was answered during assembly — no wait here")
+    return True
 
 
 def _join_alongside(t):
@@ -1646,6 +1749,15 @@ def _run_phase_steps(ctx, status, steps, lo, hi, side):
         rail.progress(ctx.id, f"{STEP_LABEL[name]} — {i + 1} of {len(steps)}", pct)
         log(f"-- step {name} ({status})")
         run_step(ctx, name)
+
+        # ── THE SEAM ────────────────────────────────────────────────────────────
+        # A step has just returned and the next has not started, so this is the one
+        # moment the main thread is free to touch the board. Any alongside step whose
+        # picture is ready, and whose turn has not come yet, puts its question up now.
+        if status == "assembling":
+            for ask in ALONGSIDE_ASKS:
+                if not ctx.state["steps"].get(ask, {}).get("done"):
+                    _raise_early_ask(ctx, ask)
 
 
 def _finish_phase(ctx, status):

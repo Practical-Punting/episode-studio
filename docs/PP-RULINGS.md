@@ -865,6 +865,100 @@ build.holds"* — so the person in front of it is asked for a judgement, never f
 
 ---
 
+## A27 · 18 Aug 2026 — 🔢 A FIGURE THE ARTICLE'S OWN NUMBERS CONTRADICT MAY BE CORRECTED · **Jodie and Hugh**
+
+**Amends:** `PP-STANDARDS.md` **§0a-ii**, which said such a figure is *"REPRODUCED, NOT
+REPAIRED … nothing is repaired and `ebook.departures` stays empty."* Everything else in
+§0a and §0a-ii **stands**: we reproduce, we do not improve.
+
+**THE CASE.** EP30's article prints *"103 bets, 34 winners, 33 per cent strike rate,
+$18.10 profit and 33 per cent POT"*. $18.10 over its own 103 bets is **17.5 per cent** —
+the 33 is the **strike rate from three words earlier**, copied into the POT slot. Every
+other figure in the article checks out exactly: 52+51 bets, 16+18 winners, $5.60+$12.50,
+and both daily POTs. **One slip, not a sloppy article.**
+
+> ⚠️ **THE ARTICLES TRUNCATE, THEY DO NOT ROUND.** $5.60/52 = 10.769 and the article
+> prints **10.7**, not 10.8. That single data point is what settles the convention
+> ($12.50/51 gives 24.5 either way, so it says nothing). **17.5 per cent, not 17.6.**
+
+**THE EXCEPTION IS EXACTLY THIS WIDE:**
+- the figure must be contradicted by **the article's OWN published numbers**,
+  arithmetically — no outside source, and no judgement about what the author meant;
+- it is declared per episode in `episode.json → ebook.corrections[]` as a **literal
+  from → to pair** with a reason. Never a transform, never a pattern, never shared code
+  that runs against another episode;
+- **only the FIGURE changes.** The words around it stay the article's, character for
+  character. (`%` and `per cent` are one unit written two ways; that is the only
+  equivalence, and there must never be a second.)
+- it **MUST** carry a `<p class="note">`. The disclosure matters **more** now than when
+  we were reproducing: the reader is being shown a number PP's own page does not print;
+- **the spoken script is untouched.** §0a-ii's two lawful moves still govern Gordon's
+  mouth — do not enumerate, or speak it as printed. A corrected e-book figure is **never**
+  a reason to voice a figure. (EP30's script never says a totals POT, and did not change.)
+
+**WHY THIS IS NOT THE "DEPARTURE ENGINE" THE STANDARD BANS.** That ban exists because
+*"a departure engine that can do anything can hide anything"* — its target is expressive
+power, in shared code, applied invisibly to every episode. A correction is the inverse on
+all three counts: **literals only** (no power), **one episode's own file** (no reach), and
+**it cannot exist without a note the reader sees** (no invisibility).
+
+**HELD BY:** `engine/test_ebook_corrections.py` (13 cases). The load-bearing one is that
+**only a figure may change** — without it, `"33 per cent POT" → "the favourite always
+wins"` is a legal correction and the e-book becomes whatever `episode.json` says it is.
+
+### ⚠️ THE OBJECTION, RECORDED VERBATIM AND ACCEPTED KNOWINGLY
+The honest objection is part of this record, not something to tidy away. As raised
+before the ruling was made:
+
+> *"But there is one genuine residual risk, and it isn't technical. This moves PP from
+> 'we reproduce' to 'we reproduce, except where we've judged the author slipped.' The
+> guards bound the mechanism; nothing bounds the judgement about when to invoke it. The
+> only protection there is that each use is a per-episode decision with your and Hugh's
+> names on it, and the note makes it visible to the reader. I think that's sufficient —
+> but it should be chosen knowingly, not inherited from a gate passing."*
+
+**Jodie chose it with that in front of her.** The protection is as stated: a named
+per-episode decision, carrying a note the reader can see.
+
+### 🔴 AMENDED AGAIN THE SAME DAY — THE DISCLOSURE IS WAIVABLE · **Hugh, 18 Aug 2026**
+
+**A27 was made and amended within hours, and that is recorded rather than smoothed over.**
+Hugh reviewed EP30's book and the note was not what he asked for; his first instruction
+on this had been that the paragraph go entirely, and it was only half done.
+
+**WHAT CHANGES:** a correction may **omit its note**, but **only by declaring the waiver**
+in the correction object — `"note_waived": "<who, when, and why>"`. **Rule 5 is not
+deleted.** A missing note with **no** waiver still halts, exactly as before; a waiver with
+a blank reason halts; declaring both a note and a waiver halts. **Silence is not a
+waiver.**
+
+> ### ⚠️ WHAT IT COSTS, STATED PLAINLY BECAUSE IT IS BEING TRADED AWAY KNOWINGLY
+> **The e-book will print a figure `practicalpunting.com.au` does not, with nothing on
+> the page explaining the difference.** *That is the exact scenario §0a-ii's disclosure
+> was written to prevent* — *"so anyone comparing the e-book with the website finds an
+> EXPLANATION rather than a DISCREPANCY."* From now on they find the discrepancy.
+
+**WHY THIS IS THE NARROW VERSION AND NOT A COLLAPSE.** A27 rested on three protections:
+**literals only** (no power), **one episode** (no reach), and **a note** (no
+invisibility). **Only the third changes, and only for the READER.** The correction is
+still literal, still figure-only, still one episode, still declared in `episode.json` with
+its `why`, and the gate's PASS report now names **the waiver as loudly as the correction**.
+Anyone auditing the episode sees everything. What is lost is the disclosure to the
+**subscriber** — a decision about PP's own product, which is Hugh's to make.
+**Hugh's reason, recorded:** the disclosure paragraph is editorial clutter in a subscriber
+e-book; PP owns the article and will correct it at source.
+
+**Worked case:** EP30 — the note removed entirely, the body keeping `17.5% POT`.
+
+**Does NOT cover:** a figure no arithmetic in the article contradicts; a wording tidy;
+anything in the spoken script; or a **shipped** episode — a finding on one is logged
+CLOSED and the fix rides on the next (see *a shipped episode is not touched*).
+**Related:** **E33** in `ENGINE-BACKLOG.md` — whether this is a mechanism for one episode
+or for twenty is unknown until the source articles are swept, and that sweep is raised,
+not run.
+
+---
+
 ## A25 · 17 Aug 2026 — 🤖 THE HEYGEN RENDER MAY BE FULLY AUTOMATED · **Jodie**
 
 **Supersedes:** the blanket reading of `CLAUDE.md`'s *"never automate the human gates"*,

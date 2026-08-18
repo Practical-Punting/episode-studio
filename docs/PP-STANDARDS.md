@@ -612,6 +612,37 @@ surfaced, and the run is recorded in the episode's run log.**
   EXPLANATION rather than a DISCREPANCY.* **Nothing is repaired and `ebook.departures` stays
   empty:** not voicing a figure is a SELECTION, never a departure.
 
+  > ### ⚖️ AMENDED 18 Aug 2026 — RULING **A27** (Jodie and Hugh). ONE NARROW EXCEPTION.
+  > **Everything above stands. We reproduce, we do not improve** — and this is not a
+  > licence to improve. **A figure the article's OWN published numbers contradict MAY now
+  > be corrected in the e-book**, and the exception is exactly this wide:
+  > - contradicted **arithmetically, by the article's own figures** — no outside source,
+  >   and no judgement about what the author meant;
+  > - declared per episode in `episode.json → ebook.corrections[]` as a **literal
+  >   from → to pair** with a reason. Never a transform, never a pattern, never shared
+  >   code that runs against another episode;
+  > - **only the FIGURE changes** — the words around it stay the article's, character for
+  >   character. (`%` and `per cent` are one unit written two ways; the only equivalence.)
+  > - it **MUST** carry a `<p class="note">` — **unless the disclosure is WAIVED, and the
+  >   waiver is declared** (`"note_waived": "<who, when, why>"`). **Amended the same day
+  >   by Hugh.** A missing note with **no** waiver still halts; a blank reason halts;
+  >   both together halt. **Silence is not a waiver.**
+  >   ⚠️ **THE COST, KNOWINGLY TRADED:** a waived book prints a figure
+  >   `practicalpunting.com.au` does not, **with nothing on the page explaining the
+  >   difference** — the exact scenario this disclosure existed to prevent. Only the
+  >   READER loses it: the correction is still declared, still figure-only, still one
+  >   episode, and the gate's PASS report names the waiver as loudly as the correction;
+  > - **the spoken script is untouched** — the two lawful moves above still govern
+  >   Gordon's mouth. A corrected e-book figure is **never** a reason to voice a figure.
+  >
+  > **The worked case is EP30** ("33 per cent POT" where $18.10 over the article's own
+  > 103 bets is 17.5 per cent — the strike rate copied three words along). ⚠️ **These
+  > articles TRUNCATE, they do not round**: $5.60/52 = 10.769 and the page prints 10.7.
+  >
+  > **Held by** `engine/test_ebook_corrections.py`. **The full reasoning, and the
+  > objection that was raised and knowingly accepted, are in `PP-RULINGS.md` A27** —
+  > read it before using this, because it records what this exception costs.
+
   ### 📊 A SCANNED TABLE IS REPRODUCED AS THE SCAN. RULED 5 Aug 2026.
   > **THE SCAN IS THE ARTICLE. Embedding it is the most faithful reproduction available,
   > not the least.**

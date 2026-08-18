@@ -838,8 +838,54 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
-- 🔴 **E32 — `center` IS THE WRONG DEFAULT CROP FOR A PORTRAIT HERO, AND IT COST TWO
-  HUMAN CATCHES ON ONE EPISODE.** *(EP30, 17 Aug 2026.)*
+- 🟠 **E33 — IS EP30'S COPY ERROR ONE ARTICLE OR TWENTY? A READ-ONLY ARITHMETIC SWEEP
+  OF THE SOURCE ARTICLES WE ALREADY HOLD.** *(Raised 18 Aug 2026. NOT STARTED — Jodie
+  asked for it to be raised, not run.)*
+  EP30's article prints *"$18.10 profit and 33 per cent POT"* on 103 bets. $18.10/103 is
+  **17.5%**; the 33 is the STRIKE RATE from three words earlier, copied into the POT
+  slot. Every other figure in that article checks out exactly — two days' bets, winners,
+  profits and both daily POTs — so it is one slip, not a sloppy article.
+  **WHY IT MATTERS BEYOND EP30:** these are 2008 articles and **~270 episodes are still
+  to come**. The correction mechanism being designed for EP30 (`ebook.corrections[]`,
+  §0a-ii amended) is either a one-off or a thing PP uses for years, and **nobody knows
+  which**. A sweep of the ~20 source articles in `G:\My Drive\PP Videos\docs\` would
+  say — it is read-only, it spends nothing, and it touches no shipped episode.
+  **WHAT IT WOULD DO:** for each article, find sentences carrying a profit, a bet count
+  and a percentage, recompute, and list only the ones that disagree with the article's
+  own figures — using the TRUNCATION convention the articles themselves use (EP30 prints
+  10.7 for 10.769, which rounds to 10.8; that single data point is what settles it).
+  ⚠️ **A FINDING HERE IS ABOUT THE ARTICLE, NOT A LICENCE TO EDIT ONE.** §0a-ii still
+  stands: reproduced, disclosed, and corrected only where Jodie and Hugh say so, per
+  episode. And **a shipped episode is not touched** — a finding on one is logged CLOSED.
+  🔴 **AND THE SWEEP IS WORTH MORE SINCE A27 WAS AMENDED (18 Aug, same day it was made).**
+  The disclosure is now WAIVABLE, so **every article with a copy error has a path to a
+  SILENT correction** — a book printing a figure `practicalpunting.com.au` does not, with
+  nothing on the page saying so. The question this sweep answers is therefore no longer
+  just *"how many articles?"* but **"how much silent divergence between the e-books and
+  the website are we creating?"** That number is worth knowing BEFORE the pattern
+  repeats across ~270 episodes, not after.
+- ✅ **E32 — LANDED 18 Aug 2026 (batch 3).** Both safe changes, and **neither guesses**:
+  1. **`author_thumbnail.inherit_hero_focus()`** — an unset `thumbnail.hero_focus`
+     inherits `title_card.hero_focus` (same hero, same 16:9 window) and **says so in the
+     build output**. An explicit thumbnail value is never overridden; with nothing to
+     inherit, nothing is invented and `REQUIRED` still speaks.
+  2. **`providers.crop_report()`** — the placement flag now MEASURES. On EP30 it says:
+     *"this hero is PORTRAIT (1696×2528). A 1.78:1 window on it is 954px tall, so
+     1,574px — 62% of the photograph — is NOT in the picture"*, then gives the band at
+     the current value, at 0/50/100%, and that each 1% moves the window 15.7px.
+     🔴 **It never says where the horses are.** A wrong automatic crop is worse than a
+     wrong default — the default meets the review that already exists and a clever guess
+     does not. The human still decides; they stop deciding blind.
+  📋 Held by `engine/test_e32_crop.py` (9 cases), including the two controls that matter:
+  **it must not claim to know the subject**, and **an explicit value must win**.
+  ⚠️ **STILL OPEN, AND IT IS JODIE'S CALL, NOT A CODE CHANGE:** why the hero is portrait
+  at all. The cover heroes are generated for the e-book cover, which IS portrait, and the
+  title card and thumbnail then crop 16:9 out of it. **A hero commissioned in both shapes,
+  or framed for the crop, removes the class rather than guarding it** — that changes what
+  is generated, so it is a prompt decision and hers.
+  *(Original entry kept below — it is the case that justified the work.)*
+- 🔴 ~~**E32 — `center` IS THE WRONG DEFAULT CROP FOR A PORTRAIT HERO, AND IT COST TWO
+  HUMAN CATCHES ON ONE EPISODE.**~~ *(EP30, 17 Aug 2026.)*
   EP30's picked cover hero is **1696 × 2528** — portrait. A 16:9 window on it is
   **954px tall**, so **1,574px of the photograph is discarded**. At the default
   (`center` / `center 50%`) the visible band is **y 787 → 1741**. The field of eleven
