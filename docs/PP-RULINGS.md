@@ -862,3 +862,65 @@ wrote. EP22's pre-fix halts still halt, and EP19/20/21 still derive clean and un
 📌 **And the halt now names the one thing it wants** — *"the ONLY thing needed from you is
 WHICH row folds into which… the hold then comes down by itself; you do not have to set
 build.holds"* — so the person in front of it is asked for a judgement, never for arithmetic.
+
+---
+
+## A25 · 17 Aug 2026 — 🤖 THE HEYGEN RENDER MAY BE FULLY AUTOMATED · **Jodie**
+
+**Supersedes:** the blanket reading of `CLAUDE.md`'s *"never automate the human gates"*,
+**for the render and for nothing else**. Builds on **A26 below (11 Aug)**, which stands.
+
+> **THE HEYGEN RENDER RULING — Jodie, 17 August 2026. FULL AUTO, RENDER ONLY.**
+> The CLAUDE.md line "never automate the human gates" is AMENDED FOR THE RENDER ONLY.
+> The studio may fill the HeyGen template AND click Generate/Submit itself.
+> This does NOT extend to any other gate. The words/script gate, the cover pick, the four
+> approvals and the publish all remain HUMAN and are not to be automated.
+> Conditions, all of which must hold:
+> - browser automation of the HeyGen web app on subscription credits — NEVER the API or
+>   Make (the 11 Aug ruling stands)
+> - generate AT MOST ONCE per episode, ever; the rail marker is written BEFORE the click,
+>   not after, so a crash cannot double-generate
+> - a dry-run fill-only mode must exist and be proven first
+> - the click must RE-VERIFY the live fields immediately before pressing — a screenshot is
+>   a proxy, not evidence
+> - the popup settings are verified: 1080p / MP4 / My Projects / Watermark Off /
+>   correct title
+> - the Script Gate stays: no render before the script is approved
+> - listen_check stays: Jodie listens to the WHOLE render before it is used
+> - manual fallback always; STOP and ask on a login wall or captcha; never guess a selector
+
+**THE REASONING, AND WHY IT IS NOT A WEAKENING.** The human-gate rule protects **who
+decides**, and every gate it protects is a JUDGEMENT — is this cover right, are these
+words right, is this good enough to ship. **The render is not a judgement. It is typing.**
+Jodie's script is already approved at the Script Gate before a render may start, and she
+still hears the finished take at `listen_check` before a frame of it is used. What sat
+between those two was a keyboard — and on 17 Aug it stopped her working at all: away from
+her desk with only an iPhone, HeyGen's mobile app and mobile web could not drive the
+template flow, so EP30 sat finished-but-for-the-render while every other artefact was
+built and waiting.
+
+⚠️ **WHAT THIS DOES NOT SAY.** It does not say automation may spend twice, guess at a
+page, or proceed past a login wall. Those are the conditions above, and they are
+conditions rather than suggestions **because the failure modes were named before the
+ruling was made**: a screenshot is a proxy for a live page (fault #1), and a marker
+written after a click cannot survive a crash between the two (the hero-jobs double-spend
+lesson, where deleting the PNGs did not invalidate a stored job id).
+
+## A26 · 11 Aug 2026 — 🚫 AUTO-RENDER IS BROWSER AUTOMATION, NEVER THE API · **Jodie**
+
+> **"HEYGEN AUTO-RENDER = browser automation, NEVER the API/Make"**, alongside
+> **"generate AT MOST ONCE per episode"**.
+
+**Recorded here 17 Aug 2026, and the delay is the point.** This ruling was made on 11
+August and lived only in a Cowork doc and in one machine's memory — so the engine that
+implements it could not read it, and a session that reasoned from `heygen-render-routes`
+alone would have concluded auto-render was refused outright. **A rule that lives only in
+Cowork is invisible to the machine**, which is the whole reason this file exists.
+
+**Why browser and never API:** the two billing pools are separate. The account's API
+wallet is empty, so a REST/CLI render spends **real dollars** (~$21/episode at Avatar IV
+photo-avatar rates) while the web app spends the **plan credits** already paid for. The
+MCP route cannot hold the background either — its only video-creating tool takes no
+background parameter, and Gordon's grandstand comes from the locked template's scene, not
+from his avatar. A template-free render puts him in a corporate office.
+**Does NOT cover:** anything about WHO clicks — that is A25 above.
