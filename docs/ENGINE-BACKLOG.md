@@ -838,6 +838,65 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟡 **E37 — BATCH 5 (HEYGEN FETCH IN THE BACKGROUND) IS DEFERRED PENDING MEASUREMENT.
+  NOT DROPPED, NOT AN OVERSIGHT.** *(18 Aug 2026. Jodie: measure first.)*
+  The plan said ~8.3 min an episode, and the `if hj.get("file"): skip` seam does exist.
+  **The seam is not what the plan assumed.** `poll_heygen` is not a fetch — it does five
+  things: `_heygen_fetch` (the download), `trim_master_lead_in` (**mutates the master**;
+  EP30 trimmed 5.94s), `align_to_script` (**runs WhisperX forced alignment**), the
+  **180 kbps floor gate** and the **missing-`_audio_kbps_floor_why` gate**.
+  🔴 **TWO OF THE FIVE RAISE `EngineFlag` — human gates inside the thing we proposed
+  moving to a background thread.** That is the thumbnail lesson exactly (and the second
+  time in one day that "independent" work turned out to raise a flag).
+  **WHAT IS ACTUALLY SEPARABLE:** the DOWNLOAD only. Split it as the alongside stream is
+  split and the side thread may fetch, while trim, align and both gates stay on the main
+  thread. **So the saving is the TRANSFER, not 8.3 minutes** — and nobody knows what
+  fraction that is, because the step is timed as ONE number.
+  ⚠️ **AND ALIGNMENT WOULD CONTEND WITH `cards_render` FOR CPU.** The overlap window is
+  the building phase, whose long pole is the card capture — ~260 CDP screenshots per
+  card. **Batch 6 parallelises exactly that, so it makes the contention WORSE.** Measure
+  AFTER batch 6 has landed, or the number describes a machine we no longer have.
+  **THE DECISION WAITS ON:** EP31's `poll_heygen` split timing (download / trim / align /
+  gates — instrumented 18 Aug, free), measured on post-batch-6 code.
+  ✅ **AND IF THE NUMBER SAYS ALIGNMENT DOMINATES, THIS BATCH SHRINKS TO ALMOST NOTHING
+  OR IS DROPPED — AND THAT IS A GOOD OUTCOME.** A batch closed with a verdict is
+  finished. "Everything, then automate" is satisfied by a batch that was measured and
+  rejected; it is not satisfied by one that was guessed at and built.
+- 🟢 **E35 — THE ONE CAPTURE WITH NO LIST PROVENANCE IS THE ARTICLE THE SECTION EXISTS
+  BECAUSE OF.** *(Found 18 Aug 2026 while sweeping the captures for batch 4.)*
+  **EP25's capture has no `## LISTS` section at all.** EP25 is *"50 Great Staking Ideas"* —
+  an `<ol>` of exactly 50 `<li>` that the capture flattened into ONE 3,900-word paragraph,
+  the e-book reproduced faithfully, and the fidelity gate passed. **That fault is why the
+  LISTS section was added.** It was added *after* EP25 was captured, so the article that
+  earned the section is the only one without it.
+  🔴 **JODIE'S RULING (18 Aug): BACKLOG IT, DO NOT TOUCH IT.** EP25 is **published**, and
+  *a shipped episode is not touched*. There is no live value in fixing it either: the
+  section only matters at **e-book-writing time**, and EP25's book is long done.
+  **Logged for the irony and for the next person who sweeps the captures and finds a gap
+  where they expect a section — it is not damage, it is chronology.**
+- 🟠 **E36 — A BULLETED LIST IS INVISIBLE TO THE NOTE, AND THERE IS NO LEGAL WAY TO PRINT
+  ONE AS A LIST.** *(Found 18 Aug 2026, immediately after batch 4. NOT a regression — it
+  has always worked this way, and nothing is broken today.)*
+  `numbered_runs()` reads `^\d+\. `, so the LISTS note describes NUMBERED lists and is
+  **silent about `<ul>`**. An article with bullets gets *"No numbered list in the article
+  body"* — true, and it tells the e-book writer nothing about a list that IS there.
+  **WHO HAS THEM:** **EP14** (3 bullets — system rules) and **EP20** (6 bullets — the
+  Hong Kong points). *(EP25's single `*` is a footnote marker — "Indicates extract from
+  Commonsense Punting" — not a list.)*
+  **WHY NOTHING HAS BROKEN:** `<ul>` **is not in the e-book tag vocabulary at all**
+  (`TAGS_OK` carries `ol` and `li`, no `ul`), so a bulleted list cannot be expressed as a
+  list. EP14 and EP20 reproduced their bullets as ordinary paragraphs carrying the `•`/`*`
+  character verbatim, and the fidelity gate is satisfied because the capture emits each
+  bullet as its own block. **It works. It is just silent.**
+  ⚠️ **THE TRAP, AND IT IS THE FAMILIAR SHAPE:** `li` IS allowed on its own. A writer who
+  reaches for `<li>` for bullets gets `check_list_shape` seeing items with no numbered
+  paragraphs, and the halt reads *"the source article has no numbered list in it. A list
+  the article does not print is structure we invented."* **That would be factually wrong**
+  — the article does print a list — and it sends the writer to delete a list the page has.
+  Same shape as EP26's charts: *a rule that leaves no legal way to do the right thing has
+  already chosen the wrong one.*
+  **WHEN IT IS ITS TURN:** have the note describe bulleted lists too, and decide whether
+  `<ul>` joins the vocabulary — **on the tightest possible terms**, as the chart table did.
 - 🔴 **E34 — `publish_artefact` KEYS ON THE FILE'S NAME, AND THE CLOSE-OUT RENAMES THE
   FILE. SO ANY RE-PUBLISH AFTER PUBLICATION MINTS A NEW URL AND LEAVES THE OLD ONE LIVE
   AND WRONG.** *(Found 18 Aug 2026 while repairing EP30. LATENT, not a one-off.)*
