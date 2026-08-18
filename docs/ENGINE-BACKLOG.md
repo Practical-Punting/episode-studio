@@ -838,6 +838,56 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- ✅ **E38 — ANSWERED 18 Aug 2026, AND THE ANSWER IS TWO DIFFERENT ANSWERS.**
+  **CARD CLIPS ARE BYTE-REPRODUCIBLE. E-BOOK PDFs ARE NOT.**
+  - **Cards:** EP30's 20 cards re-rendered **20/20 byte-identical to the clips that
+    actually shipped** — twice serially (431s, 451s), and at 2, 3, 4 and 6 shards, and
+    again with the machine saturated. Chromium + x264 are deterministic here.
+  - **PDFs:** three rebuilds of the SAME e-book source gave **three different files** —
+    5,635,858 / 5,635,858 / 5,635,860 bytes, three different hashes, none matching the
+    shipped 5,635,882 — and **all of them extract to the same 6,227 characters.**
+    WeasyPrint writes something per run; the document is identical.
+  🔴 **SO `verify_published.py` DID INHERIT A FALSE-POSITIVE RATE, ON EXACTLY THE
+  ARTEFACT IT MATTERS FOR.** A byte comparison would report every rebuilt-but-not-
+  republished book as a fault, and a checker that cries wolf is one somebody turns off.
+  **FIXED:** when a PDF's bytes differ it now compares the TEXT before calling it
+  anything — *"the bytes differ but THE DOCUMENT IS IDENTICAL"* versus *"…AND THE WORDS
+  DIFFER"*. Two findings, different owners, same shape as the origin/edge split.
+  **This is the EP16/EP18 judgement turned into a rule.** Checking the text before
+  calling a byte difference a fault stopped two shipped episodes being reported as
+  broken; with rebuilds now PROVEN non-reproducible it is a requirement, not instinct.
+  ⚠️ **AND `a shipped episode is not touched` IS STRONGER FOR IT.** For the e-book we
+  cannot reproduce what shipped byte-for-byte — so the law is not a preference about
+  churn, it is the only reason the shipped artefact still exists at all.
+  *(Original entry kept below — it is the question that earned the measurement.)*
+- 🟠 ~~**E38 — IS THE STUDIO'S OUTPUT REPRODUCIBLE? (MEASURING 18 Aug 2026, batch 6.)**~~
+  Batch 6 needs a control for parallel frame capture, and the obvious one — *the new
+  clips are frame-identical to the shipped ones* — **assumes a serial re-render today
+  reproduces what shipped**. Nobody has ever checked. Three questions, in this order,
+  because only the third is the one batch 6 asks and it means nothing without the first
+  two:
+  1. **serial vs SHIPPED** — is the studio reproducible at all?
+  2. **serial vs SERIAL** — is BYTE-IDENTITY even a usable measure? *(If two runs of the
+     same cards on the same machine differ, container bytes are the wrong unit and the
+     control must compare DECODED FRAMES — `ffmpeg -f framemd5` — or it fails for
+     reasons that have nothing to do with sharding.)*
+  3. **serial vs PARALLEL** — does sharding change the picture?
+  🔴 **AND IF THE ANSWER TO (1) IS NO, THREE THINGS FOLLOW THAT ARE BIGGER THAN BATCH 6:**
+  - **`verify_published.py` inherits a false-positive rate.** It compares the published
+    copy to the file ON DISK, so a rebuild that changes bytes without changing content
+    reads as a fault on every rebuilt-not-republished artefact. **Checking the TEXT/the
+    picture before calling a byte difference a fault stops being good judgement and
+    becomes a REQUIREMENT.** (EP16/EP18 is exactly this, met once already.)
+  - **It EXPLAINS EP16/EP18.** Those were attributed to "a later local rebuild". If
+    rebuilds are not byte-stable that attribution is confirmed, and the category is
+    understood rather than guessed at.
+  - **`a shipped episode is not touched` gets STRONGER.** If we cannot reproduce what
+    shipped, that law is not a preference about churn — **it is the only reason the
+    shipped artefact still exists at all.**
+  📋 Measured on EP30's real 20 cards in a SCRATCH directory; EP30's folder is not
+  touched. Instrument: `compare_clips.py`, which reports bytes and decoded frames
+  separately, because "the container changed" and "the picture changed" are different
+  findings.
 - 🟡 **E37 — BATCH 5 (HEYGEN FETCH IN THE BACKGROUND) IS DEFERRED PENDING MEASUREMENT.
   NOT DROPPED, NOT AN OVERSIGHT.** *(18 Aug 2026. Jodie: measure first.)*
   The plan said ~8.3 min an episode, and the `if hj.get("file"): skip` seam does exist.

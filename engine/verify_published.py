@@ -103,6 +103,41 @@ def fetch(url: str, timeout: int = 120) -> tuple[bytes | None, str]:
 CACHE_BUSTER = "pp-verify"
 
 
+# 🔴 A PDF THAT DIFFERS IN BYTES IS NOT NECESSARILY A DIFFERENT DOCUMENT. (Measured
+# 18 Aug 2026, E38.) Card clips ARE byte-reproducible — EP30's 20 cards re-rendered to
+# files byte-identical to the ones that shipped, across sessions and across four shard
+# counts. **E-book PDFs are not.** Three rebuilds of the SAME source page gave three
+# different files (5,635,858 / 5,635,858 / 5,635,860 bytes, all three hashes different,
+# none matching the shipped 5,635,882) — and every one of them extracts to the SAME
+# 6,227 characters of text. WeasyPrint writes something per-run; the document is
+# identical.
+#
+#     SO A BYTE COMPARISON ON A PDF CRIES WOLF ON EVERY REBUILT-BUT-NOT-REPUBLISHED
+#     BOOK, and a checker that cries wolf is one somebody turns off.
+#
+# This is the EP16/EP18 judgement made into a rule: the text was checked there before a
+# byte difference was called a fault, and that stopped two shipped episodes being
+# reported as broken. With rebuilds proven non-reproducible, that stops being good
+# instinct and becomes a REQUIREMENT — the same shape as the origin/edge split above,
+# two findings with different owners:
+#   · the DOCUMENT differs  → the reader gets different words. Serious.
+#   · only the BYTES differ → a rebuild that was never republished. Worth saying, and
+#     nobody is being given the wrong document.
+def pdf_text(b: bytes) -> str | None:
+    """The words in a PDF, or None if they cannot be read. Never raises — a comparison
+    that cannot be made must not become a second fault on top of the first."""
+    try:
+        import io                                                      # noqa: PLC0415
+        import re as _re                                               # noqa: PLC0415
+
+        import pypdf                                                   # noqa: PLC0415
+        r = pypdf.PdfReader(io.BytesIO(b))
+        return _re.sub(r"\s+", " ",
+                       "\n".join((p.extract_text() or "") for p in r.pages)).strip()
+    except Exception:                                                  # noqa: BLE001
+        return None
+
+
 def check_episode(ep: dict, fetch_fn=fetch) -> list[dict]:
     """One row per published artefact: does the URL serve the file on disk?
 
@@ -138,12 +173,27 @@ def check_episode(ep: dict, fetch_fn=fetch) -> list[dict]:
             row["ok"] = True
             row["why"] = f"identical ({len(disk):,} bytes)"
         elif not row["origin_ok"]:
-            row["why"] = (
-                f"THE PUBLISHED FILE IS NOT THE ONE ON DISK — published "
-                f"{len(origin):,} bytes (sha {_sha(origin)[:16]}), on disk "
-                f"{len(disk):,} bytes (sha {_sha(disk)[:16]}). The publish never "
-                f"happened, or happened from a different file. OURS TO FIX: re-run the "
-                f"step that publishes it.")
+            # Before calling a byte difference a fault, ask whether the DOCUMENT
+            # differs — PDFs are not byte-reproducible (see pdf_text above).
+            same_doc = False
+            if url.lower().endswith(".pdf"):
+                ta, tb = pdf_text(origin), pdf_text(disk)
+                same_doc = ta is not None and ta == tb
+            if same_doc:
+                row["ok"] = True
+                row["why"] = (
+                    f"the bytes differ ({len(origin):,} published vs {len(disk):,} on "
+                    f"disk) but THE DOCUMENT IS IDENTICAL — same text, to the "
+                    f"character. A rebuild that was never republished; PDFs are not "
+                    f"byte-reproducible (E38). Nobody is being given the wrong document.")
+            else:
+                row["why"] = (
+                    f"THE PUBLISHED FILE IS NOT THE ONE ON DISK — published "
+                    f"{len(origin):,} bytes (sha {_sha(origin)[:16]}), on disk "
+                    f"{len(disk):,} bytes (sha {_sha(disk)[:16]})"
+                    + (" AND THE WORDS DIFFER" if url.lower().endswith(".pdf") else "")
+                    + ". The publish never happened, or happened from a different "
+                      "file. OURS TO FIX: re-run the step that publishes it.")
         else:
             row["why"] = (
                 f"published correctly, but THE LINK IS SERVING AN OLDER CACHED COPY "

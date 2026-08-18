@@ -5,6 +5,20 @@
 # header logo. Exits non-zero if a check fails.
 import os, sys, pathlib
 
+# 🔴 STDOUT IS A PIPE WHEN THE ENGINE RUNS THIS, AND A PIPE IS cp1252 ON WINDOWS.
+# (18 Aug 2026 — a regression introduced the same day, by me, and caught by a benchmark
+# rather than by the suite.) `providers.run()` calls this with `capture_output=True`, so
+# stdout is not a console: Python picks the LOCALE encoding, and one `⚠️` in a print
+# raises UnicodeEncodeError. The PDF is written first, so the artefact exists — and the
+# script still exits 1, `run()` raises, and the e-book step FAILS on a finished file.
+#     Every other script the engine drives already does this. This one never printed a
+# non-ASCII character until it did.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 SRC = pathlib.Path(sys.argv[1]).resolve()
 OUT = pathlib.Path(sys.argv[2]).resolve()
 

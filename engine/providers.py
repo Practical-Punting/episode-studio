@@ -2967,17 +2967,36 @@ class RealProvider:
     def poll_heygen(self, ep, polls_so_far):
         """The render is a HUMAN step; we only pick up the finished master via
         the API video_url (the ~189 kbps master — never the web download)."""
+        # ⏱️ TIMED IN ITS PARTS, BECAUSE A STEP TIMED AS ONE NUMBER CANNOT ANSWER THE
+        # QUESTION WE ARE ASKING OF IT. (18 Aug 2026, for E37 / batch 5.)
+        # `heygen_download` measured 8.3 min on EP28's clean run and the plan proposed
+        # moving it to a background thread for that saving. But this method is FIVE
+        # things, not a fetch — download, trim, align (WhisperX), and two gates that
+        # raise EngineFlag — and only the DOWNLOAD is separable. Whether the 8.3 minutes
+        # is mostly transfer (worth moving) or mostly alignment (not movable, and it
+        # would contend with cards_render for CPU) is the whole decision, and nobody
+        # knows which. So: measure. Free, and it turns a premise into a fact.
+        #     ⚠️ AND THE NUMBER MUST BE READ OFF POST-BATCH-6 CODE — batch 6 parallelises
+        # the card capture, which makes the contention this would compete with WORSE.
+        t = {}
+        _t0 = time.monotonic()
         d = self.dir(ep)
         master = d / "renders/presenter-master.mp4"
         if not master.is_file():
             self._heygen_fetch(ep, master)         # returns only when downloaded
+        t["download"] = time.monotonic() - _t0
+        _t0 = time.monotonic()
         print(f"    {trim_master_lead_in(master)}")
+        t["trim"] = time.monotonic() - _t0
+        _t0 = time.monotonic()
         # STANDING STEP, immediately after the trim (Jodie, 29 Jul 2026). Everything
         # downstream — card leads, the midroll anchor, b-roll offsets, the shot map
         # and the checks that grade them — derives from a transcript, so the good one
         # must exist BEFORE anything can reach for the constructed one. Same move as
         # the standing midroll chip: take what works and make it standing.
         print(f"    {align_to_script(d)}")
+        t["align"] = time.monotonic() - _t0
+        _t0 = time.monotonic()
         kbps = self._audio_kbps(master)
         # THE FLOOR IS 180 AND IT STAYS 180. An episode may raise a documented
         # exception in its OWN file — never by moving this number (Jodie, 5 Aug 2026,
@@ -3014,6 +3033,16 @@ class RealProvider:
             print(f"    ⚠️ AUDIO BELOW THE STANDARD, ALLOWED BY A WRITTEN EXCEPTION: "
                   f"{kbps:.0f} kbps against the locked 180 floor; this episode sets "
                   f"{floor:.0f}. Reason: {why[:400]}")
+        t["gates"] = time.monotonic() - _t0
+        # THE SPLIT, ON ONE LINE, IN THE RUN LOG. This is the whole evidence base for
+        # E37 — whether batch 5 is worth building, shrinks to almost nothing, or is
+        # dropped with a verdict. Read it off the first episode that runs post-batch-6.
+        total = sum(t.values())
+        print("    ⏱️ poll_heygen split: "
+              + " · ".join(f"{k} {v:.1f}s ({100 * v / total:.0f}%)"
+                           for k, v in t.items() if total)
+              + f" · TOTAL {total:.1f}s"
+              + "   [E37: only `download` is separable — see the backlog]")
         return str(master)
 
     def _heygen_fetch(self, ep, master: Path):

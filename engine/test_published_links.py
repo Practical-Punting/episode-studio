@@ -213,6 +213,48 @@ case("a wrong ORIGIN is named as ours to fix, not blamed on a cache",
      _a_bad_publish_is_still_blamed_on_us)
 
 
+def _a_pdf_rebuild_is_not_a_different_document():
+    """🔴 THE FALSE-POSITIVE THIS CHECKER WOULD OTHERWISE HAVE. Measured 18 Aug 2026:
+    three rebuilds of EP30's SAME e-book source gave three different files — different
+    sizes, different hashes, none matching the shipped one — and all extracted to the
+    same 6,227 characters. PDFs are not byte-reproducible. A byte comparison alone would
+    report every rebuilt-but-not-republished book as a fault, and a checker that cries
+    wolf is one somebody turns off."""
+    real = vp.pdf_text
+    try:
+        vp.pdf_text = lambda b: "THE SAME WORDS"       # both sides read identically
+        with Fake(disk=b"%PDF rebuilt", served=b"%PDF older bytes") as f:
+            r = vp.check_episode(EP, f.fetch)[0]
+            assert r["ok"], (
+                f"a content-identical PDF rebuild was reported as a fault: {r['why']}")
+            assert "DOCUMENT IS IDENTICAL" in r["why"], r["why"]
+    finally:
+        vp.pdf_text = real
+
+
+case("🔴 CONTROL — a PDF whose bytes differ but whose WORDS match is not a fault",
+     _a_pdf_rebuild_is_not_a_different_document)
+
+
+def _a_pdf_whose_words_differ_still_fails():
+    """The other side. EP30's real fault was exactly this: same kind of file, DIFFERENT
+    words — 33 per cent where the disk said 17.5%."""
+    real = vp.pdf_text
+    seen = iter(["THE OLD WORDS", "THE NEW WORDS"])
+    try:
+        vp.pdf_text = lambda b: next(seen)
+        with Fake(disk=b"%PDF new", served=b"%PDF old") as f:
+            r = vp.check_episode(EP, f.fetch)[0]
+            assert not r["ok"], "a PDF with different WORDS was waved through"
+            assert "THE WORDS DIFFER" in r["why"], r["why"]
+    finally:
+        vp.pdf_text = real
+
+
+case("a PDF whose words differ is still a fault, and says so",
+     _a_pdf_whose_words_differ_still_fails)
+
+
 def _the_report_names_the_damage():
     with Fake(disk=b"new", served=b"old") as f:
         rows = vp.check_episode(EP, f.fetch)
