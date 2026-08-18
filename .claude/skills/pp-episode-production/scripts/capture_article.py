@@ -137,6 +137,84 @@ def table_to_md(tbl_html):
 _LIST = re.compile(r"<(ol|ul)\b([^>]*)>(.*?)</\1\s*>", re.S | re.I)
 
 
+# ══ THE LISTS NOTE IS DERIVED FROM THE BODY, NEVER ASSERTED OVER IT ══════════
+#
+# 🔴 EP29, 16 Aug 2026. The note read **"a NUMBERED LIST of 10 items … written below as
+# `1.` … `10.`"** and the body held THREE lists — the rules of four staking plans,
+# numbered from 1 each time: 2, 2 and 6. Every word of the article was captured
+# perfectly; the SENTENCE ABOUT IT was wrong.
+#
+#     AND THE NOTE IS LOAD-BEARING. The e-book writer is handed the note, not the body,
+#     and it obeys it. A note that asserts a shape the page does not have does not merely
+#     mislead a reader — it instructs the writer to build the wrong thing, and the words
+#     it builds will all be correct.
+#
+# The old derivation was `len(re.findall(r"^\d+\. ", body))` — a FLAT COUNT — wrapped in
+# a sentence claiming one list running `1.` to `n.`. Both halves were assertions the
+# count cannot support: it knows how many numbered paragraphs there are and nothing
+# whatever about how many LISTS they form or where each begins.
+#
+# ⚠️ SAME LAW AS `author_ebook.check_list_shape`, DELIBERATELY. That gate measures the
+# body against this note, so a second opinion here is a guaranteed future halt with two
+# right answers and no way to choose. A number that GOES BACK starts a new list; one that
+# JUMPS FORWARD is a skip in the source — an editorial fact about the article of record,
+# recorded here rather than smoothed away, because the gate downstream will stop on it
+# and this is the cheapest place to learn of it.
+def numbered_runs(body: str):
+    """(runs, skips) — the article's ACTUAL numbered lists, and any forward jumps."""
+    nums = [int(m.group(1)) for m in re.finditer(r"(?m)^(\d+)\. ", body)]
+    runs, run, skips = [], [], []
+    for cur in nums:
+        if not run:
+            run = [cur]
+        elif cur == run[-1] + 1:
+            run.append(cur)
+        elif cur <= run[-1]:
+            runs.append(run)
+            run = [cur]
+        else:
+            skips.append((run[-1], cur))
+            run.append(cur)
+    if run:
+        runs.append(run)
+    return runs, skips
+
+
+def lists_note(body: str) -> str:
+    """The LISTS section, describing what is actually there."""
+    runs, skips = numbered_runs(body)
+    if not runs:
+        return "**No numbered list in the article body.**"
+    ep25 = ("`<li>` carries no whitespace, so a plain tag-strip runs every item into its "
+            "neighbour with not even a space between them (the EP25 lesson).")
+    if len(runs) == 1:
+        r = runs[0]
+        n, a, b = len(r), r[0], r[-1]
+        start = "" if a == 1 else f' start="{a}"'
+        note = (f"**The article body is a NUMBERED LIST of {n} items, numbered {a} to "
+                f"{b}, and it is kept as one** — written below as `{a}.` … `{b}.`, one "
+                f"paragraph per item, which is the article's own numbering. {ep25} The "
+                f"e-book reproduces this as an `<ol{start}>` of {n} `<li>` and "
+                f"`author_ebook.py` refuses a body that does not.")
+    else:
+        shape = ", ".join(f"{len(r)} (numbered {r[0]} to {r[-1]})" for r in runs)
+        note = (f"**The article carries {len(runs)} SEPARATE numbered lists, not one** — "
+                f"of {shape} items, each numbered from its own start, exactly as the page "
+                f"prints them. {ep25} The e-book reproduces each as its own `<ol>` — "
+                + ", ".join(f'`<ol start="{r[0]}">` of {len(r)}' for r in runs)
+                + " — and `author_ebook.py` refuses a body that runs them together, "
+                  "because one sequence is not what the page says. **This is EP29's "
+                  "shape**: a note claiming a single list would send the e-book writer "
+                  "to build one, and every word in it would still be correct.")
+    if skips:
+        note += ("\n\n⚠️ **THE ARTICLE'S OWN NUMBERING SKIPS** — "
+                 + "; ".join(f"it goes from {a} straight to {b}" for a, b in skips)
+                 + ". That is a property of the SOURCE, recorded here and not tidied "
+                   "away: `author_ebook.py` stops on it, because renumbering quietly "
+                   "would be an editorial judgement about the article of record.")
+    return note
+
+
 def lists_to_blocks(frag):
     """Turn `<ol>`/`<ul>` into ONE BLOCK PER ITEM, numbered when the list is ordered.
 
@@ -463,14 +541,7 @@ def build(url, ep_number, pp: pathlib.Path, write=False):
     # numbered list from prose that happens to start with a digit, and the e-book gate
     # counts these items — so the count is written down where a human can check it
     # against the page rather than inferred from the markers alone.
-    n_items = len(re.findall(r"(?m)^\d+\. ", body))
-    lst = ("**No numbered list in the article body.**" if not n_items else
-           f"**The article body is a NUMBERED LIST of {n_items} items, and it is kept "
-           f"as one** — written below as `1.` … `{n_items}.`, one paragraph per item, "
-           f"which is the article's own numbering. `<li>` carries no whitespace, so a "
-           f"plain tag-strip runs every item into its neighbour with not even a space "
-           f"between them (the EP25 lesson). The e-book reproduces this as an `<ol>` "
-           f"of {n_items} `<li>` and `author_ebook.py` refuses a body that does not.")
+    lst = lists_note(body)
 
     # An empty standfirst rendered as a bare `****`. Not every page has one, and a
     # header full of empty markup is a header nobody reads.
