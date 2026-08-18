@@ -19,9 +19,21 @@ rests on something better than "it looks independent":
 
   · the three tail steps NEVER reach for the assembled video;
   · `self_qc` DOES reach for all three artefacts, so it stays last;
-  · and the order still puts `youtube_copy` before `self_qc` — today it runs AFTER,
-    which is why every episode's QC report carries a false "no YouTube copy source
-    found" warning about a file that is written three minutes later.
+  · and the order puts `youtube_copy` before `self_qc`. It used to run AFTER, which is
+    why every episode up to EP30 carries a false "no YouTube copy source found" warning
+    in its QC report, about a file that was written three minutes later.
+
+✅ LANDED 18 Aug 2026 (batch 2). This file was red BY DESIGN from the day it was written
+until that day — it was the argument FOR a change, not a description of the code. That
+is a thing to do once and never leave: `main` carrying a permanently red test is how
+people learn to read red as "the usual one". If you are reading this because you are
+writing the next evidence-first test, put the red one on the BRANCH that turns it green.
+
+⚠️ AND WHAT THIS FILE STILL DOES NOT PROVE. "Does not read the assembled video" is not
+"safe to run on a second thread". `thumbnail` raises a human flag and `ebook_pdf` writes
+to the rail; the concurrency is only safe because the WORK was split from the
+bookkeeping and the ask. That half is held by `test_alongside_assembly.py`, and neither
+file is the whole argument on its own.
 
 🔴 WHY A STATIC AUDIT AND NOT A RUN. A behavioural proof would have to assemble an
 episode twice, which is half an hour of ffmpeg per pass and needs a master, clips and

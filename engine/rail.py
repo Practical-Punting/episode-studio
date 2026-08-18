@@ -201,9 +201,39 @@ def list_all():
     return _request("GET", "?select=*&order=created_at.desc")
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔴 E29 — THE SUITE'S OWN TICKETS ARE NOT FOOD. (Landed 18 Aug 2026, batch 2.)
+#
+# `test_dead_zone.py` creates a real row at a working status with a DEAD LEASE, which
+# is precisely the shape `reclaim_stale()` hunts for. A running engine took it
+# mid-test, with its own log as the evidence:
+#
+#     [03:45:32] reclaimed a stale-leased episode PP-EP9019 at building
+#     [03:45:52] !! lost ownership of the episode (lease reclaimed) — stopping work
+#
+# The suite reported `dead zone: 2 passed, 1 failed`; the same test passes alone. **A
+# gate that is green or red depending on what else is running is not a gate** — and it
+# fails in the dangerous direction, because a red dead-zone test reads as "the dead
+# zone is back". The workaround was to remember to hold the engine. This is the fix.
+#
+# ⚠️ IT KEYS ON `ep_number`, NOT ON THE ID, AND THE FLOOR IS 9000 — NOT "9xxx".
+# The ids in the fixtures include PP-EP96..99, and **Hugh and Jodie are making 300
+# episodes**, so 96–99 are real episodes nobody has recorded yet. A prefix rule would
+# have quietly stopped the engine claiming four real episodes somewhere around next
+# year. Four digits from 9000 up is clear of 300 by any margin that matters.
+#
+# NULL is claimable: a real ticket that has not been given a number yet must never be
+# filtered out by a guard aimed at the test suite.
+TEST_EP_FLOOR = 9000
+NOT_A_TEST = f"&or=(ep_number.is.null,ep_number.lt.{TEST_EP_FLOOR})"
+
+
 def list_queued():
-    """Tickets waiting to be picked up (status 'queued'), oldest first."""
-    return _request("GET", "?select=*&status=eq.queued&order=created_at.asc")
+    """Tickets waiting to be picked up (status 'queued'), oldest first.
+
+    Synthetic test tickets are excluded — see E29 above."""
+    return _request("GET", "?select=*&status=eq.queued" + NOT_A_TEST
+                    + "&order=created_at.asc")
 
 
 def get_episode(id):
@@ -389,12 +419,15 @@ def reclaim_stale(worker, lease_secs=180):
 
     Only working statuses are eligible; the lease filter makes the takeover
     atomic (two rescuers -> one winner). Returns the ticket or None.
+
+    🔴 AND IT DOES NOT EAT THE SUITE'S TICKETS — see E29 at the top of this file. This
+    is the exact call that reclaimed PP-EP9019 out from under `test_dead_zone.py`.
     """
     stat = ",".join(sorted(WORKING))
     rows = _request(
         "PATCH",
         f"?status=in.({stat})&claimed_by=not.is.null&claimed_by=neq.{_q(worker)}"
-        f"&lease_until=lt.{_ts(_now())}&limit=1",
+        f"&lease_until=lt.{_ts(_now())}{NOT_A_TEST}&limit=1",
         {"claimed_by": worker, "lease_until": _now_plus(lease_secs),
          "heartbeat_at": _now(), "updated_at": _now()},
         write=True)

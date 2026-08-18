@@ -237,9 +237,31 @@ PHASES = {
     # `web_copies` sits after `thumbnail` because it needs BOTH full-size pictures
     # — the one that step writes, and the e-book cover from `ebook_cover`. It is
     # additive and never fails the build (Jodie, 11 Aug 2026).
+    # 🔴 AND self_qc IS NOW STRICTLY LAST, WITH youtube_copy MOVED IN FRONT OF IT.
+    # (Batch 2, 18 Aug 2026.) `self_qc` grades the delivery and then reports what it
+    # found; `youtube_copy` used to run AFTER it, so every episode's QC report carried
+    # "no YouTube copy source found" about a file written three minutes later. A
+    # warning that is wrong on EVERY episode is a warning nobody reads, and a QC report
+    # people skim is worth less than no report. Nothing else moved: QC still runs after
+    # every artefact it grades, which is the invariant EP19 paid for.
     "assembling": ["assemble_passA", "assemble_passB", "ebook_pdf", "thumbnail",
-                   "web_copies", "self_qc", "youtube_copy"],
+                   "web_copies", "youtube_copy", "self_qc"],
 }
+
+# 🔴 THE THREE STEPS THAT NEED NOTHING ASSEMBLY MAKES — run their WORK alongside it.
+# (Batch 2, 18 Aug 2026. Evidence: engine/test_tail_is_independent.py, a static audit
+# of what these methods actually reach for.) Measured on EP28's clean run, assembly is
+# 9.8 minutes and these three are 5.7 that could hide inside it.
+#
+# ⚠️ WHAT GOES ALONGSIDE IS THE **WORK**, NEVER THE BOOKKEEPING AND NEVER THE ASK.
+# `thumbnail` is not the independent step it looks like: it raises a human flag
+# (`thumbnail_placement_review`), and `ebook_pdf` writes `ebook_url` to the rail.
+# "Does not read the assembled video" is NOT "safe on a second thread" — the flag path,
+# `ctx.state` and `rail.checkpoint` are all single-writer BY DESIGN ("Single-writer per
+# episode, so a full-object write is safe"). So the side stream builds artefacts and
+# returns them; every state write, every rail write and every flag stays on the main
+# thread, in the same order as before. The human is asked at exactly the same point.
+ALONGSIDE = ("ebook_pdf", "thumbnail", "web_copies")
 PCT = {"building": (12, 40), "rendering": (52, 62), "assembling": (66, 92)}
 STEP_LABEL = {
     "script_sync":    "Re-reading the approved script from Drive",
@@ -338,10 +360,25 @@ def check_locked_order():
                 f"fails on artefacts the very next step creates. (It did, three times, "
                 f"on EP19. It hid on earlier episodes because a RE-RUN finds the files "
                 f"left by the previous attempt.)")
-    if "self_qc" in a and a.index("self_qc") != len(a) - 1 and \
-            not a_before("self_qc", "youtube_copy"):
-        problems.append("self_qc must still come before the phase ends — the machine "
-                        "QCs the assembled episode before every human approval gate")
+    # 🔴 self_qc IS LAST — not "before the phase ends", LAST. The old rule here let
+    # youtube_copy sit behind it, and that is exactly what shipped: QC graded the
+    # delivery, reported "no YouTube copy source found", and the file appeared three
+    # minutes later. The machine still QCs the assembled episode before every human
+    # approval gate — the gate is at the END of this phase, so last IS before it.
+    if "self_qc" in a and a.index("self_qc") != len(a) - 1:
+        problems.append(
+            f"self_qc must be the LAST step of the assembling phase — it is the one "
+            f"step that reads all three artefacts, so anything after it is something "
+            f"it did not grade. Order: {a}")
+    if not a_before("youtube_copy", "self_qc"):
+        problems.append(
+            "youtube_copy must run BEFORE self_qc — with it after, QC reports 'no "
+            "YouTube copy source found' on EVERY episode, about a file written three "
+            "minutes later. A warning that is always wrong is a warning nobody reads.")
+    if not a_before("thumbnail", "web_copies"):
+        problems.append(
+            "web_copies must run AFTER thumbnail — it needs both full-size pictures, "
+            "the one thumbnail writes and the e-book cover from ebook_cover.")
     for p in problems:
         log(f"!! LOCKED ORDER WARNING (step list): {p}. "
             f"LOCKED ORDER (approved 26 Jul 2026): {LOCKED_ORDER}")
@@ -1200,10 +1237,45 @@ def step_self_qc(ctx):
 # The VIDEO is deliberately NOT here. It is ~159 MB and Hugh gets it from Drive;
 # its link is handled separately.
 # ═════════════════════════════════════════════════════════════════════════════
+# ── THE WORK HALF OF THE THREE TAIL STEPS ───────────────────────────────────────
+# Each builds artefacts and RETURNS them. No `ctx.state`, no `ctx.save()`, no
+# `ctx.ep_set()`, no flag — see the note on ALONGSIDE. These are the only functions the
+# side thread is ever allowed to call, and that is what keeps `rail.checkpoint`'s
+# single-writer promise true while two things are running.
+def _work_ebook_pdf(ctx):
+    return {"out": ctx.provider.build_ebook(ctx.ep)}
+
+
+def _work_thumbnail(ctx):
+    out = ctx.provider.build_thumbnail(ctx.ep)
+    return {"out": out, "url": ctx.provider.publish_thumbnail_preview(ctx.ep)}
+
+
+def _work_web_copies(ctx):
+    return {"report": ctx.provider.build_web_copies(ctx.ep)}
+
+
+ALONGSIDE_WORK = {"ebook_pdf": _work_ebook_pdf,
+                  "thumbnail": _work_thumbnail,
+                  "web_copies": _work_web_copies}
+
+
+def _alongside_result(ctx, name):
+    """The side stream's artefacts for this step, if it got there first.
+
+    POPPED, never merely read. A step that flags and is retried must build again from
+    scratch: the whole reason a human was asked is that something about the artefact
+    was wrong, and handing the retry the same file back is how a rejected thumbnail
+    would sail through on its second pass.
+    """
+    return (getattr(ctx, "alongside_done", None) or {}).pop(name, None)
+
+
 def step_ebook_pdf(ctx):
-    out = ctx.provider.build_ebook(ctx.ep)
+    got = _alongside_result(ctx, "ebook_pdf")
+    out = got["out"] if got else ctx.provider.build_ebook(ctx.ep)
     ctx.ep_set({"ebook_url": ctx.provider.publish_artefact(ctx.ep, out)})
-    return {"ebook": out}
+    return {"ebook": out, "alongside": bool(got)}
 
 
 def step_thumbnail(ctx):
@@ -1214,15 +1286,24 @@ def step_thumbnail(ctx):
     step never returned and nothing was ever recorded. The board had only the title
     card's preview to show, and showed it — beside a flag that says "the thumbnail"
     (Jodie, 11 Aug 2026, reported twice).
+
+    ⚠️ THE PICTURE MAY HAVE BEEN BUILT ALONGSIDE ASSEMBLY, BUT THE ASK IS RAISED HERE,
+    AT THIS POINT IN THE ORDER, ON THIS THREAD. Building early is a saving; asking early
+    would be a change to when a human is interrupted, and nobody approved that. The flag
+    below fires exactly where it fired before.
     """
-    out = ctx.provider.build_thumbnail(ctx.ep)
-    url = ctx.provider.publish_thumbnail_preview(ctx.ep)
+    got = _alongside_result(ctx, "thumbnail")
+    if got:
+        out, url = got["out"], got["url"]
+    else:
+        out = ctx.provider.build_thumbnail(ctx.ep)
+        url = ctx.provider.publish_thumbnail_preview(ctx.ep)
     if url:
         ctx.state["thumbnail_preview_url"] = url
         ctx.save()                       # saved BEFORE the flag, or it is lost
     ctx.provider.thumbnail_placement_review_for(ctx.ep, url)
     ctx.ep_set({"thumbnail_url": ctx.provider.publish_artefact(ctx.ep, out)})
-    return {"thumbnail": out, "preview": url}
+    return {"thumbnail": out, "preview": url, "alongside": bool(got)}
 
 
 def step_web_copies(ctx):
@@ -1232,7 +1313,9 @@ def step_web_copies(ctx):
     that step writes, and the e-book cover from `ebook_cover` much earlier. It is
     additive: two new names in output/, nothing existing touched.
     """
-    return {"report": ctx.provider.build_web_copies(ctx.ep)}
+    got = _alongside_result(ctx, "web_copies")
+    return {"report": got["report"] if got else ctx.provider.build_web_copies(ctx.ep),
+            "alongside": bool(got)}
 
 
 def step_youtube_copy(ctx):
@@ -1280,6 +1363,10 @@ class Ctx:
         self.state.setdefault("phase", "2a")
         self.state["mock"] = mock
         self.state.setdefault("steps", {})
+        # Artefacts the side stream finished early, handed over at the join. Deliberately
+        # NOT in `state`: it is in-process hand-off, never resumable. A path recorded in
+        # the rail would outlive the process that could vouch for the file.
+        self.alongside_done = {}
 
     @property
     def id(self):
@@ -1472,12 +1559,86 @@ def flag_and_wait(ctx, name, message):
             return
 
 
+# --- the side stream: artefacts built DURING assembly ------------------------
+ALONGSIDE_ENABLED = True        # one switch, so a bad night is one edit and a restart
+ALONGSIDE_JOIN_GRACE_S = 900    # how long to wait on a side artefact when bailing out
+
+
+def _run_alongside(ctx, names, done):
+    """Build the tail artefacts while assembly runs. Called ONLY on the side thread.
+
+    🔴 IT CANNOT CHANGE THE OUTCOME OF A BUILD, ONLY THE CLOCK. It writes nothing, flags
+    nothing and retries nothing; it hands finished artefacts to the main thread, which
+    then does exactly what it always did. If anything at all goes wrong it simply stops
+    and says so, and the serial loop builds that step normally with the full retry and
+    flag machinery behind it. So the worst case of this whole change is the old timing.
+
+    It stops at the FIRST failure rather than trying the rest. The steps are cheap to
+    redo and a side stream that keeps going after a fault is a second thing to reason
+    about at 3am; the serial loop is the one that is allowed to be clever.
+    """
+    for name in names:
+        try:
+            ctx.check_alive()
+            done[name] = ALONGSIDE_WORK[name](ctx)
+            log(f"   [alongside] {name} built during assembly")
+        except BaseException as e:                                    # noqa: BLE001
+            log(f"   [alongside] {name} did not finish early ({type(e).__name__}: {e})"
+                f" — the assembling phase will build it normally")
+            return
+
+
+def _start_alongside(ctx):
+    """Start the side stream, or return None if there is nothing to gain."""
+    if not ALONGSIDE_ENABLED:
+        return None
+    names = [n for n in PHASES["assembling"]
+             if n in ALONGSIDE and not ctx.state["steps"].get(n, {}).get("done")]
+    if not names:
+        return None                      # a resume that already has them: nothing to do
+    ctx.alongside_done = {}
+    t = threading.Thread(target=_run_alongside, args=(ctx, names, ctx.alongside_done),
+                         name="alongside", daemon=True)
+    t.start()
+    log(f"   [alongside] building {', '.join(names)} while assembly runs")
+    return t
+
+
+def _join_alongside(t):
+    """Wait for the side stream. ALWAYS called before the main loop touches one of its
+    steps, so the same artefact is never built by two threads at once."""
+    if t is None or not t.is_alive():
+        return None
+    log("   [alongside] waiting for the side stream to put its tools down")
+    t.join(ALONGSIDE_JOIN_GRACE_S)
+    if t.is_alive():
+        log("   !! [alongside] the side stream is still running after "
+            f"{ALONGSIDE_JOIN_GRACE_S}s — carrying on without it. Its steps will be "
+            "built by the phase, and it writes nothing, so this is slow and not unsafe.")
+    return None
+
+
 # --- phase driver -----------------------------------------------------------
 def run_phase(ctx):
     status = ctx.ep["status"]
     steps = PHASES[status]
     lo, hi = PCT[status]
+    side = _start_alongside(ctx) if status == "assembling" else None
+    try:
+        _run_phase_steps(ctx, status, steps, lo, hi, side)
+    finally:
+        _join_alongside(side)
+        ctx.alongside_done = {}
+
+    _finish_phase(ctx, status)
+
+
+def _run_phase_steps(ctx, status, steps, lo, hi, side):
     for i, name in enumerate(steps):
+        # The side stream owns these until it is joined. Join FIRST, then ask whether
+        # the step is done — the other order lets both threads run the same step.
+        if side is not None and name in ALONGSIDE:
+            side = _join_alongside(side)
         if ctx.state["steps"].get(name, {}).get("done"):
             log(f"   [{name}] already done — skipping (resume)")
             continue
@@ -1486,7 +1647,15 @@ def run_phase(ctx):
         log(f"-- step {name} ({status})")
         run_step(ctx, name)
 
-    # phase complete -> transition
+
+def _finish_phase(ctx, status):
+    """The phase is through its steps — decide where the episode goes next.
+
+    Split out of `run_phase` when the side stream arrived, so the transition can only
+    run after the side thread has been joined in `run_phase`'s `finally`. An episode
+    must never be handed to a human, or to the next phase, while a thread is still
+    writing files into its folder.
+    """
     if status == "building":
         # The render gate opened at the START of this phase (step render_gate),
         # so by now Gordon is normally already rendering — we go straight to the
