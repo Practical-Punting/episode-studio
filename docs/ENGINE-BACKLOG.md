@@ -838,6 +838,32 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟠 **E39 — EVERY PERFORMANCE NUMBER THIS STUDIO HAS EVER QUOTED ASSUMES A QUIET BOX,
+  AND THE BOX IS NOT ALWAYS QUIET.** *(Found 18 Aug 2026 while benchmarking batch 6.)*
+  **Jodie runs a SECOND studio on the same Lenovo — the Inspirational Women pipeline,
+  `C:\IW\...`.** On the evening of 18 Aug it was running ffmpeg here, working through
+  segments (`_work_IWEP074_v3`), one process holding **3.5 GB**. Nothing of it was
+  touched and nothing of ours was killed; it is her machine and her other work.
+  **WHAT IT MEANS, AND IT IS NOT A FOOTNOTE:**
+  - **EP28's 84.7-minute clean run — the baseline every saving in this backlog is
+    measured against — was measured on a box that may or may not have been quiet.** So
+    were the per-step figures. Real build times will exceed the projections whenever the
+    two studios overlap, and that is not a regression to hunt.
+  - 🔴 **E37's DECISION DEPENDS ON THIS.** Batch 5 turns on whether `poll_heygen` is
+    mostly transfer or mostly WhisperX alignment. **That reading must be taken on a
+    machine known to be quiet**, or the number describes a different machine — and the
+    contended case is exactly where alignment looks worst.
+  - ✅ **IT JUSTIFIES `CARD_SHARDS = 4` A SECOND TIME.** 4 was chosen over the faster 6
+    for headroom against the load-dependent font-paint race. A card pool sized for eight
+    free cores would be sharing them with someone else's ffmpeg. Right answer, and now
+    right for two independent reasons.
+  ⚠️ **THE BATCH 6 NUMBERS THEMSELVES ARE CLEAN — CHECKED, NOT ASSUMED.** The last
+  benchmark finished 19:23:47; the IW job started 19:24:59. Seventy-two seconds apart.
+  It does explain one slow suite run (788s at suite 48, against ~450s) — that run was
+  contending, and nothing should have been read into it.
+  🚫 **NO SCHEDULER, NO LOAD DETECTOR, NO COORDINATION BETWEEN THE TWO STUDIOS IS
+  PROPOSED HERE.** How Jodie runs her own machine is her decision and she has not been
+  asked. This entry exists so nobody quotes a number without knowing what it assumes.
 - ✅ **E38 — ANSWERED 18 Aug 2026, AND THE ANSWER IS TWO DIFFERENT ANSWERS.**
   **CARD CLIPS ARE BYTE-REPRODUCIBLE. E-BOOK PDFs ARE NOT.**
   - **Cards:** EP30's 20 cards re-rendered **20/20 byte-identical to the clips that
@@ -1144,7 +1170,7 @@ on a public repo is not a trade worth making**).
   does-not-cry-wolf cases: an OPTIONAL field is not a type mismatch, and an empty list
   is a list of anything. Either would have fired on every episode from now on.*
   **Original entry kept below — it is the case that justified it.**
-- 🔴🔴🔴 **E26 — NOTHING VALIDATES `episode.json`.** *(EP15, 4 Aug 2026.)*
+- 📜 ~~**E26 — NOTHING VALIDATES `episode.json`.**~~ *(EP15, 4 Aug 2026.)*
   > ## SEVEN HALTS. ONE FILE. ONE EPISODE.
   `default_hold` · the `ask` TYPE · card-beats-on-WIDE · the `END` id ·
   `build.standing` · `midroll.dur` · `thumbnail.l1`
@@ -1194,7 +1220,7 @@ on a public repo is not a trade worth making**).
   🔬 **The 109 MiB boundary is STILL UNEXPLAINED and stays that way** — four re-pulls
   landed on exactly 114,294,784 bytes. The length check makes it LOUD, not understood.
   **Original entry kept below.**
-- 🔴🔴🔴 **E22 — `_heygen_fetch` ACCEPTED A TRUNCATED DOWNLOAD AS THE MASTER.**
+- 📜 ~~**E22 — `_heygen_fetch` ACCEPTED A TRUNCATED DOWNLOAD AS THE MASTER.**~~
   *(EP15, 4 Aug 2026 — the whole two-hour false trail.)*
   ```python
   with urllib.request.urlopen(url, timeout=600) as r, open(tmp, "wb") as f:
@@ -1367,8 +1393,8 @@ on a public repo is not a trade worth making**).
   the card. The prompt hash fixes the mechanism that failed; **the label matters the day
   somebody who is not Jodie is looking at that card.**
   **Original entry kept below.**
-- 🔴🔴🔴 **E16 — A REJECTED ARTEFACT CAME BACK AND WAS OFFERED TO THE OPERATOR AS A
-  CHOICE.** *(EP15, 3-4 Aug 2026. The worst fault of the build.)*
+- 📜 ~~**E16 — A REJECTED ARTEFACT CAME BACK AND WAS OFFERED TO THE OPERATOR AS A
+  CHOICE.**~~ *(EP15, 3-4 Aug 2026. The worst fault of the build.)*
   Both cover heroes were looked at and **ruled unusable** — A carried a competitor's
   brand, B had the prompt's own instruction text rendered across the sky. Jodie approved
   regenerating both. The files were moved aside. **The engine re-downloaded the SAME two
@@ -1411,8 +1437,8 @@ on a public repo is not a trade worth making**).
   moment. Proved both ways in `engine/test_bespoke_gates.py`, which feeds card_check a
   deliberately colliding bespoke page and watches it fail.
   *Original entry kept below — it is the case that justified all of it.*
-- 🔴 **E14 — A BESPOKE CARD CARRIES A LAYOUT RISK AUTHORED CARDS DO NOT, AND IT IS
-  CAUGHT AT THE WRONG END.** *(EP15, 4 Aug 2026.)*
+- 📜 ~~**E14 — A BESPOKE CARD CARRIES A LAYOUT RISK AUTHORED CARDS DO NOT, AND IT IS
+  CAUGHT AT THE WRONG END.**~~ *(EP15, 4 Aug 2026.)*
   **The ONE card in EP15 that nothing generates is the ONE that failed the layout
   gate** — C12, the Table 1 card, with two collisions: the gain column under the logo
   chip, and the footer clipped through the panel floor. **That is not bad luck.**
@@ -1498,7 +1524,7 @@ on a public repo is not a trade worth making**).
   engine is running code older than the repo."** Part 1 makes recovery automatic; part 2
   makes the state visible. For Hugh it is otherwise undiagnosable.
   **Original entry kept below.**
-- 🔴🔴 **E11 — THE STALE-CODE GUARD ONLY FIRED WHEN THE ENGINE WAS IDLE.**
+- 📜 ~~**E11 — THE STALE-CODE GUARD ONLY FIRED WHEN THE ENGINE WAS IDLE.**~~
   *(Found 3 Aug 2026, the hard way.)*
   **`_code_changed()` has ONE call site: engine.py:941, at the top of the OUTER acquire
   loop.** Once an episode is claimed the engine drops into the inner `while True:` —
