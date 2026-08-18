@@ -908,7 +908,22 @@ on a public repo is not a trade worth making**).
   the article says "today", and keep the author's "I" attributed — not in a checker.
   ⚠️ **AND IT IS NOT A LICENCE TO PARAPHRASE.** §0a still governs: the words stay the
   article's. This is about ATTRIBUTION and DATING around them.
-- 🟠 **E29 — THE SUITE WRITES TO THE LIVE RAIL, AND THE LIVE ENGINE EATS ITS TICKETS.**
+- ✅ **E29 — LANDED 18 Aug 2026 (batch 2).** `TEST_EP_FLOOR = 9000` in `rail.py`, with
+  `NOT_A_TEST` added to **both** doors: `list_queued()` (which feeds `claim_next`) and
+  `reclaim_stale()` — the one caught in the act. Held by
+  `engine/test_suite_tickets_are_not_food.py` (4 cases).
+  ⚠️ **THE FIX PROPOSED BELOW WAS CHANGED ON PURPOSE, AND THE REASON MATTERS.** The
+  entry says to key on "a `9xxx` test range … already the convention in the fixtures".
+  The fixtures use **PP-EP96, 97, 98 and 99** — and **the plan is 300 episodes**, so
+  those four are real episodes nobody has made yet. A prefix rule would have been green
+  on the day it landed and would have quietly stopped the engine claiming four real
+  episodes somewhere around next year. It keys on **`ep_number >= 9000`** instead: a
+  number, not a shape, clear of 300 by any margin that matters. **NULL stays claimable**
+  — a real ticket that has not been given a number yet must never be filtered out by a
+  guard aimed at the suite.
+  *(The original entry is kept below — it is the case that justified the work, and the
+  proposed fix is kept as the record of what a plausible answer looked like.)*
+- 🟠 ~~**E29 — THE SUITE WRITES TO THE LIVE RAIL, AND THE LIVE ENGINE EATS ITS TICKETS.**~~
   *(Found 16 Aug 2026, during the tables/lists batch.)*
   `test_dead_zone.py` creates a real rail row at a working status with a dead lease —
   **which is precisely the shape `reclaim_stale()` hunts for** — so a running engine
