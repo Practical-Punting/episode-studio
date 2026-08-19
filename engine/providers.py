@@ -882,7 +882,14 @@ def stage_title_hero(ep_dir: Path) -> str:
     return f"title hero staged from the picked cover hero ({src.name} -> {dst.name})"
 
 
-_PART_TAIL = re.compile(r"\s*[—–\-:·]?\s*\b(Part\s+\d+)\s*$", re.I)
+# 🔴 THE PATTERN THAT USED TO LIVE HERE IS GONE — THERE IS ONE, IN `packaging_gate`.
+# It read `\s*[—–\-:·]?\s*\b(Part\s+\d+)\s*$`: it knew the SEPARATOR forms and not the
+# BRACKET form, while the gate's pattern knew brackets and roman numerals and not
+# separators. **Neither was a superset of the other**, so the seater left "(Part 1)" in
+# `packaging.hook`, the hook became the headline, and the gate correctly halted EP34 for
+# printing a series part in the headline — for nine and a quarter hours, with EP35 and
+# EP32 waiting behind it. Two parsers for one concept is the fault; the notation was only
+# the symptom. **Do not re-introduce a local pattern here.** See packaging_gate.SERIES_PART.
 
 
 def _split_part(title: str) -> tuple[str, str | None]:
@@ -900,10 +907,14 @@ def _split_part(title: str) -> tuple[str, str | None]:
         EP16  title 'Each-Way Betting Forever! — Part 2'
               hook  'EACH-WAY BETTING FOREVER!'      part 'Part 2'
     """
-    m = _PART_TAIL.search(title or "")
-    if not m:
-        return (title or "").strip(), None
-    return title[:m.start()].strip(), m.group(1).strip()
+    # ONE PARSER, NOT TWO. The detection and the stem both come from the gate's own
+    # `strip_part`, so the seater and the grader can never disagree about where a series
+    # part begins again. Only the `None`-for-absent contract is this function's own —
+    # callers here test `if part:` and write `cover.part = None`, which the gate's ""
+    # would quietly turn into an empty string on the board.
+    import packaging_gate as _pg
+    name, part = _pg.strip_part(title or "")
+    return name, (part or None)
 
 
 def _split_headline(title: str) -> tuple[str, str]:

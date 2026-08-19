@@ -183,7 +183,34 @@ def zones_from_page(kind: str, page: str) -> dict:
 #
 # The part is graded in its own zone on all three page kinds (the e-book cover splits it
 # out explicitly above), so the headline never needs it. This says so and counts.
-SERIES_PART = re.compile(r"\s*[(\[]?\s*\bpart\s+(\d+|[ivxl]+)\b\s*[)\]]?\s*$", re.I)
+# ⭐ THE ONE PLACE THE STUDIO ASKS "IS THERE A SERIES PART AT THE END OF THIS TITLE?"
+# (20 Aug 2026 — EP34 halted a whole night because there were TWO of these.)
+#
+# 🔴 THERE USED TO BE A SECOND ONE. `providers._split_part` carried its own pattern which
+# knew the SEPARATOR forms (`- Part 2`, `: Part 2`, `— Part 3`) and NOT the bracket form;
+# this one knew brackets and roman numerals and NOT separators. **Neither was a superset
+# of the other, and each was right about exactly what the other missed.** So the seater
+# left "(Part 1)" inside `packaging.hook`, the hook became the headline, and the gate —
+# reading with THIS pattern — correctly reported a series part printed in the headline.
+# **One half of the studio could not read what the other half wrote.** EP34 sat flagged
+# for nine and a quarter hours with EP35 and EP32 waiting behind it.
+#
+# ⛔ THE TWO REJECTED FIXES, RECORDED SO NOBODY RE-PROPOSES THEM (Jodie, 20 Aug 2026):
+#   · Re-punctuating the title to "- Part 1". **PP's own headline reads "(Part 2)"**, and
+#     the rule is that the title IS the website's headline. That fights her own convention
+#     and comes back on every multi-part article for ever.
+#   · Teaching the OTHER pattern about brackets. Its docstring admitted it knew only the
+#     notations it had SEEN — CLAUDE.md fault 7 for the third time in two days (metres,
+#     dollars, per cent, now this). Adding the missing item leaves the shape untouched.
+# ✅ **The fix is that there is only one of these now.** `providers._split_part` delegates
+# here. Do not grow a second pattern anywhere; grow THIS one.
+#
+# ⚠️ THE SEPARATOR CLASS DELIBERATELY OMITS THE COMMA. "Thing, Part 5" has always kept its
+# comma on the stem, and a fix that quietly re-derives a SHIPPED episode's hook is worse
+# than the bug it fixes. The union is: what providers knew, plus what this knew, and not
+# one character more.
+SERIES_PART = re.compile(
+    r"\s*[—–\-:·]?\s*[(\[]?\s*\bpart\s+(\d+|[ivxl]+)\b\s*[)\]]?\s*$", re.I)
 
 
 def strip_part(title: str):
