@@ -330,8 +330,64 @@ def _decimals(s: str) -> str:
     return re.sub(r"(?<![\d$.])(\d+)\.(\d+)(?!\d)", one, s)
 
 
+
+# ══ A HYPHEN BETWEEN TWO NUMBERS IS ALSO READ "TO" ═══════════════════════════════
+# (EP32, 19 Aug 2026. Jodie: "Proper way please. We have a lot of episodes to go!")
+#
+# 🔴 WHY THIS IS MARKER-AGNOSTIC, AND WHY THAT IS THE WHOLE POINT.
+# The article prints `10%-12%`; Gordon says "ten TO twelve per cent", because that is
+# how a span is SPOKEN. The fold wrote `ten per cent-twelve per cent`, found no "to",
+# and reported the script as inventing a figure. EP32 lost FIVE drafting attempts to it
+# and the writer was right every time.
+#
+# ⛔ THE FIX JODIE REJECTED, RECORDED SO NOBODY PROPOSES IT AGAIN: adding `%` (and then
+# `$`) to the unit list in the range rule below. That would have been the THIRD patch of
+# ONE shape — metres (EP13), dollars, per cent (EP32) — and CLAUDE.md fault 7 says it
+# plainly: *"if a guard's coverage is a list somebody maintains, it is already broken;
+# you have simply not met the missing item yet."* Adding the missing item leaves the
+# shape. At ~269 episodes to go we would meet it again and again.
+#
+# ✅ SO THIS RULE NEVER LEARNS WHAT A MARKER MEANS. It only knows that a hyphen between
+# two numbers can be read "to", and hands both halves — with whatever `%`, `$`, `m` or
+# `kg` they carry — to the SAME per-number fold that already speaks them. `%`, `$`, `m`,
+# a bare `1986-88`, and any marker nobody has met yet all work, with nothing to add.
+# **There is no list here on purpose. Do not add one.**
+#
+# ⚠️ THE COST, WRITTEN DOWN BECAUSE A COST NOBODY RECORDS IS ONE SOMEBODY REDISCOVERS:
+# any `X-Y` now licences a script saying "X to Y". EP18's own capture carries the phone
+# number `051113-8566`, which after this may be spoken as a range and pass. Date spans
+# (`1986-88`) and scorelines behave the same way. The gate checks a phrase appears in the
+# article, never that it is the same CLAIM — that boundary is unchanged and still human.
+#
+# ⚠️ AND IT IS PURELY ADDITIVE. It is a new AXIS on `haystacks`, so every reading that
+# matched before still matches; this only widens what the SOURCE may be read as, never
+# what it says. §0a is untouched: no arithmetic is performed and no figure is invented.
+_RANGE_ATOM = r"\$?\d[\d,]*(?:\.\d+)?(?:%|[A-Za-z]{1,2})?"
+_RANGE_PAIR = re.compile(rf"(?<![\w-])({_RANGE_ATOM})\s*-\s*({_RANGE_ATOM})(?![\w-])")
+_TRAILING_MARK = re.compile(r"(%|[A-Za-z]{1,2})$")
+
+
+def ranges_as_to(text: str, drop_first_marker: bool = False) -> str:
+    """`10%-12%` -> `10% to 12%`, or with `drop_first_marker` -> `10 to 12%`.
+
+    BOTH are real ear-readings and both are offered, because which one a writer uses
+    is not predictable: "ten per cent to twelve per cent" and "ten to twelve per cent"
+    are the same span said two ways. Dropping the FIRST marker is the commoner one and
+    is exactly what EP32's script said.
+    """
+    def sub(m):
+        a, b = m.group(1), m.group(2)
+        if drop_first_marker:
+            stripped = _TRAILING_MARK.sub("", a)
+            # only drop it when something is left to say — never turn `5m` into ` `
+            if stripped and stripped[-1].isdigit():
+                a = stripped
+        return f"{a} to {b}"
+    return _RANGE_PAIR.sub(sub, text or "")
+
+
 def fold(text: str, frac=_frac_named, reading: str = "cardinal",
-         ordinal_dates: bool = False) -> str:
+         ordinal_dates: bool = False, spans_as_to: int = 0) -> str:
     """The article, written the way it is SAID.
 
     ORDER IS LOAD-BEARING. Racing notation and units go first, because
@@ -356,6 +412,12 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     # the top of this module: it is PP's house typography, not how anyone speaks.
     # The `c` is dropped only where a dollar amount already carries its cents, so
     # a bare `50c` is untouched and still reads "fifty cents".
+    # ⭐ SPANS FIRST OF ALL. `spans_as_to` rewrites `10%-12%` as `10 to 12%` BEFORE any
+    # other rule sees the hyphen, so the EXISTING per-number folds do the speaking and
+    # this rule never needs to know what `%` or `$` or `m` mean. 0 = off (exactly the
+    # reading this module has always produced), 1 = markers as written, 2 = first dropped.
+    if spans_as_to:
+        s = ranges_as_to(s, drop_first_marker=(spans_as_to == 2))
     s = re.sub(r"(\$\s?\d[\d,]*\.\d{2})\s*c\b", r"\1", s)
     s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
                lambda m: ordinal_words(int(m.group(1))), s)
@@ -450,7 +512,12 @@ def haystacks(capture_text: str) -> list[list[str]]:
     for frac in (_frac_named, _frac_in, _frac_odds):
         for reading in READINGS:
             for odates in (False, True):
-                s = fold(src, frac, reading=reading, ordinal_dates=odates)
+              # ⭐ THE SPAN AXIS (EP32, 19 Aug). 0 is exactly what this module
+              # produced before, so every reading that matched still matches;
+              # 1 and 2 only ADD readings. Additive by construction.
+              for spans in (0, 1, 2):
+                s = fold(src, frac, reading=reading, ordinal_dates=odates,
+                         spans_as_to=spans)
                 out.append(norm_words(s))
                 # A UNIT SAID ONCE FOR A PAIR. "$400 to $200" is read "four
                 # hundred dollars to two hundred"; "2100m to 2300m" is read

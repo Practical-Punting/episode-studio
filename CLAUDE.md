@@ -466,6 +466,38 @@ described for a day and **never once seen**. Watching a flagged engine exit eigh
 after a file was touched is the only thing that made it true. *Same family as fault #1: a
 patch you have read is a proxy for a patch that works.*
 
+## ⭐ 9b. AN UNCOMMITTED EDIT ON DISK IS ALREADY DEPLOYED
+**(19 Aug 2026, found the hard way while EP33 was building. The exact inverse of §9.)**
+
+§9 says written and reviewed is not landed. **This says the opposite thing about the same
+file, and both are true at once:**
+
+> **A commit you have not pushed is an unshipped fix.
+> An EDIT YOU HAVE NOT COMMITTED IS ALREADY RUNNING.**
+
+**Because the engine loads from the WORKING TREE, not from git.** `supervisor.py` starts
+`engine.py` from `engine/`, and `_code_changed()` compares **mtimes of every `.py` the
+interpreter actually imported** — not hashes, not `git status`. So:
+
+- **Saving a file IS the deploy.** Committing and merging are only the *record* of a
+  deploy that already happened.
+- **Touching a watched file restarts a running engine**, whatever the content — even
+  reverting it, because the mtime moves either way.
+- The watch list is DERIVED from what was imported, so it is not just `engine.py`,
+  `providers.py` and `rail.py`. `script_fidelity.py` is on it. So is anything else the
+  engine imports from this repo.
+
+🔴 **THE CASE THAT PROVED IT.** The E47 fix was finished, controlled and *deliberately not
+merged* while EP33 built — which felt like restraint and was worth nothing. The edit was
+sitting on disk, so the next stale-code check would have exited the engine **mid-build**
+and resumed EP33 on code it never started on. **Holding the merge protected nothing; only
+`git stash` did.** *"Not landed yet" is a statement about git and says nothing whatever
+about what the machine is running.*
+
+✅ **SO, WHILE AN EPISODE IS BUILDING: do not save a watched file at all.** Work on a
+branch you do not check out, or in a scratch copy, or stash before you wait. Deciding not
+to merge is not a decision the engine can see.
+
 ## ⚖️ A GUARD PREVENTS RECURRENCE — IT DOES NOT OBLIGE US TO GO BACK
 **(Jodie, 4 Aug 2026.)** *"Jodie is not actually going to go back and change any of the
 previous videos or e-books as Hugh has approved them."*

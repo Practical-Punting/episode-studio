@@ -2198,3 +2198,27 @@ on a public repo is not a trade worth making**).
   Both figures above are lower bounds.
 
   ### ⛔ NOTHING CHANGED. EP32 STAYS HELD (ledger at 3) until the gate is ruled on.
+
+- 🟠 **E48 — THE "and" LEAK: A SCRIPT MAY SAY "ten and twelve" WHEN THE ARTICLE STATES NO
+  RANGE.** *(Raised 19 Aug 2026 alongside the E47 fix, deliberately NOT ridden along with
+  it. Jodie: "Closing it TIGHTENS the gate... raise it, do not ride it along.")*
+  `figures()` treats `"to"` as ALWAYS joining a run into one compound figure, but `"and"`
+  only after `hundred`/`thousand` (`_AND_AFTER`). So:
+  ```
+  "ten to twelve per cent"   -> ['ten to twelve']   checked as a SPAN
+  "ten and twelve per cent"  -> ['ten', 'twelve']   checked as TWO separate figures
+  ```
+  After E47 the two agree whenever the article DOES state the range — both pass, and the
+  intermittency that let `7%-8%` through unexamined is gone. **They still disagree in the
+  LEAK direction:** if the article states 10% and 12% in unrelated sentences, "ten to
+  twelve" is correctly refused and **"ten and twelve" passes**.
+  🔴 **WHY IT WAS NOT FIXED WITH E47.** Closing it means treating "and" between two
+  numbers as a compound — which TIGHTENS the gate, and **would have refused EP32's
+  "between seven and eight per cent", which was legitimate**: the article states `7%-8%`
+  and that is exactly how it is spoken. A tightening that blocks a correct script is a
+  new false-halt, and halts are the throughput constraint.
+  **The honest shape of a fix** is to emit an "and" range reading beside the "to" one, so
+  both phrasings are checked against a range the article really states — then "and" can
+  become a compound safely. That is a §0a widening AND a tightening in one change, and it
+  needs its own ruling and its own controls.
+  ⚠️ **Pre-existing. Not introduced by E47, and not made worse by it.**
