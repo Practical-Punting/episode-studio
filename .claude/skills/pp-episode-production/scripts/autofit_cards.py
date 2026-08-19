@@ -140,10 +140,17 @@ def offenders(page, url, bust=0, shrinking=()):
     if bust:
         url = f"{url}{'&' if '?' in url else '?'}fit={bust}"
     page.goto(url, wait_until="load")
-    page.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+    # ⭐ WAIT ON A CONDITION, NEVER A CLOCK (browser_wait.py). This measured type sizes
+    # after a FIXED 120ms and it was caught doing the wrong thing under load: on
+    # 19 Aug 2026 `test_layout_rescue` FAILED inside a 95-suite run — "0 fitted, 0
+    # failing" on a card it rescues every time when run alone — and passed 21/21 the
+    # moment the machine was quiet. **A gate that is green or red by what else is
+    # running fails in the dangerous direction**, and here the direction is a card
+    # measured mid-paint and left at the wrong type size.
+    cc.wait_for_fonts_and_paint(page)
     page.evaluate("() => { if (window.ppSeek && window.ppDuration) "
                   "window.ppSeek(window.ppDuration); }")
-    page.wait_for_timeout(120)
+    cc.wait_for_paint(page)
     data = page.evaluate(cc.PROBE)
     runs, boxes, logo = data["runs"], data["boxes"], data["logo"]
 

@@ -60,6 +60,33 @@ gets this to 100%.
 | F6 | EP26 | **card image**, man at a desk, too dark | ✅ **discarded at the pick — never shipped** |
 | F7 | EP26 | **cover hero**, the white rail had an abrupt kink | ✅ **RESOLVED 18 Aug 2026 by Jodie, who found it: it was the COVER HERO** — the rejected round-1 hero B (*"a full field of racehorses seen head-on"*). **Caught at the pick and never shipped**, and round 1 was regenerated entirely. NOT a b-roll clip and NOT in the rate. |
 
+## 🟠 OPEN, UNRESOLVED AND UNCOUNTED — EP31's RED ARTEFACT (19 Aug 2026)
+
+**Jodie, on EP31's new Peter render:** *"on the right hand side of the screen there is a
+red thing that waves over the background. It is something wrong with the background."*
+
+**A full-video scan found nothing there.** 58 frames sampled across all 580 seconds, plus
+75 CONSECUTIVE frames at full rate, plus magnified crops of the far-right strip: the
+right-hand region measures **static** (temporal σ ≈ 1.0 against a 4.2 frame average) and
+carries no strongly-red pixels that are not Peter himself.
+
+⚠️ **AND THE FIRST INSTRUMENT WAS WRONG, WHICH IS WHY THIS ROW SAYS "UNRESOLVED" AND NOT
+"ABSENT".** A red-pixel detector fired on his **face, neck and hands** and produced
+confident-looking counts; painting the mask and LOOKING is what caught it. Same family as
+F7 — an unverified sighting is not a fault, and **"we looked and could not find it" is not
+"it is not there."**
+
+🔴 **IT IS PARKED, NOT DROPPED, AND NOT IN ANY RATE.** If it is real it is a **PRESENTER**
+problem, not an EP31 problem: Peter's background is baked into his base look, so it would
+be in all ~270 remaining episodes. **The deciding question, when it is picked up: is the
+red thing visible in the BASE LOOK STILL?** If yes it is baked in and the fix is to edit
+the base look (the tool that fixed his resting smile); if it appears only in motion, the
+base look is fine and HeyGen's animation is inventing it. Those are different problems.
+**What would settle it fastest is a timestamp.**
+📌 A NEW PRESENTER IS A NEW GENERATOR WITH NEW FAILURE MODES. This is the first reported
+one, and it belongs in the same family as F5, F6 and F7 — a generative artefact in an
+image nobody checked before it shipped.
+
 ## 🔴 THE ANSWER IS SETTLED — DO NOT RE-PROPOSE A REVIEW STEP
 
 Jodie, **5 Aug 2026**, verbatim:

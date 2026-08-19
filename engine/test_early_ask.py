@@ -72,14 +72,16 @@ def _fn(name):
 
 
 class FakeProvider:
-    def __init__(self, root, message="LOOK AT THE THUMBNAIL"):
+    def __init__(self, root, message="LOOK AT THE THUMBNAIL",
+                 preview="https://example.invalid/thumb-preview.png"):
         self.root, self.message, self.asked = Path(root), message, []
+        self.preview = preview
 
     def dir(self, ep):
         return self.root
 
     def early_ask_message(self, ep, step):
-        return self.message
+        return self.message, (self.preview if self.message else None)
 
 
 class FakeRail:
@@ -91,10 +93,11 @@ class FakeRail:
 
 
 class FakeCtx:
-    def __init__(self, root, needs_look=False, message="LOOK AT THE THUMBNAIL"):
+    def __init__(self, root, needs_look=False, message="LOOK AT THE THUMBNAIL",
+                 preview="https://example.invalid/thumb-preview.png"):
         self.ep = {"id": "PP-EP9001", "needs_look": needs_look}
         self.state = {"steps": {}}
-        self.provider = FakeProvider(root, message)
+        self.provider = FakeProvider(root, message, preview)
         self.saves = 0
 
     @property
@@ -331,6 +334,46 @@ def _the_message_has_one_source():
                    for n in nodes), f"{fname} builds its own copy of the message text"
 case("the ask's words come from ONE function, so early and late cannot drift",
      _the_message_has_one_source)
+
+
+def _the_board_gets_a_picture_with_the_early_flag():
+    """🔴 EP31, 19 Aug 2026. The early ask fired correctly at the assemble seam and the
+    board had NO PICTURE to show: `_raise_early_ask` wrote the marker, the flag and the
+    message but never the preview url — that line lived only in `step_thumbnail`, which
+    did not run for another THIRTEEN MINUTES. Jodie had to click a link out of the
+    message text. It worked, and it is not what the feature promised.
+
+    The url must be in state BEFORE the flag — `saved BEFORE the flag, or it is lost`,
+    the rule `step_thumbnail` already states one line above its own flag."""
+    with tempfile.TemporaryDirectory() as td:
+        ctx = FakeCtx(td)
+        _with_fake_rail(lambda f: engine._raise_early_ask(ctx, "thumbnail"))
+        got = ctx.state.get("thumbnail_preview_url")
+        assert got == "https://example.invalid/thumb-preview.png", (
+            f"the board has no picture for the early flag: {got!r}. The url is "
+            f"published by early_ask_message and must be written into state before "
+            f"the flag goes up.")
+
+
+case("🔴 the early flag leaves the board able to SHOW the picture",
+     _the_board_gets_a_picture_with_the_early_flag)
+
+
+def _no_preview_url_still_asks():
+    """A missing preview must never stop the ask — a flag with no picture beats no flag."""
+    with tempfile.TemporaryDirectory() as td:
+        ctx = FakeCtx(td, preview=None)
+
+        def go(fake):
+            engine._raise_early_ask(ctx, "thumbnail")
+            return fake
+
+        fake = _with_fake_rail(go)
+        assert fake.flagged, "the ask was skipped just because there was no preview url"
+        assert "thumbnail_preview_url" not in ctx.state
+
+
+case("a missing preview url still raises the ask", _no_preview_url_still_asks)
 
 
 print(f"\nearly ask: {len(PASS)} passed, {len(FAIL)} failed")

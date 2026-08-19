@@ -21,11 +21,32 @@ the scene**, and exposes a **text slot** for the script. Because the avatar and
 voice are baked in, the wrong-voice / wrong-avatar mistakes (e.g. the EP04
 ElevenLabs → US-accent bug) **cannot recur** — you only drop in the script.
 
-- **What it locks (so nobody re-picks it):** avatar **"Floyd"**
-  (`avatar_id de774dd2f3ef4a52bc31dee6fc91f118`), the approved **Australian voice**
-  (never ElevenLabs), and the **grandstand backdrop**. Only the **script text**
+> ## 🔴 CHANGED 19 Aug 2026 — A NEW PRESENTER, A NEW VOICE, A NEW TEMPLATE.
+> **EP31's first render came back in an AMERICAN ACCENT from an untouched template, and
+> HeyGen support could not fix it.** Jodie built a new avatar, a new voice and a new
+> template, and re-rendered. **The old renders were DELETED**, so any `heygen_video_id`
+> from before that point points at nothing.
+>
+> | | now | was |
+> |---|---|---|
+> | **template** | **`PP Template v3 Peter`** — `d98c9195befa419290ef955f6149e861` | "PP Videos template v2" `5f4b2ed0e33a4351ae4debfbf804d7f2` |
+> | **avatar** | **Peter** (built by Jodie, 19 Aug) | "Floyd" `de774dd2f3ef4a52bc31dee6fc91f118` |
+> | **voice** | **`7e157ec62c9c45f1adca12faae72c86f`** | the voice baked into v2 |
+>
+> ⚠️ **THE AVATAR ID IS NOT RECORDED HERE** because nobody has given it and the template
+> list does not expose it. It is baked into the template, so no episode needs it — but
+> **do not invent one**, and add it here the day somebody reads it off HeyGen.
+> ⚠️ **The EP04 rule stands and is now proved twice:** never ElevenLabs, voice engine
+> **Auto**, accent **English (Australia)**. The US accent came back anyway on an
+> UNTOUCHED template, which is why the template itself had to be rebuilt.
+> ❓ **The host is still written as "Gordon" in every script.** The face and voice have
+> changed; whether the NAME changes is Jodie's call and nothing here assumes it has.
+
+- **What it locks (so nobody re-picks it):** the **avatar**, the approved **Australian
+  voice** (never ElevenLabs), and the **backdrop**. Only the **script text**
   changes per episode.
-- **▶ TEMPLATE ID:** `5f4b2ed0e33a4351ae4debfbf804d7f2`  ("PP Videos template v2", provided 2026-07-23) — once the template is built, give the
+- **▶ TEMPLATE ID:** `d98c9195befa419290ef955f6149e861` ("PP Template v3 Peter", 19 Aug 2026).
+  *(Superseded: `5f4b2ed0e33a4351ae4debfbf804d7f2`, "PP Videos template v2", 2026-07-23.)* — once the template is built, give the
   `template_id` to Claude. (Or just say *"list my HeyGen templates"* and Claude will
   fetch it **for free** via `GET /v3/templates` — a metadata call, no render, no cost.)
   Claude then records it in the `heygen-api-setup` memory + the `pp-episode-production`

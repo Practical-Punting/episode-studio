@@ -696,15 +696,28 @@ def trim_master_lead_in(master: Path) -> str:
     tmp = master.with_suffix(".trimmed.mp4")
     keep = master.with_name(master.stem + "-untrimmed.mp4")
     # THE VIDEO IS RE-ENCODED, AND IT HAS TO BE. HeyGen's masters carry a keyframe
-    # every 10s (measured on EP13: 0, 10, 20 …), and a stream copy can only cut ON a
-    # keyframe — so `-c copy -ss 5.99` silently snaps back to 0 and trims NOTHING. It
-    # does not fail; it hands back a file the same length as the one you gave it, which
-    # is exactly the kind of quiet no-op that shipped the mute opening in the first
-    # place. CRF 15 on a talking head is visually transparent, and THE AUDIO IS COPIED
-    # UNTOUCHED so the locked ~189 kbps master survives byte-for-byte.
+    # every 10s (measured on EP13 AND re-measured on EP31: 0, 10, 20 …), and a stream
+    # copy can only cut ON a keyframe — so `-c copy -ss 5.99` silently snaps back to 0
+    # and trims NOTHING. It does not fail; it hands back a file the same length as the
+    # one you gave it, which is exactly the kind of quiet no-op that shipped the mute
+    # opening in the first place. CRF 15 on a talking head is visually transparent, and
+    # THE AUDIO IS COPIED UNTOUCHED so the locked ~189 kbps master survives byte-for-byte.
+    #
+    # ⏱️ `veryfast` NOT `medium` (19 Aug 2026) — 101s against 611s on EP31's real master,
+    # a 6× saving on what the batch-7 instrumentation showed was **76% of
+    # `heygen_download` and roughly a fifth of the whole build**. Same command, same CRF,
+    # same `-c:a copy` (verified: 189370 bps in and out), and the post-cut check below
+    # still proves the cut landed (0.399s of head silence against the 0.4s target).
+    #
+    # 🔴 A SMART CUT WAS TRIED AND REJECTED, 19 Aug — re-encode only the first GOP,
+    # stream-copy the remaining 570s, concat. It ran in **10 seconds** and IT DID NOT
+    # CUT: the head silence came back 0.899s, unchanged, because `-c:a copy` on a
+    # mid-GOP `-ss` does not move the audio. **The same quiet no-op as the plain stream
+    # copy, one layer cleverer**, and only the verification below would have caught it.
+    # If anybody revisits it: the audio is the hard part, not the video.
     r = subprocess.run(
         ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{cut:.3f}",
-         "-i", str(master), "-c:v", "libx264", "-crf", "15", "-preset", "medium",
+         "-i", str(master), "-c:v", "libx264", "-crf", "15", "-preset", "veryfast",
          "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(tmp)],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode or not tmp.is_file():
@@ -1935,11 +1948,11 @@ class MockProvider:
     def thumbnail_placement_review_for(self, ep, url=None):
         return None
 
-    def early_ask_message(self, ep, step) -> str | None:
+    def early_ask_message(self, ep, step):
         """The mock has no human to ask, and asking early is still not a halt — so it
         stands in the same way the other gates do: the STEP is exercised, nothing is
         raised. Present so the seam cannot AttributeError on the mock path."""
-        return None
+        return None, None
 
     def listen_to_the_master(self, ep) -> None:
         """The mock has no ears and no human. It stands in for both, the same way it
@@ -3626,22 +3639,30 @@ class RealProvider:
             return
         thumbnail_placement_review(d, png, url, ep)
 
-    def early_ask_message(self, ep, step) -> str | None:
-        """The words for an ask raised EARLY, at an assembly seam — or None if the
-        artefact it is about does not exist yet, in which case the seam does nothing
-        and the next seam asks again.
+    def early_ask_message(self, ep, step):
+        """(message, preview_url) for an ask raised EARLY at an assembly seam — or
+        (None, None) if the artefact it is about does not exist yet, in which case the
+        seam does nothing and the next seam asks again.
 
         The picture is the whole precondition: an ask that points at a file which is
         not there yet is worse than no ask.
+
+        🔴 IT RETURNS THE URL AS WELL AS THE WORDS, AND THAT IS THE WHOLE FIX (EP31,
+        19 Aug 2026). This uploaded the preview and then THREW THE URL AWAY, keeping it
+        only inside the message text — so `_raise_early_ask` had nothing to write into
+        `build_state.thumbnail_preview_url`, and the board showed the flag with NO
+        PICTURE. Jodie had to click a link out of the message. The url is only written
+        by `step_thumbnail`, thirteen minutes later on EP31, long after she was asked.
+        Returning it also removes a duplicate upload: the same PNG was published twice.
         """
         if step != "thumbnail":
-            return None
+            return None, None
         d = self.dir(ep)
         png = d / "output" / f"{ep_folder(ep)}-thumbnail.png"
         if not png.is_file():
-            return None
-        return thumbnail_placement_message(png, self.publish_thumbnail_preview(ep),
-                                           *hero_size_and_focus(d, ep))
+            return None, None
+        url = self.publish_thumbnail_preview(ep)
+        return thumbnail_placement_message(png, url, *hero_size_and_focus(d, ep)), url
 
     def listen_to_the_master(self, ep) -> None:
         """Ask the human to LISTEN, once per master. See listen_to_the_master()."""

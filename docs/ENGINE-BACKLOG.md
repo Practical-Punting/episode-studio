@@ -838,6 +838,121 @@ on a public repo is not a trade worth making**).
   nothing was producing it. **A dead engine and a slow one look identical from the file
   system.** Watch the producer (claim, heartbeat, current step) alongside the artefact,
   and say plainly when the producer is not running.
+- 🟠 **E42 — FIVE MORE FIXED-DURATION WAITS, ALL THE SAME FAULT.** *(Swept 19 Aug 2026.
+  Three of eight fixed; these five remain.)*
+  ⭐ *A sleep long enough on an idle machine is not long enough on a busy one, and it
+  fails silently* (PP-STANDARDS). Eight scripts had `fonts` check → **fixed sleep** →
+  measure. **Fixed:** `card_check.py` (4 waits — the GATE), `autofit_cards.py`,
+  `render_cards_batch.py`. **Still to do:**
+  | file | waits | what it produces |
+  |---|---|---|
+  | `author_thumbnail.py` | 1 (120ms) | the thumbnail a viewer clicks |
+  | `author_title_card.py` | 1 (250ms) | the title card |
+  | `build_figures.py` | 1 (200ms) | the e-book figures |
+  | `render_overlay.py` | 1 (200ms) | overlay frames |
+  | `render_still.py` | 1 (250ms) | stills |
+  These produce OUTPUT rather than verdicts, so a late paint gives a wrong-looking
+  artefact rather than a wrong decision — which is why they were not done first. The fix
+  is one line each: `browser_wait.wait_for_fonts_and_paint(page)`.
+  ⚠️ **`golden_card_test.py` also has one (150ms) — it is already broken for another
+  reason (E-note: it hardcodes `PP-EP11`).**
+- 🟡 **E43 — `h264_qsv` WORKS ON THIS MACHINE; `nvenc` AND `amf` DO NOT. THE 14% FIGURE
+  IS NOT A MEASUREMENT OF THE REAL WORKLOAD.** *(Tested 19 Aug 2026. Do not act on it
+  yet.)*
+  Tested rather than trusted, and the list alone would have misled on two of three:
+  | encoder | result |
+  |---|---|
+  | **`h264_qsv`** (Intel Quick Sync) | **WORKS** — 3412ms on a 5s sample |
+  | `h264_nvenc` | listed by ffmpeg, **FAILS** — no NVIDIA card (GPU is "Intel(R) Graphics") |
+  | `h264_amf` | listed by ffmpeg, **FAILS** — no AMD card |
+  | `libx264 -crf 15 -preset medium` | 3984ms on the same sample |
+  🔴 **A 5-SECOND SAMPLE CANNOT MEASURE A 10-MINUTE ENCODE.** At that length almost all
+  of both figures is process startup and file handling; the encoding of five seconds is a
+  fraction of either. **The 14% is not a result** — it is the same fault as setting a
+  silence threshold from a two-second prompt: a sample of the wrong SIZE tells you about
+  the wrong thing.
+  **WHEN:** re-test on a genuine `assemble` (~10 min of ffmpeg) once the Yard makes that
+  the biggest remaining block. ⚠️ Hardware encoders produce DIFFERENT BYTES and can differ
+  in quality — that needs testing against QC, not assuming. And note the trim's own
+  encode is now `veryfast` (611s → 101s), so the trim is no longer the target.
+- 🔴 **E41 — WHEN A CARD IS OVER AND TWO ROWS TRACE TO THE SAME SOURCE SENTENCE, FOLD
+  THEM AUTOMATICALLY AND SAY SO. THE MACHINE ALREADY HAS THE EVIDENCE.** *(EP31 C13,
+  19 Aug 2026. Raised, not built — EP31 was live.)*
+  **CARD-SIZING HALTS ARE ONE OF THE RECURRING REASONS AN EPISODE STOPS**: EP29's C04
+  (chips too long), EP29's C7 (the cue ceiling), now EP31's C13. **Every one costs a
+  human interruption, and interruptions — not CPU — are the throughput constraint.**
+  ### THE RULE, AND IT IS NARROWER THAN "STOP SPLITTING SENTENCES"
+  > **When a card does not fit, and two of its rows trace to the SAME source sentence,
+  > fold them into that sentence and log it.**
+  ### WHY THIS SHAPE IS SAFE WHEN A GENERAL FOLD WOULD NOT BE
+  - **It cannot invent anything.** The result is the author's own sentence, rejoined at
+    the comma the card divided it at.
+  - **It is the generator undoing ITS OWN split** — not a words decision taken from a
+    human. *The words are yours* is untouched: nobody else's sentence is merged.
+  - **It only fires when the card is ALREADY OVER**, so a card that fits keeps whatever
+    shape the author intended.
+  ### ⚠️ WHAT IT MUST NEVER DO
+  - **Never fold rows from DIFFERENT source sentences.** That is a words decision and it
+    stays a halt.
+  - **Never fold if the joined line then fails autofit at FULL TYPE SIZE.** *Tighten or
+    split, never drop* — a fold that forces a shrink has solved nothing.
+  - **Always log the fold with BOTH original rows**, so a human reading the build can see
+    exactly what happened and disagree.
+  ### 📋 THE WORKED EXAMPLE — EP31's C13, verbatim
+  `checklist`, four items, over by 0.21s in a 9.79s beat; fits at three. Its own trace:
+  ```
+  "items[3]": "Pick out the major races on a card and play them, and ignore the weaker races."
+  "items[4]": "Pick out the major races on a card and play them, and ignore the weaker races."
+  ```
+  **Both rows, the identical sentence.** Rows 1 and 2 each had their own. So the fold was
+  a CORRECTION, not a judgement — and that is exactly the signal this rule keys on.
+  Folded to *"Pick out the major races and ignore the weaker ones"*: **autofit 0 fitted /
+  0 failing (no shrink at full type size), card_check 29/29.**
+  ⚠️ **AND THE OTHER PAIRINGS WERE WORSE, WHICH IS THE POINT OF THE TRACE TEST:** 1+2 are
+  two distinct instructions from two distinct sentences — folding those WOULD merge two of
+  the author's sentences into a line he never wrote. Only 3+4 had a source-text
+  justification, and only the trace could tell them apart.
+- 🔴 **E40 — `trim_master_lead_in` SPENDS EIGHTEEN MINUTES CUTTING 5.7 SECONDS. IT IS
+  THE BIGGEST SINGLE COST IN THE BUILD AND NOBODY KNEW.** *(Measured 19 Aug 2026 by the
+  batch-7 instrumentation, on EP31's first take. Found by measuring, not by reading.)*
+  ```
+  ⏱️ poll_heygen split: download 60.2s (4%) · trim 1085.1s (76%) · align 280.6s (20%)
+                      · gates 1.6s (0%) · TOTAL 1427.4s
+  ```
+  **The trim is 76% of `heygen_download` and roughly a FIFTH of the whole build**, and it
+  is heavy sustained CPU — which is precisely what stands between this studio and running
+  several episodes at once. It re-encodes 580 seconds of 1080p to remove 5.7 seconds.
+  ### ❌ THE OBVIOUS FIX IS ALREADY TRIED AND ALREADY REJECTED — READ THE CODE FIRST
+  A stream copy (`-c copy`) is the natural suggestion. **It was tried and it silently did
+  nothing.** From the function's own comment: *HeyGen's masters carry a keyframe every 10s
+  (measured on EP13: 0, 10, 20…), and a stream copy can only cut ON a keyframe — so
+  `-c copy -ss 5.99` snaps back to 0 and trims NOTHING. It does not fail; it hands back a
+  file the same length as the one you gave it.* **The post-cut verification exists BECAUSE
+  of that**, and it is why the mute opening shipped on EP11 and EP12 in the first place.
+  ### ✅ WHAT IS ACTUALLY ON THE TABLE, cheapest first
+  1. **A faster preset.** Today it is `-crf 15 -preset medium`. `veryfast` on a talking
+     head at CRF 15 is very likely visually transparent and several times quicker. **One
+     flag, and the easiest thing to measure.**
+  2. **Hardware encode.** `h264_qsv` IS available on this machine (Intel Quick Sync —
+     checked; the `nvenc` entries are compiled into ffmpeg but there is **no NVIDIA
+     card**). Potentially near-realtime. ⚠️ Changes the encoder for every master.
+  3. **A smart cut** — re-encode only the first GOP up to the next keyframe, stream-copy
+     the remainder, concat. Seconds rather than minutes, and it keeps the rest of the
+     video bit-for-bit. More machinery than 1 or 2.
+  ### ✅ AND THE PRECISION OBJECTION DOES NOT APPLY — CHECKED, NOT INHERITED
+  Nothing downstream depends on exactly how many seconds come off: **`align_to_script`,
+  `build_shot_map` and `derive_timings` all run AFTER the trim and measure whatever it
+  produced**, and the post-cut check already tolerates `HEAD_BREATH + 0.35s`. `HEAD_BREATH`
+  (0.4s) is the silence LEFT, not an offset anyone else assumes.
+  ### ⚠️ WHAT ANY CHANGE HERE MUST NOT BREAK
+  - **`-c:a copy` STAYS.** The ~189 kbps master audio is locked (A-ruling, EP16) and the
+    audio gate downstream refuses anything below 180 kbps.
+  - **The master is the source of every downstream timing**, so changing its encoding
+    changes what every derived artefact is derived from. QC must pass on the result.
+  - **The post-cut verification must survive.** A trim that reports what it INTENDED
+    rather than what it DID is worthless — that is the whole lesson of the first attempt.
+  📋 Not built 19 Aug: EP31 was mid-build and **a knife that cuts video is not something
+  to rush while an episode is live.**
 - 🟠 **E39 — EVERY PERFORMANCE NUMBER THIS STUDIO HAS EVER QUOTED ASSUMES A QUIET BOX,
   AND THE BOX IS NOT ALWAYS QUIET.** *(Found 18 Aug 2026 while benchmarking batch 6.)*
   **Jodie runs a SECOND studio on the same Lenovo — the Inspirational Women pipeline,
@@ -914,8 +1029,27 @@ on a public repo is not a trade worth making**).
   touched. Instrument: `compare_clips.py`, which reports bytes and decoded frames
   separately, because "the container changed" and "the picture changed" are different
   findings.
-- 🟡 **E37 — BATCH 5 (HEYGEN FETCH IN THE BACKGROUND) IS DEFERRED PENDING MEASUREMENT.
-  NOT DROPPED, NOT AN OVERSIGHT.** *(18 Aug 2026. Jodie: measure first.)*
+- ✅ **E37 / BATCH 5 — CLOSED 19 Aug 2026. MEASURED AND REJECTED.**
+  **The plan was aimed at the wrong part of the step, and only a real number could have
+  shown that.** Batch 5 would have moved the HeyGen FETCH into the background:
+  ```
+  download 60.2s (4%) · trim 1085.1s (76%) · align 280.6s (20%) · gates 1.6s (0%)
+  ```
+  **The fetch is 4%.** Backgrounding it — with all the care that a second writer beside
+  `rail.checkpoint`'s single-writer promise demands — would have bought about a minute an
+  episode, against a plan that claimed 8.3.
+  🔴 **THE 76% NEXT DOOR IS THE REAL TARGET: see E40**, `trim_master_lead_in`, eighteen
+  minutes to cut 5.7 seconds. The two entries point at each other on purpose.
+  ✅ **A BATCH CLOSED WITH A VERDICT IS A FINISHED BATCH.** This one is finished. It was
+  not abandoned and it was not forgotten — it was measured, and the measurement killed it.
+  *That is the outcome "everything, then automate" is satisfied by; a batch guessed at and
+  built is not.*
+  ⚠️ **AND THE SEAM READ STANDS ON ITS OWN MERITS**, whatever the numbers said: two of
+  `poll_heygen`'s five parts raise `EngineFlag`, so the work proposed for a background
+  thread contained human gates. That was reason enough to stop before any of this was
+  measured.
+  *(Original entry kept below — it is the case that justified the measurement.)*
+- 🟡 ~~**E37 — BATCH 5 (HEYGEN FETCH IN THE BACKGROUND) WAS DEFERRED PENDING MEASUREMENT.**~~ *(18 Aug 2026. Jodie: measure first.)*
   The plan said ~8.3 min an episode, and the `if hj.get("file"): skip` seam does exist.
   **The seam is not what the plan assumed.** `poll_heygen` is not a fetch — it does five
   things: `_heygen_fetch` (the download), `trim_master_lead_in` (**mutates the master**;

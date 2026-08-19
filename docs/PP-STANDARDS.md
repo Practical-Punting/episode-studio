@@ -346,8 +346,14 @@ identical; only a control tells them apart.*
 surfaced, and the run is recorded in the episode's run log.**
 
 ## Host, voice & render
-- **Host** "Gordon", HeyGen avatar look `de774dd2f3ef4a52bc31dee6fc91f118` (the favourited "seated at desk" Floyd, under HeyGen **Public Avatars**). Render on **Avatar IV**.
-- **Voice** the standing "Floyd"/PP Gordon voice baked into the template. It sounds Australian; it is **NEVER ElevenLabs** (that engine forces a US accent — it cost a full day on EP04). If ever set manually: voice engine **Auto**, accent **English (Australia)**.
+- **Host** "Gordon". 🔴 **THE AVATAR CHANGED 19 Aug 2026** — the presenter is now
+  **Peter**, in template **`PP Template v3 Peter`** (`d98c9195befa419290ef955f6149e861`), voice `7e157ec62c9c45f1adca12faae72c86f`.
+  *(Was the "seated at desk" Floyd look `de774dd2f3ef4a52bc31dee6fc91f118` in
+  template v2.)* **EP31's first render came back in an AMERICAN ACCENT from an
+  UNTOUCHED template and HeyGen support could not fix it**, so the avatar, voice
+  and template were all rebuilt and the old renders deleted. Render on **Avatar IV**.
+  ❓ The scripts still say "Gordon"; whether the NAME follows the face is Jodie's call.
+- **Voice** the standing PP voice baked into the template (19 Aug 2026: `7e157ec62c9c45f1adca12faae72c86f`). It sounds Australian; it is **NEVER ElevenLabs** (that engine forces a US accent — it cost a full day on EP04). If ever set manually: voice engine **Auto**, accent **English (Australia)**.
 - **Background** the saved grandstand/racecourse image — baked into the standing template; identical every episode.
 
 ## ⏸ HeyGen human step + standing template (the anti-bug)
@@ -657,6 +663,27 @@ surfaced, and the run is recorded in the episode's run log.**
     `S = 5, F = Evens → fair place odds 6-4 on, minimum acceptable each-way 4`.*
   - **That is where the care belongs**: on the handful of figures a viewer will see six feet
     tall, not on five hundred cells nobody will read off a page.
+- ⭐ **WAIT ON A CONDITION, NEVER ON A CLOCK. (Jodie, 19 Aug 2026 — the Yard.)**
+  > ### A SLEEP LONG ENOUGH ON AN IDLE MACHINE IS NOT LONG ENOUGH ON A BUSY ONE,
+  > ### AND IT FAILS SILENTLY.
+  A fixed `sleep`/`wait_for_timeout(n)` is a bet that the machine will have finished in
+  `n` milliseconds, and the bet was written on an idle box. The card pool now runs four
+  Chromium shards at once, the Yard will run several episodes at once, and a second
+  studio shares the same machine — **so the bet gets worse exactly as the studio gets
+  busier, and it loses without saying anything.**
+  ⚠️ **AND IT APPLIES TO GATES AS WELL AS TO OUTPUT — `card_check` is the case that
+  proves it.** A late FONT gives a card in the wrong typeface: wrong, and visible to
+  anyone watching. A late **LAYOUT** gives a gate that measured the wrong picture, which
+  is one of two worse things: **a missed collision** shipped past a gate that said PASS,
+  or **a false halt** — a human interrupted for a card that was fine. *Halts are
+  unplanned visits, and visits are the throughput constraint.*
+  **How to apply:** wait for the browser to say it has painted (`requestAnimationFrame`
+  twice — see `browser_wait.py`), for `document.fonts.ready`, for the file to exist, for
+  the process to exit. **Never for a number of milliseconds.** A timeout may exist only
+  as a LOUD ceiling so a broken page fails instead of hanging — never as the thing being
+  waited on.
+  *(Related: `a gate that is green or red by what else is running fails in the dangerous
+  direction`.)*
 - **🚫 NEVER FABRICATE RACING DATA (Jodie, 26 Jul 2026 — standing rule).** Every figure, form
   line, price, margin, date, horse name and race name on a motion card, in an e-book figure or
   on a thumbnail must come from **the source article**. Do not invent a plausible-looking form

@@ -1665,7 +1665,7 @@ def _raise_early_ask(ctx, name):
         d = ctx.provider.dir(ctx.ep) / sub
         if (d / f".answered-{stem}").exists() or (d / legacy).exists():
             return              # already answered — this run, or under the pre-C3 scheme
-        message = ctx.provider.early_ask_message(ctx.ep, name)
+        message, preview_url = ctx.provider.early_ask_message(ctx.ep, name)
         if not message:
             return                        # the artefact is not ready yet — try next seam
         d.mkdir(parents=True, exist_ok=True)
@@ -1677,6 +1677,16 @@ def _raise_early_ask(ctx, name):
             "human clears the flag.\n", encoding="utf-8")
         ctx.state.setdefault("early_ask", {})[name] = True
         ctx.state["flag_step"] = name
+        # 🔴 THE PICTURE'S URL GOES IN **BEFORE** THE FLAG, OR THE BOARD HAS NOTHING TO
+        # SHOW. (EP31, 19 Aug 2026.) The board renders the flag's image from
+        # `build_state.<step>_preview_url`, keyed by `flag_step`. This wrote the marker,
+        # the flag and the message but never the url — that line lived only in
+        # `step_thumbnail`, which had not run and did not run for another thirteen
+        # minutes. So the ask arrived correctly and Jodie had to click a link out of the
+        # message text. It is the rule `step_thumbnail` already states one line above its
+        # own flag: **saved BEFORE the flag, or it is lost.**
+        if preview_url:
+            ctx.state[f"{name}_preview_url"] = preview_url
         ctx.save()
         rail.flag_needs_look(ctx.id, message)
         log(f"   [early ask] {name}: on the board now — the build keeps going and waits "

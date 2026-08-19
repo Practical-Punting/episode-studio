@@ -47,6 +47,7 @@ Exit 0 = clean, exit 1 = problems (each in plain English).
 import argparse
 import functools
 import json
+from browser_wait import wait_for_paint, wait_for_fonts_and_paint
 import os
 import pathlib
 import sys
@@ -318,12 +319,12 @@ def confirm_by_pixels(page, pairs):
 
     def mask(base, k):
         page.evaluate(_SHOW_ONE, str(k))
-        page.wait_for_timeout(40)
+        wait_for_paint(page)          # the screenshot must see the change, not race it
         d = ImageChops.difference(grab(), base).convert("L")
         return d.point(lambda v: 255 if v > PIX_THRESH else 0, mode="1")
 
     page.evaluate(_HIDE_ALL)
-    page.wait_for_timeout(40)
+    wait_for_paint(page)
     base = grab()
     cache, confirmed = {}, set()
     for a, b in pairs:
@@ -334,7 +335,7 @@ def confirm_by_pixels(page, pairs):
         if shared.getbbox() and shared.convert("L").histogram()[255] >= PIX_MIN:
             confirmed.add((a, b))
     page.evaluate(_RESTORE)
-    page.wait_for_timeout(40)
+    wait_for_paint(page)
     return confirmed
 
 
@@ -350,14 +351,17 @@ def label(r):
 
 def check_page(page, url):
     page.goto(url, wait_until="load")
-    page.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+    # 🔴 A GATE MUST NOT MEASURE MID-PAINT. See browser_wait.py: a late LAYOUT is
+    # worse than a late font, because it yields a confident verdict about the wrong
+    # picture — a missed collision, or a human halted for a card that was fine.
+    wait_for_fonts_and_paint(page)
     page.wait_for_function(
         "Array.from(document.images).every(i => i.complete || i.naturalWidth === 0)",
         timeout=30_000)
     # Settle every animation: this is the frame the viewer actually reads.
     page.evaluate("() => { if (window.ppSeek && window.ppDuration) "
                   "window.ppSeek(window.ppDuration); }")
-    page.wait_for_timeout(120)
+    wait_for_paint(page)              # the settled frame is the one the viewer reads
     data = page.evaluate(PROBE)
     runs, boxes, root, logo = data["runs"], data["boxes"], data["root"], data["logo"]
     problems, seen = [], set()

@@ -51,14 +51,19 @@ from urllib.parse import quote
 #     6        117s      3.77×      20/20 identical   faster, and NOT taken — see why
 #
 # 🔴 WHY 4 AND NOT 6, WHICH IS GENUINELY FASTER. 117s vs 137s is a real 15% win, well
-# outside the noise; this is not a tie being broken. It is declined on purpose. The one
-# hazard left in this file is the `wait_for_timeout(120)` below — a FIXED DURATION
-# waiting for a freshly-swapped webfont to paint — and its failure mode is SILENT: a
-# card rendered in a fallback font still produces a perfectly valid MP4 that nothing
-# downstream would question. That risk is LOAD-DEPENDENT, so spare cores are the only
-# cheap defence against it. 6 shards on 8 cores leaves none. **3.22× with two cores in
-# hand beats 3.77× with nothing in hand**, and if that judgement ever looks wrong it is
-# one edit away.
+# outside the noise; this is not a tie being broken. It was declined on purpose: the one
+# hazard in this file was a FIXED 120ms wait for a freshly-swapped webfont to paint,
+# whose failure mode is SILENT — a card rendered in a fallback font still produces a
+# perfectly valid MP4 that nothing downstream would question. That risk is LOAD-
+# DEPENDENT, so spare cores were the only cheap defence, and 6 shards on 8 cores leave
+# none.
+#
+# ✅ THAT HAZARD IS NOW CLOSED (19 Aug 2026) — the capture waits on
+# `wait_for_fonts_and_paint`, a CONDITION, so it is correct at any load. **WHICH MEANS 6
+# MAY NOW BE SAFE, AND THE NUMBER STILL STANDS AT 4 UNTIL SOMEBODY RE-MEASURES IT.**
+# ⚠️ The table above was measured under the OLD code. Do not raise this constant on the
+# strength of a number taken from a machine that no longer exists — re-run the benchmark
+# AND the busy-machine frame-identity control, then change it in a pass of its own.
 #
 # ⚠️ 3 SHARDS IS UNEXPLAINED AND RECORDED AS MEASURED. 202s against an ideal ~147s is
 # proportionally worse than both 2 and 4, and 20 cards split 7/7/6 does not account for
@@ -116,6 +121,7 @@ if not IS_WORKER and CARD_SHARDS > 1 and len(cards) > 1:
     sys.stdout.flush()
     os._exit(0)
 
+from browser_wait import wait_for_fonts_and_paint
 from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
@@ -131,8 +137,14 @@ with sync_playwright() as p:
             page.wait_for_function("typeof window.ppDuration === 'number'", timeout=8000)
         except Exception:
             skipped.append(name); page.close(); continue
-        page.wait_for_function("document.fonts.status === 'loaded'", timeout=60000)
-        page.wait_for_timeout(120)  # let a freshly-swapped webfont paint
+        # ⭐ WAIT ON A CONDITION, NEVER A CLOCK (browser_wait.py). This was
+        # `wait_for_timeout(120)` — a fixed bet that a freshly-swapped webfont would
+        # have painted, written when this file rendered one card at a time. Batch 6
+        # runs FOUR shards at once and the Yard will run several episodes, so the bet
+        # gets worse exactly as the studio gets busier — and it loses SILENTLY: a card
+        # captured in a fallback font still produces a perfectly valid MP4 that nothing
+        # downstream questions.
+        wait_for_fonts_and_paint(page)
         dur_ms = page.evaluate("window.ppDuration")
         n = round((dur_ms / 1000 + TAIL) * FPS)
         out = str(OUTDIR / (pathlib.Path(name).stem + ".mp4"))
