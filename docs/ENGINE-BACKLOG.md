@@ -2317,6 +2317,33 @@ on a public repo is not a trade worth making**).
      and EP35 and EP32 behind it, and says nothing about any of that.
   8. **It was TRUNCATED on the board** — the message begins `516,600 144x36)`, mid-number,
      because the coordinate dump overflowed the field the board renders.
+  ### 🔴 AND IT NAMED A CAUSE IT HAD NOT ESTABLISHED — WHICH IS THE WORSE HALF
+  The flag asserted: *"the content is simply longer than the design can hold"*, and put
+  the two `k`/`v` rows on the board as the things at fault. **Both claims were wrong, and
+  the evidence to disprove them was sitting in the same folder.**
+  ```
+  longest VALUE that fits elsewhere in EP34 : 159 chars      the halted card's longest : 33
+  longest LABEL that fits elsewhere in EP34 :  35 chars      cards with MORE rows (4)  : fit
+  ```
+  **The real cause was the card's TAG — 67 characters, the longest in the episode — which
+  autofit never tried to shrink.** Proved by changing only the tag on a sandbox copy and
+  leaving every row untouched: `AUTOFIT: 0 fitted, 0 still failing`. The rows the flag
+  named were never the problem.
+  ⚠️ **So a human was asked to choose between "the words and the layout" for words that
+  were not the cause.** Had Jodie shortened those two rows she would have damaged the
+  card and the halt would have stayed.
+
+  ### ⭐ THE RULE THIS CASE TEACHES, SHARPER THAN "A FLAG IS EITHER RIGHT OR IT SAYS LESS"
+  > **A HALT WHOSE CLAIM IS CHECKABLE AGAINST THE ARTEFACTS BESIDE IT MUST CHECK IT
+  > BEFORE ASSERTING IT.**
+  "The content is too long" is not an opinion — it is a measurement, and **the other
+  twenty cards in the same episode were the control, already rendered, already on disk.**
+  One comparison would have replaced a wrong cause with the right one. A flag that can
+  measure its own claim and does not is guessing at the exact moment a human is being
+  asked to act on it.
+  *Same family as fault #6 (a plausible cause accepted without evidence) — but worse,
+  because it is the machine doing it TO the operator, in the one message she trusts.*
+
   ⭐ **THE RIGHT SHAPE IS: THE PICTURE, THE QUESTION, THE BUTTONS — AND NOTHING ELSE.**
   The coordinates belong in the run log, where the machine's working belongs.
 
