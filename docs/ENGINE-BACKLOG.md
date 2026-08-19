@@ -1936,3 +1936,84 @@ on a public repo is not a trade worth making**).
   actually were. Releasing from inside a phase needs a seam read of every `flag_and_wait`
   caller and of what resume does with a part-finished step. **Seam-read first. Do not
   reach for this because the number is big.**
+
+  ### ⚠️ AND UNTIL IT IS BUILT, THE YARD THAT LANDED IS VERY NEARLY A NO-OP. SAY SO.
+  The engine cannot get back to `acquire()` while it is sitting on a `needs_look` flag —
+  the wait is a `while ctx.refresh().get("needs_look")` loop *inside* the inner loop,
+  holding the claim, and it `continue`s rather than breaking out. So **`YARD_MAX = 2` is
+  unreachable in practice today**: the engine never returns to the place that would claim
+  a second episode. Landing (1)+(2) bought:
+  · 🟢 **a real safety fix that stands on its own** — release-at-gates opened a SECOND door
+    into the engine, and `reclaim_stale` now carries the Script Gate, so a withdrawn
+    approval stops the pick-up. That hole was real and is closed whatever happens next.
+  · 🟡 groundwork that is correct and currently idle: the cap, and reclaim-before-claim.
+  **It did NOT buy throughput, and nobody should be told it did.**
+  🔴 **AND (3)-(5) — MORE WORKERS — ARE NOT THE ANSWER TO THIS.** A second worker sitting
+  on a second `needs_look` flag is two idle workers, not two episodes. Fix the wait first,
+  then re-measure, then decide whether a second worker is needed at all.
+
+- 🔴 **E45 — A CARD THAT SAYS "THIS ONE NEEDS A LOOK" AND SITS IN THE *WAITING* LANE.
+  IT IS THE JOB-5 FAULT INVERTED.** *(EP32, 19 Aug 2026. Raised, not built — Jodie's
+  call, and the board itself is ruled finished.)*
+  ```
+  PP-EP32   status         'queued'          <- lane is chosen by STATUS ALONE
+            needs_look     False             <- so nothing raises it
+            progress_step  'Tried to write the script and stopped ... Now no attempts
+                            left - this one needs a look.'
+  ```
+  `app.js` maps lanes off `status` and nothing else — `queued` -> **"Waiting"**, and the
+  "Your turn" lane is reachable only from `awaiting_render`, `awaiting_cover`,
+  `awaiting_approval`, `ready`. **There is no route from `queued` to "Your turn".** So an
+  episode whose progress line explicitly asks for a human sits in the lane that means
+  *nothing is wanted from you*, and the only thing that would move it is a human reading
+  the small print on a card the board has told them to ignore.
+
+  🔴 **THIS IS THE EXACT MIRROR OF THE JOB-5 FAULT ALREADY RULED ON** (app.js:127, Jodie,
+  9 Aug, EP19): that was **a "YOUR TURN" chip with nothing to do**; this is **a "WAITING"
+  chip with something to do.** The first one wasted a visit. This one loses one — and
+  visits are the throughput constraint, so the second is the more expensive direction.
+
+  **Why it happens, and why the fix is engine-side.** The drafting pass writes that text,
+  and it is `_draft_watch` — the pass that under **I1 NEVER CLAIMS AND NEVER SETS A
+  STATUS**. So it structurally *cannot* move the episode into a "Your turn" status, and
+  it did the only thing it could: wrote English into `progress_step`. **Text is not a
+  signal.** `needs_look` IS status-independent and is exactly the flag for this, and the
+  pass does not set it.
+  Two candidate shapes, neither built and neither recommended here:
+  · the drafting pass raises `needs_look` when it runs out of attempts, or
+  · the board treats `needs_look` as a "Your turn" condition in its own right, whatever
+    the status — which would also cover every future case of this shape.
+  ⚠️ **The second touches the board, which Jodie has ruled finished. The first does not.**
+
+- 🟠 **E46 — THE YARD'S LIVE, RED-FIRST CONTROL CANNOT JOIN THE SUITE WITHOUT A RULING
+  FROM JODIE.** *(19 Aug 2026. Needs a decision, not a build.)*
+  The behavioural control **was written and it was RUN, against the real rail, and it
+  went red first exactly as required**: asked with the PRE-YARD filters, an unapproved
+  episode WAS taken; asked with the shipped filters, the same throwaway ticket at the
+  same instant was refused. 13/13. It also proved a withdrawn approval stops the pick-up
+  mid-flight, and that a gate-parked episode is invisible until the board's own write
+  makes it visible. **It is parked at**
+  `scratchpad/test_yard_pickup_LIVE.py` **and is not in the repo.**
+
+  **Why it cannot live in the suite.** Cleaning up its throwaway ticket needs
+  `rail.delete()`. Jodie's ruling of 10 Aug 2026 grants that to **one** file — *"For
+  `test_dead_zone.py` only ... and nothing else, ever"* — and
+  `test_production_never_deletes.py` enforces it by AST across the whole repo, so merely
+  WRITING the call fails the guard even if it never runs. **The set was not widened: that
+  is a safety ruling Jodie made after a real incident, and changing it is her call.**
+  The alternative was rejected too — leaving a standing PP-EP9021 row behind would put a
+  test ticket on her board permanently, because `app.js` does not filter test tickets.
+
+  **What shipped instead:** `test_yard_pickup.py`, 10 STRUCTURAL cases — the filter is
+  really in `reclaim_stale`, its other filters survived, the release hands back and never
+  releases, `hand_back` still expires the lease, `acquire()` reclaims before it claims and
+  the cap cannot block the pick-up, `YARD_MAX` is 2, `in_flight` cannot be fooled by a
+  lookalike worker name, and the release moves the claim and nothing a human decides.
+  ⚠️ **That is weaker than what was run, and the file says so in its own docstring.** A
+  green there means *the wiring is still correct*, not *the database was asked again*.
+
+  **THE DECISION:** add `test_yard_pickup.py` to the granted exception (same terms — it
+  may delete only the id its own INSERT returned), or leave the live control out of the
+  suite for good. **Recommendation: grant it** — it is the identical case the exception
+  was written for, and the guard already proves the deletion is scoped to the row the
+  file itself inserted.

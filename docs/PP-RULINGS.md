@@ -876,7 +876,9 @@ rejected. In its own words: *"The article states both, in one sentence… taking
 would mean altering what he wrote rather than reproducing it."*
 
 **THE WRITER WAS RIGHT ALL THREE TIMES.** Verified against the **raw HTML off the wire**
-(109,552 bytes, fetched directly from practicalpunting.com.au, not a converted copy):
+(fetched directly from practicalpunting.com.au, not a converted copy — the page is
+served dynamically and its byte length moves between fetches, so the SIZE is not the
+evidence and must not be quoted as if it were; the COUNT below is stable every time):
 
 ```
 10%-12% mark-up on a race. Once he has taken out 4%5% to pay for his taxes and
