@@ -1893,3 +1893,46 @@ on a public repo is not a trade worth making**).
 > *(The chart matched ITSELF as the section it belongs beside, because its own paragraph
 > carries its name. EP26 hid it — its table is the article's last block — and only a
 > fixture with the table mid-article showed it.)*
+
+- 🔴 **E44 — THE YARD RELEASED THE WRONG WAIT. THE ENGINE'S DEAD TIME IS THE `needs_look`
+  FLAG, NOT THE GATE PARK.** *(Measured 19 Aug 2026 from 16 days of engine logs, while
+  building the Yard. The Yard's own premise did not survive the measurement.)*
+  ```
+  needs_look waits, 3-19 Aug, engine/logs/*.log
+    116 waits raised · 92 closed in-log · 24 crossed a restart/overnight (UNMEASURED)
+    closed: median 6.7 min · MEAN 23.7 min · max 482.6 min (audit_inputs, 13 Aug)
+    measured dead time: 36.3 h  <- LOWER BOUND: the 24 uncounted are the LONG ones
+  gate parks (awaiting_render / awaiting_cover) on real episodes, same 16 days:  0
+  ```
+  **The Yard (1)+(2) released the claim at `awaiting_render` and `awaiting_cover`. In
+  sixteen days of real logs an episode parked at neither, not once.** The locked order
+  plus batch 2's early ask already prevent it: the render ask is raised at `render_gate`
+  early in `building` and the engine keeps working, so by the time it would park, the
+  render is already going — EP31's log says so in as many words, *"render already running
+  (started during the build, as the locked order intends) -> rendering"*.
+  **Where the engine actually sits is the `needs_look` wait loop**, which holds the claim
+  and heartbeats while a human looks at a title card, listens to Gordon, or checks a shot
+  map. EP31 sat at `listen_check` from 13:01 on 18 Aug to the 04:35 restart the next
+  morning — **~15.5 hours, claim held, machine idle, one episode.**
+
+  ⚠️ **AND A NUMBER I QUOTED EARLIER THE SAME DAY WAS WRONG — RECORDED SO NOBODY REBUILDS
+  ON IT.** I measured the render-gate wait as `started_at -> render_started_at` and got a
+  mean of 2.19 h with a 17.1 h tail. **That is not a gate wait.** `claim_next` writes
+  `started_at: ep.get("started_at") or _now()` — it PRESERVES the original stamp across
+  re-claims — while `render_started_at` is overwritten by every click. So for any episode
+  that was reset or re-rendered (EP24, EP30, EP31 — the three "worst" waits, and the three
+  most recent) the figure is the age of the ticket, not the length of a wait. **The board
+  cannot measure this; only the logs can.**
+
+  ### WHAT TO BUILD, AND THE ARGUMENT IS THE ONE ALREADY ACCEPTED
+  Release the claim while waiting on a `needs_look` flag, exactly as the Yard now does at
+  the non-approval gates: **what BLOCKS changes, what a human DECIDES does not.** The flag
+  still stops the episode dead, still waits for the same person, and still cannot be
+  cleared by code. The engine simply stops sitting with it.
+  🔴 **AND IT IS NOT THE SAME EDIT, WHICH IS WHY IT IS NOT IN THIS PASS.** The gate release
+  sits at a clean status boundary at the top of the inner loop. `needs_look` is raised in
+  BOTH places: the top-of-loop check (clean, safe) *and* `flag_and_wait` **mid-phase, with
+  the step half-done and `build_state` mid-write** — which is where EP31's 15.5 hours
+  actually were. Releasing from inside a phase needs a seam read of every `flag_and_wait`
+  caller and of what resume does with a part-finished step. **Seam-read first. Do not
+  reach for this because the number is big.**

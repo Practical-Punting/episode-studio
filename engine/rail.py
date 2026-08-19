@@ -422,16 +422,66 @@ def reclaim_stale(worker, lease_secs=180):
 
     🔴 AND IT DOES NOT EAT THE SUITE'S TICKETS — see E29 at the top of this file. This
     is the exact call that reclaimed PP-EP9019 out from under `test_dead_zone.py`.
+
+    ══ THE YARD (1) — THIS IS ALSO THE PICK-UP PATH FOR GATE-PARKED EPISODES ════
+    Once the engine RELEASES at a non-approval gate instead of sitting on it (the
+    Yard, part 2), the episode waits at `awaiting_render`/`awaiting_cover` with a
+    named owner and a dead lease. Neither status is in WORKING, so nothing here can
+    see it — **which is the point**: it stays invisible until a HUMAN acts. The board
+    advances `awaiting_render -> rendering` when Jodie clicks "render started", and
+    `awaiting_cover -> assembling` when she picks the cover (app.js). Both land the
+    episode in WORKING, and only then does this call become the thing that takes it
+    back up. The human is the trigger; this is only the pick-up.
+
+    🔴 AND IT NOW CARRIES THE SCRIPT GATE (Jodie, 19 Aug 2026 — the condition on
+    building the Yard at all). `claim_next` has always refused an episode whose words
+    and script a human has not passed. That guard used to sit on the ONLY door into
+    the engine. Releasing at gates opens a SECOND door, and a gate that guards one of
+    two doors is not a gate. So both halves are repeated here verbatim.
+
+    ⚠️ It is not redundant, even though everything reclaimed here was claimable once.
+    The flags are a human's, and a human can UNTICK them — on the board, mid-build,
+    after a script turns out to be wrong. Without this filter the engine would carry
+    straight on with work whose approval had been WITHDRAWN. With it, the episode
+    simply stops being picked up: it parks, visibly, until the tick comes back. That
+    is the safe direction, and it is the direction a gate is supposed to fail in.
     """
     stat = ",".join(sorted(WORKING))
     rows = _request(
         "PATCH",
         f"?status=in.({stat})&claimed_by=not.is.null&claimed_by=neq.{_q(worker)}"
+        f"&title_approved=is.true&script_read=is.true"
         f"&lease_until=lt.{_ts(_now())}{NOT_A_TEST}&limit=1",
         {"claimed_by": worker, "lease_until": _now_plus(lease_secs),
          "heartbeat_at": _now(), "updated_at": _now()},
         write=True)
     return rows[0] if rows else None
+
+
+# The statuses that mean "this worker still has to come back to it". WORKING is the
+# engine actually holding the wheel; the two non-approval gates are it waiting on a
+# human who WILL hand it back. `awaiting_approval` is deliberately NOT here — the
+# episode is finished as far as the engine is concerned, waiting on the four approvals
+# and the publish, and counting it would jam the yard shut behind episodes the engine
+# has no further work for.
+IN_FLIGHT = sorted(WORKING | {"awaiting_render", "awaiting_cover"})
+
+
+def in_flight(worker):
+    """Every episode this worker is carrying — the Yard's work-in-progress count.
+
+    ⚠️ MATCHED IN PYTHON, NOT IN THE QUERY, ON PURPOSE. `hand_back` writes the owner as
+    "worker (reason)", so the match has to cover both that and the bare name — and a
+    PostgREST `like.worker*` would ALSO match a different worker called `worker2`,
+    silently, by counting somebody else's episode against this one's cap. The status
+    filter runs on the server (cheap); the identity match runs here (exact).
+    """
+    stat = ",".join(IN_FLIGHT)
+    rows = _request("GET", f"?select=id,ep_number,status,claimed_by"
+                           f"&status=in.({stat}){NOT_A_TEST}&order=updated_at.asc")
+    return [r for r in rows
+            if (r.get("claimed_by") or "") == worker
+            or (r.get("claimed_by") or "").startswith(worker + " (")]
 
 
 def heartbeat(id, worker, lease_secs=180):

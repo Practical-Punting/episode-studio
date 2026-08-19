@@ -865,6 +865,54 @@ build.holds"* — so the person in front of it is asked for a judgement, never f
 
 ---
 
+## A28 · 19 Aug 2026 — ✏️ A TYPOGRAPHIC DEFECT IN THE SOURCE PAGE MAY BE REPAIRED IN THE CAPTURE · **Jodie**
+
+**Scope: ONE repair, ONE article. This is NOT A27, and it is NOT a general permission to
+tidy captures.**
+
+**THE CASE.** EP32's drafting pass burned **all three attempts**. Each time the writer
+produced a full script and then **refused** to remove two figures the numbers gate had
+rejected. In its own words: *"The article states both, in one sentence… taking them out
+would mean altering what he wrote rather than reproducing it."*
+
+**THE WRITER WAS RIGHT ALL THREE TIMES.** Verified against the **raw HTML off the wire**
+(109,552 bytes, fetched directly from practicalpunting.com.au, not a converted copy):
+
+```
+10%-12% mark-up on a race. Once he has taken out 4%5% to pay for his taxes and
+costs, he has a net profit of between 7%-8%.
+```
+`4%5%` occurs once, **with no dash**; `4%-5%` occurs **zero** times. `7%-8%` and
+`10%-12%` both carry theirs.
+
+> ### 🔴 SO THE CAPTURE IS NOT THE BUG. **PP'S OWN WEBSITE SERVES THE TYPO.**
+> The capture reproduced the page faithfully, the writer read it correctly, and the gate
+> refused correctly. **Three correct refusals on a forty-year-old typographic slip.**
+> *(An earlier diagnosis of mine said "the capture is the bug" and was wrong — the raw
+> source settles it, and a converted copy would not have.)*
+
+**THE RULING — EXACTLY THIS WIDE:**
+- It is a **TYPOGRAPHIC repair, not a figure correction. NO VALUE CHANGES.** One
+  character is inserted: `4%5%` → `4%-5%`.
+- **The article's own arithmetic fixes the reading**: a 10%-12% mark-up, less this
+  figure, leaves the stated net of 7%-8%. Twelve minus four is eight; twelve minus five
+  is seven. **It only parses as a range** — and every other range on the page has its dash.
+- **PROVEN INERT ON A SANDBOX COPY FIRST**, with a diff showing the ONLY change is the
+  inserted character, before it touches the article of record.
+- **DECLARED IN WRITING**, per episode, in the same spirit as A27.
+- **THE SPOKEN SCRIPT IS UNTOUCHED** — the writer already read it correctly.
+
+**WHY THIS IS NOT A27.** A27 corrects a FIGURE the article's own arithmetic contradicts,
+and it changes what the reader is told. This changes **no value at all**: it repairs a
+character that makes a printed range unreadable to a machine. Nothing about what the
+author said is altered. **A27 needs a note in the book; this does not, because the
+book's words do not change.**
+
+**Does NOT cover:** any other capture, any other article, any defect that is not
+typographic, or anything that changes a value. Each further case is its own decision.
+
+---
+
 ## A27 · 18 Aug 2026 — 🔢 A FIGURE THE ARTICLE'S OWN NUMBERS CONTRADICT MAY BE CORRECTED · **Jodie and Hugh**
 
 **Amends:** `PP-STANDARDS.md` **§0a-ii**, which said such a figure is *"REPRODUCED, NOT
