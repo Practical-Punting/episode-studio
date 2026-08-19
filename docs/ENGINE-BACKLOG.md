@@ -2197,6 +2197,18 @@ on a public repo is not a trade worth making**).
   so the true rate of ARTICLES carrying the trigger is higher than the rate of BLOCKS.
   Both figures above are lower bounds.
 
+
+  ### 📌 E44, IN PRODUCTION, THREE TIMES IN ONE DAY — EVIDENCE, NOT ARGUMENT
+  1. **EP31**, 18-19 Aug: sat at `listen_check` **~15.5 h** holding the claim.
+  2. **EP32**, 19 Aug night: clean ledger, no flag, repaired gate — **still could not be
+     written**, because the engine was in the inner loop holding EP34.
+  3. **EP34**, 20 Aug ~22:22: halted at `ebook_cover` on a one-field data fault, and the
+     flag wait held the engine **all night** — so **EP35 could not build and EP32 still
+     could not be drafted.** *One episode's malformed title stopped two other episodes.*
+  ⚠️ **The third is the expensive one and it is the plainest statement of the fault:**
+  nothing was broken except one field, and the cost was a night of an idle machine. The
+  measurement said 36.3 h as a LOWER BOUND; this is what that looks like from the outside.
+
   ### ⛔ NOTHING CHANGED. EP32 STAYS HELD (ledger at 3) until the gate is ruled on.
 
 - 🟠 **E48 — THE "and" LEAK: A SCRIPT MAY SAY "ten and twelve" WHEN THE ARTICLE STATES NO
@@ -2222,3 +2234,52 @@ on a public repo is not a trade worth making**).
   become a compound safely. That is a §0a widening AND a tightening in one change, and it
   needs its own ruling and its own controls.
   ⚠️ **Pre-existing. Not introduced by E47, and not made worse by it.**
+
+- 🔴 **E49 — `_split_part` KNOWS `-`, `,` AND `—` BUT NOT `(Part 1)`. IT HALTED EP34 A
+  WHOLE NIGHT.** *(20 Aug 2026. CLAUDE.md fault 7 again, and E47's shape exactly.)*
+  ```
+  providers._split_part('The Don Scott Interview - Part 2')  -> ('The Don Scott Interview', 'Part 2')  ✅
+  providers._split_part('The Don Scott Interview (Part 1)')  -> ('The Don Scott Interview (Part 1)', None)  ❌
+  providers._split_part('Thing, Part 5')  -> split ✅      providers._split_part('Thing — Part 3')  -> split ✅
+  ```
+  **The bracket form is what decided it**, and the docstring says why in its own words:
+  *"The convention is read off EP16 and EP19, not invented"* — EP16 used `— Part 2`. **The
+  parser knows the notations it has SEEN.** It is a maintained list of separators wearing
+  a regex, and `(Part N)` is the missing item nobody had met yet.
+
+  🔴 **AND THERE ARE TWO PARSERS FOR ONE CONCEPT, IN TWO MODULES, THAT DISAGREE.**
+  `packaging_gate.strip_part` handles brackets perfectly; `providers._split_part` does
+  not. So the seater leaves the part in the hook, the hook becomes the headline, and the
+  GATE — using the other parser — correctly catches a part in the headline. **One half of
+  the studio cannot read what the other half writes.** That is the fault to fix, not the
+  regex: the two should be ONE function.
+
+  **What it cost.** EP34 halted at `ebook_cover` at ~22:22, holding the engine in the flag
+  wait, so **EP35 could not build and EP32 could not be written** — a whole night.
+  ✅ **EP33 was checked and is CLEAN** — verified by running the gate exactly as the build
+  runs it (`packaging.hook`, not the rail title): **no faults**, `Part 2` correctly in the
+  part zone. It did not pass for the wrong reason and it is safe to publish.
+
+  ⛔ **A DATA-ONLY REPAIR CANNOT HOLD, AND THIS WAS PROVED ON A SANDBOX COPY.**
+  `seat_packaging_from_rail` runs at the START of `ebook_cover`, the title card and the
+  thumbnail, and re-derives from the rail — *"the rail is the home, this file is the
+  cache"*. Seeding the fix and running it reverted every field:
+  ```
+  packaging.hook      'The Don Scott Interview' -> 'The Don Scott Interview (Part 1)'
+  cover.part          'Part 1'                  -> None
+  cover.title_payoff  'INTERVIEW'               -> 'INTERVIEW (PART 1)'
+  ```
+  **So the only durable fix inside the data layer is to re-punctuate the RAIL TITLE**, and
+  that is Jodie's approved words. **Stopped and asked rather than edit them.**
+
+- 🔴 **E50 — A CHECK THAT CAN RUN AT THE GATE SHOULD NOT RUN AT THE COVER.** *(Jodie,
+  20 Aug 2026, on EP34. Raised, not built.)*
+  EP34's title was approved at the **Words Gate**. The halt fired at **cover authoring,
+  forty-seven minutes later, deep in the build, with money already spent** — on a fault
+  that was knowable the instant the title was approved: a series part in a notation the
+  seater cannot split.
+  **The check needs only the title.** It needs no hero, no cover, no build. Running it at
+  the Words Gate would turn a mid-build halt costing a night into a question answered in
+  ten seconds while she is already looking at the words.
+  ⚠️ **And it is the same shape as the early ask (batch 2):** raise the question at the
+  earliest moment the answer is knowable, and wait where the work always waited.
