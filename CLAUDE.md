@@ -201,6 +201,24 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > Otherwise "PASS" is a claim about a file nobody identified.
    > *Corollary: when you change an input, the proof is a NEW OUTPUT FILE whose mtime is
    > later than the input's. Not a status field. Not a re-read of the rail.*
+   > ### 🔴 AND ITS SIBLING: FEEDING A GUARD THE WRONG INPUT MANUFACTURES A FAULT
+   > ### THAT IS NOT THERE. (20 Aug 2026, on EP33.)
+   > The one above is a real PASS on the wrong artefact. **This is a real FAILURE on the
+   > wrong input, and it is the more dangerous of the two**, because a false alarm is
+   > acted on immediately while a false pass merely sits there.
+   > **Checking EP33 before Hugh published it, I ran the packaging gate twice and was
+   > wrong twice** — and EP33 was clean the whole time:
+   > · I passed a byline I had **GUESSED** -> **five faults**, every one invented by me;
+   > · I passed the rail **`title`** instead of **`packaging.hook`** -> **one fault**.
+   > The build passes `packaging.hook`. Only when I read the CALL SITE and fed it exactly
+   > what the build feeds it did the gate say what it had always said: **no faults.**
+   > **Either report would have sent Jodie into a bad ten minutes over a finished episode
+   > on the edge of publication.**
+   > **Rule: before believing a guard's verdict, find the line that CALLS it in
+   > production and pass exactly those arguments.** A gate's answer is only about the
+   > inputs it was given, and inputs you chose yourself are a hypothesis, not evidence.
+   > *Same family as fault #1: the arguments you assert become the proxy for the
+   > arguments the build uses.*
 2. **ONE SOURCE OF TRUTH, OR IT DRIFTS.** Four times a value lived in two places
    and the fix reached one reader. When two things must agree, make the shared
    value DATA that both read — and add the check that compares them.

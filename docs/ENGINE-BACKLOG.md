@@ -2205,6 +2205,12 @@ on a public repo is not a trade worth making**).
   3. **EP34**, 20 Aug ~22:22: halted at `ebook_cover` on a one-field data fault, and the
      flag wait held the engine **all night** — so **EP35 could not build and EP32 still
      could not be drafted.** *One episode's malformed title stopped two other episodes.*
+  🔴 **AND THE THIRD NOW HAS A PRICE ON IT: NINE AND A QUARTER HOURS.** EP34 flagged at
+  **22:22** and was still held at **07:35** the next morning. In that window the engine
+  did nothing at all, while **EP35 sat approved with a finished script** and **EP32 sat
+  clean, unflagged, with a repaired gate**. *The night produced NOTHING, and one flag on
+  one episode is the entire reason.* **This is the first occurrence with a cost attached,
+  and it is the argument for doing the seam read next.**
   ⚠️ **The third is the expensive one and it is the plainest statement of the fault:**
   nothing was broken except one field, and the cost was a night of an idle machine. The
   measurement said 36.3 h as a LOWER BOUND; this is what that looks like from the outside.
