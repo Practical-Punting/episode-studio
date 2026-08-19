@@ -498,6 +498,29 @@ about what the machine is running.*
 branch you do not check out, or in a scratch copy, or stash before you wait. Deciding not
 to merge is not a decision the engine can see.
 
+🔴 **AND THE HALF THAT IS EASY TO MISS: UNDOING IS ALSO A DEPLOY.**
+`git stash`, `git restore`, `git checkout .` — every one of them **writes the file**, so
+every one of them moves the mtime. A revert is not a way back to where you were; it is a
+second deploy, of different code, at a moment you did not choose.
+
+**So the safe move depends entirely on WHEN the build started:**
+
+| | what to do |
+|---|---|
+| **The build started BEFORE your edit** | it is running code you have since changed — **stash, and stash early.** Nothing is protected by merely not merging. |
+| **The build started AFTER your edit** | it is already running your code, consistently. **Leave the disk completely alone** and hold only the bookkeeping. |
+
+⚠️ **REVERTING IN THE SECOND CASE MANUFACTURES THE EXACT FAULT THE LAW EXISTS TO PREVENT.**
+It restarts the engine mid-build onto the OLD code, so an episode that began on the new
+code finishes on the old one — mixing, created by the very act meant to avoid it.
+
+**Tonight's case, both halves in one evening.** The E47 edit was on disk while EP33 built:
+that was case one, and stashing was right. An hour later the stash came back at 21:20:36,
+the engine reloaded at 21:35:03, and it claimed **EP34 one second later** — case two. The
+tempting move, "something is building, put it back", would have been the harmful one.
+**Read the timestamps before you reach for the undo.** `git log`, the engine's own
+`engine up` lines, and the claim line tell you which case you are in; instinct does not.
+
 ## ⚖️ A GUARD PREVENTS RECURRENCE — IT DOES NOT OBLIGE US TO GO BACK
 **(Jodie, 4 Aug 2026.)** *"Jodie is not actually going to go back and change any of the
 previous videos or e-books as Hugh has approved them."*
