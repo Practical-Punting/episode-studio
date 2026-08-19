@@ -875,6 +875,27 @@ produced a full script and then **refused** to remove two figures the numbers ga
 rejected. In its own words: *"The article states both, in one sentence… taking them out
 would mean altering what he wrote rather than reproducing it."*
 
+> ## 🔴 CORRECTION, SAME DAY (19 Aug 2026, evening) — THE REASON GIVEN BELOW WAS WRONG.
+> **The typo is real and PP's own site serves it. But it was NEVER what blocked EP32,
+> and the justification below — that the drafting pass spent its attempts on it — does
+> not hold.** The capture was repaired, the ledger reset, and the writer **failed again,
+> twice**, with the same complaint.
+>
+> **The proof is in the gate's own output:** it now rejects `'four to five'` — and that
+> rejection is generated from the **REPAIRED** `4%-5%`. The repair changed the article and
+> made no difference at all.
+>
+> **The real fault is `script_fidelity.spoken_form`, which renders a percentage span with
+> a HYPHEN** (`10%-12%` -> `'ten per cent-twelve per cent'`), so a script saying "ten TO
+> twelve per cent" is called a liar. **It is EP13's bug with `%` where `m` was** — the
+> module carries a rule for exactly this shape, for `kg|km|m|f`, and `%` is not in it.
+> **See E47.** Raised, not built: it is a fidelity gate and it is Jodie's to change.
+>
+> ⚠️ **A28 ITSELF STANDS** — a typographic defect in a source page may be repaired, and
+> this one still should have been. **What is withdrawn is the claim that it fixed
+> anything.** *The repair was harmless, correct, and beside the point — and a ruling
+> justified by a wrong diagnosis is a trap for whoever reads it next.*
+
 **THE WRITER WAS RIGHT ALL THREE TIMES.** Verified against the **raw HTML off the wire**
 (fetched directly from practicalpunting.com.au, not a converted copy — the page is
 served dynamically and its byte length moves between fetches, so the SIZE is not the

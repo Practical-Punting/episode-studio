@@ -2017,3 +2017,47 @@ on a public repo is not a trade worth making**).
   suite for good. **Recommendation: grant it** — it is the identical case the exception
   was written for, and the guard already proves the deletion is scoped to the row the
   file itself inserted.
+
+- 🔴 **E47 — THE FIDELITY GATE CANNOT READ A PERCENTAGE SPAN, AND IT HAS BLOCKED EP32
+  FIVE TIMES. THIS IS EP13's BUG WITH `%` WHERE `m` WAS.** *(19 Aug 2026. Proven, not
+  suspected. RAISED, NOT BUILT — this is a fidelity GATE and changing it is Jodie's.)*
+  ```
+  >>> spoken_form('10%-12%')   'ten per cent-twelve per cent'      <- a HYPHEN, not " to "
+  >>> spoken_form('4%-5%')     'four per cent-five per cent'
+  >>> spoken_form('7%-8%')     'seven per cent-eight per cent'
+  ```
+  The gate's own words, from the run log nobody had read:
+  ```
+  attempt 1 of 3 rejected by the studio's checks - 2 thing(s):
+    x the script says 'ten to twelve', and the article never states that figure.
+    x the script says 'four to five',  and the article never states that figure.
+  ```
+  **The article states both, in one sentence.** Gordon says "ten to twelve per cent"
+  because that is how a span is SPOKEN; the gate renders the article's `10%-12%` with a
+  hyphen, finds no "to", and calls the script a liar.
+
+  🔴 **THE MODULE ALREADY KNOWS THIS FAULT AND FIXED IT ONCE, FOR A DIFFERENT UNIT.**
+  There is a rule for *a range carrying a unit* — `2100-2300m` — whose comment says, in
+  these words: *"Without this the unit rule eats `2300m` and the odds rule then finds no
+  pair, so the article never says 'twenty one hundred TO twenty three hundred' and
+  **EP13's approved script was called a liar for saying it**."* Its unit list is
+  `(kg|km|m|f)`. **`%` is not in it.** Same fault, same failure, different unit — and the
+  lesson was written down next to the code that needed it without being applied to it.
+
+  ⚠️ **THE WRITER WAS RIGHT FIVE TIMES AND DIAGNOSED THE GATE ITSELF.** Unprompted, it
+  offered *"It may not recognise a span written as two percentages joined by a dash as a
+  single stated figure"* and *"It may compare spoken words against digits without a rule
+  for spans"* — **both correct** — and said plainly *"Retrying will not fix this."* It was
+  right about that too: three attempts on 19 Aug morning and two more that evening.
+
+  🔴 **AND IT MEANS RULING A28's STATED REASON WAS WRONG — see the correction on A28.**
+  The `4%5%` typo was real and PP's own site serves it, but **it was never what blocked
+  EP32.** The proof: `'four to five'` is still rejected AFTER the repair — that rejection
+  is generated from the REPAIRED `4%-5%`. The capture repair changed the article and made
+  no difference whatever to this gate.
+
+  **Not built, and deliberately so.** This is the gate that stops the studio inventing
+  figures — §0a, the reason A27 needed a ruling at all. Widening what it accepts is a
+  change to what "the article's own number" means. ⚠️ **And note `7%-8%` was NOT flagged
+  though it has the identical shape — nobody has explained that, so nobody should assume
+  the fix is one entry in a unit list until it is understood.**
