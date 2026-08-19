@@ -2357,3 +2357,52 @@ on a public repo is not a trade worth making**).
   wait is inside the inner loop and the engine cannot get back to `acquire()`. Five
   occurrences, two of them on one episode in one build, and the price is now measured in
   nights rather than hours.
+
+- 🔴 **E52 — A CHECK THAT CAN RUN EARLY SHOULD NOT RUN LATE. TWICE IN ONE DAY, ON ONE
+  EPISODE.** *(Jodie, 20 Aug 2026. Raised, not built.)*
+  ```
+  knowable at            discovered at        cost
+  ─────────────────────────────────────────────────────────────────────────────
+  the WORDS GATE         cover authoring      9¼ h halt   (part in the headline)
+  card AUTHORING         card RENDERING       10½ h build (tag over the length limit)
+  ```
+  **Both were knowable from data already on disk, before a single pixel was rendered.**
+  · The series part: `_split_part` could have been run on the title the moment it was
+    approved. Instead it surfaced 47 minutes into the build. (E49/E50.)
+  · The card tag: **the length ceiling is a property of the LAYOUT, and the tag is
+    written at authoring.** Instead it surfaced at `cards_render`, after ten and a half
+    hours of build — **by a flag that then blamed the wrong element entirely** (E51).
+  ⭐ **A HALT AT MINUTE 630 FOR SOMETHING KNOWABLE AT MINUTE 3 IS THE EXPENSIVE WAY TO
+  LEARN A FACT YOU ALREADY HAD.** And it is worse than the wasted minutes: by the time
+  the halt fires, the machine is deep in a build, the operator is holding a mid-build
+  interruption instead of a question, and — as E51 shows — the message has had ten hours
+  of context to get wrong.
+  **The shape is batch 2's early ask**, already proven in this engine: ask at the earliest
+  moment the answer is knowable, and wait where the work always waited.
+  ⚠️ **Not built. Where the check belongs (authoring? the words gate? a pre-flight?) and
+  what it does when it fires are design questions, and this entry is the evidence, not
+  the design.**
+
+- 📏 **THE MEASURED CARD-TAG CEILING (EP34, 20 Aug 2026) — RECORDED SO NOBODY RE-DERIVES IT.**
+  Measured by changing ONLY the tag on sandbox copies of the real cards and re-running
+  `autofit_cards` / `card_check`; every row left untouched.
+  ```
+  card  rows  tag chars           verdict
+  c15    3     67                 2 failing      <- the halt
+  c15    3     37                 1 failing
+  c15    3     35                 fits, needs shrinking
+  c15    3     18                 fits at FULL SIZE          <- shipped
+  c11    2     59                 11 problems    <- the second halt
+  c11    2     56                 fails
+  c11    2     46                 clean
+  c11    2     39                 clean                      <- shipped
+  ```
+  **So the ceiling is ~36 chars at three rows and ~50 at two** — it is a function of the
+  tag AND the row count, not the tag alone.
+  ⚠️ **DO NOT AUTHOR ON THE CEILING.** Both shipped values sit well under it, on Jodie's
+  standing instinct — *"headroom beats the last few per cent"*, the same reasoning that
+  kept `CARD_SHARDS` at 4 when 6 was faster. A tag on the limit clips again the first
+  time anything shifts.
+  ⚠️ **And these are PROPORTIONAL-FONT characters, so the count is a proxy, not a rule.**
+  The real limit is pixel width; treat the numbers as guidance and re-measure rather than
+  trusting a character count near the edge.
