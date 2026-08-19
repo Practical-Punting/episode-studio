@@ -184,5 +184,32 @@ def _only_the_bracket_form_moves():
 
 case("the sweep moves ONLY the two bracketed titles", _only_the_bracket_form_moves)
 
+
+# ── 6. IT MUST WORK IN THE INTERPRETER THE ENGINE ACTUALLY RUNS. ────────────
+def _works_with_only_engine_on_the_path():
+    """🔴 THIS FILE CANNOT PROVE IT BY ITSELF — fault #4, and it caught me.
+
+    `_split_part` imports `packaging_gate`, which lives in the SKILL's scripts folder.
+    That folder is on `sys.path` when this test runs, because the test put it there —
+    so a missing `sys.path.insert` inside `_split_part` passes every case above and
+    then raises ModuleNotFoundError on the real build. **It did exactly that**: the
+    cases above were green while a sandbox with only `engine/` on the path blew up.
+    So this runs it in a subprocess that imports nothing but `providers`.
+    """
+    import subprocess
+    code = ("import sys; sys.path.insert(0, r'%s')\n"
+            "from providers import _split_part\n"
+            "assert _split_part('X (Part 1)') == ('X', 'Part 1'), _split_part('X (Part 1)')\n"
+            "print('ok')") % str(HERE)
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert r.returncode == 0, (
+        "_split_part fails in an interpreter with only engine/ on the path — the "
+        "engine's own interpreter. This is what the build sees:\n"
+        + (r.stderr or "").strip()[-400:])
+
+
+case("_split_part works with ONLY engine/ on the path (the engine's own interpreter)",
+     _works_with_only_engine_on_the_path)
+
 print(f"\nseries part: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

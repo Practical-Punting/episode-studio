@@ -912,6 +912,14 @@ def _split_part(title: str) -> tuple[str, str | None]:
     # part begins again. Only the `None`-for-absent contract is this function's own —
     # callers here test `if part:` and write `cover.part = None`, which the gate's ""
     # would quietly turn into an empty string on the board.
+    # ⚠️ THE PATH INSERT IS NOT DECORATION — fault #4, and it caught me here.
+    # engine/ is on sys.path when the engine runs; the SKILL's scripts are not. Without
+    # this line `seat_packaging_from_rail` raises ModuleNotFoundError on the real build
+    # while every test passes, because a test that imports packaging_gate has already put
+    # the folder on the path. **That is exactly what happened**: `test_series_part.py`
+    # was green and a sandbox run with only `engine/` on the path blew up — which is why
+    # the repair was rehearsed on a copy before the flag was cleared.
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
     import packaging_gate as _pg
     name, part = _pg.strip_part(title or "")
     return name, (part or None)
