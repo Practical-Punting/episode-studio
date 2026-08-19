@@ -1952,39 +1952,49 @@ on a public repo is not a trade worth making**).
   on a second `needs_look` flag is two idle workers, not two episodes. Fix the wait first,
   then re-measure, then decide whether a second worker is needed at all.
 
-- 🔴 **E45 — A CARD THAT SAYS "THIS ONE NEEDS A LOOK" AND SITS IN THE *WAITING* LANE.
-  IT IS THE JOB-5 FAULT INVERTED.** *(EP32, 19 Aug 2026. Raised, not built — Jodie's
-  call, and the board itself is ruled finished.)*
-  ```
-  PP-EP32   status         'queued'          <- lane is chosen by STATUS ALONE
-            needs_look     False             <- so nothing raises it
-            progress_step  'Tried to write the script and stopped ... Now no attempts
-                            left - this one needs a look.'
-  ```
-  `app.js` maps lanes off `status` and nothing else — `queued` -> **"Waiting"**, and the
-  "Your turn" lane is reachable only from `awaiting_render`, `awaiting_cover`,
-  `awaiting_approval`, `ready`. **There is no route from `queued` to "Your turn".** So an
-  episode whose progress line explicitly asks for a human sits in the lane that means
-  *nothing is wanted from you*, and the only thing that would move it is a human reading
-  the small print on a card the board has told them to ignore.
+- 🔴 **E45 — CORRECTED 19 Aug 2026. THE FLAG IS RAISED, BUT 26 MINUTES LATE AND
+  SILENTLY — AND ITS MESSAGE THEN TALKS THE OPERATOR OUT OF THE ONE BUTTON THAT WORKS.**
+  *(Jodie caught the original entry: it said the pass writes progress text and nothing
+  else. That was wrong. Rewritten from the log and the code.)*
 
-  🔴 **THIS IS THE EXACT MIRROR OF THE JOB-5 FAULT ALREADY RULED ON** (app.js:127, Jodie,
-  9 Aug, EP19): that was **a "YOUR TURN" chip with nothing to do**; this is **a "WAITING"
-  chip with something to do.** The first one wasted a visit. This one loses one — and
-  visits are the throughput constraint, so the second is the more expensive direction.
+  **What the first version got wrong.** `needs_look` DID go true — at **17:49:58**, about
+  **26 minutes** after EP32's attempts were exhausted at 17:24. The exhausted-attempts
+  branch in `_draft_watch` calls `rail.flag_needs_look(...)`, guarded by
+  `if not ep.get("needs_look")` so it fires once. **It is not missing. It is late, and it
+  is invisible.**
 
-  **Why it happens, and why the fix is engine-side.** The drafting pass writes that text,
-  and it is `_draft_watch` — the pass that under **I1 NEVER CLAIMS AND NEVER SETS A
-  STATUS**. So it structurally *cannot* move the episode into a "Your turn" status, and
-  it did the only thing it could: wrote English into `progress_step`. **Text is not a
-  signal.** `needs_look` IS status-independent and is exactly the flag for this, and the
-  pass does not set it.
-  Two candidate shapes, neither built and neither recommended here:
-  · the drafting pass raises `needs_look` when it runs out of attempts, or
-  · the board treats `needs_look` as a "Your turn" condition in its own right, whatever
-    the status — which would also cover every future case of this shape.
-  ⚠️ **The second touches the board, which Jodie has ruled finished. The first does not.**
+  **Fault 1 — THE FLAG-RAISE IS NOT LOGGED.** That call has no `log()` beside it, so
+  nothing appears in the run log when it fires. Searching today's log for the raise finds
+  **nothing** — only EP31's `listen_check` and `shot_map` flags. *This is why the first
+  version of this entry concluded no flag was raised at all: the log genuinely does not
+  say so.* **An action that changes what the board shows and leaves no line in the run
+  log will be diagnosed wrongly by the next person, because it was.**
 
+  **Fault 2 — THE 26-MINUTE GAP, in which the card sat in *Waiting* asking for a human
+  who could not see it.** The branch is only reached on the drafting pass, every 900s —
+  and on 19 Aug the gap was stretched further because the engine was DOWN from 17:45 to
+  17:50, exiting 4 on `gitgate` over an uncommitted `rail.py`. **The bound on "the studio
+  has given up and needs you" is one drafting-pass interval, plus however long the engine
+  happens to be down.** Nothing raises it at the moment the last attempt fails.
+
+  🔴 **Fault 3 — THE FLAG'S OWN TEXT IS FALSE, AND IT ARGUES AGAINST THE FIX.** It reads:
+  *"Clearing this flag does NOT restart it — the attempt ledger does that."*
+  **`_draft_watch` opens with `if not nn or ep.get("needs_look"): continue` (engine.py
+  ~2652) — a flagged episode is SKIPPED ENTIRELY.** So with the flag up, resetting the
+  ledger does nothing whatever; **clearing the flag is REQUIRED.** The message states the
+  exact opposite of how the code behaves and steers the operator away from the only
+  button that works.
+  ⚠️ **Observed, not theorised (Jodie, 19 Aug):** the ledger had already been reset and
+  the message told her the flag was beside the point. **The 18:26 re-draft only ran
+  because she cleared the flag anyway** — which also corrects my own report of that run,
+  where I credited the ledger reset alone.
+  ⚠️ And *"the attempt ledger"* is the machine talking to itself: it names an internal
+  JSON file, in a message whose reader is holding a mouse.
+
+  **Board bug 7 / Bundle F.** ⚠️ The lane observation in the first version still stands as
+  a smaller point — lanes are chosen by STATUS alone, so a `queued` episode cannot reach
+  "Your turn" whatever its flag — but **the flag is what the board keys the fault chip
+  off, and the flag was up from 17:49:58.** Raised, not built.
 - 🟠 **E46 — THE YARD'S LIVE, RED-FIRST CONTROL CANNOT JOIN THE SUITE WITHOUT A RULING
   FROM JODIE.** *(19 Aug 2026. Needs a decision, not a build.)*
   The behavioural control **was written and it was RUN, against the real rail, and it
@@ -2061,3 +2071,114 @@ on a public repo is not a trade worth making**).
   change to what "the article's own number" means. ⚠️ **And note `7%-8%` was NOT flagged
   though it has the identical shape — nobody has explained that, so nobody should assume
   the fix is one entry in a unit list until it is understood.**
+
+- 🔬 **E47 SEAM READ — REQUESTED BY JODIE 19 Aug 2026. READ ONLY; NOTHING CHANGED.**
+
+  ### 🔴 THE BLOCKING QUESTION: WHY DID `7%-8%` PASS?
+  **Because the writer happened to say "seven AND eight", not "seven TO eight". The
+  article had nothing to do with it.** All three spans fold identically; the variable was
+  the SCRIPT.
+  ```
+  script phrase                     figures() extracts        verdict
+  "a ten to twelve per cent mark-up"    ['ten to twelve']         REJECTED
+  "taken out four to five per cent"     ['four to five']          REJECTED
+  "between seven and eight per cent"    ['seven', 'eight']        PASSED
+  "between seven to eight per cent"     ['seven to eight']        would have been REJECTED
+  ```
+  The mechanism is one branch in `figures()`:
+  ```python
+  if tok == "and" and not (run and run[-1] in _AND_AFTER):   # _AND_AFTER = {hundred, thousand}
+      tok_is_connector = False
+  else:
+      tok_is_connector = tok in CONNECTORS                   # "to" is ALWAYS a connector
+  ```
+  **"to" always joins a run into ONE compound figure; "and" only does so after
+  "hundred"/"thousand"** (so "two hundred and fifty" works). So "seven and eight" splits
+  into two figures, each of which IS in the article (`seven per cent`, `eight per cent`),
+  and passes. "ten to twelve" becomes a single figure that appears nowhere.
+  🔴 **THE GATE IS PERFECTLY CONSISTENT. `7%-8%` did not pass — it was never asked.**
+  ⚠️ Consequence: **this fault is INTERMITTENT BY PHRASING.** The same article and the
+  same rule produce a pass or a block depending on a word the writer chose. *A gate that
+  is green or red by something nobody controls fails in the dangerous direction.*
+
+  ### THE ARTICLE SIDE, FOR COMPLETENESS
+  `haystacks("10%-12%")` gives `['ten','per','cent','twelve','per','cent']` — **no "to" in
+  any of its 36 readings**, so a compound figure "ten to twelve" can never match.
+  ✅ **And the EP13 unit rule DOES work** — `haystacks("2100-2300m")` yields
+  `[...'twenty','one','hundred','TO','twenty','three','hundred','metres']`. *(An earlier
+  note in this session said it did not fire; that was me calling
+  `align_to_script.spoken_form` instead of the module's real fold. Corrected here.)*
+  The percent fold is one line in a DIFFERENT module — `align_to_script.py:157`,
+  `re.sub(r"(\d)\s*%", ... + " per cent")` — applied to each `digit%` independently,
+  with no notion of a range at all.
+
+  ### (a) THE SMALLEST HONEST FIX, AND WHAT IT GIVES UP
+  **Add a "to" READING for a numeric range to the article's haystacks** — not a change to
+  the script side. `haystacks` already returns many readings per figure, so adding one is
+  the module's own idiom and REMOVES nothing: every string that matched before still
+  matches.
+  **What it gives up, stated plainly:** the gate checks that a phrase appears CONTIGUOUSLY
+  somewhere in the folded article — not that it is the same claim. So after the fix, an
+  article containing any `X-Y` licences a script saying "X to Y" **even where the hyphen
+  was never a range** — a date span `1986-88`, a scoreline, a hyphenated compound. We
+  would be trading a class of FALSE BLOCKS for a narrower class of FALSE PASSES.
+  ⚠️ **That trade is a §0a judgement and it is Jodie's, not mine.** The gate exists so the
+  studio cannot put a figure on air the article never stated; this loosens it, slightly,
+  in a direction that is easy to argue for and impossible to un-ship quietly.
+
+  ### (b) 🔴 IS THE UNIT LIST ITSELF THE FAULT? YES — AND DERIVING IT WOULD NOT FIX THIS.
+  `(kg|km|m|f)` is a hand-maintained duplicate of `UNITS.keys()`, which is exactly
+  CLAUDE.md fault 7 — *"if a guard's coverage is a list somebody maintains, it is already
+  broken; you have simply not met the missing item yet."* It should be derived from
+  `UNITS`. **But that would not fix EP32**, because:
+  ```
+  '%' in UNITS  ->  False        # percent is not a unit; it is a separate rule in another module
+  ```
+  and because **the three notations are different SHAPES**, not one shape with a longer
+  list:
+  ```
+  2100-2300m     unit SUFFIX on the second number only
+  10%-12%        unit SUFFIX on BOTH numbers
+  $1.75-$3.25    marker PREFIX on BOTH numbers
+  ```
+  **So the honest answer is: deriving the list closes the `kg|km|m|f` shape and leaves the
+  bug open.** The real derivation is a single registry of "markers that may attach to a
+  number, and on which side" — used by BOTH modules — with the range rule generated from
+  it. That is a redesign across `script_fidelity.py` and `align_to_script.py`, not an
+  entry in a list. ⚠️ **Adding `%` meets the missing item and leaves the shape**, exactly
+  as Jodie said; it would be the third patch of this kind.
+
+  ### (c) HOW MANY PAST EPISODES — COUNTED FROM THE LOGS, NOT ESTIMATED
+  ```
+  span rejections ("the script says 'X to Y'") across every engine log:  16
+    'ten to twelve'                                        5   EP32
+    'one dollar seventy five to three dollars twenty five' 4   EP18   <- $ range, 9 Aug
+    'four to five'                                         3   EP32
+    'twelve point five to one'                             2   EP24/25/26 window
+    'seven to four'                                        1   EP17/18 window
+    'half to one'                                          1   EP24/25/26 window
+  episodes that have EVER exhausted their drafting attempts:  3  — EP18, EP29, EP32
+  ```
+  🔴 **TWO OF THOSE THREE WERE THIS FAULT.** EP18 hit the identical rejection FOUR times
+  in a row (00:42, 01:00, 01:20, 01:40 on 9 Aug) and ran out of attempts — **a money range
+  behaving exactly as EP32's percent range does**:
+  `spoken_form('$1.75-$3.25')` -> `'one dollars seventy five-three dollars twenty five'`.
+  EP29 was a different fault (money FIGURES — `'one dollar fifty'`, `'one dollar sixty
+  seven'` — not a span).
+  The odds spans (`twelve point five to one`, `seven to four`, `half to one`) were each
+  patched at the time with their own rule; the module's comments name the episodes.
+  ⚠️ **Found retrospectively is not fixed retrospectively — this is the SIZE of the fault,
+  not a reason to reopen anything.** Every one of those episodes published.
+
+  ### (d) AN ESTIMATE FROM READING THE CODE
+  **Any article stating a range in digits can hit this, and PP's writers state ranges
+  constantly** — prices, percentages, weights, distances, odds, dates. The covered shapes
+  today are `kg|km|m|f` suffixes and the odds forms; `%`, `$`, and bare `N-N` are not.
+  On 16 days of logs the fault surfaced on **at least 5 distinct real episodes** and
+  stopped **2 of the 3 episodes that have ever stopped**, so roughly **one episode in ten
+  meets it, and when it does it costs three commissions and a human visit.**
+  ⚠️ **It is also silent when it does NOT fire** — a writer who says "and" sails through,
+  so the true rate of ARTICLES carrying the trigger is higher than the rate of BLOCKS.
+  Both figures above are lower bounds.
+
+  ### ⛔ NOTHING CHANGED. EP32 STAYS HELD (ledger at 3) until the gate is ruled on.
