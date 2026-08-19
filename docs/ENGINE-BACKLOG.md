@@ -2159,12 +2159,24 @@ on a public repo is not a trade worth making**).
     'half to one'                                          1   EP24/25/26 window
   episodes that have EVER exhausted their drafting attempts:  3  — EP18, EP29, EP32
   ```
-  🔴 **TWO OF THOSE THREE WERE THIS FAULT.** EP18 hit the identical rejection FOUR times
-  in a row (00:42, 01:00, 01:20, 01:40 on 9 Aug) and ran out of attempts — **a money range
-  behaving exactly as EP32's percent range does**:
-  `spoken_form('$1.75-$3.25')` -> `'one dollars seventy five-three dollars twenty five'`.
-  EP29 was a different fault (money FIGURES — `'one dollar fifty'`, `'one dollar sixty
+  🔴 **CORRECTED 19 Aug (second seam read) — ONE OF THOSE THREE WAS THIS FAULT, NOT TWO.**
+  I first read EP18's four identical rejections as a money range behaving like EP32's
+  percent range. **It was not.** EP18's real capture is still on disk and it contains
+  **no `$1.75` and no `$3.25` — zero occurrences of either, in any notation**, and the
+  script's figure traces to **no reading of the article at all**:
+  ```
+  EP18 capture holds: $10.80 $2 $2.80 $3 $4.60 $6.10   ... and no range whatsoever
+  '1.75' -> 0 hits   '3.25' -> 0 hits   'seventy five' -> 0 hits   'twenty five' -> 0 hits
+  ```
+  **The writer invented that price range and the gate was RIGHT to refuse it, four times.**
+  EP29 was a third thing again (money FIGURES — `'one dollar fifty'`, `'one dollar sixty
   seven'` — not a span).
+  ✅ **So EP18 is not a positive control — it is the BEST NEGATIVE one**, and it is real
+  history rather than a fixture I wrote: proof that the fix must still refuse a figure
+  that is nowhere in the article.
+  ⚠️ **And the honest count drops: of 16 span rejections, 8 are confirmed this fault (all
+  EP32); 4 are confirmed CORRECT refusals (EP18); the 4 odds ones are unverified.** The
+  (d) estimate below is revised accordingly.
   The odds spans (`twelve point five to one`, `seven to four`, `half to one`) were each
   patched at the time with their own rule; the module's comments name the episodes.
   ⚠️ **Found retrospectively is not fixed retrospectively — this is the SIZE of the fault,
@@ -2174,9 +2186,13 @@ on a public repo is not a trade worth making**).
   **Any article stating a range in digits can hit this, and PP's writers state ranges
   constantly** — prices, percentages, weights, distances, odds, dates. The covered shapes
   today are `kg|km|m|f` suffixes and the odds forms; `%`, `$`, and bare `N-N` are not.
-  On 16 days of logs the fault surfaced on **at least 5 distinct real episodes** and
-  stopped **2 of the 3 episodes that have ever stopped**, so roughly **one episode in ten
-  meets it, and when it does it costs three commissions and a human visit.**
+  ⚠️ **REVISED after EP18 turned out to be a correct refusal.** On 16 days of logs the
+  fault is CONFIRMED on **one episode (EP32)** and stopped **1 of the 3 episodes that have
+  ever stopped** — not 2. The 4 odds rejections are unverified and may be correct refusals
+  too. **So the measured rate is 1 in ~27 built episodes, not 1 in 10** — but that is a
+  floor, not a ceiling, because the fault is SILENT whenever the writer happens to say
+  "and", and because only articles whose ranges the writer chose to speak can trigger it.
+  When it does fire it costs three commissions and a human visit.
   ⚠️ **It is also silent when it does NOT fire** — a writer who says "and" sails through,
   so the true rate of ARTICLES carrying the trigger is higher than the rate of BLOCKS.
   Both figures above are lower bounds.
