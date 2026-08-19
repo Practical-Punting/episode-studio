@@ -2289,3 +2289,44 @@ on a public repo is not a trade worth making**).
   ten seconds while she is already looking at the words.
   ⚠️ **And it is the same shape as the early ask (batch 2):** raise the question at the
   earliest moment the answer is knowable, and wait where the work always waited.
+
+- 🔴 **E51 — BOARD BUG 7 / BUNDLE F: THE BEST SPECIMEN YET. THE AUTOFIT HALT.** *(Jodie,
+  20 Aug 2026, on EP34: **"this messaging is very unclear."** Recorded, not built.)*
+  The flag that stopped the studio for a second time in one build:
+  ```
+  A card's text does not fit its box... This is NOT a missing-file problem and NOT a
+  stale-template problem: the page is authored, the words are right...
+  (The sibling frame was tried first and did not rescue it...)
+  516,600 144x36)
+      CLIPPED: v "To actually formulate the program" extends outside the card (2516,650 74x19)
+      CLIPPED: v "To actually formulate the program" extends outside the card (2516,669 93x19)
+      ... six more lines of coordinates ...
+  AUTOFIT: 4 fitted, 2 still failing
+  ```
+  **What is wrong with it, in the order a reader meets it:**
+  1. **It opens by saying what it is NOT** — two negatives before a single fact.
+  2. **The real question is buried mid-paragraph** and phrased as a category ("a choice
+     between the words and the layout"), never as a question with options.
+  3. **EIGHT LINES OF `(2516,650 74x19)`.** Pixel coordinates. Jodie cannot act on them
+     and Hugh never could. They are the machine's working, printed where the answer goes.
+  4. **It never names the card.** The reader cannot tell which of 21 cards it means —
+     `ep34-c15-more-than-a-year` appears nowhere in the message.
+  5. **It never shows the card.** A layout problem, described in words.
+  6. **No buttons.** Nothing to press, so nothing can be answered on the board.
+  7. **It never says the whole studio has stopped** until she answers. It halted EP34,
+     and EP35 and EP32 behind it, and says nothing about any of that.
+  8. **It was TRUNCATED on the board** — the message begins `516,600 144x36)`, mid-number,
+     because the coordinate dump overflowed the field the board renders.
+  ⭐ **THE RIGHT SHAPE IS: THE PICTURE, THE QUESTION, THE BUTTONS — AND NOTHING ELSE.**
+  The coordinates belong in the run log, where the machine's working belongs.
+
+- 🔴 **E44 — OCCURRENCE FIVE, AND THE SAME EPISODE TWICE IN ONE BUILD.** *(20 Aug 2026.)*
+  EP34 has now held the engine **twice in a single build**: once at `ebook_cover` (the
+  series-part fault, 9¼ hours) and again at `cards_render` (this autofit halt). **EP35 —
+  approved, with a finished script — and EP32 — clean, unflagged, with a repaired gate —
+  have not moved since 22:22 the previous night.**
+  ⚠️ **The point is not that either flag was wrong.** Both were correct and both wanted a
+  human. **The fault is that one flagged episode stops every other episode**, because the
+  wait is inside the inner loop and the engine cannot get back to `acquire()`. Five
+  occurrences, two of them on one episode in one build, and the price is now measured in
+  nights rather than hours.
