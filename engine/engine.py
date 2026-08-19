@@ -1842,18 +1842,59 @@ def _why_idle():
         log(f"(couldn't explain the idle state: {e})")
 
 
+# ══ THE YARD — HOW MANY EPISODES ONE ENGINE CARRIES AT ONCE ══════════════════════
+#
+# 🔴 THIS CONSTANT IS NOT OPTIONAL DECORATION; IT IS THE THING THAT STOPS THE YARD
+# FLOODING JODIE. Before release-at-gates, one worker held one episode and the render
+# wait was its own rate limit — the engine physically could not start a second build.
+# Releasing at the gate removes that limit, and the honest consequence is that a
+# worker facing 20 queued episodes would claim all 20, build each to its render gate,
+# and park TWENTY simultaneous "paste this into HeyGen" asks on the board. Every gate
+# would still be hers, exactly as ruled — and she would be the bottleneck of her own
+# studio, which is the opposite of the point.
+#
+# 2, because Jodie ruled the order: **"run two, then three, then five. Do not build for
+# five and test on one."** It is a constant so raising it is one edit and a restart.
+# ⚠️ Raise it only on a MEASUREMENT — what actually came back per hour at 2, then at 3
+# — never on the reasoning that more must be faster. Write the number that lost beside
+# the number that won, the way CARD_SHARDS does.
+YARD_MAX = 2
+
+
 def acquire():
+    """Pick up work: FINISH WHAT IS STARTED BEFORE STARTING MORE.
+
+    ⚠️ THE ORDER CHANGED WITH THE YARD, AND THE ORDER IS THE POLICY. It used to be
+    resume -> claim -> reclaim, which was correct when a worker held exactly one
+    episode: `reclaim_stale` was pure crash-rescue and almost never fired, so trying a
+    fresh ticket first cost nothing. Now that gate-parked episodes come BACK through
+    `reclaim_stale`, that order would prefer a brand-new build over an episode whose
+    render Jodie has already sat and waited for — starting work in front of work she
+    has personally unblocked. Reclaim moved above claim so the yard drains before it
+    fills.
+    """
     ep = rail.resume_own(WORKER)
     if ep:
         log(f"resuming my episode PP-EP{ep.get('ep_number')} at {ep['status']}")
         return ep
-    ep = rail.claim_next(WORKER, LEASE_SECS)
-    if ep:
-        log(f"claimed PP-EP{ep.get('ep_number')} ({ep.get('title')!r}) -> building")
-        return ep
+    # Gate-parked (a human just acted) and crash-stranded episodes both arrive here.
     ep = rail.reclaim_stale(WORKER, LEASE_SECS)
     if ep:
-        log(f"reclaimed a stale-leased episode PP-EP{ep.get('ep_number')} at {ep['status']}")
+        log(f"picked PP-EP{ep.get('ep_number')} back up at {ep['status']} "
+            f"(a gate opened, or a lease died)")
+        return ep
+    # ── only now is NEW work considered, and only under the cap ──────────────────
+    carrying = rail.in_flight(WORKER)
+    if len(carrying) >= YARD_MAX:
+        held = ", ".join(f"PP-EP{r.get('ep_number')}@{r.get('status')}"
+                         for r in carrying)
+        log(f"holding {len(carrying)} episode(s) at YARD_MAX={YARD_MAX} — "
+            f"not starting another ({held})")
+        return None
+    ep = rail.claim_next(WORKER, LEASE_SECS)
+    if ep:
+        log(f"claimed PP-EP{ep.get('ep_number')} ({ep.get('title')!r}) -> building "
+            f"[{len(carrying) + 1}/{YARD_MAX} in the yard]")
         return ep
     return None
 
@@ -3073,7 +3114,32 @@ def cmd_run(mock, watch):
                     if status == "awaiting_approval" or not watch:
                         log(f"parked at {status} — done here for now")
                         break
-                    time.sleep(idle_poll)      # watch: wait for the gate to open
+                    # ══ THE YARD (2) — RELEASE AT THE NON-APPROVAL GATES ═════════
+                    # This line was `time.sleep(idle_poll)`: the engine sat in a poll
+                    # loop HOLDING THE CLAIM until the gate opened. Every build
+                    # reaches `awaiting_render` early and Gordon's render is the long
+                    # pole of the whole pipeline, so that sleep is where the studio
+                    # actually spends its day — one episode's worth of waiting,
+                    # blocking the machine, with nothing running.
+                    #
+                    # 🔴 WHAT THIS CHANGES IS WHAT **BLOCKS**, NEVER WHAT A HUMAN
+                    # DECIDES (Jodie, 18 Aug). The gate is not weakened, skipped or
+                    # shortened: the episode still stops dead here and still cannot
+                    # move until she clicks. The only difference is that the ENGINE
+                    # stops waiting with it and goes and does other work.
+                    #
+                    # `hand_back` rather than `release`: it leaves a NAMED owner and a
+                    # dead lease, so the episode never enters the dead zone where
+                    # claimed_by is NULL at a status nothing scans (E11's bug). The
+                    # board advances the status into WORKING when she acts, and
+                    # `reclaim_stale` — carrying the Script Gate — takes it back up.
+                    # That is the whole pick-up path, and it is the same mechanism the
+                    # stale-code exit has used since it was written.
+                    rail.hand_back(ctx.id, WORKER, f"parked at {status}")
+                    log(f"parked at {status} and RELEASED — the gate is Jodie's and "
+                        f"it has not moved; the engine is free for other work and "
+                        f"will pick this up again the moment she acts")
+                    break
                 elif status == "revising":
                     hb.active.set()
                     flag_and_wait(ctx, "audit_inputs",
