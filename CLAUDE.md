@@ -222,6 +222,29 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
 2. **ONE SOURCE OF TRUTH, OR IT DRIFTS.** Four times a value lived in two places
    and the fix reached one reader. When two things must agree, make the shared
    value DATA that both read — and add the check that compares them.
+   > ### ⭐ 2b. WHEN TWO PARTS DISAGREE ABOUT THE SAME IDEA, UNIFY THE DEFINITION —
+   > ### DO NOT TEACH ONE OF THEM THE OTHER'S CASES. (20 Aug 2026.)
+   > **#2 says a shared VALUE must have one home. This says a shared IDEA must too**, and
+   > it is where #2 and #7 meet: the moment you "just add the missing case" to one reader,
+   > you have chosen a longer list over one definition, and a fourth reader arrives next
+   > week.
+   > **FOUR TIMES IN THREE DAYS the answer was the same, and each time the tempting fix
+   > was one more entry:**
+   > · **E47** — a hyphen between numbers reads "to". *Tempting:* add `%` to the unit
+   >   list (after metres, after dollars). *Done:* one span rule that never learns what a
+   >   marker MEANS, so `%`, `$`, `m` and anything future work with no list at all.
+   > · **E49/E50** — the series part. *Tempting:* teach `_split_part` about brackets.
+   >   *Done:* one parser; the seater delegates to the gate's.
+   > · **E53** — the same series part, a THIRD reader. *Tempting:* teach `_fold` about
+   >   brackets. *Done:* `_fold` calls the one parser too.
+   > **The tell is the sentence "it just needs to know about X as well".** That sentence
+   > means there are two definitions and you are about to keep both.
+   > ⚠️ **AND THE COUSIN, WHICH IS NOT THE SAME THING:** *normalising* the input so every
+   > reader sees one form. It works, and it is sometimes right — but **normalising makes
+   > readers agree by NARROWING the input; one definition makes them agree by WIDENING
+   > what they can read.** Narrowing costs somebody their own words, so it is a HOUSE-STYLE
+   > decision for a human at a gate, never a bug fix applied quietly downstream.
+
 3. **ANYTHING THAT WAITS MUST SAY IT IS WAITING.** Silence and death look
    identical. Emit a heartbeat, `flush=True`, record the START of work and not
    only its finish, and say who it is waiting on.

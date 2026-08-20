@@ -143,6 +143,20 @@ def derive_from(epj: dict) -> str:
 # the title card, the e-book, and YouTube. Each was checked against its own source
 # and all three passed while disagreeing with each other.
 
+def _the_one_part_reader(s: str):
+    """`packaging_gate.strip_part` — THE studio's single definition of a series part.
+
+    Imported here rather than reimplemented, and named so that anyone tempted to add a
+    fifth reader meets the point first. ⚠️ The path insert is fault #4: this module's own
+    folder is not guaranteed to be on `sys.path` when the engine imports it, and a test
+    that imports `packaging_gate` first would hide that. Same trap that bit
+    `providers._split_part` this morning.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import packaging_gate as _pg
+    return _pg.strip_part(s or "")
+
+
 def _fold(s: str) -> str:
     """Compare NAMES, not typography: case, dash flavour and spacing are noise here.
 
@@ -154,10 +168,36 @@ def _fold(s: str) -> str:
         Both sides get the same treatment, so this cannot make two DIFFERENT names
     agree: it folds "Each-Way" and "Each Way" together, which are the same name, and
     nothing else. Caught on a copy of EP21's file before an artefact was built.
+
+    ⭐ AND THE SERIES PART IS READ BY **THE ONE DEFINITION**, NOT BY THIS FUNCTION.
+    (20 Aug 2026 — EP34's THIRD halt of one build.)
+
+    🔴 THIS USED TO CARRY ITS OWN IDEA OF WHAT A SERIES PART LOOKS LIKE, and it knew a
+    HYPHEN and not BRACKETS. The title card is recomposed as `setup + payoff + " - " +
+    part`, so `'The Don Scott Interview (Part 1)'` folded to `...(PART 1)` while the card
+    folded to `...PART 1`, and the check reported the SAME NAME as two different names.
+    **PP's own headline reads "(Part 2)", so the bracket form had never once passed.**
+    Worse, it blamed the raw title — an INPUT — for disagreeing with a DERIVED output
+    whose separator this code invented.
+
+    ⚠️ THE FIX IS NOT TO ADD BRACKETS TO THE LIST HERE. That was fault 7 for the fourth
+    time in three days (metres, dollars, per cent, the part separators). `strip_part` in
+    `packaging_gate` is the ONE place the studio decides where a series part begins;
+    `providers._split_part` already delegates to it, and now so does this. Any notation
+    it learns, all three readers learn at once.
     """
-    s = re.sub(r"[‐-―−-]+", "-", (s or ""))
-    s = re.sub(r"\s*-\s*", " ", s)            # a separating dash reads as a space
-    return re.sub(r"\s+", " ", s).strip(" -").upper()
+    name, part = _the_one_part_reader(s)
+    name = re.sub(r"[‐-―−-]+", "-", name)
+    name = re.sub(r"\s*-\s*", " ", name)      # a separating dash reads as a space
+    # ⚠️ TRAILING PUNCTUATION GOES TOO, AND ONLY HERE. `strip_part` deliberately leaves a
+    # comma on the stem ("Thing, Part 5") because moving it would re-derive a SHIPPED
+    # episode's `packaging.hook` — see E49. But this function compares NAMES rather than
+    # typography, and a dangling separator is exactly the typography it exists to ignore.
+    # Both sides get the same treatment, so it cannot make two DIFFERENT names agree.
+    name = re.sub(r"\s+", " ", name).strip(" -,;:").upper()
+    # `strip_part` normalises every notation to "Part N", so the part contributes the
+    # SAME token whatever punctuation the title used. That is the whole repair.
+    return f"{name} {part.upper()}".strip()
 
 
 def episode_names(epj: dict) -> dict:
