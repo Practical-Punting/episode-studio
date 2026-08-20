@@ -163,8 +163,16 @@ before rendering anything.
   confusion for all ~50 videos). **🚫 NEVER switch the engine to ElevenLabs —
   it hides the Accent control and silently forces an American voice (the EP04
   voice bug that burned a full day); keep the payload engine-agnostic
-  (voice_id only).** (Old "Patrick" voice
-  `7e157ec62c9c45f1adca12faae72c86f` is SUPERSEDED — source of the wrong voice.)
+  (voice_id only).**
+  > 🔴 **STOP — THE VOICE AND TEMPLATE IDS ON THIS PAGE ARE OUT OF DATE (20 Aug 2026).**
+  > **The ONE home is `docs/HEYGEN-HUMAN-STEP.md`. Read the id there, never here.**
+  > The presenter was rebuilt on 19 Aug and again on 20 Aug; this section predates both.
+  > ⚠️ **AND THIS PAGE CONTRADICTS THE CURRENT RECORD.** The line that used to sit here
+  > said *"Old 'Patrick' voice `7e157ec62c9c45f1adca12faae72c86f` is SUPERSEDED — source
+  > of the wrong voice"*, while `HEYGEN-HUMAN-STEP.md`, `PP-STANDARDS.md` and the 20 Aug
+  > rebuild all carry that SAME id as the CURRENT voice. **An id cannot be two voices,
+  > and nobody has established which record is wrong.** No cause is claimed here.
+  > Raised for Jodie, 21 Aug 2026. Until she rules, follow the one home.
   **captions OFF** (it omits the v3 `caption` field, so nothing is burned into
   the frame — EP03's burned-caption mess came from a captions-ON browser
   render), polls to completion (matching on `video_url` present — skips phantom
@@ -174,7 +182,7 @@ before rendering anything.
   TEMPLATE** — she opens the template (avatar + voice + grandstand backdrop all
   baked in, so nothing to pick or mis-pick), pastes the spoken-words script,
   captions OFF, clicks Generate, then says "it's rendered"; WE then download the
-  master via the API `video_url`. Template **`template_id 5f4b2ed0e33a4351ae4debfbf804d7f2`** — record it
+  master via the API `video_url`. Template — **the id lives in `docs/HEYGEN-HUMAN-STEP.md`, not here** (20 Aug 2026: `ac627c3ae2e9443bbbdf520215dbead8`; this line used to name the July id `5f4b2ed0e33a4351ae4debfbf804d7f2`) — record it
   here + in the `heygen-api-setup` memory once Jodie provides it (or fetch it FREE
   via `GET /v3/templates`, a metadata call — no render credits). Prep the script and
   give her the exact click list. **Then DON'T wait idle or ask for a video_id —

@@ -2747,3 +2747,175 @@ on a public repo is not a trade worth making**).
   smaller, and not a blocker). **E44 is the claim, and nothing else.**
 
   ### ⛔ NOTHING CHANGED. EP35 WAS BUILDING THROUGHOUT AND STILL IS.
+
+- 🔴 **E54 — A CARD LOST ITS ENTIRE CONTENTS AND THE HALT BLAMED JODIE'S WORDS. THE
+  CULPRIT WAS ONE CSS PROPERTY ON A SHARED BLOCK.** *(EP35 C15, 20 Aug 2026. Measured,
+  fixed and proved the same night; the structural parts are RAISED, NOT BUILT.)*
+
+  ### WHAT HAPPENED
+  EP35 halted at `cards_render` **ten and a half hours into the build** with the standard
+  "a card's text does not fit its box". The flag named four clipped runs and told Jodie
+  *"the words are right … the content is simply longer than the design can hold. That is
+  a choice between the words and the layout, and it is yours, not the build's."*
+  **Every part of that diagnosis was wrong.**
+
+  ```
+  MEASURED IN THE BROWSER (1920x1080, the viewport card_check uses):
+                                 EP35 C15 (halted)      EP35 C6 (same block, same episode)
+    row client width             1512 px                1700 px
+    tag width                    1545 px  <- WIDER THAN THE ROW IT SITS IN
+    row overflow                  825 px                   0 px
+    slot content widths          193 / 159 / 146 px      288 / 288 / 288 px
+  ```
+  `.tag` is `flex:none`, so **a 51-character label took the whole row and pushed all three
+  fact boxes clean off the card.** The rendered frame showed a large orange banner and
+  **none of the card's content**. Nothing was too long: C6, on the same block in the same
+  episode, carries a *longer* value (68 chars vs 47) and fits, on a 16-character tag.
+
+  ⚠️ **AND AUTOFIT COULD NEVER HAVE FIXED IT, WHICH IS THE STRUCTURAL POINT.** It shrinks
+  the owners of runs that are CLIPPED — and in an overflowing flex row the clipped
+  elements are the VICTIMS. It stepped `k` from 30px to 18px and reported `v` as
+  "tried down to 16.0px from 16.0px" (it never moved: `.slot .v` declares no font-size at
+  all and inherits 16px). **It never touched the tag, because the tag was never clipped.**
+  The flag's own heading says it out loud — *"the lever, which is often NOT the element
+  above"* — and nothing acts on that sentence.
+
+  ### ✅ WHAT WAS CHANGED (one property, in the shared block)
+  ```
+  .tag{flex:none; …}   ->   .tag{flex:0 1 auto; min-width:0; …}
+  ```
+  **NOT ONE WORD OF ANY EPISODE WAS TOUCHED.** Flex-shrink is inert unless the row is
+  *already* overflowing, so a card that fits today cannot move — and that was measured,
+  not reasoned:
+  ```
+  all 50 shipped `slots` pages, rendered before and after, hashed:
+     44 PIXEL-IDENTICAL   ·   6 changed — and those 6 are exactly the 6 overflowing today
+     every one of the 6 goes to ZERO overflow
+  EP35 C15: autofit "0 fitted, 1 still failing" -> "0 fitted, 0 still failing"
+            (FULL SIZE, zero shrink steps)   card_check across EP35: 23/23 clean
+            rendered words character-for-character identical
+  ```
+  🔴 **THE FIRST RUN OF THAT SWEEP FAILED ITS OWN CONTROL ON 31 OF 50 PAGES AND WAS
+  THROWN AWAY.** Two faults, both worth naming because both are generic:
+  · it screenshotted **mid-animation** — the real checkers wait on fonts and paint and
+    then seek to the end (`ppSeek(ppDuration)`); a clock is not a condition;
+  · the sabotage was `transform: translateX(1px)` and **`.tag` carries its own transform
+    animation**, which outranks an injected non-`!important` declaration — so the
+    sabotage was silently inert. **A comparison that can only say "identical" proves
+    nothing, and only the control could tell the difference.** (4b, earning its place.)
+  With both fixed: every sabotaged render differed, every baseline reproduced itself.
+
+  ⚠️ **"99/99 SUITES GREEN" IS TRUE AND IS NOT EVIDENCE ABOUT THIS CHANGE.** Both suite
+  directories pass, and **not one case in either covers the slots block's geometry** —
+  the only test mentioning `slots` counts reading load. What proves this fix is the
+  three measurements above. *(CLAUDE.md #4: name the case, or say there isn't one.)*
+  **A regression test for block geometry is the honest gap. See 2d below.**
+
+  ### 📌 FIVE PUBLISHED EPISODES CARRY THE SAME FAULT. LOGGED, CLOSED, NOT TO BE TOUCHED.
+  ```
+  EP31 C16  120px over  — the third box is SLICED at the card edge; "TOTAL" cut mid-word
+  EP34 C17   98px over  — a box edge past the card boundary
+  EP26 C14   74px over  · EP33 C3  39px over  · EP31 C18  12px over  — squeezed, inside
+  ```
+  **EP31 C16 is visibly broken on the channel.** Per the standing ruling — *found
+  retrospectively does not mean fixed retrospectively* — these are approved, live and
+  closed. **No re-render, no re-cut, no backfill.** They are recorded here because the
+  next episode is what the fix is for.
+
+  ---
+  ## 2a. A LENGTH BUDGET AT `audit_inputs` — **A CHARACTER BUDGET IS PROVABLY THE WRONG
+  ## INSTRUMENT FOR THIS BLOCK. A MEASURED WIDTH BUDGET WORKS AND CAN RUN EARLY.**
+  Seven candidate text-only predictors were tested against the browser's verdict on all
+  50 shipped cards. **Every one of them overlaps** — there is no threshold that separates
+  the 6 that overflow from the 44 that do not:
+  ```
+  predictor                   worst FITTING   best OVERFLOWING   separates?
+  tag chars                              39                 25   no
+  slot count                              4                  3   no
+  tag chars x slots                      81                 75   no
+  tag + longest key                      74                 36   no
+  tag + sum of keys                     121                 51   no
+  longest value                          72                  3   no
+  ```
+  🔴 **THE PAIR THAT KILLS IT:** `EP33 C3` — tag **25** chars, 3 slots — **OVERFLOWS**.
+  `EP27 C4` — tag **27** chars, 3 slots — **FITS**. A *longer* label in the *same* slot
+  count fits where a shorter one fails, because the glyphs differ (uppercase at
+  `letter-spacing:0.18em`; `W` and `M` are nothing like `I` and `l`).
+  **A hand-written character table here would be a guess wearing a number** — exactly what
+  `MATRIX_MAX_ROWS` refuses to be, and exactly the shape §7 names.
+
+  ### ✅ WHAT DOES WORK, PROVEN TONIGHT AS A PROOF OF CONCEPT
+  A **width probe**: render the block's own CSS with this episode's strings at the row
+  width for its layout, and read the overflow off the layout engine.
+  ```
+  50 shipped slots cards, judged by the probe against the browser's verdict:
+      6 caught   ·   0 missed   ·   0 false alarms   ·   44 correctly quiet
+  ```
+  **It needs the block template, the strings from `episode.json`, and one cached row
+  width per layout (1512 panel-push / 1700 fullscreen, measured once). It needs NO
+  rendered page and NO staged hero** — so it clears `layout_is_not_here()`'s objection,
+  which is about `autofit`/`card_check` needing both. **This is E52 again: a check that
+  can run at four seconds is running at ten and a half hours.**
+  ⚠️ **Honest limits, stated rather than discovered later:** the probe is a reliable
+  YES/NO, but its magnitudes are approximate where a real page's row width differs from
+  the cached value (EP34 C17: probe 286px, browser 98px — same verdict, different size).
+  And it is proven on `slots` ONLY. **The budget must be DERIVED per block from that
+  block's own CSS, so adding a block adds its budget** — a per-block list would rot.
+
+  ## 2b. TEACH THE RESCUE STEP TO ASK "WRONG BLOCK?" — **AND ONE BETTER QUESTION FIRST**
+  `layout_rescue` swaps between the two sibling FRAMES and never asks about the BLOCK.
+  Extending it is still right, with the same four refusal conditions.
+  🔴 **BUT TONIGHT WAS NOT A WRONG-BLOCK CASE, AND A BLOCK SWAP WOULD HAVE BEEN THE WRONG
+  FIX.** C15 is three key/value pairs; `slots` is the correct block. The card's own
+  `_content_why` argues for it explicitly. Moving it to `steps` would have changed the
+  card's reading from three parallel facts to a three-step sequence — a design decision,
+  not a rescue — and would have failed the character-for-character test anyway, because
+  the tag would have had to move to a different field and change position.
+  ⭐ **THE CHEAPER, MORE GENERAL QUESTION IS: WHICH ELEMENT IS TAKING THE ROOM?** In an
+  overflowing flex row, ask whether one child is inflexible (`flex-shrink:0` / `flex:none`)
+  and is claiming more than its share. That is a two-line measurement, it names the
+  CULPRIT rather than the victim, and it is the exact sentence the flag already prints
+  without acting on. **Recommendation: build that diagnosis first; the block swap after.**
+
+  ## 2c. THE GEOMETRY — **MEASURED, AND MORE ROOM IS NOT THE LEVER. SAY SO PLAINLY.**
+  Jodie asked for "a wider space to work with". Measured on the failing card:
+  ```
+  extra row width:  +0    +84   +168   +220   +400   +600   +825
+  overflow left:    825    741    657    605    425    225      0
+  ```
+  **Removing ALL horizontal frame padding gives +168px — 11.1% — and leaves 657px of the
+  825px overflow.** Widening the frame recovers a fifth of the deficit on this card and
+  fixes none of it. *(The estimate in the brief was "~10%"; measured, 11.1%.)*
+  **Room is not the lever. The lever is that one element could take the whole row.**
+  🚫 **So `frame-fullscreen` / `frame-panel` padding should NOT be changed for this.**
+  Changing it would move every card in the library to buy 11% on a fault already closed
+  for £0 by one property — the worst trade available.
+
+  ## 2d. THE GAP THIS LEAVES: **NOTHING IN EITHER SUITE TESTS A BLOCK'S GEOMETRY.**
+  50 real cards were measured by hand tonight and the suite would not have noticed any of
+  it. A cheap regression exists and is worth more than 2b: **render every block against
+  its own schema's min and max list lengths with worst-case strings, and assert no row
+  overflows.** Derived from the block's own schema, so a new block brings its own case.
+
+  ### ⏱ HONEST COST, FROM READING THE CODE
+  ```
+  2a  the width probe as a real pre-flight, wired at audit_inputs      ~1 day + controls
+  2b  "which child is inflexible" diagnosis in the rescue step         ~half a day
+  2b' block swap in layout_rescue                                      ~1 day (do last)
+  2c  nothing — measured and rejected                                  0
+  2d  block-geometry regression over every block                       ~half a day
+  ```
+  **Recommendation, one item: 2a.** It is the one that turns a ten-and-a-half-hour halt
+  into a four-second one, it is proven to agree with the browser on 50 real cards, and it
+  needs no new vocabulary and no ruling. **2c is finished — it was a measurement, and the
+  answer is no.**
+
+  ### ✅ ALSO CHANGED TONIGHT: THE HALT'S OWN WORDS (CLAUDE.md fault #6's own example)
+  CLAUDE.md quotes this halt as the canonical case of a flag asserting an unestablished
+  cause. **Tonight it was demonstrably wrong, and the cost was pointed at Jodie:** had she
+  shortened the words as instructed, the card would still have been broken and she would
+  have learned a superstition. It now names what was tried, lists what it could be
+  **asserting none**, says plainly that a retry will not help, and says the fault may well
+  be the studio's rather than her words. The pixel report goes to the RUN LOG, where its
+  reader is (`PP-operator-box-rule`). Exercised against the real halt text plus four edge
+  cases including empty input, with a control that the retired sentence is gone.

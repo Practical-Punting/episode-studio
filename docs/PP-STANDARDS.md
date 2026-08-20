@@ -346,8 +346,14 @@ identical; only a control tells them apart.*
 surfaced, and the run is recorded in the episode's run log.**
 
 ## Host, voice & render
-- **Host** "Gordon". 🔴 **THE AVATAR CHANGED 19 Aug 2026** — the presenter is now
-  **Peter**, in template **`PP Template v3 Peter`** (`d98c9195befa419290ef955f6149e861`), voice `7e157ec62c9c45f1adca12faae72c86f`.
+- **Host** "Gordon". 🔴 **THE AVATAR CHANGED AGAIN 20 Aug 2026** — the presenter was
+  rebuilt a second time, in template **`ac627c3ae2e9443bbbdf520215dbead8`**, voice
+  `7e157ec62c9c45f1adca12faae72c86f` (unchanged).
+  🔴 **A PRESENTER AVATAR IS BUILT AGAINST A PLAIN EMPTY WALL, NEVER AGAINST A SCENE** —
+  an avatar trained against a scene carries fragments of it into every render as
+  artefacts behind the presenter. The backdrop is the template's job. **The one home for
+  these ids is `docs/HEYGEN-HUMAN-STEP.md`; check its date before using any of them.**
+  *(Superseded 19 Aug: **Peter**, template `d98c9195befa419290ef955f6149e861`.)*
   *(Was the "seated at desk" Floyd look `de774dd2f3ef4a52bc31dee6fc91f118` in
   template v2.)* **EP31's first render came back in an AMERICAN ACCENT from an
   UNTOUCHED template and HeyGen support could not fix it**, so the avatar, voice
@@ -358,7 +364,7 @@ surfaced, and the run is recorded in the episode's run log.**
 
 ## ⏸ HeyGen human step + standing template (the anti-bug)
 - Presenter generation is a **human step** (Jodie, HeyGen web app, free-plan credits). The pipeline **pauses and waits**; it does **NOT** auto-generate.
-- **Standing template `template_id: 5f4b2ed0e33a4351ae4debfbf804d7f2`** ("PP Gordon") bakes in avatar + voice + grandstand. Only actions: **paste the script → paste the video name in the Title field (top-right) → Captions OFF → Generate.** Nothing to mis-pick.
+- **Standing template — see `docs/HEYGEN-HUMAN-STEP.md`, which is the ONE home for the id** (20 Aug 2026: `ac627c3ae2e9443bbbdf520215dbead8`). It bakes in avatar + voice + backdrop. Only actions: **paste the script → paste the video name in the Title field (top-right) → Captions OFF → Generate.** Nothing to mis-pick. ⚠️ **This line used to restate `5f4b2ed0e33a4351ae4debfbf804d7f2` as "the standing template" — a July id still being called current on 20 Aug, two rebuilds later, six lines below the line that had already superseded it.** The id is not repeated here any more, because a value with two homes drifts (fault #2).
 - **Give Jodie the exact video NAME to paste into the Generate dialog's Title field** (top-right corner) — she types it herself (programmatic set won't stick). Convention: **`PP-EPxx — <Episode Title>`** (e.g. `PP-EP06 — Early Pace Power Factors`). The runner/Cowork must surface this name at the human-step, not just the script.
 - Do NOT automate the HeyGen create-v4 editor (screenshots come back blank; the rich script box rejects synthetic typing — it only accepts a synthetic `paste` event into an EMPTY box; the title field won't take programmatic text). Avoid all of that by using the template + human step.
 - Captions must be **OFF** at generate (the toggle is unreliable).

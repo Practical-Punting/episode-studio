@@ -1518,15 +1518,53 @@ def autofit_cards(ep_dir: Path) -> str:
                                                          "panel-push ->")))
             r = _fit()          # re-measure: the swap has to stand on its own
     if r.returncode:
+        # 🔴 THIS MESSAGE USED TO NAME A CAUSE IT HAD NOT ESTABLISHED, and CLAUDE.md
+        # fault #6 quotes it as the canonical example. It read: "the words are right and
+        # every figure is traced — the content is simply longer than the design can hold.
+        # That is a choice between the words and the layout, and it is yours, not the
+        # build's."
+        #     EP35 C15, 20 Aug 2026, PROVED IT WRONG. Nothing was too long. The card's
+        # orange label was 1545px wide on a 1512px row — the label ALONE was wider than
+        # the row — because `.tag` was `flex:none` and could take the whole of it. All
+        # three fact boxes were pushed clean off the right-hand edge; the rendered card
+        # showed a big orange banner and none of its content. It was a BUILD FAULT in a
+        # shared block, and the halt had spent ten and a half hours telling Jodie it was
+        # her choice between her words and the layout.
+        #     Worse than useless: had she shortened the words, the card would still have
+        # been broken, and she would have learned a superstition. That is fault #6's
+        # whole argument — a wrong cause is worse than no cause, because the operator's
+        # next action appears to fix it.
+        # SO: SAY WHAT WAS SEEN · LIST WHAT IT COULD BE, ASSERTING NONE · SAY PLAINLY
+        # WHETHER A RETRY HELPS. And the measurement goes to the RUN LOG, not to her —
+        # different readers, and the same text cannot serve both (PP-operator-box-rule).
+        detail = (r.stdout or r.stderr).strip()
+        print("    cards_render halt — the full autofit report follows, for the log "
+              "(the operator's flag carries the plain-English version):")
+        for _line in detail.splitlines():
+            print(f"      {_line}")
+        cards = sorted({m.upper() for m in re.findall(r"-(c\d+)-", detail, re.I)})
+        which = (f"Card {', '.join(c.lstrip('cC').lstrip('0') or '0' for c in cards)}"
+                 if cards else "A card")
         raise EngineFlag(
-            "A card's text does not fit its box, and stepping the type down to the floor "
-            "did not clear it. This is NOT a missing-file problem and NOT a stale-template "
-            "problem: the page is authored, the words are right and every figure is traced "
-            "— the content is simply longer than the design can hold. That is a choice "
-            "between the words and the layout, and it is yours, not the build's.\n"
-            "(The sibling frame was tried first and did not rescue it — the reason is in "
-            "the run log.)\n"
-            f"{(r.stdout or r.stderr).strip()[-1200:]}")
+            f"{which} will not fit on screen, and I could not fix it with anything I am "
+            f"allowed to change on my own.\n"
+            f"\n"
+            f"WHAT I TRIED:\n"
+            f"  - stepping the type down as small as the design permits — it still did "
+            f"not fit\n"
+            f"  - laying the card out in the other frame — that did not rescue it either\n"
+            f"\n"
+            f"WHAT IT COULD BE. I have NOT established which, and I am not guessing:\n"
+            f"  - a label or heading on the card may be far longer than that slot was "
+            f"drawn for, leaving too little room for everything beside it\n"
+            f"  - there may be one box or row too many for the space\n"
+            f"  - the words themselves may genuinely be longer than this design holds\n"
+            f"\n"
+            f"WILL RETRYING HELP? No. The same words measure the same every time, so "
+            f"clearing this and letting it run again will stop in exactly the same "
+            f"place. Something has to change first — and it may well be the studio's "
+            f"end rather than your words, so it is worth someone looking before you "
+            f"rewrite anything.")
     out = (r.stdout or "").strip()
     return (f"a card was moved to its siblings' frame — {rescued.strip()}\n{out}"
             if rescued else out)

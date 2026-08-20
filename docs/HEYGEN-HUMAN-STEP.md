@@ -21,17 +21,40 @@ the scene**, and exposes a **text slot** for the script. Because the avatar and
 voice are baked in, the wrong-voice / wrong-avatar mistakes (e.g. the EP04
 ElevenLabs → US-accent bug) **cannot recur** — you only drop in the script.
 
-> ## 🔴 CHANGED 19 Aug 2026 — A NEW PRESENTER, A NEW VOICE, A NEW TEMPLATE.
-> **EP31's first render came back in an AMERICAN ACCENT from an untouched template, and
-> HeyGen support could not fix it.** Jodie built a new avatar, a new voice and a new
-> template, and re-rendered. **The old renders were DELETED**, so any `heygen_video_id`
-> from before that point points at nothing.
+> ## 🔴 THE PRESENTER WAS REBUILT AGAIN, 20 Aug 2026. THIS TABLE IS THE ONE HOME.
+> **20 Aug: a new avatar and a NEW TEMPLATE. The voice id did not change.**
+> The 19 Aug rebuild is one day old and already superseded, so **read the date on any
+> template id you meet elsewhere before using it.**
 >
-> | | now | was |
-> |---|---|---|
-> | **template** | **`PP Template v3 Peter`** — `d98c9195befa419290ef955f6149e861` | "PP Videos template v2" `5f4b2ed0e33a4351ae4debfbf804d7f2` |
-> | **avatar** | **Peter** (built by Jodie, 19 Aug) | "Floyd" `de774dd2f3ef4a52bc31dee6fc91f118` |
-> | **voice** | **`7e157ec62c9c45f1adca12faae72c86f`** | the voice baked into v2 |
+> | | **NOW — 20 Aug 2026** | was (19 Aug) | was (23 Jul) |
+> |---|---|---|---|
+> | **template** | **`ac627c3ae2e9443bbbdf520215dbead8`** | `d98c9195befa419290ef955f6149e861` ("PP Template v3 Peter") | `5f4b2ed0e33a4351ae4debfbf804d7f2` ("PP Videos template v2") |
+> | **voice** | **`7e157ec62c9c45f1adca12faae72c86f`** | `7e157ec62c9c45f1adca12faae72c86f` — unchanged | the voice baked into v2 |
+> | **avatar** | rebuilt 20 Aug — **id not given, do not invent one** | "Peter" | "Floyd" `de774dd2f3ef4a52bc31dee6fc91f118` |
+>
+> ### 🔴 THE RULE THE REBUILD PRODUCED — WHY THE BACKGROUND ARTEFACTS HAPPENED
+> **A PRESENTER AVATAR IS BUILT AGAINST A PLAIN EMPTY WALL, NEVER AGAINST A SCENE.**
+> An avatar trained against a scene carries fragments of that scene into every render,
+> and they show up as artefacts behind the presenter on every episode built from it.
+> The backdrop is the TEMPLATE's job, applied after; it is never baked into the avatar.
+> *(Full write-up in the claude.ai project: `claude/PP-presenter-avatar-and-voice.md`.)*
+>
+> ### ⚠️ TWO THINGS HERE ARE NOT SETTLED — DO NOT GUESS EITHER
+> · **The presenter's NAME is unsettled three ways: Gordon / Peter / Luke.** Every
+>   script still says "Gordon" and the board's flag copy still says *"Gordon's render is
+>   still cooking"*. **Nothing here assumes which one wins — it is Jodie's call.**
+> · **`7e157ec62c9c45f1adca12faae72c86f` IS CONTRADICTED BY THE SKILL.** `SKILL.md`
+>   carries a July-era line calling this exact id *"Old 'Patrick' voice … SUPERSEDED —
+>   source of the wrong voice"*, while this doc, `PP-STANDARDS.md` and the 20 Aug rebuild
+>   all have it as the CURRENT voice. **An id cannot be two voices.** The current-voice
+>   reading is followed here because it is the later and better-attested one, but
+>   **nobody has established which record is wrong** and no cause is claimed for it.
+>   Raised for Jodie, 21 Aug.
+>
+> **EP31's first render came back in an AMERICAN ACCENT from an untouched template, and
+> HeyGen support could not fix it.** That is what started the 19 Aug rebuild. **The old
+> renders were DELETED**, so any `heygen_video_id` from before that point points at
+> nothing.
 >
 > ⚠️ **THE AVATAR ID IS NOT RECORDED HERE** because nobody has given it and the template
 > list does not expose it. It is baked into the template, so no episode needs it — but
@@ -45,8 +68,9 @@ ElevenLabs → US-accent bug) **cannot recur** — you only drop in the script.
 - **What it locks (so nobody re-picks it):** the **avatar**, the approved **Australian
   voice** (never ElevenLabs), and the **backdrop**. Only the **script text**
   changes per episode.
-- **▶ TEMPLATE ID:** `d98c9195befa419290ef955f6149e861` ("PP Template v3 Peter", 19 Aug 2026).
-  *(Superseded: `5f4b2ed0e33a4351ae4debfbf804d7f2`, "PP Videos template v2", 2026-07-23.)* — once the template is built, give the
+- **▶ TEMPLATE ID:** `ac627c3ae2e9443bbbdf520215dbead8` (rebuilt 20 Aug 2026).
+  *(Superseded: `d98c9195befa419290ef955f6149e861` "PP Template v3 Peter" 19 Aug 2026;
+  `5f4b2ed0e33a4351ae4debfbf804d7f2` "PP Videos template v2" 2026-07-23.)* — once the template is built, give the
   `template_id` to Claude. (Or just say *"list my HeyGen templates"* and Claude will
   fetch it **for free** via `GET /v3/templates` — a metadata call, no render, no cost.)
   Claude then records it in the `heygen-api-setup` memory + the `pp-episode-production`
