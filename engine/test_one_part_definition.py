@@ -158,11 +158,17 @@ case("real hyphens and non-series names fold exactly as before", _real_hyphens_s
 def _only_ep34_changes():
     """🔴 THE ONE THAT MATTERS. This check runs over every episode's episode.json, so a
     change here can re-open a finished episode. EP24 was caught this way on E49."""
-    drive = Path("G:/My Drive/PP Videos")
-    if not drive.is_dir():
-        raise AssertionError("the episode folders are not reachable — control not run")
+    # ⚠️ BY NUMBER, via ep_paths — never a written-out folder name. The stage-8
+    # close-out RENAMES a folder on publish (`PP-EP24` -> `PP-EP24-Track-Secrets-Part-4`),
+    # so a literal path passes for weeks and breaks ON THE DAY THE PROCESS SUCCEEDS.
+    from ep_paths import PP, episode_dir
+    if not PP.is_dir():
+        raise AssertionError(f"{PP} is not reachable — this control did not run")
     changed, checked = [], 0
-    for d in sorted(drive.glob("PP-EP*/docs/episode.json")):
+    for n in range(1, 60):
+        d = episode_dir(n) / "docs/episode.json"
+        if not d.is_file():
+            continue
         try:
             e = json.loads(d.read_text(encoding="utf-8"))
         except Exception:                                             # noqa: BLE001
@@ -172,7 +178,7 @@ def _only_ep34_changes():
         was = "FAULT" if len({old_fold(v) for v in names.values()}) > 1 else "clean"
         now = "FAULT" if yt.check_one_name(e) else "clean"
         if was != now:
-            changed.append((d.parent.parent.name, was, now))
+            changed.append((f"EP{n}", was, now))
     assert checked >= 20, f"only {checked} episodes were readable — control too weak"
     assert all(w == "FAULT" and n == "clean" for _, w, n in changed), \
         f"an episode's verdict got WORSE: {changed}"
