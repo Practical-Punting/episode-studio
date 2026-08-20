@@ -2406,3 +2406,66 @@ on a public repo is not a trade worth making**).
   ⚠️ **And these are PROPORTIONAL-FONT characters, so the count is a proxy, not a rule.**
   The real limit is pixel width; treat the numbers as guidance and re-measure rather than
   trusting a character count near the edge.
+
+- 🔴 **E53 — `youtube_title._fold` TREATS A HYPHEN AS NOISE AND BRACKETS AS A NAME. IT
+  HALTED EP34 A THIRD TIME, AND MY OWN E49 FIX IS WHAT EXPOSED IT.** *(20 Aug 2026.)*
+  ```
+  title       'The Don Scott Interview (Part 1)'  -> 'THE DON SCOTT INTERVIEW (PART 1)'   brackets SURVIVE
+  title card  'THE DON SCOTT INTERVIEW - Part 1'  -> 'THE DON SCOTT INTERVIEW PART 1'     hyphen REMOVED
+  ```
+  **Three of the four names agree exactly. Only the TITLE CARD differs, and it is the
+  only DERIVED one** — `episode_names` recomposes it as
+  `setup + payoff + " - " + part`, inventing a separator the title never had.
+  `_fold` exists precisely to make that invented separator invisible, and its docstring
+  says so: *"The title card is composed as setup + payoff + ' - ' + part, so an episode
+  whose rail title reads 'Track Secrets Part 1' — no dash — was reported as being called
+  two different things"* (11 Aug). **It learned the hyphen and never learned brackets.**
+
+  🔴 **SO THE TWO NAMES ARE THE SAME NAME AND THE CHECK CANNOT SEE IT.** The disagreement
+  is entirely typographic and entirely inside the check. **Jodie's title is not wrong and
+  must not move.** This is the EP33 error in the machine's own hands: comparing a raw
+  INPUT against a DERIVED OUTPUT and blaming the input.
+
+  ⚠️ **AND IT WAS MY E49 FIX THAT SURFACED IT — recorded plainly.** Proved against EP34's
+  real file:
+  ```
+  PRE-E49   cover.part=None, payoff='INTERVIEW (PART 1)'  -> all four fold alike -> PASSED
+  POST-E49  cover.part='Part 1', payoff='INTERVIEW'       -> card loses brackets -> FAULT
+  EP33      title already in hyphen form                  -> all four fold alike -> passes
+  ```
+  E49 was RIGHT — the part genuinely belongs in `cover.part`. It moved a latent fault
+  from invisible to visible, which is what a correct fix does. **But it means the bracket
+  form has never once been through this check successfully**, and nobody knew.
+
+  ⛔ **CLAUDE.md FAULT 7, FOR THE FOURTH TIME IN THREE DAYS** — metres, dollars, per cent,
+  the series-part separators, and now `_fold`'s punctuation list. Every one of them a
+  guard whose coverage is a list somebody maintains.
+  ✅ **THE FIX THAT IS NOT ANOTHER LIST:** `_fold` should not carry its own notion of what
+  a series part looks like. It should strip the part with **the one parser**
+  (`packaging_gate.strip_part`, E49) and compare NAME and PART separately. Then brackets,
+  hyphens, commas and em dashes all work and there is nothing to maintain.
+  **Raised, not built.**
+
+- 📌 **E52 NOW HAS THREE CASES IN ONE EPISODE, AND THE ARGUMENT NO LONGER NEEDS MAKING.**
+  ```
+  halt  what                        knowable at    fired at        elapsed
+  1     part in the headline        WORDS GATE     cover authoring   9¼ h
+  2     tag over its length ceiling AUTHORING      card rendering   10½ h
+  3     the name disagreement       WORDS GATE     youtube copy     13¾ h
+  ```
+  **One episode, three halts, all three answerable in the first few minutes.**
+  ⭐ **AND HALTS 1 AND 3 SHARE ONE ROOT: how the series part is WRITTEN.** Halt 2 does not.
+  **Would normalising the series part at the Words Gate — one house form, decided once,
+  at the moment the title is approved — have prevented 1 and 3? YES, both.**
+  · Halt 1: `_split_part` would have split a normalised title, so `packaging.hook` would
+    never have carried "(Part 1)" into the headline.
+  · Halt 3: a normalised title folds identically to the recomposed card, as EP33's does.
+  · Halt 2: unaffected — a different root entirely.
+  ⚠️ **BUT NORMALISING MEANS CHANGING WHAT JODIE TYPED, so it is only honest AT THE GATE**,
+  where she sees the house form proposed and approves or rejects it. A silent rewrite of
+  her title elsewhere in the build would be worse than the halts.
+  ⚠️ **AND IT MAY BE THE SECOND-BEST FIX.** If `_fold` and both parsers shared ONE
+  definition of a series part (E53), **no notation would need normalising at all** and
+  PP's own bracket convention would simply work. Normalising makes every reader agree by
+  narrowing the input; one parser makes them agree by widening what they can read.
+  **Jodie's ruling. Raised, not built.**
