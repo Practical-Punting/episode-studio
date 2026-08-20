@@ -2453,6 +2453,13 @@ on a public repo is not a trade worth making**).
   2     tag over its length ceiling AUTHORING      card rendering   10½ h
   3     the name disagreement       WORDS GATE     youtube copy     13¾ h
   ```
+  🔴 **AND EP34 HALTED A THIRD TIME IN THE SAME BUILD — TWO OF THE THREE ON HOW A SERIES
+  PART IS WRITTEN.** Halt 1 (`_split_part` could not split brackets) and halt 3 (`_fold`
+  could not either) share one root; halt 2 (the tag over its ceiling) does not. **Three
+  halts, one episode, one build, ~13¾ hours** — and every one of them answerable from
+  data on disk in the first few minutes. **This is no longer an argument that needs
+  making.**
+
   **One episode, three halts, all three answerable in the first few minutes.**
   ⭐ **AND HALTS 1 AND 3 SHARE ONE ROOT: how the series part is WRITTEN.** Halt 2 does not.
   **Would normalising the series part at the Words Gate — one house form, decided once,
@@ -2464,6 +2471,19 @@ on a public repo is not a trade worth making**).
   ⚠️ **BUT NORMALISING MEANS CHANGING WHAT JODIE TYPED, so it is only honest AT THE GATE**,
   where she sees the house form proposed and approves or rejects it. A silent rewrite of
   her title elsewhere in the build would be worse than the halts.
+  ### ✅ RULED AND BUILT 20 Aug: ONE DEFINITION, NOT NORMALISATION (E53 landed, `b9f9549`)
+  Jodie chose the widening fix. **Her title never moved.** `youtube_title._fold` now reads
+  the series part through `packaging_gate.strip_part` like the other two, so `(Part 1)`,
+  `- Part 2`, `, Part 5`, `— Part 3` and `: Part 4` all fold to one name. Inert control:
+  every episode.json on disk, **exactly one verdict changes — EP34, FAULT -> clean.**
+  **NORMALISING AT THE WORDS GATE IS PARKED AS A HOUSE-STYLE QUESTION, NOT A BUG FIX.**
+  ⛔ **Nobody should build it as a fault repair.** It would also have prevented halts 1
+  and 3 — but it means changing what Jodie typed, so it is only honest AT THE GATE, where
+  she sees the house form proposed and approves it. A silent rewrite anywhere else in the
+  build would be worse than the halts. Her words, kept verbatim because they are the
+  reason: *normalising makes readers agree by NARROWING the input; one parser makes them
+  agree by WIDENING what they can read.*
+
   ⚠️ **AND IT MAY BE THE SECOND-BEST FIX.** If `_fold` and both parsers shared ONE
   definition of a series part (E53), **no notation would need normalising at all** and
   PP's own bracket convention would simply work. Normalising makes every reader agree by
