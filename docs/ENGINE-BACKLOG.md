@@ -2489,3 +2489,261 @@ on a public repo is not a trade worth making**).
   PP's own bracket convention would simply work. Normalising makes every reader agree by
   narrowing the input; one parser makes them agree by widening what they can read.
   **Jodie's ruling. Raised, not built.**
+
+- 🔬 **E44 SEAM READ — REQUESTED BY JODIE 20 Aug 2026. READ ONLY; NOTHING CHANGED.**
+  *(Run while EP35 was BUILDING — confirmed from the rail first: `status=building`,
+  `claimed_by=pp-engine@Jodie-Lenovo`, heartbeat 18s old, `audit_inputs` commission live.
+  Nothing was written to any `.py`. `docs/*.md` is outside `_watched_files()` — which
+  filters `p.suffix != ".py"` — and outside the git gate, which covers exactly
+  `engine/rail.py` and `qc_episode.py`. So this entry cannot restart the engine.)*
+
+  ### 🔴 OCCURRENCE SIX, AND IT IS THE EPISODE BUILDING RIGHT NOW
+  ```
+  20 Aug 02:00:55 UTC  !! NEEDS A LOOK [audit_inputs]  (EP35)
+        "could not establish which account this spawn would use (JSONDecodeError).
+         Refusing rather than assuming — an unknown wallet is treated exactly like a paid one."
+  20 Aug 08:53:57 UTC  flag cleared — carrying on
+                       ... "wallet checked: max subscription"
+  ```
+  **6 hours 53 minutes.** The engine logged NOTHING in that window. Nothing was written,
+  nothing was spent, and the flag was correct to stop — an unknown wallet must never be
+  assumed. *Observed and not explained: the same check passed on the retry. Whether
+  anything on the machine changed in between is not established here and no cause is
+  claimed for it (fault #6).*
+
+  ### 📏 THE MEASUREMENT — 3–21 Aug, from `engine/logs/*.log`
+  ⚠️ **THE CLOCK HAD TO BE ESTABLISHED BEFORE ANY DURATION COULD BE QUOTED, AND THE FIRST
+  PASS WAS WRONG BECAUSE OF IT.** Log LINE stamps are UTC (`log()` uses utcnow); log FILE
+  names are the LOCAL date at first write. A file named `2026-08-19` opens at 04:35 UTC —
+  14:35 local. Anchoring the first line to the filename date directly inflated one window
+  from 9.7 h to 33.4 h and the total from 135.6 h to 157.8 h. *Two clocks, and a time is
+  a number in a frame — §1b, pointed at the studio's own logs.*
+  ```
+  132 flag windows, all closed        total time an episode was stopped at a flag: 135.6 h
+  drafting-pass lines in the logs: 210      drafting-pass lines INSIDE a flag window: 0
+
+  step             n   total h   median min    max min      step             n   total h
+  listen_check    14     30.23         1.9      948.4       shot_map        12      5.19
+  script_sync      8     19.76         0.3     1173.8       covers_ab        4      2.04
+  cards_render    38     19.37        12.2      451.4       youtube_copy     5      1.53
+  audit_inputs    11     17.63        17.4      482.6       self_qc          4      1.42
+  ebook_pdf        7     11.61         6.4      613.2       broll_submit     2      0.59
+  ebook_cover      2      9.90       580.6      580.6       credit_check     1      0.46
+  thumbnail       18      8.23         7.2      264.2       web_copies       1      0.11
+  heygen_download  5      7.47        19.6      368.9
+  ```
+  🔴 **AND THE NUMBER THAT MUST NOT BE HIDDEN, BECAUSE IT ARGUES AGAINST URGENCY.**
+  Of the 35 waits over 30 minutes, **only FOUR had another APPROVED, UNSTARTED episode on
+  the board — 13.1 h, and every one of them on 19–20 Aug.** For the other thirty-one the
+  engine was idle because there was genuinely nothing else to do. **This fault has been
+  present for eighteen days and has only been EXPENSIVE for two**, because the queue only
+  just got deep enough for one stopped episode to stop another.
+  *Measured, not argued: `words_approved_at` before the window and `started_at` after it.*
+
+  📌 **THE LAST 22½ HOURS ARE THE EXCEPTION AND THEY ARE THE CASE FOR BUILDING IT.**
+  19 Aug 10:23 UTC → 20 Aug 08:53 UTC: **20.3 h of 22.5 h had a flag up — 90%.**
+
+  ### 🔴 AND THE STANDING FIRST QUESTION IS ANSWERED, WITH A CORRECTION
+  **EP32 is not held. Its ledger reads `attempts: 0, last_at: null`, reset 19 Aug after
+  E47 landed, and `needs_look` is FALSE.** *(The 19 Aug entry's "⛔ EP32 STAYS HELD
+  (ledger at 3)" and the checkpoint line repeating it are both out of date.)*
+  **EP32 has been fully eligible for the drafting pass since the reset and has not been
+  attempted once** — `last_at` is still null, and the 20 Aug log contains **zero**
+  drafting-pass lines and **zero** `waiting on the Script Gate` lines all day.
+  **Not the ledger, not a flag on EP32 — the engine has not been idle for one moment.**
+  *So: nobody has seen what the writer makes of that article because it never got a turn.*
+
+  ---
+
+  ## (a) WHERE `flag_and_wait` IS CALLED FROM, AND WHAT IS HALF-WRITTEN
+  **AST-collected, not grepped** (fault #1a — a grep for `flag_and_wait` also hits the
+  three docstrings that name it). **Exactly three call sites, and two of them are one
+  place:**
+  | line | inside | raised by |
+  |---|---|---|
+  | 1434 | `run_step` | `except EngineFlag` — a step asked for a human. **~60 raise sites in `providers.py`, 9 in `engine.py`** |
+  | 1438 | `run_step` | `except Exception` after `MAX_ATTEMPTS` (3) — a step that keeps failing |
+  | 3145 | `cmd_run` | `status == "revising"` — the Phase-3 stub |
+
+  🟢 **SO THE "HALF-WRITTEN STEP" QUESTION HAS ONE ANSWER, NOT SIXTY: every flag is raised
+  from `run_step`, between two steps' bookkeeping, and the step is ALREADY re-run from the
+  top when the flag clears.** `flag_and_wait` RETURNS and `run_step`'s `while True` retries
+  the same step. **Every flag site is therefore already required to survive a full
+  re-execution of its step, and has been since the engine was written.**
+
+  What the state actually looks like at the moment a flag goes up:
+  | | |
+  |---|---|
+  | `state["steps"][name]` | **not set** — only a step that returned is marked done ✅ |
+  | `state["current"]` | **set and saved** by `mark_step_started` — the in-flight marker ⚠️ |
+  | `state["flag_step"]` | **set and saved** by `flag_and_wait`, before it flags the rail ✅ |
+  | `state["jobs"]…job_id` | **saved the instant it exists** — "checkpoint IMMEDIATELY after the spend" ✅ |
+  | preview URLs | **saved BEFORE the flag**, in both `step_cards_render` and `step_thumbnail` ✅ |
+  | the rail row | `status` unchanged — `needs_look` is orthogonal ✅ |
+  **The only unsaved write in any step is `state["clip_cost"]` (`step_credit_check`, line
+  810), and it is recomputed from `provider.clip_cost()` on the re-run.** Nothing is lost.
+
+  ⭐ **AND THE DECISIVE FACT FOR (b) IS ALREADY IN PRODUCTION, AT THIS EXACT SEAM.**
+  `flag_and_wait`'s own wait loop calls `_code_changed_exit`, which does
+  `hb.active.clear()` → `rail.hand_back()` → `SystemExit`. **Handing back a flagged,
+  mid-step episode and having something pick it up again is not a new operation: it is
+  what happens on every stale-code exit during a flag, and the logs show it firing three
+  times in this window alone** (10 Aug `providers.py`, 16 Aug `author_ebook.py`, 19 Aug
+  `packaging_gate.py`). Its own comment says why the seam is safe: *"the step has already
+  raised, so no ffmpeg, no HeyGen call and no Higgsfield job is in flight."*
+
+  ## (b) CAN IT `hand_back` AND PICK THE EPISODE UP AGAIN? YES — AND HERE IS WHAT BREAKS
+  **Four things, all specific, none of them the "part-finished step" the entry feared.**
+
+  🔴 **1. `reclaim_stale` WOULD TAKE IT STRAIGHT BACK, AND THE ENGINE WOULD SPIN.**
+  `hand_back` writes `claimed_by = "<worker> (reason)"` with a dead lease. `reclaim_stale`
+  filters `status in WORKING`, `claimed_by not null`, `claimed_by != worker`, dead lease —
+  **and a flagged episode keeps its working status, so it matches every one of them.**
+  `acquire()` would re-claim it seconds later, the top-of-loop check would see the flag,
+  and it would wait, release, re-claim, for ever.
+  ✅ **The fix is one filter — `&needs_look=is.false` — and it is the SAME EDIT, IN THE
+  SAME FUNCTION, AS THE SCRIPT GATE ADDED ON 19 Aug**, for the same reason in the same
+  words: *"Releasing at gates opens a SECOND door, and a gate that guards one of two doors
+  is not a gate."* Release-on-flag opens a third.
+
+  🔴 **2. THE SIDE STREAM CAN STILL BE WRITING.** `_start_alongside` runs during
+  `assembling`, and `_join_alongside` lives in `run_phase`'s `finally` — which
+  `flag_and_wait` never reaches, because it blocks *inside* `_run_phase_steps`. Checked
+  against the phase list: **the side thread is alive during `assemble_passA` and
+  `assemble_passB` only**, and both can flag. Hand back without joining and a later
+  re-claim builds a fresh `Ctx` with `alongside_done = {}` and starts a SECOND thread on
+  the same artefacts.
+  ✅ **The fix is free and it is E11's lesson verbatim: RELEASE MUST RAISE, NOT RETURN.**
+  An exception propagates through `run_phase`'s `finally`, which joins the thread before
+  the release lands. *§9: "it also had to be changed from returning a flag to raising,
+  because in `flag_and_wait` a bare `return` means retry the step."* Same function, same
+  fix, second time.
+
+  🟠 **3. THE HEARTBEAT MUST BE STOPPED BEFORE THE HAND-BACK, NOT AFTER.** `rail.heartbeat`
+  filters `claimed_by=eq.worker`; after `hand_back` it returns None, sets `hb.lost`, and
+  the next `ctx.check_alive()` raises `OwnershipLost`. `_code_changed_exit` already does
+  `hb.active.clear()` first — copy that order exactly.
+
+  🟠 **4. THE BOARD WOULD SHOW A FALSE "STUCK" CHIP.** `app.js stepState()` returns
+  `waiting` while `needs_look` is true — correct — but **the moment Jodie clears the flag
+  it falls through to `ran > budget_s` and reports STUCK**, using a `started_at` that may
+  be hours old, until the episode is re-claimed. ✅ Clear `state["current"]` before handing
+  back. Two lines.
+
+  ⚠️ **AND ONE HONEST CONSEQUENCE THAT IS NOT A BUG AND MUST BE SAID OUT LOUD.**
+  `acquire()` is only reached when the inner loop breaks. **So if the engine claims another
+  episode while EP-A is flagged, clearing EP-A's flag does NOT restart it — it waits until
+  the other episode parks at a gate.** That is already true of every gate-parked episode
+  since the Yard landed; release-on-flag extends it to flags. **For a DECISION flag that is
+  fine. For a FAULT flag Jodie has just repaired something and is standing there**, and
+  "I fixed it and nothing happened" is exactly the shape that gets a feature switched off.
+  It is a pick-up-latency question, not a release question — see (c).
+
+  🟢 **WHAT DOES *NOT* BREAK, checked and named so nobody re-checks it:**
+  no step loses saved state · no paid job is re-submitted (`job_id` short-circuits, and
+  the re-run already happens today) · `_record_gate_answers` already runs at the top of
+  the inner loop for exactly this case (C3, built for EP23's overnight reboot) · the board
+  keeps showing the flag, because `needs_look` is untouched · **and no human gate moves.**
+
+  ## (c) ONE RELEASE OR TWO? **ONE.**
+  The split is real — `listen_check` and the two placement reviews are a human JUDGING;
+  `audit_inputs`, `ebook_cover`, `credit_check` and the rest are a human REPAIRING — and
+  the decision flags are the expensive ones (`listen_check` alone is 30.2 h of the 135.6).
+  **But it is the wrong axis to build on, for three reasons:**
+  1. **From the engine's side they are identical.** The episode is stopped, a human is
+     needed, no code may clear it. Releasing the claim changes none of that either way.
+  2. **The classification is not stable per step.** `cards_render` raises the title
+     placement review (a decision) AND card faults (a fault) — one step, both kinds,
+     19.4 h between them. Any table keying release off the step name is a maintained list,
+     and §7 says what those are.
+  3. **Two releases is two definitions of "waiting on a human."** ⭐ That has been the
+     wrong answer four times in three days. There are already THREE wait shapes in this
+     engine; the fix should leave **one**, not four.
+  **So: one release, keyed off `needs_look` and nothing else.** The decision/fault
+  difference belongs where it already lives — in the WORDS of the flag — and in pick-up
+  latency, which is a separate question with a separate answer.
+
+  ### ⚠️ AND THE THIRD WAIT SHAPE, WHICH THIS FIX DOES NOT TOUCH — RAISE IT, DO NOT RIDE IT
+  **`step_cover_pick` waits in a bespoke loop of its own and NEVER RAISES A FLAG AT ALL**
+  (`engine.py` ~998): it polls `cover_choice` every 15s, holds the claim, and exits 3 if
+  not in `--watch`. Nothing keyed on `needs_look` can see it. *This is also why E44's own
+  measurement found ZERO parks at `awaiting_render`/`awaiting_cover`: neither gate is a
+  status any more — the render ask is raised inside `building` by `step_render_gate`, and
+  the cover pick waits inside `building` here.* **Fixing it is a separate change with its
+  own risk and it needs its own ruling** (E48's precedent — *"raise it, do not ride it
+  along"*). Named here so the next person does not think E44 covered it.
+
+  ## (d) 🔴 THE COMPARISON JODIE ASKED FOR: FLAG RELEASE vs SPECULATIVE ASSEMBLY
+  **They are NOT the same fix, and neither makes the other unnecessary.**
+  · **Flag release changes WHO HOLDS THE CLAIM.** It builds nothing, spends nothing, and
+    changes no step's behaviour.
+  · **Speculative assembly changes WHAT GETS BUILT BEFORE A HUMAN ANSWERS.**
+
+  | | flag release | speculative assembly |
+  |---|---|---|
+  | ceiling | the work waiting on OTHER episodes — **scales with the queue** | the work left on THIS episode — **saturates in 1–2 h** |
+  | measured value | **13.1 h in 18 days, all of it in the last 2** | the safe half already shipped: **5.7 min inside a 9.8-min assembly** |
+  | what it can get wrong | a claim, recoverable in one tick | an **artefact**, built past a gate, and its children |
+  | ruling needed | **none — it is the Yard's argument, already approved** | a new one: what may be built before a human answers |
+
+  🔴 **AND THE SAFE HALF OF SPECULATIVE ASSEMBLY IS ALREADY BUILT AND ALREADY BOUNDED.**
+  The alongside side stream landed 18 Aug and its own docstring is the rule: *"IT CANNOT
+  CHANGE THE OUTCOME OF A BUILD, ONLY THE CLOCK. It writes nothing, flags nothing and
+  retries nothing."* **What is left to speculate on is precisely the UNSAFE half** — the
+  work on the far side of a human gate.
+  ⚠️ **And one of those gates exists specifically to stop it.** `step_listen_check`'s own
+  docstring: *"everything after it — the shot map, both assembly passes, the e-book and QC
+  — is about half an hour, and all of it is wasted on a bad take. EP20 paid that twice."*
+  **Speculating past `listen_check` is the thing `listen_check` was created to prevent**,
+  and `listen_check` is the single biggest wait on the board. Past the cover pick, the
+  title placement and the thumbnail placement it is fault #5 by construction: artefacts
+  that are children of an unanswered question, which do not hash like the thing they came
+  from and are not found by looking for copies.
+
+  ### ⚖️ THE READ'S ANSWER: **FLAG RELEASE, AND SPECULATIVE ASSEMBLY IS NOT SECOND — IT IS
+  ### A DIFFERENT AND MOSTLY-ALREADY-ANSWERED QUESTION.** But two things must be said:
+  🔴 **THE HONEST CASE AGAINST BUILDING IT AT ALL:** on eighteen days of real logs it would
+  have bought **nothing on 31 of 35 long waits.** Its whole value rests on the queue
+  staying deep. If Jodie goes back to approving one episode at a time, it is idle code.
+  🟢 **THE CASE FOR:** the queue IS deep now, the last 22½ hours were 90% flagged, and the
+  fix is small, reversible, spends nothing and moves no human gate.
+
+  ### 📌 AND A THIRD CANDIDATE NOBODY ASKED ABOUT, WHICH IS THE ONE THAT ACTUALLY FREES EP32
+  **`_draft_watch` runs ONLY in the idle branch of the outer loop**, by design — its own
+  comment: *"It runs ONLY when nothing was claimable, so it can never delay work the engine
+  could otherwise be doing."* **So EP32 is starved whenever the engine holds ANY episode,
+  flagged or not.** Proof from the logs, not the code: 210 drafting-pass lines overall,
+  **0 inside any flag window, and 0 on the whole of 20 Aug.**
+  · Flag release gets this for free **during a flag** — with EP35 released at 02:00, the
+    yard cap unreached and nothing else claimable, `acquire()` returns None, the idle
+    branch runs, and EP32 (ledger 0) is picked up by the FAST path within 25 seconds.
+  · It does **not** help during a normal busy build. That is a smaller cost (~2 h, not 9),
+    and moving the drafting pass off the idle branch is a real change — a commission
+    blocks the main loop for minutes, which is the pass's own named limitation.
+  **Raised, not built, and NOT a reason to delay E44.**
+
+  ## (e) THE ESTIMATE, FROM READING THE CODE
+  ```
+  rail.reclaim_stale — one filter + the docstring paragraph               ~5 lines
+  a Released exception; flag_and_wait raises instead of looping           ~15 lines
+  the top-of-inner-loop needs_look wait — same release, ONE definition    ~6 lines
+  cmd_run — catch it: clear the heartbeat, clear `current`, hand_back     ~10 lines
+  run_phase's finally already joins the side stream                       0 lines
+  ```
+  **~35–45 lines across two files. Half a day.** ⚠️ **The controls are the job, not the
+  code** — 4b: *a guard is not trustworthy until you have watched it FAIL.* The red-first
+  control has to show the engine (i) release on a flag, (ii) **refuse to re-claim it while
+  the flag is up** — the spin — and (iii) take it back within one tick of the clear.
+  🔴 **AND THE LIVE CONTROL COLLIDES WITH E46, WHICH IS ALREADY OPEN.** A live red-first
+  test wants a throwaway ticket, and cleaning one up needs `rail.delete()` — granted to
+  `test_dead_zone.py` and nothing else, enforced by AST across the repo. **Two honest ways
+  out:** widen the exception (E46's pending decision, recommendation already recorded), or
+  run the control on a **retired mock ticket**, which `cmd_mock_episode` already reuses
+  rather than deletes and which needs no new permission. The second avoids the ruling
+  entirely and should be tried first.
+  **Total: ~1 day structural, ~1 day for a control that has been watched to fail.**
+  ✂️ **What does not earn its place, cut here rather than proposed:** `step_cover_pick`
+  (its own change, its own ruling) and moving the drafting pass off the idle branch (real,
+  smaller, and not a blocker). **E44 is the claim, and nothing else.**
+
+  ### ⛔ NOTHING CHANGED. EP35 WAS BUILDING THROUGHOUT AND STILL IS.
