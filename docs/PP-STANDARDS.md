@@ -359,7 +359,7 @@ surfaced, and the run is recorded in the episode's run log.**
   UNTOUCHED template and HeyGen support could not fix it**, so the avatar, voice
   and template were all rebuilt and the old renders deleted. Render on **Avatar IV**.
   ❓ The scripts still say "Gordon"; whether the NAME follows the face is Jodie's call.
-- **Voice** the standing PP voice baked into the template (19 Aug 2026: `7e157ec62c9c45f1adca12faae72c86f`). It sounds Australian; it is **NEVER ElevenLabs** (that engine forces a US accent — it cost a full day on EP04). If ever set manually: voice engine **Auto**, accent **English (Australia)**.
+- **Voice** — **"Patrick", `7e157ec62c9c45f1adca12faae72c86f`**, baked into the template. Confirmed current 21 Aug 2026, and HeyGen's own UI showed *"Voice: Patrick"* on EP35's render. 🚫 **The "PP Gordon Floyd" clone `a6d512a13a3c40c1b79fdd39856a2b72` is RETIRED — it is what produced the AMERICAN ACCENT on EP31**, and `SKILL.md` described it as locked and "ear-confirmed PERFECT" for two days after it broke. **When a document and the HeyGen screen disagree about which voice is loaded, the screen wins.** It sounds Australian; it is **NEVER ElevenLabs** (that engine forces a US accent — it cost a full day on EP04). If ever set manually: voice engine **Auto**, accent **English (Australia)**.
 - **Background** the saved grandstand/racecourse image — baked into the standing template; identical every episode.
 
 ## ⏸ HeyGen human step + standing template (the anti-bug)

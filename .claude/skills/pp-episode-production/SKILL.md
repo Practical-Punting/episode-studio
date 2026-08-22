@@ -164,15 +164,33 @@ before rendering anything.
   it hides the Accent control and silently forces an American voice (the EP04
   voice bug that burned a full day); keep the payload engine-agnostic
   (voice_id only).**
-  > 🔴 **STOP — THE VOICE AND TEMPLATE IDS ON THIS PAGE ARE OUT OF DATE (20 Aug 2026).**
-  > **The ONE home is `docs/HEYGEN-HUMAN-STEP.md`. Read the id there, never here.**
-  > The presenter was rebuilt on 19 Aug and again on 20 Aug; this section predates both.
-  > ⚠️ **AND THIS PAGE CONTRADICTS THE CURRENT RECORD.** The line that used to sit here
-  > said *"Old 'Patrick' voice `7e157ec62c9c45f1adca12faae72c86f` is SUPERSEDED — source
-  > of the wrong voice"*, while `HEYGEN-HUMAN-STEP.md`, `PP-STANDARDS.md` and the 20 Aug
-  > rebuild all carry that SAME id as the CURRENT voice. **An id cannot be two voices,
-  > and nobody has established which record is wrong.** No cause is claimed here.
-  > Raised for Jodie, 21 Aug 2026. Until she rules, follow the one home.
+  > # 🔴 STOP — EVERY VOICE AND AVATAR ID IN THE PARAGRAPH ABOVE IS RETIRED, AND ONE OF
+  > # THEM IS THE THING THAT BROKE EP31. RESOLVED 21 Aug 2026; DO NOT RE-OPEN IT.
+  > **The ONE home for these ids is `docs/HEYGEN-HUMAN-STEP.md`. Read them there.**
+  >
+  > | | |
+  > |---|---|
+  > | **CURRENT VOICE** | **"Patrick" `7e157ec62c9c45f1adca12faae72c86f`** |
+  > | 🚫 **RETIRED, AND THE CAUSE OF THE FAULT** | "PP Gordon Floyd" `a6d512a13a3c40c1b79fdd39856a2b72` |
+  > | 🚫 retired avatar | Floyd `de774dd2f3ef4a52bc31dee6fc91f118` |
+  >
+  > **The "PP Gordon Floyd" clone above — the one this paragraph calls LOCKED and
+  > "ear-confirmed PERFECT" — is what produced the AMERICAN ACCENT on EP31 on 19 Aug
+  > 2026.** Hugh and Jodie replaced the avatar, the voice and the background that day.
+  > **Patrick is not "the old voice"; Patrick is the voice.** HeyGen's own UI showed
+  > *"Voice: Patrick"* on EP35's render on 20 Aug — **the screen beats the document.**
+  >
+  > ⚠️ **THE RETIRED LINE WAS ACTIVE, WRONG GUIDANCE, NOT A STALE FOOTNOTE.** It read
+  > *"Old 'Patrick' voice `7e157…` is SUPERSEDED — source of the wrong voice"* — naming
+  > the CURRENT voice as the broken one and the BROKEN one as locked and perfect. Anyone
+  > following this page would have re-introduced the exact fault EP31 was rebuilt to
+  > escape. **It had also been contradicted by two other docs for two days and nothing
+  > compared them** — one value, three homes, and the wrong copy was the one giving
+  > instructions (fault #2).
+  > 📌 **The `heygen_generate.py` paragraph above is the PAID API path and is NOT the
+  > default** — the human step below is. Its ids are left in place only because they are
+  > the historical record of what that script was written against; **they must not be
+  > copied forward.**
   **captions OFF** (it omits the v3 `caption` field, so nothing is burned into
   the frame — EP03's burned-caption mess came from a captions-ON browser
   render), polls to completion (matching on `video_url` present — skips phantom

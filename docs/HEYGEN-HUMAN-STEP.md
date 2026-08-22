@@ -43,13 +43,19 @@ ElevenLabs → US-accent bug) **cannot recur** — you only drop in the script.
 > · **The presenter's NAME is unsettled three ways: Gordon / Peter / Luke.** Every
 >   script still says "Gordon" and the board's flag copy still says *"Gordon's render is
 >   still cooking"*. **Nothing here assumes which one wins — it is Jodie's call.**
-> · **`7e157ec62c9c45f1adca12faae72c86f` IS CONTRADICTED BY THE SKILL.** `SKILL.md`
->   carries a July-era line calling this exact id *"Old 'Patrick' voice … SUPERSEDED —
->   source of the wrong voice"*, while this doc, `PP-STANDARDS.md` and the 20 Aug rebuild
->   all have it as the CURRENT voice. **An id cannot be two voices.** The current-voice
->   reading is followed here because it is the later and better-attested one, but
->   **nobody has established which record is wrong** and no cause is claimed for it.
->   Raised for Jodie, 21 Aug.
+> · ✅ **THE VOICE CONFLICT IS RESOLVED (21 Aug 2026) — PATRICK IS CURRENT.**
+>   **`7e157ec62c9c45f1adca12faae72c86f` ("Patrick") is the voice.** The conflicting
+>   claim lived in `SKILL.md`, which called Patrick *"SUPERSEDED — source of the wrong
+>   voice"* and called the **"PP Gordon Floyd" clone `a6d512a13a3c40c1b79fdd39856a2b72`**
+>   locked and *"ear-confirmed PERFECT"*.
+>   🔴 **IT WAS EXACTLY BACK TO FRONT. The Floyd clone is what produced the AMERICAN
+>   ACCENT on EP31 on 19 Aug**, and that is why Hugh and Jodie replaced the avatar, the
+>   voice and the background that day. **HeyGen's own UI showed "Voice: Patrick" on
+>   EP35's render on 20 Aug — the screen beats the document.** `SKILL.md` is corrected.
+>   ⚠️ **The lesson is not "a doc went stale". It is that the stale copy was the one
+>   giving INSTRUCTIONS**, naming the working voice as broken and the broken one as
+>   locked — so following it would have re-created the fault the rebuild existed to
+>   escape. Three homes for one id, and nothing compared them.
 >
 > **EP31's first render came back in an AMERICAN ACCENT from an untouched template, and
 > HeyGen support could not fix it.** That is what started the 19 Aug rebuild. **The old
