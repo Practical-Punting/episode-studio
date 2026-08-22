@@ -470,6 +470,68 @@ def step_script_sync(ctx):
     return {"words": words, "sha256": sha, "source": source}
 
 
+def _reference_episodes(nn, want=2):
+    """The `want` most recent episodes that have a readable episode.json, newest first.
+
+    One lookup, two readers — the config pre-flight and the shape gate. A second copy
+    of this loop would be a second thing to get out of step (#2).
+    """
+    refs, names = [], []
+    for n in range(int(nn) - 1, 0, -1):
+        if len(refs) == want:
+            break
+        try:
+            p = preflight_episode_json.ep_dir(n) / "docs/episode.json"
+            refs.append(json.loads(p.read_text(encoding="utf-8")))
+            names.append(f"EP{n:02d}")
+        except Exception:                                             # noqa: BLE001
+            continue
+    return refs, names
+
+
+def _preflight_shape(ctx) -> list[str]:
+    """Is episode.json even the right SHAPE to read? Runs BEFORE every other check.
+
+    🔴 WHY IT EXISTS (EP37, 23 Aug 2026). "Checking the inputs" exists to catch a bad
+    input and say so in plain English. Handed a file the writer had left half-finished,
+    it instead threw `'str' object has no attribute 'get'` into the operator's box —
+    three times — and the episode sat overnight. Jodie was given a Python error she
+    could do nothing with, which is precisely what fault #6 forbids.
+        AND ONE FIX WOULD NOT HAVE BEEN ENOUGH. The config pre-flight and the card
+    pre-flight BOTH walk those lists, and both threw the identical error on the
+    identical input. Patching the first and shipping would have left the second to fail
+    the same way on the next episode (#2b: unify the definition, do not teach one
+    reader the other's cases). So the question is asked ONCE, here, ahead of both.
+    """
+    if ctx.mock or not ctx.ep.get("ep_number"):
+        return ["shape gate: skipped (mock)"]
+    target = ctx.provider.dir(ctx.ep) / "docs/episode.json"
+    if not target.is_file():
+        return ["shape gate: no episode.json yet — nothing to check"]
+    try:
+        j = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as e:                                            # noqa: BLE001
+        raise EngineFlag(
+            "This episode's settings file cannot be read at all, so nothing about the "
+            "episode could be checked. Nothing has been built and nothing spent.\n"
+            f"      • it reported: {e}\n"
+            "    The file has to be written again — running this step again will not "
+            "change it.",
+            blockers=[f"episode.json is not readable as settings: {e}"])
+    refs, _names = _reference_episodes(ctx.ep.get("ep_number"))
+    if len(refs) < 2:
+        return ["shape gate: fewer than two reference episodes — standing aside"]
+    bad = preflight_episode_json.check_wellformed(j, refs)
+    if bad:
+        raise EngineFlag(
+            "This episode's settings file is not finished, so I have not started the "
+            "build:\n"
+            + "\n".join(f"      • {b}" for b in bad)
+            + "\n    Nothing has been built and nothing spent.",
+            blockers=bad)
+    return ["shape gate: episode.json is well formed"]
+
+
 def _preflight_config(ctx) -> list[str]:
     """Diff this episode's episode.json against the last two that built cleanly.
 
@@ -487,16 +549,7 @@ def _preflight_config(ctx) -> list[str]:
     if not target.is_file():
         return ["config pre-flight: no episode.json yet — nothing to compare"]
 
-    refs, names = [], []
-    for n in range(int(nn) - 1, 0, -1):          # the most recent episodes, newest first
-        if len(refs) == 2:
-            break
-        try:
-            p = preflight_episode_json.ep_dir(n) / "docs/episode.json"
-            refs.append(json.loads(p.read_text(encoding="utf-8")))
-            names.append(f"EP{n:02d}")
-        except Exception:                                             # noqa: BLE001
-            continue
+    refs, names = _reference_episodes(nn)
     if len(refs) < 2:
         return ["config pre-flight: fewer than two reference episodes — standing aside"]
 
@@ -644,6 +697,16 @@ def _epjson_gate(ctx) -> list[str]:
     swallowed. (CLAUDE.md: a pass is a statement about what was MEASURED.)
     """
     blockers: list[str] = []
+    # 🔴 SHAPE FIRST, AND ALONE IF IT FAILS. The two gates below walk the file's lists
+    # assuming every entry is an object; on a truncated file they do not report, they
+    # THROW — and this loop only catches EngineFlag, so the crash would escape. Running
+    # them anyway to "give the writer every complaint at once" is exactly wrong here:
+    # on a half-written file their findings describe the half that is missing.
+    try:
+        for line in _preflight_shape(ctx):
+            log(f"   {line}")
+    except EngineFlag as f:
+        return list(getattr(f, "blockers", None) or [str(f)])
     for fn in (_preflight_config, _preflight_cards):
         try:
             for line in fn(ctx):
@@ -750,6 +813,10 @@ def step_audit_inputs(ctx):
     # would be a second, pointless pass — and on the hand-written path they must
     # still raise their own flags, unchanged, exactly as they did before.
     if not commissioned:
+        # SHAPE FIRST — see _preflight_shape. Both gates below assume the file's lists
+        # hold objects, and on a half-written file they throw rather than report.
+        for line in _preflight_shape(ctx):
+            log(f"   {line}")
         for line in _preflight_config(ctx):
             log(f"   {line}")
         for line in _preflight_cards(ctx):

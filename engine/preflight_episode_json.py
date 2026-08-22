@@ -166,6 +166,61 @@ def _subtree_missing(missing: set[str], present: set[str]) -> tuple[dict, list]:
     return blocks, lone
 
 
+# ------------------------------------------------------------------- shape gate
+# 🔴 A CHECKER THAT CRASHES ON A MALFORMED INPUT IS WORSE THAN NO CHECKER.
+# (EP37, 23 Aug 2026.) Every pass below walks `cards`, `beats`, `broll` and `figures`
+# assuming each entry is an OBJECT. EP37's writer stopped part-way and left the string
+# "PLACEHOLDER_REST_OF_FILE" as the fourteenth card, so the very first line of the
+# referential pass did `"PLACEHOLDER_REST_OF_FILE".get("id")` and threw
+#     'str' object has no attribute 'get'
+# straight into the operator's box, three times, on a step whose entire job is to catch
+# bad inputs and SAY SO. Jodie got a Python attribute error she could do nothing with,
+# and the episode sat overnight. That is fault #6 exactly: no raw stack traces where a
+# person is standing.
+#
+# ⚠️ WHICH LISTS MUST HOLD OBJECTS IS LEARNED FROM THE REFERENCE EPISODES, never from a
+# list kept here. A literal tuple of ("cards", "beats", "broll", "figures") is the shape
+# #7 calls already-broken — correct the day it is written and decaying from then on. The
+# references are the same two episodes the rest of this file already trusts, so the
+# coverage grows by itself the day an episode gains a new list.
+def check_wellformed(j, refs: list[dict]) -> list[str]:
+    """Is this file even the right SHAPE to read? Plain English, never an exception."""
+    if not isinstance(j, dict):
+        return [f"episode.json holds a {type(j).__name__}, not a set of settings. "
+                f"Nothing about this episode can be checked until it is rewritten."]
+    problems = []
+    for key in sorted(j):
+        if key.startswith("_"):
+            continue
+        val = j[key]
+        if not isinstance(val, list):
+            continue
+        # both references must carry this key as a non-empty list of objects before a
+        # non-object here counts as a fault
+        ref_lists = [r.get(key) for r in refs if isinstance(r, dict)]
+        if len(ref_lists) < 2 or not all(
+                isinstance(rv, list) and rv and all(isinstance(x, dict) for x in rv)
+                for rv in ref_lists):
+            continue
+        for i, item in enumerate(val):
+            if isinstance(item, dict):
+                continue
+            shown = str(item)
+            if len(shown) > 80:
+                shown = shown[:80] + "…"
+            what = (f"the text {shown!r}" if isinstance(item, str)
+                    else "empty" if item is None
+                    else f"a {type(item).__name__}, {shown}")
+            problems.append(
+                f"{key}[{i}] is not a {key[:-1] if key.endswith('s') else key} at all — "
+                f"it is {what}. Every entry in {key!r} has to be a set of "
+                f"settings, and both reference episodes have it that way. This is what "
+                f"a file left UNFINISHED looks like: the writer wrote as far as here "
+                f"and stopped. Re-running this step will not change the file, so it "
+                f"will not help — the settings have to be written again.")
+    return problems
+
+
 # ----------------------------------------------------------------- referential pass
 def _card_ids(j: dict) -> set[str]:
     return {c.get("id") for c in (j.get("cards") or []) if c.get("id")}
@@ -345,6 +400,15 @@ def preflight(j: dict, refs: list[dict]) -> dict:
     """Returns {'must': [...], 'worth': [...], 'ok': bool}. `must` is halt-worthy."""
     must: list[str] = []
     worth: list[str] = []
+
+    # 🔴 SHAPE FIRST, AND RETURN EARLY ON A FAULT. Every pass below assumes the lists
+    # hold objects; on a malformed file they do not report, they THROW. So the shape
+    # gate runs before any of them and, when it finds something, stops here — the
+    # downstream findings would be worthless anyway and the attempt to compute them is
+    # exactly what put a Python error in front of Jodie on EP37.
+    bad_shape = check_wellformed(j, refs)
+    if bad_shape:
+        return {"must": bad_shape, "worth": [], "ok": False}
 
     must += check_references(j)
     must += check_shape(j, refs)
