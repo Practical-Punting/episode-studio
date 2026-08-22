@@ -963,6 +963,109 @@ def _probe_png(path):
     return w, h, luma
 
 
+CHIP_TOL = 12          # per-pixel luma slack: the pass-B re-encode, nothing else
+CHIP_MATCH = 0.50      # the midpoint of a binary, NOT a calibrated brightness line
+
+
+def _raw_frame(path, t, w=1920, h=1080, vf_extra="", pix="rgb24", bpp=3):
+    """One frame at `t` as raw bytes, or None. Scaled to the final's own grid.
+
+    🔴 COLOUR, NOT LUMA — AND A CONTROL IS WHY. (22 Aug 2026.)
+    This compared brightness alone until a synthetic fixture caught it out: a FLAT
+    BRIGHT BACKDROP with no chip on it matched a flat pale chip shape on luma over
+    57% of the area, which is a FALSE PRESENT. Brightness is one number and a large
+    plain background can reproduce it by coincidence; matching all three channels at
+    once is a far longer coincidence. The real episodes never came close to the line
+    (2% against 100%), so real data alone would NOT have found this — the synthetic
+    control did, which is the whole argument for writing the failing case first.
+    """
+    vf = f"{vf_extra}scale={w}:{h},format={pix}"
+    r = subprocess.run([FFMPEG, "-hide_banner", "-v", "error", "-ss", f"{t:.3f}",
+                        "-i", path, "-frames:v", "1", "-vf", vf,
+                        "-f", "rawvideo", "-"], capture_output=True)
+    if r.returncode != 0 or len(r.stdout) != w * h * bpp:
+        return None
+    return r.stdout
+
+
+def midroll_chip_match(final, chip_path, chip_start, probe_t, tol=CHIP_TOL):
+    """Is the chip's OWN PICTURE on screen at `probe_t`? Returns (fraction, px, why).
+
+    🔴 WHY THIS REPLACED A BRIGHTNESS LIMIT (EP35, 22 Aug 2026).
+    The old check cropped a FIXED rectangle and hard-failed if its MEAN LUMA rose
+    above 95. That is a proxy twice over, and its own comment above admitted half of
+    it: brightness where a chip would be is not evidence that a chip is there. The
+    other half is worse — the rectangle missed the right quarter of the chip and
+    averaged in ~45% BACKGROUND, so the number it produced was mostly a reading of
+    THE ROOM. It scraped through only while the backdrop stayed dark:
+
+        same rectangle, same chip, only the backdrop differs
+          EP34  old dark studio      luma 63.9  pass
+          EP35  new bright racecourse luma 99.2  FAIL   (limit 95)
+
+    EP35 is correct — Jodie watched the frame. The CHECK was wrong, and it would
+    have failed every future episode on the new background.
+
+    SO THIS ASKS THE QUESTION A HUMAN ACTUALLY ASKS: are the like+subscribe icons
+    on screen? It compares the final frame against THE CHIP CLIP ITSELF, pixel for
+    pixel, inside the chip's own opaque area:
+
+      · the area is DERIVED from the chip by the SAME chromakey filter the
+        compositor uses (alphaextract), so there is no rectangle to maintain and a
+        redesigned chip re-derives its own area. #7: coverage comes from the thing.
+      · the BACKGROUND CANNOT ENTER THE ANSWER. Those pixels are opaque, so what
+        is behind them is replaced. Dark studio or bright sky is irrelevant BY
+        CONSTRUCTION, not by re-calibration.
+      · it is specific. "Something covered the region" is not good enough — a
+        full-frame CARD over the same area scores 1.7%, and is rejected.
+
+    MEASURED ON EP35, and the gap is a binary rather than a threshold:
+        chip present  98.4%      chip absent  1.1-2.0%      full-frame card  1.7%
+    Anything from ~10% to ~85% returns the same verdict on every case, which is
+    the whole difference from a 95-luma line that EP35 missed by five.
+    """
+    try:
+        r = subprocess.run([FFPROBE, "-v", "error", "-select_streams", "v:0",
+                            "-show_entries", "stream=duration,width,height",
+                            "-of", "default=noprint_wrappers=1:nokey=1", chip_path],
+                           capture_output=True, text=True)
+        w, h, dur = 1920, 1080, None
+        vals = [x for x in r.stdout.split() if x]
+        if len(vals) >= 3:
+            w, h, dur = int(vals[0]), int(vals[1]), float(vals[2])
+    except Exception:                                                  # noqa: BLE001
+        return None, 0, "could not probe the chip clip"
+    # The graph pads the chip with `tpad=stop_mode=clone`, so past its own end the
+    # LAST frame is what is on screen. Track the offset; clamp into the real clip.
+    off = probe_t - chip_start
+    if dur:
+        off = max(0.0, min(off, dur - 0.08))
+    # the chip is composited full-frame (overlay=0:0, no scale) — assemble_episode.py
+    # emits `[mrl]` with neither, so its pixels land on the final's own grid 1:1.
+    ref = _raw_frame(chip_path, off, w, h)
+    # `format=yuva420p` is REQUIRED: without an explicit alpha format alphaextract
+    # cannot negotiate one and the whole graph fails with an I/O error.
+    alpha = _raw_frame(chip_path, off, w, h, pix="gray", bpp=1,
+                       vf_extra="chromakey=0x00FF00:0.28:0.06,format=yuva420p,"
+                                "alphaextract,")
+    got = _raw_frame(final, probe_t, w, h)
+    if ref is None or alpha is None or got is None:
+        return None, 0, "could not read the chip clip or the final frame"
+    total = ok = 0
+    for i, a in enumerate(alpha):
+        if a != 255:                       # only FULLY opaque pixels: everywhere else
+            continue                       # the backdrop legitimately shows through
+        total += 1
+        j = i * 3
+        if (-tol <= ref[j] - got[j] <= tol
+                and -tol <= ref[j + 1] - got[j + 1] <= tol
+                and -tol <= ref[j + 2] - got[j + 2] <= tol):
+            ok += 1
+    if total == 0:
+        return None, 0, "the chip clip has no fully-opaque pixels to compare"
+    return ok / total, total, ""
+
+
 def stage_card_timing(qc, final, beats, head, episode_path):
     """Card-sync standard (25 Jul 2026): every card ENTERS no earlier than its
     spoken cue (beat start) and HOLDS at least the readable minimum. Verified
@@ -1202,21 +1305,30 @@ def stage_card_timing(qc, final, beats, head, episode_path):
         # to be on screen there. A green light from the wrong frame.
         #     FIXING THE INSTANCE IS NOT FIXING THE FAULT. The audit found the sibling
         #     the way E22's did: by asking whether the fault had one.
-        mt = ((mid["at"] + head) if mid.get("at") is not None
-              else bs(mid["beat"]) + mid.get("offset", 1.0)) + mid.get("dur", 5.0) / 2
-        import subprocess
-        r = subprocess.run([FFMPEG, "-hide_banner", "-ss", f"{mt:.2f}", "-i", final,
-                            "-frames:v", "1", "-vf", "crop=700:260:70:790,scale=64:24,format=gray",
-                            "-f", "rawvideo", "-"], capture_output=True)
-        if r.returncode == 0 and r.stdout:
-            luma = sum(r.stdout) / len(r.stdout)
-            if luma > 95:
-                qc.fail(f"midroll lower-third not visible at {mt:.0f}s (chip region luma "
-                        f"{luma:.0f} - too bright; like+subscribe icons must be on screen)")
+        chip_start = ((mid["at"] + head) if mid.get("at") is not None
+                      else bs(mid["beat"]) + mid.get("offset", 1.0))
+        mt = chip_start + mid.get("dur", 5.0) / 2      # centre: past both fades
+        # 🔴 NOT A BRIGHTNESS LIMIT ANY MORE — see midroll_chip_match's header for
+        # what a fixed rectangle and a luma ceiling cost EP35. The chip's own picture
+        # is compared against the final frame; the backdrop cannot enter the answer.
+        if chip_ok and clip_name:
+            frac, px, why = midroll_chip_match(
+                final, os.path.join(ep_root, "overlay", "clips", clip_name),
+                chip_start, mt)
+            if frac is None:
+                # A GUARD THAT CANNOT MEASURE MUST NOT INVENT A VERDICT. A missing or
+                # unreadable input is not evidence the chip is absent, and a false
+                # alarm on a finished episode is the more expensive of the two errors.
+                qc.warn(f"could not verify the midroll chip's picture at {mt:.0f}s "
+                        f"({why}) - the chip's file and the pass B graph are both fine")
+            elif frac < CHIP_MATCH:
+                qc.fail(f"midroll lower-third not visible at {mt:.0f}s: only "
+                        f"{100*frac:.0f}% of the chip's own pixels are on screen "
+                        f"(expected ~98%). The like+subscribe icons are missing, "
+                        f"covered, or composited somewhere else.")
             else:
-                qc.note(f"midroll lower-third visible at {mt:.0f}s (chip luma {luma:.0f})")
-        else:
-            qc.warn("could not probe the midroll chip region")
+                qc.note(f"midroll lower-third visible at {mt:.0f}s: {100*frac:.0f}% of "
+                        f"the chip's {px:,} opaque pixels match the chip clip itself")
 
 
 # ---------------------------------------------------------------------------

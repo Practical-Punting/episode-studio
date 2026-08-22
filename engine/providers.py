@@ -1207,6 +1207,38 @@ def check_youtube_title(ep_dir: Path, copy_txt: Path) -> str:
     return (r.stdout or "").strip()
 
 
+def _count(n: int, noun: str) -> str:
+    """'1 thing is' / '3 things are' — the operator's box is written for a person."""
+    return f"{n} {noun} is" if n == 1 else f"{n} {noun}s are"
+
+
+def _qc_hard_fails(report: Path) -> list:
+    """The QC report's OWN `## HARD FAILS` lines, in plain English, or [].
+
+    Derived from the report's structure rather than from a list of known failures,
+    so a hard fail added to qc_episode.py next month reaches the operator's box on
+    the day it is written. Nobody has to remember to add it here (#7).
+
+    Returns [] when the report is missing or has no hard-fail section — which is the
+    signal that QC CRASHED rather than judged, and the caller must keep the raw tail
+    in that case. A guard that cannot read its input must not invent a verdict.
+    """
+    try:
+        txt = Path(report).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    out, inside = [], False
+    for line in txt.splitlines():
+        if line.startswith("## "):
+            inside = line.strip().upper() == "## HARD FAILS"
+            continue
+        if inside and line.strip().startswith("- "):
+            # drop the machine's own "FAIL:" prefix — it tells a person nothing that
+            # the flag around it has not already said.
+            out.append(re.sub(r"^-\s*(FAIL:\s*)?", "", line.strip()))
+    return out
+
+
 def _shipping_srt(ep_dir: Path):
     """Which SRT goes out beside the video — (path, one line saying which and why).
 
@@ -3601,9 +3633,40 @@ class RealProvider:
         d = self.dir(ep)
         head = str(self.epjson(ep).get("build", {}).get("title_head", 7.0))
         # --episode arms the end-sequence + midroll checks (the EP08 lessons)
-        self.py("qc_episode.py", final_path, d / "renders/shot-map.json",
-                d / "output/qc", "--head", head,
-                "--episode", d / "docs/episode.json", cwd=d, timeout=900)
+        try:
+            self.py("qc_episode.py", final_path, d / "renders/shot-map.json",
+                    d / "output/qc", "--head", head,
+                    "--episode", d / "docs/episode.json", cwd=d, timeout=900)
+        except RuntimeError as e:
+            # 🔴 THE FLAG SHOWED HER THE WRONG END OF THE REPORT. (EP35, 22 Aug 2026.)
+            #
+            # `run()` puts the LAST 800 characters of a failed tool's output into the
+            # flag. For a traceback the tail IS the error, so that is right nearly
+            # everywhere. For QC it is exactly backwards: the report opens with
+            # `## HARD FAILS` and closes with a long list of PASSING notes, so the
+            # operator's box filled with card cue timings, page counts and thumbnail
+            # sizes — 8,800 characters of report, the last ~1,200 shown, and the one
+            # line that mattered truncated off the top.
+            #
+            #     JODIE WAS SHOWN A WALL OF THINGS THAT WERE FINE AND NONE OF THE
+            #     THING THAT WAS NOT. It cost her ten minutes on a one-line fault.
+            #
+            # So QC gets its own words instead of a slice of its stdout. The fails are
+            # read from the report's OWN `## HARD FAILS` section — derived, so a hard
+            # fail written next month appears here the day it is written and there is
+            # no list for anyone to keep up to date (#7).
+            fails = _qc_hard_fails(d / "output/qc/QC-REPORT.md")
+            if not fails:
+                raise                      # a crash, not a verdict — keep the tail
+            # EngineFlag, not a retry: a hard fail is a statement about a finished
+            # file that cannot change between attempts. The old path re-ran the whole
+            # of QC three times over four minutes to print the identical report.
+            what = "\n".join(f"• {f}" for f in fails)
+            raise EngineFlag(
+                f"I checked the finished episode and {_count(len(fails), 'thing')} "
+                f"still wrong:\n\n{what}\n\n"
+                f"Nothing else failed. When it's sorted, clear this flag and I'll "
+                f"check the episode again from the top.") from None
         # 🚨 AND DOES THE LINK SERVE WHAT WE JUST BUILT? (EP30, 18 Aug 2026.)
         # Every other check in the studio asks whether the FILE is right. Not one asked
         # whether the file we SENT is the file we made — and EP30's e-book was corrected
