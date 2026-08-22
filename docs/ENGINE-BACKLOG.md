@@ -2919,3 +2919,53 @@ on a public repo is not a trade worth making**).
   be the studio's rather than her words. The pixel report goes to the RUN LOG, where its
   reader is (`PP-operator-box-rule`). Exercised against the real halt text plus four edge
   cases including empty input, with a control that the retired sentence is gone.
+
+- 🔬 **E55 — THE NEW PRESENTER'S RAW RENDER IS HALF THE VIDEO BITRATE OF THE OLD ONE.
+  A CANDIDATE EXPLANATION IS RECORDED; NOTHING IS ESTABLISHED AND NOBODY SHOULD CHASE
+  IT.** *(EP35, 22 Aug 2026 — the first render with the rebuilt avatar and the layered
+  background. Jodie: "log it as a hypothesis with the numbers beside it. Don't chase it
+  tonight.")*
+
+  ### THE NUMBERS, MEASURED WITH ffprobe ON THE FILES THEMSELVES
+  ```
+                    video bitrate     audio bitrate    frame        duration
+  EP33 (old bg)      3,858,552          189,369      1920x1080/25    756.3s
+  EP34 (old bg)      3,869,124          189,372      1920x1080/25    813.2s
+  EP35 raw download  1,979,529          189,368      1920x1080/25    578.5s   <- HALF
+  EP35 after the studio's own trim/re-encode
+                     3,345,439          189,368      1920x1080/25    578.0s
+  ```
+  · **The download was byte-exact**: 157,151,479 stated, 157,151,479 landed.
+  · **The audio is identical to within 4 bps of both predecessors**, which RULES OUT the
+    one known failure mode in this pipeline — the ~123 kbps web-download path that
+    `qc_episode` rejects below 180 kbps. This is the API master, not the browser one.
+  · The delivered master that assembly consumes is **3.35 Mbps**, in the same league as
+    EP33/EP34, because the lead-in trim re-encodes anyway.
+
+  ### 🔬 THE CANDIDATE (JODIE, 22 Aug) — PLAUSIBLE, UNTESTED, AND THAT IS HOW IT STANDS
+  > *"Encoders spend bits on detail and edges. The old background was a room full of them
+  > — window frames, mullions, rails, trees, a chair. The new one is a soft-focus empty
+  > racecourse with half the frame plain sky, and the motion map shows it never changes.
+  > A static low-detail background is very cheap to encode. That would explain half the
+  > bitrate at the same visual quality — and it is the same design choice that removed
+  > the shimmer, paying twice."*
+  **Consistent with the evidence already in hand:** E55's own motion map over 289 frames
+  spanning the whole episode found the background completely static — every moving pixel
+  in the frame belongs to the presenter, and the card strip on the left reads 0.00%
+  movement at every threshold from 5 to 80 grey levels.
+
+  ### ⛔ WHY IT IS FILED AND NOT PROVEN
+  **Nothing here establishes it, and a plausible cause accepted without evidence is
+  fault #6** — the shape that let EP15's 35 MB shortfall be talked away as "re-encoding,
+  because the duration matched". The honest position: **the artefact was checked and is
+  good** (no collision, no background motion, no cut-out halo, no green fringing at heavy
+  zoom, audio identical), **and the encoder's reason for spending fewer bits is not
+  known.** It costs nothing to leave open.
+  📌 **If it is ever worth settling**, the test is cheap and obvious — encode the same
+  presenter take against the old busy background and the new plain one at identical
+  settings and compare the bitrates. **Not tonight, and not before it matters.**
+
+  ### 🟢 WHAT THIS ENTRY IS ACTUALLY FOR
+  So that the next person who meets a halved bitrate on a PP master **does not read it as
+  a defect** and does not re-run a render that is already correct — and equally, so that
+  nobody quotes the hypothesis above as if it were the finding.
