@@ -18,6 +18,128 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 🆕 LOGGED 22 AUG 2026 — from the first full step-by-step measurement of a build (PP-EP32)
+
+> **THE MEASUREMENT THESE COME FROM.** EP32 ran **1h56m14s** (03:01:48 → 04:58:02).
+> Starts read from the run log, ends from the rail's own per-step record — **nothing
+> estimated**. The three items below are listed **in the order to come back to them,
+> which is NOT the order of size.** Read the two standing conclusions at the end of this
+> section before proposing any re-sequencing.
+>
+> | step | duration | % of build |
+> |---|---|---|
+> | **audit_inputs** (settings + cards commission) | **48m15s** | **41.5%** |
+> | **cards_render** (incl. 8m47s human) | **21m42s** | **18.7%** |
+> | **assemble_passB** | **15m43s** | **13.5%** |
+> | assemble_passA | 7m16s | 6.3% |
+> | heygen_download (87% of it forced alignment) | 6m47s | 5.8% |
+> | youtube_copy | 4m55s | 4.2% |
+> | covers_ab | 4m37s | 4.0% |
+> | self_qc | 3m01s | 2.6% |
+> | *(everything else, 12 steps)* | *3m18s* | *2.8%* |
+>
+> 🔴 **THERE IS A DOMINANT STEP AND PARALLELISM IS NOT THE LEVER.** One step is 41.5%
+> and nothing else exceeds 19%; the commission inside it is **34m57s, 30.1% of the whole
+> build.** It runs FIRST and the b-roll prompts, cover prompts, cards and figures are all
+> read out of what it writes, so **nothing can legally sit beside it.** The 33m36s tail
+> after the master lands is nearly all ffmpeg on one machine. **The best honest overlap
+> left in the whole build is item 3 below: under five minutes of a hundred and sixteen.**
+
+## 1. 🔴 THE ENGINE VANISHED WITH NO EXIT LINE — **RELIABILITY, NOT SPEED**
+**Price: 13m12s on EP32 (11.4% of the build), and the real cost is UNBOUNDED.**
+
+The first `audit_inputs` attempt began at 03:01:53 and commissioned the settings and
+cards. The process was gone by 03:15:03, when the supervisor started a fresh one. The
+commission then **ran again from scratch** — the first thirteen minutes advanced nothing.
+
+🔴 **EVERY OTHER RESTART IN THAT DAY'S LOG HAS AN `engine exited <n>` LINE BEFORE IT.
+THIS ONE HAS NONE.** Two earlier restarts the same day (10:38 and 12:16) both logged
+their exit. So this was not an orderly stop, and the log cannot say what it was.
+
+⚠️ **WHY IT IS FIRST AND NOT THIRD.** Thirteen minutes is the *observed* price on a build
+somebody was watching. **"Silence and death look identical"** (fault #3) — the next
+occurrence may be overnight with nobody to notice, and the supervisor's restart is only
+as good as its tick. **A build that stops dead at 3am costs a day, not thirteen minutes.**
+
+**CANDIDATE WORTH CHECKING, ASSERTED AS NOTHING:** the modern-standby freeze already
+logged elsewhere in this file as a reliability blocker. **Check it; do not adopt it** —
+fault #6, and a wrong cause here is worse than none because the next restart will look
+like it fixed something.
+
+**First move:** find out whether the process was killed, crashed, or slept — and make the
+supervisor record the difference. **An exit nobody can characterise is the fault.**
+
+## 2. 🟠 DO NOT RE-RUN A STEP WHEN THE HUMAN CHANGED NOTHING — **GENERALISE IT**
+**Price: 6m44s on EP32. Across 300 episodes, roughly 33 hours.**
+
+`cards_render` ran 03:55:55 → 04:02:06, raised the title-card flag, waited 8m47s for
+Jodie, then **re-ran the entire step for 6m44s and produced the identical result** — its
+own log line says *"title card left alone: unchanged — episode.json still says the same
+thing"*, after re-examining all 27 pages and re-running every gate.
+
+**Total cost of that one flag: 15m31s, 13.4% of the build** — and only 8m47s of it was
+the human.
+
+🔴 **DO NOT PATCH THE TITLE CARD.** The general shape was fixed for QC on 22 Aug with the
+reasoning that already covers this: **a step's verdict is a statement about inputs that
+did not change between attempts.** `flag_and_wait` returns and the caller retries the step
+unconditionally, which is right when the human CHANGED something and pure waste when they
+did not. The engine already records the answer to a gate; **what it does not do is ask
+whether anything the step reads is different.**
+
+**The generalisation:** on clearing a flag, compare what the step depends on against what
+it depended on when it flagged. Unchanged → take the recorded result. Changed → re-run.
+⚠️ **Coverage must be DERIVED from what the step reads, not a list of steps someone
+maintains** (#7), or this becomes the sixth stale list in the drawer.
+
+## 3. 🟢 `youtube_copy` INTO THE SIDE STREAM — **SECOND, NOT LAST**
+**Price: 4m55s (4.2%). The cheapest of the three to build, and the smallest.**
+
+It is a pure model call that reads only the settled packaging — **not the finished video,
+not the thumbnail** — so it is free underneath the two ffmpeg assembly passes. Different
+resources; that is the whole test.
+
+🔴 **IT MUST GO SECOND: AFTER `thumbnail`, BEFORE `ebook_pdf`.** The side stream is a
+serial loop that **stops at the first failure**, and on EP32 it stopped at `ebook_pdf`
+(a 30-second timeout) — which is also why `web_copies` never got its slot that build.
+**Appended to the end of the list it would have saved exactly nothing on the very build
+that motivated it.**
+
+**Shape:** one work function returning the file, one entry in the alongside list — the
+same shape as the three already there. **The rail write stays on the main thread**, per
+the standing rule that what goes alongside is the WORK, never the bookkeeping and never
+the ask.
+
+### ✂️ CUT — considered and rejected against the rule *(overlap different resources, never the same one)*
+| candidate | why it does not earn its place |
+|---|---|
+| cards_render ∥ assemble_passA | headless Chromium **and** ffmpeg on one machine — contention. Cards already finish inside the render window anyway. |
+| passA ∥ passB | passB consumes passA's output. |
+| self_qc ∥ assembly | ffmpeg on the very file assembly is writing, and it must grade what everything else produced. |
+| the forced alignment ∥ anything | every card timing downstream is measured from it. |
+| b-roll / covers ∥ the commission | they need the prompts the commission writes. |
+| splitting the big commission in two | two model calls queue for the **same** rate limits — the rule's own counter-example. |
+
+---
+
+## ⚖️ TWO STANDING CONCLUSIONS FROM THIS MEASUREMENT — say them out loud
+
+**1. THE BUILD IS NOT FULL OF WASTE. It is 91.5% WORKING.** Of 1h56m14s, the machine
+worked 1h46m24s and waited on a human 9m50s. **Jodie is 8.5% of a build** — the title
+card (8m47s) and the listen check (1m03s); her cover pick took 31 seconds and **blocked
+nothing**, answered while the b-roll was still coming down. *Anyone arriving with "the
+build is full of dead time" should be shown this line first.*
+
+**2. THE RENDER IS FULLY HIDDEN — THE ENGINE WAITED ZERO SECONDS FOR HEYGEN.** The render
+was started by hand at 03:04:49, three minutes in; the master was in hand at 04:24:26;
+**the job was ready on the FIRST poll.** 68.4% of the build ran while it cooked.
+🔴 **THE 9 AUGUST RE-SEQUENCING WORKS, AND THIS IS THE EVIDENCE.** The locked order exists
+to put the render gate at the words gate so the long pole starts immediately — and it did
+its job perfectly here. **Next time somebody proposes changing the order, quote this
+paragraph.** Re-sequencing still needs Jodie's explicit re-approval.
+
+---
+
 # 🆕 LOGGED 15 AUG 2026 — found by the control while baking in EP26 faults 6 and 7
 
 ## 🟠 THE A21 RAIL LINE IS GATED ON HORSES, AND IT HAS WRITTEN A RUNNING RAIL INTO INDOOR SHOTS

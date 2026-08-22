@@ -67,6 +67,15 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   (Re-sequenced 9 Aug 2026 with Jodie's explicit approval. It used to fire the render and the gens batch in parallel, which meant the render waited on `audit_inputs` — a four-second scan until it became a COMMISSION on 7 Aug. EP18, a clean run, still made Gordon wait 17m14s, 98.7% of it that commission.)
   Human turns 1-2-3 at the front, turn 4 at the end. Never render-last.
   Re-sequencing needs Jodie's explicit re-approval.
+  ✅ **AND IT IS NOW MEASURED, SO ARGUE WITH THE NUMBER, NOT FROM MEMORY (EP32, 22 Aug 2026).**
+  The render was started by hand three minutes into the build and **the engine waited ZERO
+  seconds for HeyGen — the job was ready on the FIRST poll**, with 68.4% of the build
+  running while it cooked. **The re-sequencing works. Quote this line the next time
+  somebody proposes changing the order.**
+  📌 **And the companion fact, for anyone who arrives certain the build is full of dead
+  time: it is 91.5% WORKING.** Of 1h56m14s, 9m50s was waiting on a human — the title card
+  and the listen check. **Jodie is 8.5% of a build.** Full table: `docs/ENGINE-BACKLOG.md`,
+  logged 22 Aug 2026.
 - Secrets only in `PP Videos/.env` (service_role, HeyGen). Only the anon key
   ships client-side (RLS on). Never commit keys.
 - All Supabase access goes through `engine/rail.py` — one client, in the repo
