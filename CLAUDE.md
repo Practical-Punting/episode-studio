@@ -315,6 +315,27 @@ Full evidence in the memory files; these seven lines are the whole of it.)*
    > and **was still wrong about which loop** until it was built — see #9. A guard that
    > cannot yet be run against real data with a real control is a guess with tests
    > around it. **Wait for the freeze to lift; write it fresh.**
+   > ### 🔴 4c. REAL DATA PROVES A GUARD WORKS. IT DOES NOT FIND WHERE IT BREAKS.
+   > **(EP35, 22 Aug 2026 — 4b's missing half, and it nearly shipped a guard with a hole
+   > in it.)** 4b says test against REAL data with a control that can fail. Both were
+   > done, thoroughly, and **12/12 passed**: the new chip check read **~100% present and
+   > ~2% absent across four real episodes** — a fiftyfold margin against a line at 50%.
+   > **By any normal standard it was proved.**
+   > **Then a SYNTHETIC fixture — a plain pale chip on a bright generated backdrop — read
+   > 57% WITH NO CHIP ON SCREEN. A false present, over the line.** The cause was real, not
+   > a quirk of the fixture: it compared BRIGHTNESS ALONE, and a large plain bright
+   > background reproduces a large plain bright chip by coincidence. Comparing all three
+   > COLOUR channels dropped that case to 0.7%.
+   > ⚠️ **REAL DATA COULD NEVER HAVE FOUND IT.** The real chip is dark and the real
+   > backdrops look nothing like it, so every episode sat **nowhere near the boundary**.
+   > A fifth, tenth or fiftieth would have gone on reporting the same huge margin.
+   > **A margin measured only where the answer is obvious tells you the guard is right
+   > THERE. It says nothing about where it stops being right.**
+   > ✅ **So write BOTH.** Real data asks *does this work on the job*; a fixture asks
+   > *what would it take to fool this* — and **build the fixture to ATTACK the statistic,
+   > not to imitate an episode.** 🚫 **And never dismiss a control failure by calling the
+   > fixture unrealistic** — that is fault #1's "explained it away" in a new costume, and
+   > it leaves you MORE confident, not less.
 
 5. **A DERIVED ARTEFACT INHERITS THE FAULT WITHOUT INHERITING THE BYTES.**
    When you quarantine a bad artefact, ask **what was BUILT from it**, not only what
