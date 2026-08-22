@@ -18,6 +18,33 @@ as they were written; check them against git before acting on one.*
 
 ---
 
+# 📌 22 AUG 2026 — THE FIRST VISUAL EVIDENCE OF WHAT HUGH WAS SEEING. **KEEP IT.**
+
+> **`G:\My Drive\PP Videos\docs\evidence\` — before/after background-motion maps for
+> EP33 and EP34**, also copied beside each episode's own QC artefacts. *(Media on Drive,
+> per "code in GitHub, media on Drive"; this pointer is here so nobody has to know the
+> folder exists to find it.)*
+
+**Hugh pulled both episodes and could only say they were "not quite good enough".** He
+could not be more specific, and that was read for weeks as taste. **It was not.**
+
+Every pixel's travel was measured across both full episodes. On the pulled takes,
+**42.7% (EP33) and 49.6% (EP34) of the frame is in motion, spanning x 0–1918** — the
+whole room drawn in outline in the motion map: window frames, tree line, grandstand,
+panelling. On the Luke re-renders the background is **black**, with all movement inside
+x 608–1814 and x 618–1814 respectively.
+
+> ## HE COULD NOT NAME IT BECAUSE IT WAS NOT ONE THING TO POINT AT.
+> **It was half the frame moving at once**, which a person perceives as *"off"* without
+> being able to say where. **A vague complaint from an operator is data, not taste** —
+> and the way to honour it is to go and measure, not to argue about it.
+
+⚖️ **AND THE METHOD IS THE REUSABLE PART.** A talking head defeats `freezedetect` and
+scene detection, because the whole frame changes constantly. **Only a per-pixel travel
+map says WHERE.** Same instrument that proved no card lands on the presenter.
+
+---
+
 # 🆕 LOGGED 22 AUG 2026 — from the first full step-by-step measurement of a build (PP-EP32)
 
 > **THE MEASUREMENT THESE COME FROM.** EP32 ran **1h56m14s** (03:01:48 → 04:58:02).
