@@ -169,7 +169,39 @@ paragraph.** Re-sequencing still needs Jodie's explicit re-approval.
 
 # 🆕 LOGGED 15 AUG 2026 — found by the control while baking in EP26 faults 6 and 7
 
-## 🟠 THE A21 RAIL LINE IS GATED ON HORSES, AND IT HAS WRITTEN A RUNNING RAIL INTO INDOOR SHOTS
+## ✅ CLOSED 23 AUG 2026 — LANDED ON EP37, WHICH IS WHERE IT FINALLY HALTED A BUILD
+> **`rail-side` and `rail-beyond` now ask `a_rail_with_horses` — a rail must be IN the
+> picture.** Logged below on 15 Aug as needing "its own session and Jodie's call"; the
+> call was answered with three measurements rather than an opinion, and they are written
+> into the function's own docstring:
+> 1. **A21's founding fault is untouched** — EP23's own note says *"Five of six prompts
+>    NAMED the rail and not one said which side the horses go."* They named it; a strict
+>    gate fires on every one of them.
+> 2. **Nothing in the archive relies on injection** — across all **61 governed horse
+>    shots, not one** has a rail that came from the corrector. Measured with the
+>    corrector's own sentences stripped back out, because the prompts on disk have
+>    already been through it and counting them raw answers the wrong question.
+> 3. **A middle version was built and REJECTED** — skipping only prompts that describe
+>    their own far side fixed EP37 and left EP26's desk cover taking a rail. Nothing
+>    separates a desk from a gallop except whether a rail is in shot.
+>
+> 🔴 **AND IT HAD THREE SIBLINGS, ALL FOUND BY THE CONTROL AFTER THE FIX LOOKED DONE:**
+> `has_horses` and the crowd gate were not negation-aware, so *"NO HORSES IN SHOT"* read
+> as horses (one shared `_affirms()` now answers for all three gates); `strides` and
+> `anatomy` counted a **rider** as a horse, and were **auto-applied with no halt** to a
+> horse-free shot — the build would have PAID for a field of horses in an empty mounting
+> yard; and the **universal orientation line ends "horses upright and running along the
+> ground"**, so the corrector wrote horses into a desk shot and then re-read it as a
+> horse shot. Orientation is now shot-aware through one resolver both funnels read.
+>
+> 📌 **The flag also went to the WRONG PERSON** — it ended *"This one needs a person: fix
+> the prompt in docs/episode.json"* and put that in front of the operator, against the
+> standing "no b-roll approval step, ever" ruling. The box now says nothing there needs
+> her judgement; the registry pointer rides the run log.
+> *(EP26's clips are still not re-generated — found retrospectively is not fixed
+> retrospectively.)*
+
+## ⚰️ THE ORIGINAL ENTRY, 15 AUG — A21 RAIL LINE GATED ON HORSES, WRITING RAILS INTO INDOOR SHOTS
 
 **Found on REAL EP26 prompts, by running the two funnels over them before writing a test —
 not by reading the code.** Not fixed: this is a change to a landed rule (A21) with its own
