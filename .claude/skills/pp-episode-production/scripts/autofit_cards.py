@@ -106,14 +106,43 @@ def selector_for(owner: str) -> str:
 
 
 def _line_boxes(runs):
-    """(owner, text) -> the DISTINCT line-box tops that run is drawn on.
+    """(owner, text, box) -> the DISTINCT line-box tops that ONE ELEMENT is drawn on.
 
     One definition, shared by the wrapped-run rule and the leading check below, so
     the two can never disagree about what "wrapped" means.
+
+    🔴 THE KEY CARRIES THE ELEMENT, AND IT DID NOT UNTIL EP37 (23 Aug 2026).
+    It was `(owner, text)` — a CLASS and a STRING — so every element sharing a class
+    AND carrying identical text collapsed into one imaginary element, and its several
+    y positions were read as ONE RUN WRAPPED ONTO THAT MANY LINES.
+
+    A checklist is the perfect trigger and C12 was the first to pay: twelve ticks, all
+    `.t`, all the character "✓", laid out in TWO COLUMNS. The columns interleave
+    vertically, so the smallest gap between consecutive "lines" was 20px at 38px type
+    — a leading of 0.53 — and autofit reported
+
+        t: tried down to 22.8px from 38.0px — wrapped to 12 lines at 0.88 leading —
+           the lines are drawn through each other
+
+    THE TWO TICKS 20px APART ARE 885px APART HORIZONTALLY, in opposite columns. They
+    cannot be drawn through each other. The card renders perfectly and always did.
+    Shrinking could never fix it, because there was nothing to fix: the type came down
+    to 60% of template, the halt fired anyway, and it told a human the words were too
+    long for the design.
+
+    ⚠️ IT HAS MISREAD EVERY CHECKLIST EVER BUILT — C22 in this same episode is read as
+    "one run wrapped to 4 lines" too. It only ever BITES when the block goes to more
+    than one column, because a single column's gaps are a whole row apart (94px at 56px
+    type, a ratio of 1.68) and never trip the threshold. That is why it took until EP37.
+
+    `boxId` is the probe's own per-element box id and it is already in every run, so the
+    element identity was in the data all along — the key simply threw it away. Two line
+    boxes of the SAME element still share a box and are still correctly seen as a wrap.
     """
     tops = {}
     for r in runs:
-        tops.setdefault((r["owner"], r["text"]), set()).add(round(r["y"], 1))
+        tops.setdefault((r["owner"], r["text"], r.get("boxId")), set()).add(
+            round(r["y"], 1))
     return {k: sorted(v) for k, v in tops.items()}
 
 
@@ -270,11 +299,12 @@ def offenders(page, url, bust=0, shrinking=()):
         # it, and each shrinks through its own block's declared fit key (`.mplace` is
         # `label_size` in the matrix's own fit map). Furniture is excluded exactly as
         # above: the frame headline is DESIGNED to wrap over two lines.
-        for (owner, text), tops in _line_boxes(runs).items():
+        for (owner, text, box), tops in _line_boxes(runs).items():
             if owner in FURNITURE or len(tops) < 2:
                 continue
             fs = max(r["fs"] for r in runs
-                     if r["owner"] == owner and r["text"] == text)
+                     if r["owner"] == owner and r["text"] == text
+                     and r.get("boxId") == box)
             out.append((owner, fs,
                         f"wrapped onto {len(tops)} lines on a card that is out of "
                         f"vertical room — un-wrapping it frees a whole line", 0))
@@ -289,14 +319,21 @@ def offenders(page, url, bust=0, shrinking=()):
     # WRAP properly rather than halt — so this reports the owners whose leading must be
     # relaxed, and the caller writes it alongside the measured size.
     # owner -> (how many line boxes, the leading ratio it is CURRENTLY drawn at)
+    # ⚠️ THE LEADING IS RELAXED PER OWNER (a CSS class), but WRAPPING IS A PROPERTY OF
+    # AN ELEMENT — so several elements can now share an owner and each has its own
+    # answer. Keep the TIGHTEST, because that is the one whose lines actually collide;
+    # an earlier version simply let the last element seen overwrite the others, which
+    # made the verdict depend on document order.
     ratios = {}
-    for (owner, _text), tops in _line_boxes(runs).items():
+    for (owner, _text, _box), tops in _line_boxes(runs).items():
         fs = max(r["fs"] for r in runs if r["owner"] == owner)
         if len(tops) < 2 or fs <= 0:
             ratios.setdefault(owner, (1, 1.0))
             continue                       # one line box: the tight leading is correct
         lh = min(t2 - t1 for t1, t2 in zip(tops, tops[1:]))
-        ratios[owner] = (len(tops), lh / fs)
+        prev = ratios.get(owner)
+        if prev is None or prev[1] > lh / fs:
+            ratios[owner] = (len(tops), lh / fs)
         if lh / fs < TIGHT_LEADING:
             out.append((owner, fs,
                         f"wrapped to {len(tops)} lines at {lh / fs:.2f} leading — "

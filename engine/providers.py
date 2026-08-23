@@ -1574,7 +1574,20 @@ def autofit_cards(ep_dir: Path) -> str:
               "(the operator's flag carries the plain-English version):")
         for _line in detail.splitlines():
             print(f"      {_line}")
-        cards = sorted({m.upper() for m in re.findall(r"-(c\d+)-", detail, re.I)})
+        # 🔴 ONLY THE CARDS THAT FAILED — AND IT USED TO BE EVERY CARD MENTIONED.
+        # (EP37, 23 Aug 2026.) This scraped `-cNN-` out of the WHOLE report, so every
+        # filename autofit merely printed was named in the halt — including the ones it
+        # had just SUCCESSFULLY FITTED. EP37's flag read "Card 12, 14 will not fit"; the
+        # report above it says, in its own words, "✓ ep37-c14 — fitted in 6 step(s)".
+        # C14 was fine. A diagnosis that starts from that flag starts by investigating a
+        # card that has nothing wrong with it.
+        #     Fault #1: the text of a report is a proxy for what the tool concluded. The
+        # tool marks its failures with ✗ and says "STILL DOES NOT FIT"; read THAT.
+        failed_lines = [ln for ln in detail.splitlines()
+                        if "✗" in ln or "STILL DOES NOT FIT" in ln]
+        cards = sorted({m.upper()
+                        for ln in failed_lines
+                        for m in re.findall(r"-(c\d+)-", ln, re.I)})
         which = (f"Card {', '.join(c.lstrip('cC').lstrip('0') or '0' for c in cards)}"
                  if cards else "A card")
         raise EngineFlag(
