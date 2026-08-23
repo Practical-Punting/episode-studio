@@ -592,6 +592,63 @@ tempting move, "something is building, put it back", would have been the harmful
 **Read the timestamps before you reach for the undo.** `git log`, the engine's own
 `engine up` lines, and the claim line tell you which case you are in; instinct does not.
 
+## 🔁 10. A REPAIR THAT CHANGES WHAT THE THING **IS**, IS NOT A REPAIR
+### AND NEVER LET A FIXER RE-READ ITS OWN WRITING AS EVIDENCE ABOUT THE INPUT.
+**(EP37, 23 Aug 2026. A new shape: the guard becomes its own witness.)**
+
+The b-roll corrector appends standing lines to a prompt, then RE-CHECKS the prompt to
+confirm it is satisfied. Both halves are right. Together they closed a loop:
+
+> The **universal** orientation line ends *"…horses upright and running along the
+> ground"*, and it lands on every generated image — desks, TAB counters, an empty
+> mounting yard. So the fixer wrote **horses** into a shot whose own words were
+> *"NOBODY ELSE IN SHOT — no horses"* — **and its re-check then read that sentence back
+> as proof the shot had horses in it**, and began demanding out-of-phase strides and
+> equine anatomy for a lone jockey carrying a saddle.
+
+**The input was reclassified BY THE FIX, and the fix was then justified by the
+reclassification.** No step in that chain is wrong on its own, which is exactly why it
+survived: every function did its job and the loop did the damage.
+
+🔴 **AND THE SILENT HALF IS THE DANGEROUS HALF.** The stride line was **auto-applied
+with no halt at all** — the build would have gone on and **PAID for a clip of a field of
+horses in an empty mounting yard**. The rail rule in the same family at least stopped and
+asked. **A halt you can see beats a silent wrong fix, every time**, and a fixer is
+precisely where silent wrong beats loud wrong most often.
+
+**How to apply it:**
+- **A fix states a FACT about the picture; it never changes the subject.** If applying a
+  rule could alter the answer to "what kind of shot is this", the rule is writing the
+  shot, not describing it. The file's own words: *"WHAT IT MAY NOT DO IS INVENT THE
+  SHOT."*
+- **Classify from the ORIGINAL.** A re-check exists to catch a fix that did not work — it
+  must not be able to see the fix as new evidence about what the input was.
+- **Make the shared line SHOT-AWARE rather than universal-and-wrong** (`orientation_for`,
+  `rail_smooth_for`): same fact, said about whatever is actually in the frame.
+- ⚖️ **The tell:** a rule that lands on *every* artefact but whose wording names one
+  KIND of artefact. That is a rule with a hidden gate, and the gate is in its prose where
+  no check can see it.
+
+## 🧊 11. A RULE WRITTEN AND NOT LANDED IS NOT A RULE YOU HAVE
+**(EP37, 23 Aug 2026 — §9's lesson with a price attached.)**
+
+The rail gate was **found, diagnosed and written up on 15 August**, on real EP26 prompts,
+with the mechanism named and the fix described as *"a small change"*. It was parked for
+its own session. **Eight days later it halted a build**, sent the operator a question
+about which kind of rail was in a shot that had no rail, and cost a morning.
+
+> **§9 says written and reviewed is not landed. This says what NOT LANDING COSTS:
+> the fault keeps its full price and you pay it again, having already done the work
+> of understanding it.**
+
+⚠️ **The parking was not unreasonable** — it named a real consequence needing a decision.
+**What was missing was the measurement that would have settled it**, and that took under
+an hour when it was finally done: 61 governed prompts, none relying on the behaviour
+anybody was worried about losing. **A "someone's call" is very often an unmeasured
+question wearing a decision's clothes.** Before parking something as a human's decision,
+ask what could be measured that would make the decision obvious — and if the answer is
+"an hour's sweep", the parking is the expensive option.
+
 ## ⚖️ A GUARD PREVENTS RECURRENCE — IT DOES NOT OBLIGE US TO GO BACK
 **(Jodie, 4 Aug 2026.)** *"Jodie is not actually going to go back and change any of the
 previous videos or e-books as Hugh has approved them."*
