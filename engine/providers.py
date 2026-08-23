@@ -2306,16 +2306,37 @@ class RealProvider:
                         # THE ONLY HALT LEFT: applying the rules did not satisfy them, so
                         # the tool is wrong. Generating anyway would ship a clip that
                         # breaks a rule this file exists to enforce.
+                        # 🔴 IT USED TO SAY "This one needs a person: fix the prompt in
+                        # docs/episode.json" AND PUT THAT IN FRONT OF THE OPERATOR.
+                        # (EP37, 23 Aug 2026.) That is the wrong person, and it is
+                        # against a standing ruling: *"NO B-ROLL APPROVAL STEP. EVER.
+                        # The answer to a bad clip is always a better prompt, never a
+                        # human looking."* (5 Aug, upheld 18 Aug against a measured
+                        # 1-in-18 fault rate.) A b-roll prompt is MAINTAINER's work —
+                        # it names a JSON file and a rules document, and every line of
+                        # it is meaningless to somebody operating from a browser
+                        # (docs/PP-operator-box-rule.md). Jodie was asked to arbitrate
+                        # which kind of rail was in a shot that had no rail in it.
+                        # THE MAINTAINER'S HALF GOES TO THE RUN LOG — different readers,
+                        # same event. The registry pointer belongs here and not in the
+                        # box: a sentence that only means something to someone who has
+                        # read the repo is run-log material by the operator-box rule.
+                        print(f"    [maintainer] b-roll prompt '{clip}' could not be "
+                              f"corrected to satisfy its own rules. The standing wording "
+                              f"is in docs/broll-registry.md — §5 and the Australian "
+                              f"racing spec block under it; the gates are in "
+                              f"engine/broll_prompt_rules.py. Unfixable: "
+                              + " | ".join(unfixable))
                         raise EngineFlag(
-                            f"The b-roll prompt for '{clip}' still breaks a standing "
-                            "rule after the engine tried to correct it automatically — "
-                            "so the correction is what is wrong, not just the prompt. "
-                            "Nothing has been generated and nothing charged.\n\n"
+                            f"I could not write the b-roll prompt for '{clip}' so that "
+                            "it obeys its own standing rules, so I have not generated "
+                            "it. Nothing has been generated and nothing charged, and "
+                            "the rest of the episode is unaffected.\n\n"
                             + "\n".join("  · " + u for u in unfixable) +
-                            "\n\nThe wording is in docs/broll-registry.md — §5 and the "
-                            "Australian racing spec block under it. This one needs a "
-                            "person: fix the prompt in docs/episode.json, then clear "
-                            "this flag.")
+                            "\n\nThis is a fault in the studio's prompt rules, not "
+                            "something to decide: it is for whoever maintains them, "
+                            "and it is written up in the run log. Nothing here needs "
+                            "your judgement.")
                     return fixed
                 return b["prompt"]
         raise RuntimeError(f"clip {clip} not found in episode.json broll[]")

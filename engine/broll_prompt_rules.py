@@ -49,10 +49,63 @@ HORSE_WORDS = re.compile(
     r"\b(racehorse|racehorses|horse|horses|field of|gallop\w*|runner|runners"
     r"|jockey|jockeys|mounted|thoroughbred\w*)\b", re.I)
 
+# ── DOES THE PICTURE ACTUALLY CONTAIN IT? ONE TEST, EVERY GATE ──────────────────
+# 🔴 THREE GATES ASK THE SAME QUESTION AND ONLY ONE OF THEM KNEW HOW. (EP37, 23 Aug
+# 2026.) `shows_a_rail` has ignored negated mentions since 15 August, because a cover
+# saying "NO RUNNING RAIL" three times is a picture with no rail in it. `has_horses` and
+# the crowd gate were plain searches, so "NO HORSES IN SHOT" read as horses and "no
+# crowd" read as a crowd — and EP37 was told to add strides, silks and a spread of
+# Akubras to a shot it had spent a clause emptying.
+#     Teaching each gate its own negation handling would be three copies of one idea and
+# a fourth gate along next month (#2b: unify the definition, do not teach one reader the
+# other's cases). So the question is asked once, here, and every gate uses it.
+_NEGATED = re.compile(r"\b(no|without|never|not)\b", re.I)
+
+
+def _affirms(words: re.Pattern, prompt: str) -> bool:
+    """True when the prompt AFFIRMS one of `words` — a mention inside a negation does
+    not count. The look-back stops at a sentence boundary so a negation about something
+    else, a clause earlier, cannot suppress a real one."""
+    text = prompt or ""
+    for m in words.finditer(text):
+        back = text[max(0, m.start() - 60):m.start()]
+        back = back[back.rfind(".") + 1:]          # this sentence only
+        if not _NEGATED.search(back):
+            return True
+    return False
+
+
+# 🔴 A RIDER IS NOT A HORSE. (EP37, 23 Aug 2026.) `HORSE_WORDS` counts `jockey`, and it
+# is right to: a mounted jockey implies the animal, and the silks and anatomy lines are
+# about the rider anyway. But a jockey walking a saddle across the enclosure is a shot
+# with a rider and NO HORSE, and `strides` — "each horse at a different point of its
+# stride… across the field" — was appended to a prompt that had just said "no horses".
+# Auto-applied, silently, with no halt: the build would have gone on and PAID for a clip
+# of a field of horses in an empty mounting yard.
+#     So the stride rule asks the narrower question it is entitled to: are there
+# actually HORSES, not merely somebody dressed to ride one.
+HORSE_ANIMAL_WORDS = re.compile(
+    r"\b(racehorse|racehorses|horse|horses|field of|gallop\w*|runner|runners"
+    r"|mounted|thoroughbred\w*)\b", re.I)
+
+
+def shows_actual_horses(prompt: str) -> bool:
+    """True when the picture contains the ANIMAL, not just a rider."""
+    return _affirms(HORSE_ANIMAL_WORDS, prompt)
+
 
 def has_horses(prompt: str) -> bool:
-    """A galloping / field shot — the shots the rail and rider rules are about."""
-    return bool(HORSE_WORDS.search(prompt or ""))
+    """A galloping / field shot — the shots the rail and rider rules are about.
+
+    🔴 NEGATION-AWARE SINCE EP37 (23 Aug 2026), AND IT IS THE SAME TEST `shows_a_rail`
+    HAS ALWAYS USED. This was a plain search, so "NO HORSES IN SHOT" counted as horses
+    and EP37's crowd shot and its empty rain-on-the-track shot were both graded as
+    field-of-horses shots — and told to add out-of-phase strides and silks.
+    That is the HORSE_WORDS note's own warning arriving through the gate the note is
+    attached to: *"NOW IT WOULD WRITE HORSES INTO A SHOT OF A CROWD, which is a worse
+    clip than the one the rule exists to prevent."*
+    """
+    return _affirms(HORSE_WORDS, prompt)
 
 
 # Kept as the older name; `has_horses` is what it always meant.
@@ -73,6 +126,23 @@ is_racing_shot = has_horses
 ORIENTATION = ("Correct upright orientation — horizon level and near the middle, sky at "
                "the top, green turf and track at the bottom, camera at eye level; horses "
                "upright and running along the ground")
+# 🔴 AND A VERSION FOR A PICTURE WITH NO HORSE IN IT. (EP37, 23 Aug 2026.)
+# Orientation is UNIVERSAL — it lands on the desk shots, the TAB counter and the
+# enclosure as well as the gallops — and the line above ends "horses upright and running
+# along the ground". So the corrector wrote HORSES into a shot that had just said it had
+# none, and then its own re-check read the prompt back as a horse shot and started asking
+# for strides and equine anatomy. A fix that changes what the picture IS is not a fix.
+#     Shot-aware, exactly as `rail_smooth_for` already is: same fact, said about whatever
+# is actually in the frame.
+ORIENTATION_NO_HORSES = ("Correct upright orientation — horizon level and near the "
+                         "middle, sky at the top, ground at the bottom, camera at eye "
+                         "level, verticals upright and true")
+
+
+def orientation_for(text: str) -> str:
+    """The orientation line in the form THIS shot can be — the horses clause only where
+    there are horses."""
+    return ORIENTATION if shows_actual_horses(text or "") else ORIENTATION_NO_HORSES
 ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
                      r"horizon .{0,20}(level|middle|centre|center)"]
 
@@ -171,7 +241,6 @@ def rail_smooth_for(text: str) -> str:
 # plain search for the word — the word is present in that cover, three times, every one
 # of them inside a negation.
 RAIL_WORDS = re.compile(r"\brail(?:s|ing|ings)?\b", re.I)
-_NEGATED = re.compile(r"\b(no|without|never|not)\b", re.I)
 
 
 def shows_a_rail(prompt: str) -> bool:
@@ -179,15 +248,59 @@ def shows_a_rail(prompt: str) -> bool:
 
     Every mention of the rail is examined, and one that sits inside a NEGATION does not
     count — "no running rail anywhere" is a prompt saying there is no rail, however many
-    times the word appears in it. The look-back stops at a sentence boundary so a
-    negation about something else, a clause earlier, cannot suppress a real rail.
+    times the word appears in it. This was the original home of that idea; it now shares
+    `_affirms` with the horse and crowd gates, which had the same question and no answer.
     """
-    for m in RAIL_WORDS.finditer(prompt or ""):
-        back = (prompt or "")[max(0, m.start() - 60):m.start()]
-        back = back[back.rfind(".") + 1:]          # this sentence only
-        if not _NEGATED.search(back):
-            return True                            # an affirmative rail: the rule applies
-    return False
+    return _affirms(RAIL_WORDS, prompt)
+
+
+def a_rail_with_horses(prompt: str) -> bool:
+    """The question the FIELD-vs-RAIL rules are entitled to be applied on.
+
+    🔴 EP37 IS WHY. `rail-side` says the field runs on ONE side of the rail, and
+    `rail-beyond` says what lies on its far side. Both lived in the HORSES tier and so
+    fired whenever a jockey was mentioned:
+      · a jockey carrying a saddle across an ENCLOSURE has no running rail at all — it
+        has a low timber fence — and the correction tried to write "open green turf
+        infield beyond" over the prompt's own "fence and soft green lawn beyond". The
+        engine spotted the contradiction and asked a HUMAN which rail it was. There was
+        no rail. That is a rule firing where it does not belong, dressed up as a
+        decision for somebody;
+      · a crowd shot with a blur of rail at the bottom and NO HORSES was told the field
+        must be on one side of it.
+
+    ⚠️ HORSES ALONE IS TOO LOOSE AND A RAIL ALONE IS TOO TIGHT, and the second half is
+    the one that needed measuring rather than guessing. Requiring a rail to be MENTIONED
+    would drop A21's whole point — a trackside gallop that never names a rail would stop
+    being given the boundary rule, and EP23 shipped horses on BOTH SIDES of one exactly
+    because five of six prompts named a rail and none said which side. The suite catches
+    it: a bare gallop prompt must still be given the rail.
+
+    🔴 THE GATE IS STRICT — A RAIL MUST BE IN THE PICTURE — AND THE BACKLOG CALLED THIS
+    JODIE'S DECISION, SO HERE IS THE EVIDENCE THAT SETTLES IT RATHER THAN AN OPINION.
+    The worry (logged 15 Aug, EP26) was that a trackside gallop which never names a rail
+    would stop being given one, losing A21's protection. Three measurements:
+
+      1. **A21's FOUNDING FAULT IS UNAFFECTED.** EP23 shipped horses on both sides, and
+         its own note says why: *"Five of six prompts NAMED the rail and not one said
+         which side the horses go."* They named it. A strict gate fires on every one of
+         them and adds the side clause, which is the whole rule.
+      2. **NOTHING IN THE ARCHIVE RELIES ON INJECTION.** Across all 61 governed horse
+         shots, not one has a rail that came from the corrector — every genuine trackside
+         prompt names its own. Measured with the corrector's own sentences stripped back
+         out, because the prompts on disk have already been through it.
+      3. **THE LOOSE GATE IS ITSELF A BUG, TWICE OVER.** It wrote a running rail into
+         EP26's TAB-counter and desk shots (logged, never landed) and into EP37's
+         enclosure (halted the build). A middle version that skipped only prompts
+         describing their own far side was tried and REJECTED here: it fixed EP37 and
+         left EP26's desk cover taking a rail, because a desk has horses on the wall, no
+         rail, and says nothing about a far side. There is no test that separates a desk
+         from a gallop except whether a rail is in the picture.
+
+    So: a rule about a rail applies where there is a rail. The cost is a hypothetical the
+    archive has never produced; the saving is two real faults.
+    """
+    return shows_a_rail(prompt) and has_horses(prompt)
 
 # ── the standing lines ──────────────────────────────────────────────────────────
 # Each rule is (key, human name, what it must SAY, why it exists). `needs` is a list of
@@ -215,31 +328,12 @@ RULES = [
              "somewhere, and told nothing it puts it anywhere. Stated positively — "
              "sky at the top, turf at the bottom, horizon level, horses upright."),
     ),
-    dict(
-        key="rail-side",
-        name="the whole field on ONE side of the rail",
-        needs=[r"one side of (a|the|a single) .{0,30}rail",
-               r"all on the same side of the .{0,20}rail",
-               r"the (whole )?field .{0,40}(on|to) one side"],
-        why=("EP23 shipped with horses on BOTH SIDES of the running rail (Hugh, "
-             "14 Aug 2026). Five of six prompts NAMED the rail and not one said which "
-             "side the horses go, so the model drew the rail and filled both sides."),
-    ),
-    dict(
-        key="rail-beyond",
-        name="what lies BEYOND the rail (open turf infield)",
-        needs=[r"(open|empty) .{0,20}(turf|grass|infield)",
-               r"infield beyond", r"beyond it,? (open|empty)"],
-        why=("The positive half is the half that works. A model must render SOMETHING "
-             "beyond the rail; unless the far side is given a job it reaches for the "
-             "subject the rest of the prompt describes — a horse."),
-    ),
-    dict(
-        key="strides",
-        name="horses out of step with one another",
-        needs=[r"different point.{0,20}stride", r"out of phase", r"staggered stride"],
-        why="EP16 at 1:25 — every horse in identical rhythm, hooves landing together.",
-    ),
+    # 📌 `rail-side` and `rail-beyond` USED TO LIVE HERE, gated on horses alone. They
+    # are rules about a RAIL and they moved to CONDITIONAL on 23 Aug 2026 — see
+    # `a_rail_with_horses`. Nothing about the rules changed; only the question they are
+    # asked on.
+    # 📌 `strides` USED TO LIVE HERE too. It moved to CONDITIONAL on 23 Aug 2026 for the
+    # same reason the rail rules did — see `shows_actual_horses`. A rider is not a horse.
     dict(
         key="silks",
         name="Australian racing silks on every rider",
@@ -253,13 +347,10 @@ RULES = [
         needs=[r"(green|lush).{0,20}turf", r"turf.{0,20}(course|racecourse|track)"],
         why="These models default to American dirt. Say turf every time.",
     ),
-    dict(
-        key="anatomy",
-        name="anatomically correct horses",
-        needs=[r"anatomic\w*", r"four legs", r"no fused"],
-        why=("The HARD-FAIL list. An extra or fused limb is not 'invisible at speed' — "
-             "these get caught and rejected, after the credit is spent."),
-    ),
+    # 📌 `anatomy` MOVED TO CONDITIONAL on 23 Aug 2026, for the same reason as `strides`.
+    # Its correction reads "anatomically correct HORSES — four legs, one head" and it was
+    # gated on a word list that counts a jockey, so a horse-free shot missing the line
+    # was given one about horses. Found by the control, on a fixture, before it shipped.
 ]
 
 # ── THE UNIVERSAL TIER — asked of EVERY generated image, whatever is in it ───────
@@ -293,6 +384,42 @@ UNIVERSAL = [
 # cover has horses (in framed photographs) and explicitly no rail. Each rule carries the
 # question it is entitled to be applied on.
 CONDITIONAL = [
+    dict(
+        key="strides",
+        name="horses out of step with one another",
+        needs=[r"different point.{0,20}stride", r"out of phase", r"staggered stride"],
+        when=shows_actual_horses,
+        why="EP16 at 1:25 — every horse in identical rhythm, hooves landing together.",
+    ),
+    dict(
+        key="anatomy",
+        name="anatomically correct horses",
+        needs=[r"anatomic\w*", r"four legs", r"no fused"],
+        when=shows_actual_horses,
+        why=("The HARD-FAIL list. An extra or fused limb is not 'invisible at speed' — "
+             "these get caught and rejected, after the credit is spent."),
+    ),
+    dict(
+        key="rail-side",
+        name="the whole field on ONE side of the rail",
+        needs=[r"one side of (a|the|a single) .{0,30}rail",
+               r"all on the same side of the .{0,20}rail",
+               r"the (whole )?field .{0,40}(on|to) one side"],
+        when=a_rail_with_horses,
+        why=("EP23 shipped with horses on BOTH SIDES of the running rail (Hugh, "
+             "14 Aug 2026). Five of six prompts NAMED the rail and not one said which "
+             "side the horses go, so the model drew the rail and filled both sides."),
+    ),
+    dict(
+        key="rail-beyond",
+        name="what lies BEYOND the rail (open turf infield)",
+        needs=[r"(open|empty) .{0,20}(turf|grass|infield)",
+               r"infield beyond", r"beyond it,? (open|empty)"],
+        when=a_rail_with_horses,
+        why=("The positive half is the half that works. A model must render SOMETHING "
+             "beyond the rail; unless the far side is given a job it reaches for the "
+             "subject the rest of the prompt describes — a horse."),
+    ),
     dict(
         key="rail-smooth",
         name="the rail as one smooth, true, evenly-posted line",
@@ -455,7 +582,7 @@ def check_prompt(prompt: str) -> list[dict]:
     rules = list(UNIVERSAL)
     if has_horses(prompt):
         rules += RULES                 # a kitchen table is not a racing shot
-    if CROWD_WORDS.search(prompt or ""):
+    if _affirms(CROWD_WORDS, prompt):
         rules.append(CROWD_RULE)       # …and a crowd shot needs its hats, horses or not
     # …and a rule that carries its own question answers it here. One place, so a new
     # conditional rule cannot be added and then forgotten by one of the three callers.
@@ -689,8 +816,13 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
     for key in ("strides", "silks", "turf", "anatomy", "hat-variety", "orientation",
                 "lighting"):
         if key in gaps and FIXES.get(key):
-            text = _add_sentence(text, FIXES[key])
-            applied.append(FIXES[key][:60] + "…")
+            # orientation is SHOT-AWARE — see orientation_for(). Read through the
+            # resolver so a horse-free picture is never handed the horses clause, which
+            # is how the corrector used to turn a jockey-on-foot shot into a horse shot
+            # and then complain about its strides.
+            words = orientation_for(text) if key == "orientation" else FIXES[key]
+            text = _add_sentence(text, words)
+            applied.append(words[:60] + "…")
 
     # 4. RE-CHECK. If applying the rules did not satisfy the rules, the tool is wrong and
     #    must say so rather than quietly generating a clip that breaks them — the one
@@ -756,7 +888,10 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
         applied.append("the rail is one smooth, true, evenly-posted line")
     for key in ("orientation", "lighting"):
         if key in gaps and FIXES.get(key):
-            text = _add_sentence(text, FIXES[key])
+            # shot-aware, and through the SAME resolver the b-roll funnel uses — the
+            # cover door must not have its own idea of what the line says (A22).
+            words = orientation_for(text) if key == "orientation" else FIXES[key]
+            text = _add_sentence(text, words)
             applied.append({"orientation": "the upright-orientation line",
                             "lighting": "the bright, warm lighting line"}[key])
     # Fault 8 — asked HERE and not through `gaps`, because this rule is about a PORTRAIT

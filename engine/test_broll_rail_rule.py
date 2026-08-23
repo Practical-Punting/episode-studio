@@ -198,9 +198,17 @@ check("it does not invent a subject, framing or action",
       all(w not in fixed.lower().replace(bare.lower(), "")
           for w in ("close-up", "tracking shot", "slow motion", "aerial")),
       "the rules state what must be true; they do not direct the clip")
+# 🔴 THE FIXTURE NAMES A RAIL, AND THAT CHANGED ON 23 AUG 2026. This assertion is about
+# the WORDING — a bend must be given the sweep and a straight must not — and it used to
+# lean on `bare`, which names no rail at all. The rail rules are now gated on a rail
+# actually being in the picture (see `a_rail_with_horses`), because the loose gate wrote
+# running rails into a TAB counter, a desk and an enclosure. Every real prompt in the
+# archive names its own rail; this fixture now does what they do, and the thing it is
+# actually testing is untouched.
+railed = (bare + " A single white running rail crosses the frame.")
 check("the bend wording is used on a bend and the straight wording on a straight",
-      "curves with the track" in R.apply_rules(bare + " The field rounds the bend.")[0]
-      and "curves with the track" not in fixed,
+      "curves with the track" in R.apply_rules(railed + " The field rounds the bend.")[0]
+      and "curves with the track" not in R.apply_rules(railed)[0],
       "a straight line pasted into a bend is A21's second finding, rebuilt by the fixer")
 
 print("\n-- THE HALT THAT IS LEFT: what it genuinely cannot decide --")
@@ -261,9 +269,21 @@ check("  the correction is written back to episode.json",
       "_save_broll_prompt" in body,
       "the file is the audit trail; it must show the words that produced the clip")
 check("  it still halts on what it cannot decide", "unfixable" in body)
-check("  and that halt names the file the wording lives in",
+check("  and it says where the wording lives",
       "broll-registry.md" in body,
-      "a halt that does not say where the words are is a halt she cannot clear")
+      "a halt that does not say where the words are is one nobody can clear")
+# 🔴 …BUT NOT IN THE OPERATOR'S BOX. (23 Aug 2026.) The flag used to end "This one needs
+# a person: fix the prompt in docs/episode.json, then clear this flag" and go to JODIE —
+# against the standing ruling that there is NO b-roll approval step, ever, because the
+# answer to a bad clip is a better prompt and never a human looking. EP37 asked her to
+# arbitrate which kind of rail was in a shot that had no rail in it. The registry pointer
+# is maintainer detail and now rides the RUN LOG; the box says plainly that nothing there
+# needs her judgement.
+check("  the operator's box does not send the OPERATOR to a JSON file",
+      "fix the prompt in docs/episode.json" not in body,
+      "a b-roll prompt is maintainer work — docs/PP-operator-box-rule.md")
+check("  and the registry pointer is addressed to the maintainer",
+      "[maintainer]" in body and "broll-registry.md" in body)
 
 print("\n-- the registry carries the reasoning, which code cannot hold --")
 reg = (HERE.parent / "docs/broll-registry.md").read_text(encoding="utf-8")
