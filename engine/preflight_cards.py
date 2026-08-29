@@ -416,7 +416,9 @@ def title_override(epj: dict, head: str):
         return None
     if str(ov.get("headline") or "") != head:
         return None
-    if not str(ov.get("date") or "").strip():
+    # LOCAL TIME WITH AN OFFSET, not a bare UTC date — see engine._record_title_override.
+    # A UTC date stamps every clear made in the studio's own evening with yesterday.
+    if not str(ov.get("recorded_at") or "").strip():
         return None
     if not str(ov.get("reason") or "").strip():
         return None
@@ -437,7 +439,7 @@ def title_override_notes(epj: dict, capture_text: str | None) -> list[str]:
     if not ov:
         return []
     return [f"§1a name check OVERRIDDEN for this episode only — recorded "
-            f"{ov['date']}: {ov['reason']} (page headline {head!r}, episode "
+            f"{ov['recorded_at']}: {ov['reason']} (page headline {head!r}, episode "
             f"{str(epj.get('title') or '')!r}). It does not travel: the next "
             f"episode halts on §1a exactly as before."]
 

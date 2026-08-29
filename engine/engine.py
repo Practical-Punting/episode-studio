@@ -1616,7 +1616,40 @@ def _record_gate_answers(ctx) -> None:
         log(f"   (could not record a gate answer: {e} — the gate will ask again)")
 
 
-def _record_title_override(ctx) -> None:
+def _on_flag_cleared(ctx) -> None:
+    """EVERYTHING that must happen when a flag comes down — from ANY path.
+
+    🔴 THERE ARE TWO PLACES A CLEARED FLAG IS SEEN, AND HOOKING ONE OF THEM IS A
+    BUG THAT LOOKS LIKE A WORKING FEATURE. Written 29 Aug 2026 after exactly that:
+    the §1a override was hooked into `flag_and_wait` only, proved on that path, and
+    then did nothing at all on the clear that mattered.
+
+      · `flag_and_wait`      -> "flag cleared — retrying <step>"
+      · the main run loop    -> "flag cleared — carrying on"
+
+    The second is the RESUME path, taken when the engine picks up an episode that
+    is ALREADY flagged — which is what happens after EVERY restart, and **a restart
+    is what landing a code change causes**. So a fix hooked only to the retry path
+    is guaranteed to miss the first clear after itself. It cost EP41 a full round
+    trip: cleared 13:36:09, re-flagged 13:36:12, `episode.json` never touched.
+
+    ⚠️ IT PROMOTES NOTHING UNLESS A FLAG WAS REALLY RAISED. `flag_step` is that
+    proof and it is read ONCE, here, before anything can pop it — the main loop
+    calls this on every unflagged pass, so without the guard a §1a override would
+    be recorded for an episode whose halt had not even been raised yet. That is
+    EP23's fault exactly (see `_record_gate_answers`), one layer up.
+    """
+    raised = ctx.state.get("flag_step")
+    if not raised:
+        return                      # no flag was ever raised — nobody has been asked
+    _record_gate_answers(ctx)
+    # AFTER the gate answers, and using the `raised` captured above: the call
+    # above POPS `flag_step` when it records something, and reading it again here
+    # would then find nothing.
+    _record_title_override(ctx, raised)
+
+
+def _record_title_override(ctx, raised_step: str) -> None:
     """If a §1a name fault is outstanding when a flag CLEARS, record the override.
 
     🔴 §1a IS NOT CHANGED BY THIS AND MUST NEVER BE. Ruled by Jodie WITH HUGH,
@@ -1641,7 +1674,7 @@ def _record_title_override(ctx) -> None:
     Never raises: failing to record means the halt simply comes back, which is the
     safe direction. Failing LOUDLY would strand an episode over bookkeeping.
     """
-    if ctx.mock or not ctx.ep.get("ep_number"):
+    if ctx.mock or not ctx.ep.get("ep_number") or not raised_step:
         return
     try:
         import preflight_cards as pc
@@ -1677,7 +1710,15 @@ def _record_title_override(ctx) -> None:
             "rule": "1a",
             "title": title,
             "headline": head,
-            "date": datetime.now(timezone.utc).date().isoformat(),
+            # 🔴 LOCAL TIME WITH ITS OFFSET, NEVER A BARE UTC DATE. This field is
+            # read by a person asking "when was this decided", and the person is in
+            # Sydney. A UTC date stamps everything cleared between 00:00 and 10:00
+            # local with YESTERDAY — the studio's own working evening. It was
+            # written as `datetime.now(timezone.utc).date()` first and would have
+            # been wrong on its very first use with 19 minutes to spare (Jodie,
+            # 29 Aug 2026). The offset is carried so the timestamp still says
+            # exactly which instant it was, wherever it is read.
+            "recorded_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "reason": ("cleared at the card-build pre-flight by the operator, who "
                        "confirmed this episode's name is right for this episode"),
             "scope": ("THIS EPISODE ONLY. It does not travel and is not a precedent. "
@@ -1762,16 +1803,11 @@ def flag_and_wait(ctx, name, message):
             # marker said "a human has listened" when all that had happened was the
             # asking. One flag is outstanding at a time, so a cleared flag answers
             # whatever was asked.
-            _record_gate_answers(ctx)
-            # AND, IF THE THING SHE JUST CLEARED WAS A §1a NAME HALT, record the
-            # override before the step is retried — otherwise the retry re-runs the
-            # same check, finds the same fault and flags again, forever. That loop is
-            # the actual defect: an override that is not written anywhere the check
-            # can read cannot survive a restart. The operator's halt says plainly
-            # that clearing it records a one-off exception, so this is consent, not a
-            # surprise. (`_record_title_override` derives the fault rather than
-            # matching the message, and does nothing on any other flag.)
-            _record_title_override(ctx)
+            # ONE FUNCTION FOR EVERYTHING A CLEARED FLAG MEANS — see _on_flag_cleared
+            # for why this is not two calls. The other clear path ("carrying on", in
+            # the main run loop) calls exactly the same thing, so the two cannot
+            # drift again.
+            _on_flag_cleared(ctx)
             # No flag, no picture. Left behind, it would put a stale preview beside
             # whatever the NEXT flag turns out to be about.
             if ctx.state.pop("flag_step", None) is not None:
@@ -3319,7 +3355,14 @@ def cmd_run(mock, watch):
                 # again on every resume forever; with it, it asks exactly once more —
                 # which is the correct behaviour, because the ask it recorded was never
                 # answered by anyone.
-                _record_gate_answers(ctx)
+                #
+                # 🔴 THIS IS THE RESUME PATH — the one taken after "flag cleared —
+                # carrying on" above, and therefore the one taken after EVERY restart.
+                # It calls the SAME `_on_flag_cleared` as `flag_and_wait` does, because
+                # hooking only the other one is a bug that looks like a working
+                # feature: EP41 was cleared at 13:36:09 on 29 Aug, came straight back
+                # at 13:36:12, and its `episode.json` was never written.
+                _on_flag_cleared(ctx)
                 if status in PHASES:
                     hb.active.set()
                     run_phase(ctx)
