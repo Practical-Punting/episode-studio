@@ -372,6 +372,87 @@ def capture_faults(capture_text: str | None) -> list[str]:
 
 
 # ------------------------------------------------------------------ the name
+# 🔴 §1a IS NOT EDITED, NARROWED OR GIVEN AN UNLESS-CLAUSE BY ANY OF THIS.
+# The rule was ruled by Jodie WITH HUGH on the evening of 5 Aug 2026 — the same
+# night a series-name rule produced EP16, rendered, assembled and QC-passed under a
+# borrowed name and caught only by chance — and it says in terms: "the series-name
+# provision is DELETED, not qualified — AN EXCEPTION IS HOW IT COMES BACK."
+#
+# What follows is therefore NOT an exception to the rule. It is a RECORDED,
+# PER-EPISODE, AUDITED ESCAPE HATCH with four properties, and every one of them is
+# what keeps it from becoming the unless-clause §1a forbids:
+#   1. It NEVER GENERALISES. It is a key inside ONE episode.json and is read from
+#      that file only. Nothing copies it forward; the next episode has no such key
+#      and halts exactly as before.
+#   2. IT NAMES WHAT IT COVERS. It records the TITLE it excuses and the HEADLINE it
+#      was excused against, and it applies only while BOTH still match. Re-title the
+#      episode, or re-capture the page, and the override LAPSES ON ITS OWN rather
+#      than silently covering a fault nobody has looked at.
+#   3. IT IS NEVER SILENT. An honoured override prints a note into the run log
+#      saying what was overridden, when and why. A rule that is being set aside
+#      without saying so is a rule nobody can audit.
+#   4. IT CANNOT BE INFERRED FROM PROSE. It is a STRUCTURED declaration and nothing
+#      reads `_title_note` to decide anything. EP41's own `_title_note` argues BOTH
+#      sides — the override AND the §1a reasoning against it, kept for the record —
+#      so a prose match would have been a coin toss on which paragraph it hit first.
+#      ("Mentioned is not declared": parse declarations, never mentions.)
+OVERRIDE_KEY = "_title_override"
+
+
+def title_override(epj: dict, head: str):
+    """A recorded §1a override for THIS episode against THIS headline, or None.
+
+    Every field is required and is checked. A half-written override is NOT an
+    override — it is a fault nobody finished describing, and the safe reading of
+    it is that the rule still applies.
+    """
+    ov = epj.get(OVERRIDE_KEY)
+    if not isinstance(ov, dict):
+        return None
+    if str(ov.get("rule") or "").strip() != "1a":
+        return None
+    # THE TWO IT NAMES. Change either and the override lapses, by design.
+    if str(ov.get("title") or "") != str(epj.get("title") or ""):
+        return None
+    if str(ov.get("headline") or "") != head:
+        return None
+    if not str(ov.get("date") or "").strip():
+        return None
+    if not str(ov.get("reason") or "").strip():
+        return None
+    return ov
+
+
+def title_override_notes(epj: dict, capture_text: str | None) -> list[str]:
+    """Run-log lines for an override that is being honoured. Never an operator flag.
+
+    Emitted whether or not the fault would have fired, so the log records the
+    override's PRESENCE and not merely its effect — an override sitting in a file
+    that no longer needs it is worth seeing before it is worth trusting.
+    """
+    head = _capture_headline(capture_text)
+    if not head:
+        return []
+    ov = title_override(epj, head)
+    if not ov:
+        return []
+    return [f"§1a name check OVERRIDDEN for this episode only — recorded "
+            f"{ov['date']}: {ov['reason']} (page headline {head!r}, episode "
+            f"{str(epj.get('title') or '')!r}). It does not travel: the next "
+            f"episode halts on §1a exactly as before."]
+
+
+def _capture_headline(capture_text: str | None) -> str:
+    """The source page's own headline — the capture's first `# ` line."""
+    if not capture_text:
+        return ""
+    for ln in capture_text.splitlines():
+        ln = ln.strip()
+        if ln.startswith("# "):
+            return ln.lstrip("# ").strip()
+    return ""
+
+
 def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     """The episode's name and byline against the SOURCE PAGE's own headline.
 
@@ -383,8 +464,7 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     """
     if not capture_text:
         return []
-    lines = [ln.strip() for ln in capture_text.splitlines()]
-    head = next((ln.lstrip("# ").strip() for ln in lines if ln.startswith("# ")), "")
+    head = _capture_headline(capture_text)
     if not head:
         return []
     title = str(epj.get("title") or "")
@@ -404,11 +484,23 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     h, t = _name_tokens(head), _name_tokens(title)
     shared = h & t
     if len(shared) < max(1, min(len(h), len(t)) // 2):
+        # THE OVERRIDE IS CONSULTED HERE AND NOWHERE ELSE — after the fault has been
+        # FOUND, never before it is looked for. The check still runs in full and still
+        # reaches the same verdict; all a recorded override changes is whether that
+        # verdict stops the build. So the rule is never narrowed, the log always says
+        # what was found, and deleting the key restores the halt with nothing else to
+        # undo.
+        if title_override(epj, head) is not None:
+            return []
         out.append(
             "the episode's name does not look like the source page's headline. "
             f"The page says {head!r} and the episode is called {title!r}. "
             "The episode takes the article's headline (ruled 5 Aug 2026), so one "
-            "of these is wrong and it is almost certainly the episode.")
+            "of these is wrong and it is almost certainly the episode.\n"
+            "      If this episode's name is right and you clear this, I will "
+            "record a one-off exception for THIS EPISODE ONLY, with today's date, "
+            "and I will say so in the log every time it is used. The next episode "
+            "stops here again and needs the same decision.")
     return out
 
 
@@ -601,23 +693,33 @@ def preflight_cards(epj: dict, *, script_text: str = "",
     blockers += capture_faults(capture_text)
     blockers += name_faults(epj, capture_text)
     blockers += overfull_faults(epj)
+    # A RECORDED OVERRIDE IS A NOTE, NEVER A WARNING AND NEVER SILENCE. Jodie's
+    # 6 Aug ruling bans warnings from this module — "a warning that is wrong about
+    # half the time trains people to stop reading warnings" — and this is not one:
+    # it is a statement of fact about a rule that was set aside, addressed to the
+    # run log and to a maintainer, never to the operator's box.
+    notes = title_override_notes(epj, capture_text)
     # 🚫 STRAY TRACE KEYS ARE NOT REPORTED HERE, AND THAT IS THE SAME DECISION AS THE
     # BEAT-LENGTH CHECK ABOVE. This module emits NO warnings on purpose (Jodie, 6 Aug
     # 2026): "a warning that is wrong about half the time trains people to stop reading
     # warnings". A key that addresses nothing is harmless BY DEFINITION — nothing reads
     # it — so it has no business in a gate. `author_cards` prints it in the authoring
     # report, where it belongs: visible in the run log, never in front of an operator.
-    return {"blockers": blockers, "warnings": []}
+    return {"blockers": blockers, "warnings": [], "notes": notes}
 
 
 def format_report(res: dict) -> str:
     """Plain English for the RUN LOG. The operator's box gets the halt, not this."""
     b, w = res["blockers"], res["warnings"]
+    n = res.get("notes") or []
     lines = [f"card pre-flight: {len(b)} blocker(s), {len(w)} thing(s) to look at"]
     for p in b:
         lines.append(f"  x {p}")
     for p in w:
         lines.append(f"  ? {p}")
+    # AFTER the faults, so a note can never be mistaken for one, and never omitted.
+    for p in n:
+        lines.append(f"  ! {p}")
     lines.append(f"  ({layout_is_not_here()})")
     return "\n".join(lines)
 

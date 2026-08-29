@@ -1616,6 +1616,82 @@ def _record_gate_answers(ctx) -> None:
         log(f"   (could not record a gate answer: {e} — the gate will ask again)")
 
 
+def _record_title_override(ctx) -> None:
+    """If a §1a name fault is outstanding when a flag CLEARS, record the override.
+
+    🔴 §1a IS NOT CHANGED BY THIS AND MUST NEVER BE. Ruled by Jodie WITH HUGH,
+    5 Aug 2026, with no unless-clause: "an exception is how it comes back." This
+    writes a per-episode, dated, auditable ESCAPE HATCH into the episode's own file;
+    it does not touch the rule, and `preflight_cards.name_faults` still finds the
+    fault in full every time — the override only decides whether it stops the build.
+
+    🔴 THE FAULT IS RE-DERIVED, NEVER MATCHED AS TEXT. It asks
+    `preflight_cards.name_faults` whether a §1a fault is outstanding RIGHT NOW,
+    rather than searching the flag's prose for words like "headline". E23c —
+    derive it, never store it — and 1a's own lesson: a check that greps prose can
+    be tripped by prose that merely DESCRIBES the thing it guards. The operator's
+    message is written for a person and may be reworded any day; the derivation
+    cannot go stale.
+
+    ⚠️ AND IT RECORDS ONLY WHAT WAS TRUE AT THE MOMENT SHE CLEARED — the title and
+    the page headline, both. Re-title the episode later and the override lapses on
+    its own (see `preflight_cards.title_override`), because an override that
+    outlives the thing it excused is exactly the silent exception §1a forbids.
+
+    Never raises: failing to record means the halt simply comes back, which is the
+    safe direction. Failing LOUDLY would strand an episode over bookkeeping.
+    """
+    if ctx.mock or not ctx.ep.get("ep_number"):
+        return
+    try:
+        import preflight_cards as pc
+        d = ctx.provider.dir(ctx.ep)
+        epj_path = d / "docs/episode.json"
+        if not epj_path.is_file():
+            return
+        epj = json.loads(epj_path.read_text(encoding="utf-8"))
+        rel = pc.capture_rel(epj)
+        if not rel:
+            return
+
+        def _read(p):
+            try:
+                return p.read_text(encoding="utf-8") if p and p.is_file() else None
+            except Exception:
+                return None
+
+        capture = _read(ctx.provider.pp / rel) or _read(d / rel)
+        if not capture:
+            return
+        head = pc._capture_headline(capture)
+        # ALREADY RECORDED? Then she is clearing something else and this must not
+        # touch the file — a re-write would move the DATE and quietly restate an
+        # older decision as today's.
+        if pc.title_override(epj, head) is not None:
+            return
+        if not pc.name_faults(epj, capture):
+            return                      # no §1a fault outstanding — nothing to excuse
+
+        title = str(epj.get("title") or "")
+        epj[pc.OVERRIDE_KEY] = {
+            "rule": "1a",
+            "title": title,
+            "headline": head,
+            "date": datetime.now(timezone.utc).date().isoformat(),
+            "reason": ("cleared at the card-build pre-flight by the operator, who "
+                       "confirmed this episode's name is right for this episode"),
+            "scope": ("THIS EPISODE ONLY. It does not travel and is not a precedent. "
+                      "§1a stands unchanged; the next episode halts here again and "
+                      "needs its own decision. Delete this key to restore the halt."),
+        }
+        epj_path.write_text(json.dumps(epj, indent=2, ensure_ascii=False) + "\n",
+                            encoding="utf-8")
+        log(f"   §1a override RECORDED for this episode only — title {title!r} "
+            f"against page headline {head!r}. It does not travel.")
+    except Exception as e:                                            # noqa: BLE001
+        log(f"   (could not record a §1a override: {e} — the halt will come back)")
+
+
 def _say_step(ctx, name) -> None:
     """Put the TRUE current step on the rail's progress line, keeping the pct.
 
@@ -1687,6 +1763,15 @@ def flag_and_wait(ctx, name, message):
             # asking. One flag is outstanding at a time, so a cleared flag answers
             # whatever was asked.
             _record_gate_answers(ctx)
+            # AND, IF THE THING SHE JUST CLEARED WAS A §1a NAME HALT, record the
+            # override before the step is retried — otherwise the retry re-runs the
+            # same check, finds the same fault and flags again, forever. That loop is
+            # the actual defect: an override that is not written anywhere the check
+            # can read cannot survive a restart. The operator's halt says plainly
+            # that clearing it records a one-off exception, so this is consent, not a
+            # surprise. (`_record_title_override` derives the fault rather than
+            # matching the message, and does nothing on any other flag.)
+            _record_title_override(ctx)
             # No flag, no picture. Left behind, it would put a stale preview beside
             # whatever the NEXT flag turns out to be about.
             if ctx.state.pop("flag_step", None) is not None:
