@@ -1089,3 +1089,41 @@ MCP route cannot hold the background either — its only video-creating tool tak
 background parameter, and Gordon's grandstand comes from the locked template's scene, not
 from his avatar. A template-free render puts him in a corporate office.
 **Does NOT cover:** anything about WHO clicks — that is A25 above.
+
+---
+
+## A29 · 29 Aug 2026 — 🗂️ THE ARCHIVE'S PRE-FLIGHT REDS ARE EXPECTED, AND CLOSED · **Jodie**
+
+> ### IF YOU POINT `preflight_cards` AT THE ARCHIVE, ABOUT THIRTEEN PUBLISHED EPISODES
+> ### COME BACK RED. **THAT IS NOT A FAULT REPORT. NOTHING IS BROKEN.**
+
+**This is a decision NOT to act, recorded so it is not mistaken for one nobody has got
+to yet.** It is deliberately **not** in the checkpoint's "logged, not commissioned" list:
+that list means *we intend to do this one day*, and **a do-list that quietly fills with
+things nobody will ever pick up is a list nobody reads** (Jodie, 29 Aug 2026). These are
+the opposite — settled, and closed.
+
+**Found** while wiring the early card layout check: a data-clean episode was needed for
+the control, so `preflight_cards` was run across all 33 episode folders on Drive.
+**19 clean · 13 with blockers · 0 touched.**
+
+| episodes | what the checker says | why |
+|---|---|---|
+| EP05–EP10, EP98 | `source` does not name a source-article capture | **predates the capture convention** — the whole figure-tracing regime came later |
+| EP11, EP12, EP13, EP20 | the episode's name does not look like the source page's headline | predates A1 (*the article's headline wins*) |
+| EP14, EP15, EP16, EP22 | card-level: a measurement card showing no figure · an assertion mix over the 40% cap · a trace substring · a matrix card that will not fit | real card findings, on episodes shipped and approved before those checks existed |
+
+**Covered by the standing ruling that a shipped episode is not touched** (CLAUDE.md,
+*"a guard prevents recurrence — it does not oblige us to go back"*, 4 Aug 2026). Every
+one of these is published, approved and closed. **Do not propose a re-render, a re-cut or
+a backfill for any of them.** A new check's job is the NEXT episode.
+
+⚠️ **THE SENTENCE MATTERS MORE THAN THE TABLE.** The list above is regenerable in ninety
+seconds by re-running the checker. What cannot be rediscovered is *"these reds are
+expected and closed"* — and without it the next engineer to point a checker at the archive
+sees thirteen reds and reasonably concludes the studio is broken. **Fewer surprises is the
+measure.**
+
+📌 **And these are not evidence about the VIDEOS.** They are `episode.json` findings on
+files whose episodes shipped and were approved. Nobody has claimed a fault in the
+finished work, and this ruling is not a hint that there is one.
