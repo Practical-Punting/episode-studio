@@ -1127,3 +1127,33 @@ measure.**
 📌 **And these are not evidence about the VIDEOS.** They are `episode.json` findings on
 files whose episodes shipped and were approved. Nobody has claimed a fault in the
 finished work, and this ruling is not a hint that there is one.
+
+---
+
+## A30 · 22 Aug 2026 — 🎙️ THE PRESENTER IS **GORDON**. THE AVATAR IS PLUMBING. · **Jodie**
+
+> ### THERE ARE NOT THREE NAMES. THERE IS **ONE CHARACTER** AND **SEVERAL AVATARS**.
+
+**Jodie's ruling, verbatim:**
+> *"It is Luke but please do not worry about that. We are happy with the name Gordon for
+> all the men."*
+
+| | |
+|---|---|
+| **GORDON** | **the CHARACTER. He never changes.** This is the presenter's name, everywhere. |
+| **Luke · Peter · whatever comes next** | the **AVATAR** underneath. **Plumbing.** It may change freely and it is not a rename. |
+
+### WHAT FOLLOWS FROM IT
+- **Every script, the board and QC saying "Gordon" is CORRECT.** Not stale, not a rename
+  waiting to happen, not something to reconcile against the avatar in use.
+- **QC's listen warning — "confirm the voice stays Gordon" — is CORRECT on an episode
+  rendered with the Luke avatar.** Gordon is who is speaking, whichever face rendered it.
+  **Do not "fix" that wording.**
+- **Changing the avatar is not an editorial decision and needs no rename anywhere.**
+
+⚠️ **RECORDED HERE BECAUSE IT KEEPS BEING RE-ASKED, AND EACH TIME COSTS SOMEBODY A LOOK.**
+It was settled on 22 August and was still being carried as *"unsettled three ways
+(Gordon / Peter / Luke)"* a week later, because it lived in a session snapshot rather than
+in the one place rulings live. **A settled ruling kept only in a document that gets
+rewritten is a ruling that will be re-asked** — CLAUDE.md §11, the price of not landing
+something, pointed at a fact rather than at code.
