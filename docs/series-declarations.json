@@ -1,0 +1,48 @@
+{
+  "_what_this_is": "SERIES DECLARATIONS. A series name set by the CONTENT OWNER, recorded with the evidence for it and with an explicit member list. Read by engine/preflight_cards.py:name_faults, which compares a DECLARED MEMBER's episode name against the series name, and every other episode against its own page headline (PP-RULINGS A1 / PP-STANDARDS 1a).",
+  "_why_it_carries_its_own_evidence": "1a exists to stop the STUDIO inventing a series name so that parts look like a pair -- the EP16 fault, in Jodie's words: 'I was trying to make the part 1 and part 2 fit together, but that is not a thing.' A name the content owner sets is a FACT ABOUT THE CONTENT and is a different thing. But the check cannot tell those apart by looking at a title, and a title typed onto the rail looks exactly like one that was decided. So a series name is honoured ONLY through a record that names its sources and lists its members. No declaration, no citations, no member list -- no exemption, and the EP16 pattern still halts.",
+  "_what_this_does_NOT_do": "It does not narrow 1a and it grants no discretion. The prohibition on the studio inventing a series name is exactly as absolute as before. An episode that is not a declared member is compared against its own page headline, unchanged. Delete a declaration and every one of its members halts again.",
+  "_who_may_add_one": "A series is named by the content owner (Hugh). Claude Code records the declaration and its citations; it does not decide one. 1a was ruled by Jodie WITH Hugh on 5 Aug 2026, so an amendment to how it is applied is theirs.",
+  "series": [
+    {
+      "name": "The Essentials of Studying Form",
+      "set_by": "Hugh, content owner (hugh@equest.com.au — already public in docs/PP-episode-outro-standard.md; his surname is deliberately not added, the citation does not need it)",
+      "recorded_on": "2026-08-30",
+      "recorded_by": "Claude Code, at Jodie's direction",
+      "citations": [
+        {
+          "what": "The name is printed on the source page itself, as EP38's standfirst under its headline 'BASE IT ON CLASS (Part 1)'. So it is Practical Punting's own words, not the studio's.",
+          "where": "docs/EP38-source-article-base-it-on-class-part-1.md, line 3: '**The Essentials of Studying Form**'",
+          "verified": "2026-08-30, read from the capture on disk"
+        },
+        {
+          "what": "Hugh published EP38's e-book landing page under the series name -- the content owner using it, in his own words, unprompted.",
+          "where": "Email, hugh@equest.com.au to jlralph@gmail.com, 29 Aug 2026 06:18 UTC, subject 'ebook 38 landing page': https://pp.practicalpunting.com.au/-the-essentials-fo-studying-form-p1/",
+          "verified": "2026-08-30, read from the mailbox"
+        },
+        {
+          "what": "CORROBORATION FROM THE PAGES THEMSELVES: the last two members' standfirsts say they are one set -- EP42 'The Ratings Guide finale', EP43 'The Ratings Guide betting approach'.",
+          "where": "docs/EP42-source-article-isolate-the-best-part-5.md and docs/EP43-source-article-price-is-right-part-6.md",
+          "verified": "2026-08-30, read from the captures on disk"
+        }
+      ],
+      "_members_are_keyed_by_their_SOURCE_PAGE": "Not by episode number and not by title. ep_number is null in every episode.json, and a title is the very thing under dispute -- keying on it would let a typed name authorise itself. The capture path is the page the episode is built FROM, and it is the same artefact 1a compares against.",
+      "members": [
+        {"part": 1, "ep": 38, "capture": "docs/EP38-source-article-base-it-on-class-part-1.md",
+         "page_headline": "BASE IT ON CLASS (Part 1)"},
+        {"part": 2, "ep": 39, "capture": "docs/EP39-source-article-the-essentials-of-form-studyratings-supply-the-edge-part-2.md",
+         "page_headline": "The essentials of form studyRATINGS SUPPLY THE $$ EDGE (Part 2)"},
+        {"part": 3, "ep": 40, "capture": "docs/EP40-source-article-12-form-angles-part-3.md",
+         "page_headline": "12 FORM ANGLES (Part 3)"},
+        {"part": 4, "ep": 41, "capture": "docs/EP41-source-article-prize-probe-part-4.md",
+         "page_headline": "PRIZE PROBE (Part 4)"},
+        {"part": 5, "ep": 42, "capture": "docs/EP42-source-article-isolate-the-best-part-5.md",
+         "page_headline": "ISOLATE THE BEST (Part 5)"},
+        {"part": 6, "ep": 43, "capture": "docs/EP43-source-article-price-is-right-part-6.md",
+         "page_headline": "PRICE IS RIGHT (Part 6)"}
+      ],
+      "_the_set_is_closed": "Six parts, Parts 1-6, the Ratings Guide run. A seventh episode is NOT a member because it looks like one -- adding a member is a change to this file, with a reason, and nothing derives membership at run time.",
+      "_correction_on_the_record": "Two documents (ENGINE-FIXES-QUEUE.md item 6b, EP41-MORNING-BRIEF.md) say the series name was taken from EP39's page. That is wrong, measured 2026-08-30 across all six captures: EP39's page reads 'The essentials of form study' and the exact phrase appears there ZERO times. It appears on EP38's page, and on EP38's alone."
+    }
+  ]
+}

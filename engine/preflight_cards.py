@@ -455,8 +455,87 @@ def _capture_headline(capture_text: str | None) -> str:
     return ""
 
 
+# ───────────────────────── a SERIES named by the CONTENT OWNER, with evidence ──
+# 🔴 THIS IS NOT A NARROWING OF §1a AND GRANTS NO DISCRETION. §1a exists to stop
+# the STUDIO inventing a series name so parts look like a pair — the EP16 fault.
+# A name the CONTENT OWNER sets is a fact about the content, which is a different
+# thing. But nothing can tell those apart by looking at a title: a name typed onto
+# the rail looks exactly like one that was decided, and that is precisely how EP16
+# happened. So a series name is honoured ONLY through a declaration that carries
+# its own evidence — sources cited and members listed — in
+# `docs/series-declarations.json`.
+#     NO DECLARATION, NO CITATIONS, NO MEMBER LIST -> NO EXEMPTION. The EP16
+# pattern still halts, and every non-member is compared against its own page
+# headline exactly as before.
+SERIES_FILE = Path(__file__).resolve().parent.parent / "docs" / "series-declarations.json"
+
+
+def _series_declarations() -> list:
+    """The declarations on disk, or [] if there are none or the file is unreadable.
+
+    ⚠️ FAILS TOWARDS THE RULE, NEVER PAST IT. A missing or broken file means no
+    episode is a declared member, so every episode is checked against its own
+    page headline — the behaviour §1a already had. A file nobody can read must
+    never become a silent exemption, and it must never be the reason a build
+    cannot start either.
+    """
+    try:
+        if not SERIES_FILE.is_file():
+            return []
+        data = json.loads(SERIES_FILE.read_text(encoding="utf-8"))
+        out = []
+        for s in data.get("series") or []:
+            # A DECLARATION IS ONLY A DECLARATION IF IT IS COMPLETE. Half of one is
+            # somebody's note, and a note may not set a rule aside.
+            if (isinstance(s, dict) and str(s.get("name") or "").strip()
+                    and str(s.get("set_by") or "").strip()
+                    and (s.get("citations") or []) and (s.get("members") or [])):
+                out.append(s)
+        return out
+    except Exception:                                              # noqa: BLE001
+        return []
+
+
+def series_for(epj: dict):
+    """The series this episode is a DECLARED MEMBER of, or None.
+
+    🔴 MEMBERSHIP IS KEYED ON THE SOURCE PAGE, never on the title and never on an
+    episode number. The title is the very thing in dispute — keying on it would let
+    a typed name authorise itself — and `ep_number` is null in every episode.json
+    on disk. The capture path is the page the episode is built FROM, and it is the
+    same artefact §1a compares against.
+    """
+    rel = (capture_rel(epj) or "").replace("\\", "/").strip().lower()
+    if not rel:
+        return None
+    for s in _series_declarations():
+        for m in s.get("members") or []:
+            if str(m.get("capture") or "").replace("\\", "/").strip().lower() == rel:
+                return s
+    return None
+
+
+def series_notes(epj: dict, capture_text: str | None) -> list[str]:
+    """Run-log lines when a series name is what the name check compared against.
+
+    NEVER SILENT. Using a series name is a departure from "the episode takes the
+    article's headline", and a departure nobody can see in the log is one nobody
+    can audit.
+    """
+    s = series_for(epj)
+    if not s:
+        return []
+    head = _capture_headline(capture_text)
+    return [f"§1a compared against the SERIES NAME {s['name']!r}, set by "
+            f"{s['set_by']} and declared with {len(s.get('citations') or [])} "
+            f"citation(s) — this episode is a declared member. Its own page "
+            f"headline is {head!r}. Every episode outside the declared set is "
+            f"still checked against its own page headline."]
+
+
 def name_faults(epj: dict, capture_text: str | None) -> list[str]:
-    """The episode's name and byline against the SOURCE PAGE's own headline.
+    """The episode's name against the SOURCE PAGE's headline — or, for a declared
+    series member, against the series name the CONTENT OWNER set.
 
     > A CONSISTENCY CHECK PROVES SAMENESS, NEVER CORRECTNESS.
     `check_one_name` passed EP16 perfectly — title card, e-book and YouTube all
@@ -470,6 +549,12 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     if not head:
         return []
     title = str(epj.get("title") or "")
+    # WHAT THIS EPISODE'S NAME IS MEASURED AGAINST. The page's headline, unless the
+    # episode is a declared member of a series the content owner named — in which
+    # case the series name is what its title is supposed to say, and comparing it
+    # to the headline would be asking the wrong question.
+    series = series_for(epj)
+    against = str(series["name"]) if series else head
     out = []
     # Fold to word tokens: the page shouts its headline and adds "(Part 2)",
     # while the episode name uses an em dash. Neither difference is a fault —
@@ -483,7 +568,7 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     def _name_tokens(s):
         return {w for w in norm_words(s) if w != "part" and not w.isdigit()}
 
-    h, t = _name_tokens(head), _name_tokens(title)
+    h, t = _name_tokens(against), _name_tokens(title)
     shared = h & t
     if len(shared) < max(1, min(len(h), len(t)) // 2):
         # THE OVERRIDE IS CONSULTED HERE AND NOWHERE ELSE — after the fault has been
@@ -495,8 +580,12 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
         if title_override(epj, head) is not None:
             return []
         out.append(
-            "the episode's name does not look like the source page's headline. "
-            f"The page says {head!r} and the episode is called {title!r}. "
+            (f"the episode's name does not match the series it belongs to. The "
+             f"series is called {against!r} and the episode is called {title!r}."
+             if series else
+             "the episode's name does not look like the source page's headline. "
+             f"The page says {head!r} and the episode is called {title!r}.")
+            + " "
             "The episode takes the article's headline (ruled 5 Aug 2026), so one "
             "of these is wrong and it is almost certainly the episode.\n"
             "      If this episode's name is right and you clear this, I will "
@@ -701,6 +790,7 @@ def preflight_cards(epj: dict, *, script_text: str = "",
     # it is a statement of fact about a rule that was set aside, addressed to the
     # run log and to a maintainer, never to the operator's box.
     notes = title_override_notes(epj, capture_text)
+    notes += series_notes(epj, capture_text)
     # 🚫 STRAY TRACE KEYS ARE NOT REPORTED HERE, AND THAT IS THE SAME DECISION AS THE
     # BEAT-LENGTH CHECK ABOVE. This module emits NO warnings on purpose (Jodie, 6 Aug
     # 2026): "a warning that is wrong about half the time trains people to stop reading
