@@ -657,13 +657,76 @@ def _preflight_cards(ctx) -> list[str]:
                              pages_dir=d / "overlay/export")
     lines = framing_lines + pc.format_report(res).splitlines()
     if res["blockers"]:
+        # 🔴 SAY WHAT WAS NOT LOOKED AT. The layout check below runs only when the
+        # data and the text are clean, so when this raises, whether the cards FIT
+        # has not been established at all — and to the person reading the flag,
+        # silence about layout reads as "layout is fine". It is not: it is "layout
+        # was not looked at". That is a false all-clear, and #7's corollary is
+        # exactly this — a pass is a statement about what was MEASURED, and so is
+        # a silence.
+        #     It removes the SURPRISE rather than the second stop. A second halt
+        # the operator was told to expect is not a surprise, and fewer surprises
+        # is the measure, not fewer stops. (Jodie, 29 Aug 2026.)
+        # ⚠️ Operator prose only — it is NOT added to `blockers`, which go to the
+        # repair writer as faults to fix. "I have not checked this yet" is not a
+        # fault, and a writer handed it would go looking for one.
         raise EngineFlag(
             "This episode's cards cannot be built as they are written. Nothing has "
             "been built and nothing has been spent — these were all found before "
             "anything started.\n"
             "Each line below names the card and what is wrong with it:\n"
-            + "\n".join(f"  - {b}" for b in res["blockers"]),
+            + "\n".join(f"  - {b}" for b in res["blockers"])
+            + "\n\nI have not been able to check whether the cards FIT yet — I do "
+              "that once these are sorted, so there may be a second round.",
             blockers=res["blockers"])
+
+    # ── LAYOUT, AND ONLY ONCE THE DATA AND THE TEXT ARE CLEAN ──────────────────
+    # 67d72eb wrote this check and deliberately did not wire it in; this is the
+    # wiring. It goes HERE so both callers get it from one place: the repair loop
+    # reaches this function through _epjson_gate, and the hand-written path
+    # reaches it through step_audit_inputs.
+    #
+    # 🔴 WHY IT RUNS AFTER THE RAISE ABOVE AND NOT ALONGSIDE IT. _epjson_gate's
+    # rule is "both gates run, the writer gets every complaint at once", and this
+    # is the one place that rule is knowingly not applied. A layout verdict is
+    # measured on an AUTHORED card, so a card whose data or text is already a
+    # blocker is a card that will not be built in that form — measuring it answers
+    # a question about something that is about to change. The module says the same
+    # from its own side: author_into() hands authoring failures to rehearsal_faults
+    # rather than reporting them twice, because "reporting it twice sends a repair
+    # writer chasing two things".
+    #     The cost of this ordering is one extra pass when an episode has both
+    # kinds of fault. The cost of the alternative is a FALSE LAYOUT ALARM, and 4a
+    # says a guard that halts a build it should not is the version somebody
+    # switches off — which this check has already been bitten by once: its first
+    # version used autofit's --dry-run and called two of EP35's nineteen cards
+    # unfittable in the same run where the real build fitted them.
+    #
+    # ⚠️ IT MUST NEVER BE THE REASON A BUILD CANNOT START — this function's
+    # contract, stated at the top. A BLOCKER it finds is a real halt; that is the
+    # whole point of moving it to the head of the build. But the check FAILING TO
+    # RUN is not a finding: Chromium not launching, playwright absent, autofit
+    # timing out. Those are logged and stood aside from, exactly as the framing
+    # re-derive above does, because a card that could not be measured has not been
+    # judged. (#7's corollary: a pass is a statement about what was MEASURED.)
+    try:
+        sys.path.insert(0, str(SKILL_DIR / "scripts"))
+        import preflight_card_layout as pcl
+        lay = pcl.preflight_card_layout(epj)
+    except Exception as e:                                         # noqa: BLE001
+        lines.append(f"card layout pre-flight skipped ({type(e).__name__}: {e})")
+        return lines
+
+    lines += lay["lines"]
+    if lay["blockers"]:
+        raise EngineFlag(
+            "Some of this episode's cards have more on them than the card can "
+            "hold, and making the type smaller does not fix it. Nothing has been "
+            "built and nothing has been spent — this was found before anything "
+            "started.\n"
+            "Each line below names the card and what is wrong with it:\n"
+            + "\n".join(f"  - {b}" for b in lay["blockers"]),
+            blockers=lay["blockers"])
     return lines
 
 
