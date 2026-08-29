@@ -608,6 +608,28 @@ find.** Listed, never reconstructed.
   movement within them**.
 - **The 1988 "lady punters" aside** — reproduced in EP15's e-book per §0a, not spoken. Her
   call, still owed.
+- 🆕 **A SCRAPED HEADLINE'S OWN MESS, REPRODUCED IN A LEAD MAGNET — TWO SPECIMENS, NO
+  RULING.** *(Logged 29 Aug 2026. Jodie and Hugh's call. **No answer is proposed here and
+  nothing has been built.**)*
+  **Two e-books have now printed the source page's own scraping damage as their inner
+  heading, and §0a made both of them correct:**
+  | episode | the `h1` as printed | what it is |
+  |---|---|---|
+  | **EP36** | `2THE KILOS KILLER` | a stray leading `2` on the page's headline |
+  | **EP39** | `The essentials of form studyRATINGS SUPPLY THE $$ EDGE (Part 2)` | the page's **standfirst run into its headline with no space** |
+  **Neither is a defect by the rules as they stand.** The `h1` reproduces the capture's
+  headline line verbatim, §0a says *reproduce, do not improve*, and EP39's own
+  `_source_note` had already logged the jam as a category-1 oddity that stands. **Measured
+  29 Aug: "correcting" EP39's heading to the episode title HALTS the fidelity gate, and so
+  does inserting a single space** — the body would no longer reproduce the article's first
+  block.
+  **THE QUESTION THAT HAS NOT BEEN ASKED:** §0a governs faithfulness to the article. **The
+  e-book is also a LEAD MAGNET** — a document offered to a stranger as the reason to
+  subscribe — and nobody has ruled on whether the house wants a scraped page's own damage
+  on page 2 of that. Those are different purposes and only the first one has a rule.
+  ⚠️ **It is a question about the STANDARD, not about these two books.** EP36 has shipped;
+  EP39 is approved as it stands (Jodie, 29 Aug). *A guard prevents recurrence — it does not
+  oblige us to go back.*
 
 ---
 
