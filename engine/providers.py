@@ -3950,6 +3950,21 @@ class RealProvider:
     # different terminal (CLAUDE.md fault #7 in a feature flag).
     #
     # WHAT IT COSTS: rate limits, not money — commissions run on Jodie's Max
+    # 🔴 RAISED 10 -> 15 ON 30 Aug 2026, AND THE REASON IS THAT TWO LIMITS ON ONE
+    # OPERATION MUST BITE AT THE SAME MOMENT, OR THE TIGHTER ONE MAKES THE OTHER
+    # DECORATIVE. (Jodie, 30 Aug 2026.) The commission's TIME floor went to 3000s
+    # (50 min) the same night; at the measured rate — $9.28 over 2119s, so about
+    # $0.26/min — a $10 bound runs out at ~38 minutes, INSIDE the 50 the clock now
+    # allows. So the money bound would have cut off a job the clock had explicitly
+    # been widened to permit, and the widening would have bought nothing.
+    #     $15 covers the full 50 minutes at that rate with room to spare.
+    # ⚠️ IT IS NOT A SPEND LIMIT — see the note below: commissions run on the Max
+    # subscription and this number is NOTIONAL, a runaway-turn bound. Raising it
+    # costs no money; it loosens a guard against a writer looping forever, which
+    # is why 15 and not 50.
+    # 🅿️ THIS DEFAULT IS WRITTEN IN FOUR PLACES IN THIS FILE (fault #2, one source
+    # of truth). Not folded into a constant here because EP43 was mid-commission
+    # when this landed and a mechanical four-site edit is the smaller risk; logged.
     # SUBSCRIPTION (established 6 Aug). ENGINE_COMMISSION_BUDGET_USD is a
     # RUNAWAY-TURN bound, not a spend limit; the number it caps is notional.
     def _commission_youtube_copy(self, ep, d: Path):
@@ -3999,7 +4014,7 @@ class RealProvider:
             what="the YouTube words",
             find_artefact=find,
             add_dirs=[REPO_DIR / "docs"],
-            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "15")),
             timeout=com.TIMEOUT_S,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
@@ -4152,7 +4167,7 @@ class RealProvider:
             find_artefact=find,
             add_dirs=[REPO_DIR / "docs", capture.parent]
                      + [p.parent for p in refs],
-            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "15")),
             # ⏱ 1800s, NOT THE 900 THE OTHER TWO USE — and the number is measured.
             # The first scratch run TIMED OUT at 900s. It had not stalled: it wrote
             # a complete 67 KB file at about EIGHTEEN MINUTES, so the ceiling cut
@@ -4317,7 +4332,7 @@ class RealProvider:
                 # by absolute path above — --add-dir grants access, it does not tell
                 # anybody where to look.
                 add_dirs=[REPO_DIR / "docs", skills, capture.parent],
-                budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+                budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "15")),
                 timeout=com.TIMEOUT_SCRIPT_S,
                 model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
             )
@@ -4419,7 +4434,7 @@ class RealProvider:
             # because THE ENGINE RUNS THE GATE ITSELF below. A writer's "I checked
             # and it passed" would be a report, and this whole mechanism exists
             # because a report is not an artefact.
-            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "10")),
+            budget_usd=float(os.environ.get("ENGINE_COMMISSION_BUDGET_USD", "15")),
             timeout=com.TIMEOUT_S,
             model=os.environ.get("ENGINE_COMMISSION_MODEL") or None,
         )
