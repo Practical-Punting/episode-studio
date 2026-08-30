@@ -115,7 +115,12 @@ Into `PP-EPxx/ebook/`:
   exactly). It needs explicit `--keep` segment indices; guessing produces
   nonsense like "A practicalpunting.com.au". Always open the before/after PNG.
 - Browser downloads land in Downloads with random or `.tmp` names. Claude Code
-  audits and moves them; Jodie should never have to.
+  audits and moves them; Jodie should never have to. **Since 30 Aug 2026 that is
+  `engine/downloads_sweep.py`, and it matches by the NAME this episode is
+  expecting — never by recency.** A second production line (Inspirational Women)
+  now downloads into the same folder on this laptop, so "the recent one" can be
+  somebody else's file, and filing it into a PP episode would raise no error
+  anywhere. It moves only exact matches and names everything it leaves behind.
 - WeasyPrint needs the Windows GTK runtime (installed 2026-07-20). If it ever
   breaks: github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer
 

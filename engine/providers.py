@@ -37,6 +37,7 @@ from pathlib import Path
 
 import broll_prompt_rules                      # the b-roll standing lines (EP24 onward)
 import check_page_images                       # the general "does every <img> resolve"
+import downloads_sweep                         # ~/Downloads by NAME, never by recency
 
 
 def sha256_text(text: str) -> str:
@@ -2150,6 +2151,60 @@ class RealProvider:
     def hf_ready(self) -> bool:
         return self.hf.is_file()
 
+    # ── AN ID IS A PROMISE; "THE MOST RECENT GENERATION" IS A GUESS ──────────
+    # (§0a pointed at Higgsfield, 30 Aug 2026.)
+    #
+    # A second production line now generates on the SAME Higgsfield account and
+    # the same balance, so a recent-generations list can hold somebody else's
+    # asset. This engine has always asked BY ID — `generate get <id>` — and the
+    # id has always been checkpointed the instant it exists. What was missing was
+    # the other half: nothing ever asked whether the ANSWER was about the job we
+    # asked for. A wrong answer would not look like a failure; it would look like
+    # a b-roll clip, and it would be composited into the episode.
+    #
+    # MEASURED, NOT ASSUMED (30 Aug 2026), on two real completed jobs from the
+    # live account — a still (`nano_banana_pro`) and a clip (`kling3_0_turbo`).
+    # BOTH carry a top-level `id` equal to the id asked for, and both embed that
+    # id in `result_url`. So the check is derived from the record itself rather
+    # than from a list of field names somebody has to keep up to date (§7): our
+    # id must appear SOMEWHERE in the answer, and where the record states its own
+    # id, that id must be ours.
+    def _hf_job(self, job_id: str, label: str) -> dict:
+        """Fetch ONE Higgsfield job and prove the record is about THAT job.
+
+        Returns the job record, or raises EngineFlag having downloaded nothing.
+        It NEVER falls back to a listing, a search or a newest-first pick — the
+        whole point is that there is no second way to find the thing we paid for.
+        """
+        rec = self._hf("generate", "get", job_id)
+        if isinstance(rec, dict):
+            stated = rec.get("id")
+            if stated is not None and str(stated) == str(job_id):
+                return rec
+            if stated is None and job_id in json.dumps(rec, default=str):
+                # No top-level id in this envelope, but the record names our job
+                # (the result URL carries it). Say so, once, in the RUN LOG.
+                print(f"    note: the Higgsfield record for {label} has no top-level "
+                      f"id, but it does name the job we launched — accepted.")
+                return rec
+
+        # THE IDS GO IN THE RUN LOG, NOT IN THE OPERATOR'S BOX — different
+        # readers, and the same text cannot serve both (docs/PP-operator-box-rule).
+        print(f"    HIGGSFIELD IDENTITY CHECK FAILED for {label}: asked for job "
+              f"{job_id}, got a record stating "
+              f"{(rec.get('id') if isinstance(rec, dict) else None)!r}. "
+              f"Nothing was downloaded.")
+        raise EngineFlag(
+            "I asked Higgsfield for one of this episode's generated pictures and "
+            "it answered about a different generation, so I stopped rather than "
+            "use it. Nothing has been downloaded and no credits have been spent.\n\n"
+            "This machine now runs two production lines on the same Higgsfield "
+            "account, so a mixed-up answer would put the wrong line's picture in "
+            "this episode. That is exactly what I refused to do.\n\n"
+            "This is a fault in the studio, not something to fix on the board, and "
+            "retrying on its own will not change the answer. Tell whoever looks "
+            "after the engine.")
+
     # -- plumbing ------------------------------------------------------------
     def dir(self, ep) -> Path:
         return self.pp / ep_folder(ep)
@@ -2664,7 +2719,7 @@ class RealProvider:
         """Poll one Higgsfield job to completion and save the result. Stills are
         quick (well under a minute); the heartbeat keeps beating through this."""
         for _ in range(120):               # ~20 min ceiling, then flag honestly
-            job = self._hf("generate", "get", job_id)
+            job = self._hf_job(job_id, label)     # proves it IS this job (§0a)
             status = job.get("status")
             if status in ("failed", "nsfw"):
                 raise RuntimeError(f"Higgsfield job for {label} came back {status}")
@@ -2879,6 +2934,16 @@ class RealProvider:
         for sub in ("renders", "overlay/export", "overlay/clips", "broll",
                     "ebook", "thumbnail", "output"):
             (d / sub).mkdir(parents=True, exist_ok=True)
+        # ── THE DOWNLOADS SWEEP, BY NAME AND NEVER BY RECENCY (30 Aug 2026) ──
+        # A second production line now writes into the same ~/Downloads on this
+        # laptop. Stage 0's old instruction — "locate by name/recency" — cannot
+        # tell the two apart, and a wrong pick files somebody else's media into a
+        # PP episode with no error anywhere. This matches against the names THIS
+        # episode's shot script asks for, moves only those, and NAMES everything
+        # it left behind. It runs after the folders exist, and it cannot halt a
+        # build: `audit()` swallows its own faults and reports them as a line.
+        for line in downloads_sweep.audit(d):
+            print(f"    {line}")
         return {"folder": str(d)}
 
     def submit_broll(self, ep, clip: str) -> str:
@@ -2905,7 +2970,7 @@ class RealProvider:
             if polls_so_far > 3:           # staged file vanished — don't spin
                 raise RuntimeError(f"b-roll clip {clip} is missing from broll/")
             return None
-        job = self._hf("generate", "get", job_id)
+        job = self._hf_job(job_id, clip)          # proves it IS this job (§0a)
         status = job.get("status")
         if status in ("failed", "nsfw"):
             raise RuntimeError(f"Higgsfield job for {clip} came back {status}")

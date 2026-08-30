@@ -147,9 +147,28 @@ Refine per card (SVG fills, shadows) as needed; EP05's cards predate this (dark-
 
 **File audit first (always).** Browser downloads land in Downloads with random
 or `.tmp` GUID names (EP02's design cards arrived as `<guid>.tmp` — actually a
-zip; `file` + `zipfile.testzip` identified it). Locate by name/recency, verify
-duplicates by checksum, move into the episode structure, and REPORT the layout
-before rendering anything.
+zip; `file` + `zipfile.testzip` identified it). Run
+`python engine/downloads_sweep.py <episode folder>`, verify duplicates by
+checksum, and REPORT the layout before rendering anything. The engine also runs
+it itself at `audit_inputs`, so a normal build needs nothing done by hand.
+
+> ## 🔴 MATCH BY THE NAME THIS EPISODE IS EXPECTING. **NEVER BY RECENCY.**
+> **(30 August 2026.)** This paragraph used to say *"locate by name/recency"*, and
+> that was safe for exactly as long as this laptop ran ONE production line. It now
+> runs two: the Inspirational Women / Rising Story line generates media into the
+> **same `~/Downloads`, from the same browser, on the same Higgsfield account.**
+> On the day this was written `iw-export.zip` and `pp-video-export.zip` were sitting
+> **four minutes apart** in that folder.
+>
+> **Recency is a guess about WHOSE file this is, and the wrong guess does not look
+> like an error** — the other line's media lands in a PP episode folder under a PP
+> name and nothing anywhere says so. §0a, pointed at a folder instead of an id.
+>
+> `downloads_sweep.py` takes its expectations from the episode's OWN
+> `docs/episode.json` (b-roll targets, card pages, the midroll and CTA clips), so
+> adding a shot adds its expectation with no code change. It moves ONLY an exact
+> name match, never overwrites, and **names every file it left behind** — because a
+> file that quietly is not moved must not be as silent as a file that quietly is.
 
 **HeyGen presenter** (see memory: heygen-api-setup):
 - Key: `PP Videos/.env` → `HEYGEN_API_KEY`, header `x-api-key`. Never print it.
