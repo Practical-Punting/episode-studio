@@ -250,6 +250,47 @@ started before the render gate opened, if the cover heroes appeared after the
 master landed, or if the whole batch finished with the render still unstarted.
 Warnings are logged AND kept in `build_state.order.warnings`.
 
+## THE RENDER LOCK — one heavy render at a time, across BOTH production lines
+**(30 Aug 2026.)** This laptop also runs the Inspirational Women / Rising Story
+line, from its own folder, for a different client. Two ffmpeg jobs on 8 GB do not
+run at half speed — they page, and one of them dies **mid-write**. So the two
+studios share one lock.
+
+- **`engine/render_lock.py` is a VERBATIM copy of the other line's module. Do not
+  edit it here.** The shared contract is the lock file
+  (`%LOCALAPPDATA%\equest-render\render.lock`, override `$EQUEST_RENDER_LOCK`), the
+  atomic `O_EXCL` create and the `.beat` liveness sidecar. If it ever changes, both
+  copies change together — and `test_render_lock_copy.py` compares them by sha256
+  so drift **fails a test** instead of being remembered.
+- **Only the CPU-bound half is held**: `step_assemble_passA` and
+  `step_assemble_passB`, through `render_lock_held()`. The HeyGen fetch, the SRT
+  alignment, the Higgsfield generations and the e-book PDF stay **outside** — they
+  are network- and API-bound, and keeping them out is what lets the two lines
+  overlap at all.
+- 🔴 **The `with` is at the STEP, never inside `RealProvider.run()`.** `run()` is
+  `subprocess.run(timeout=PASS_TIMEOUT)` — 2400s — and that clock starts with the
+  ffmpeg child. Acquire the lock inside it and a long wait eats the ffmpeg budget,
+  the child is killed for being slow, and the operator gets a raw `TimeoutExpired`
+  carrying the whole command line.
+- 🔴 **A wait is not a stall, and the BOARD had to be taught that first.**
+  `started_at` is stamped before the step runs and is never reset, so 40 minutes of
+  waiting plus 15 of assembly used to read as 55 against a 45-minute budget — and
+  the card said *"Stuck — nobody is coming … Restarting the engine picks it up
+  where it left off"*. The engine now records `waiting_on` and `waited_s` on the
+  in-flight marker and the board judges **working** time. The budget is **not**
+  removed: `budget_s: null` would silence the alarm for ever, and EP14's
+  three-and-a-half-day silent `assemble_passB` is why it exists.
+  Proved both ways in `test_waiting_is_not_stuck.py`.
+- **It never kills, relaunches or steals a lock.** A holder that has stopped
+  breathing for 15 minutes raises `LockStale`, which the engine turns into a plain
+  operator flag — the module's own text names a file path and a shell command and
+  is banned from the board by `docs/PP-operator-box-rule.md`.
+- **A forced stop while holding it costs the next run 15 minutes** (the orphaned
+  lock has to go quiet before anything will touch it) and then a flag. Known, and
+  accepted by Jodie 30 Aug: the fix is a dead-pid reclaim in the SHARED module, so
+  it is a conversation with the other line, not a local edit.
+- `python engine/render_lock.py status` · `selftest` (7 checks).
+
 ## Status → steps map
 
 | status | engine steps |

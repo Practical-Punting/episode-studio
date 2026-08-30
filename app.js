@@ -407,8 +407,26 @@ function stepState(ep) {
   const cur = (ep.build_state || {}).current;
   if (!cur || !cur.started_at) return null;          // nothing in flight to judge
   const ran = Date.now() - new Date(cur.started_at).getTime();
+
+  /* 🔴 THE FOURTH STATE — BLOCKED ON ANOTHER JOB ON THE SAME MACHINE. (30 Aug 2026.)
+   *
+   * This laptop now runs two production lines and they cannot both encode at once
+   * on 8 GB, so assembly waits behind a shared render lock. `started_at` is stamped
+   * before the step runs and is never reset, so RAN stops meaning WORKED the moment
+   * that wait exists: 40 minutes of waiting plus 15 of assembly reads as 55 against
+   * a 45-minute budget, and this function would have called a healthy episode stuck
+   * and the card below would have told Jodie to restart the engine.
+   *
+   * So the engine records how long it has been blocked (`waited_s`) and who it is
+   * blocked on (`waiting_on`), and the budget is judged against WORKING time.
+   * ⚠️ The budget is NOT removed. `budget_s: null` would silence the alarm for the
+   * whole step for ever, and EP14's three-and-a-half-day silent assemble_passB is
+   * exactly why it exists. Subtract the wait; keep the alarm. */
+  const waited = Math.max(0, Number(cur.waited_s) || 0) * 1000;
+  const working = Math.max(0, ran - waited);
   const out = { step: cur.step || "this step", ran: ran, budget: cur.budget_s,
-                label: cur.label || null };
+                label: cur.label || null, waited: waited, working: working,
+                waitingOn: cur.waiting_on || null };
 
   // A finished episode is never stuck, whatever marker was left behind.
   if (DONE_STATUSES.indexOf(ep.status) !== -1) return { ...out, state: "working" };
@@ -416,7 +434,10 @@ function stepState(ep) {
   if (ep.needs_look) return { ...out, state: "waiting", who: "you" };
   // No budget = the step waits on a human by design (the HeyGen render, a cover pick).
   if (cur.budget_s == null) return { ...out, state: "waiting", who: "a human step" };
-  if (ran > cur.budget_s * 1000) return { ...out, state: "stuck" };
+  // Blocked RIGHT NOW on something that is not a person. Legitimate, and it ends by
+  // itself — so it is never an alarm, however long it runs.
+  if (cur.waiting_on) return { ...out, state: "waiting", who: cur.waiting_on };
+  if (working > cur.budget_s * 1000) return { ...out, state: "stuck" };
   return { ...out, state: "working" };
 }
 
@@ -462,6 +483,12 @@ function stageLine(ep) {
     return "Paused — needs a look" +
       (ss && STEP_LABELS[ss.step] ? " (" + STEP_LABELS[ss.step] + ")" : "");
   }
+  /* SAY WHAT IT IS WAITING FOR, AND SAY IT IS NOT HERS. A step blocked behind the
+   * other production line's render looks exactly like a step that has died, and
+   * "Assembling…" for fifty minutes is the sentence that makes somebody intervene.
+   * Naming the thing is the whole of CLAUDE.md #3 — anything that waits must say it
+   * is waiting, and say WHO it is waiting on. */
+  if (ss && ss.waitingOn) return "Waiting for " + ss.waitingOn;
   /* 🔴 A FINISHED EPISODE IS NOT DESCRIBED BY THE LAST STEP THAT RAN. (16 Aug 2026,
    * the third sighting of C2 in one day.) EP28 sat at `ready` with all four
    * approvals TRUE while the rail advertised "Waiting on you — four approvals", and
