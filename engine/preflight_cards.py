@@ -565,12 +565,39 @@ def name_faults(epj: dict, capture_text: str | None) -> list[str]:
     # is right. Leaving them in was enough to let "Squeeze Those Odds! — Part 2"
     # pass against a page headed "EACH-WAY BETTING FOREVER! (Part 2)" — the exact
     # wrong name this check exists to catch.
+    # 🔴 TWO HOLES, CLOSED TOGETHER 30 Aug 2026, BOTH FOUND BY MEASUREMENT.
+    # The old test was: shared >= max(1, min(len(h), len(t)) // 2). For a short
+    # headline that floor is ONE, so a SINGLE shared word was enough to pass —
+    # and the archive had two episodes held together by exactly one word:
+    #     EP42  'ISOLATE THE BEST (Part 5)'  vs the series name — shared: "the"
+    #     EP40  '12 FORM ANGLES (Part 3)'    vs the series name — shared: "form"
+    # Both are the EP16 pattern: a name that has nothing to do with the page,
+    # waved through on a coincidence.
+    #
+    # (a) FUNCTION WORDS CARRY NO IDENTITY, so they are dropped before comparing.
+    #     "the" is not evidence that two titles are the same title. Kept if
+    #     removing them would leave NOTHING to compare — a check with an empty
+    #     set decides nothing, and must not silently pass or silently halt.
+    # (b) A MAJORITY, NOT A HALF. `// 2` let one of two tokens count as a match.
+    #     It is now `// 2 + 1` — MORE than half the smaller side must match — which
+    #     is what "these are the same name" actually means. EP40's single "form"
+    #     no longer carries it; EP35's 'point'+'star' (2 of 2) still does.
+    # ⚠️ 4a: THE BLAST RADIUS WAS MEASURED BEFORE THIS LANDED, not after. Across
+    # every capture in the archive it changes the verdict on EP40 and EP42 ALONE,
+    # and both are declared members of the series above, so both are compared
+    # against the series name and match it exactly. Closing this cost nothing —
+    # the declaration is what made it safe to close.
+    _STOPWORDS = frozenset(
+        "a an and as at by for from in is it its of on or so the this that to with".split())
+
     def _name_tokens(s):
-        return {w for w in norm_words(s) if w != "part" and not w.isdigit()}
+        words = [w for w in norm_words(s) if w != "part" and not w.isdigit()]
+        kept = [w for w in words if w not in _STOPWORDS]
+        return set(kept or words)
 
     h, t = _name_tokens(against), _name_tokens(title)
     shared = h & t
-    if len(shared) < max(1, min(len(h), len(t)) // 2):
+    if len(shared) < max(1, min(len(h), len(t)) // 2 + 1):
         # THE OVERRIDE IS CONSULTED HERE AND NOWHERE ELSE — after the fault has been
         # FOUND, never before it is looked for. The check still runs in full and still
         # reaches the same verdict; all a recorded override changes is whether that

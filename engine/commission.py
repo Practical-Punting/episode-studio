@@ -70,7 +70,25 @@ from pathlib import Path
 # deliberately waiting is not an alarm; it is the board calling a working writer stuck,
 # which is what EP18 and EP19 both did.
 TIMEOUT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT", "900"))
-TIMEOUT_EPJSON_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "1800"))
+# 🔴 THE FLOOR, AND IT IS THE NUMBER THAT MATTERS — NOT THE CEILING.
+# Raised 1800 -> 3000 on 30 Aug 2026, and the reason is a DIAGNOSIS, not a round
+# number. Measured across the EP41-43 batch:
+#     EP41  1092 words -> 1980s budget -> took 2210s (36.8m)  FAILED
+#     EP42  1443 words -> 2324s budget -> took 2119s (35.3m)  passed, 3.4m spare
+# 🔴 THE COMMISSION TAKES ~35-37 MINUTES REGARDLESS OF SCRIPT LENGTH, AND THE
+# BUDGET IS A FUNCTION OF WORD COUNT. So a SHORT script gets a SMALL budget for
+# work that is not smaller — the shortest article in a batch is the one most
+# likely to be cut off, which is exactly backwards. (Jodie, 30 Aug 2026.)
+#     That is why raising EPJSON_MAX_S would have fixed nothing: the cap is 3600
+# and was never reached. EP41 died at 1980s, nowhere near it. The binding number
+# was always this floor.
+# ⚠️ THE SCALING IS KEPT, ABOVE THE FLOOR, so a genuinely long article can still
+# earn more than 50 minutes — it simply has to exceed what every episode now gets.
+# On today's constants that is about 11.7 KB of script.
+# 📌 AND THE BETTER FIX IS STILL THE ONE BELOW, UNBUILT: a SILENCE timeout, which
+# fails when the writer stops producing rather than when a clock runs out, and
+# which would not care about script length at all.
+TIMEOUT_EPJSON_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_EPJSON", "3000"))
 TIMEOUT_SCRIPT_S = int(os.environ.get("ENGINE_COMMISSION_TIMEOUT_SCRIPT", "1200"))
 
 # ── C2 — THE CARD-WRITER'S CEILING SCALES WITH THE JOB ──────────────────────────
