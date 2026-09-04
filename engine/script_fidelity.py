@@ -694,6 +694,72 @@ def _contiguous(needle: str, hays: list[list[str]]) -> bool:
     return na != n and any(_in(na, _drop_and(h)) for h in hays)
 
 
+# ------------------------------------------------ the approved midroll pool --
+#
+# 🔴 RULED BY JODIE, 4 Sep 2026: SCRIPT TEXT THAT IS A VERBATIM, EXACT MATCH TO A LINE IN
+# THE APPROVED MIDROLL POOL IS NOT WRITER-AUTHORED, AND THIS GATE DOES NOT APPLY TO IT.
+# Everything else is checked exactly as it was.
+#
+# WHY: this gate exists to stop the WRITER inventing or altering a figure about the
+# article. The ten pool lines are standing furniture Jodie approved as a batch; they make
+# no claim about the article at all. So the gate was aimed at the wrong text. EP46 burned
+# all three drafting attempts on "Pause there a second" (L6) being read as a figure the
+# article never states; the same line lands on every tenth episode and L8 opens "Two
+# seconds". Both tempting fixes were refused by ruling: rewording her approved words to
+# suit the check treats the symptom, and exempting ONE line leaves the next time-word line
+# to halt the same way.
+#
+# EXACT MATCH ONLY. A pool line the writer has altered by a word, a comma or a dash is NOT
+# the pool line and is checked in full. THE ONE THING FORGIVEN IS THE WHITESPACE BETWEEN
+# WORDS, because spoken-words.txt wraps lines and a wrap is layout, not wording. Matched
+# against docs/midroll-line-pool.md ITSELF, parsed with the contract that file names for
+# itself ("heading, then immediately the line") — never against a copy of the lines here.
+#
+# WHY IT CANNOT BECOME A LOOPHOLE: only the approved bytes are cut out of the text under
+# check, by exact substring. Anything wrapped AROUND them — a sentence appended to the
+# invitation, a figure slipped inside it, the line's first sentence on its own — either
+# breaks the match (and the whole paragraph is checked as before) or sits outside the cut
+# (and is checked as before). Proved control-first in engine/test_pool_line_exemption.py,
+# and a naive "paragraph starts with a pool line" matcher was shown to let the wrapped
+# figure through, so the fixtures are known to bite.
+POOL_MD = HERE.parent / "docs/midroll-line-pool.md"
+_POOL_ENTRY = re.compile(r"^### (L\d)\n> (.+?)$", re.M)
+
+
+def midroll_pool() -> dict[str, str]:
+    """The approved lines, {id: text}, read from the pool file on every call.
+
+    On every call, deliberately: a cached copy is a second source of truth with a
+    lifetime of its own, and the file is two hundred lines."""
+    try:
+        md = POOL_MD.read_text(encoding="utf-8").replace("\r\n", "\n")
+    except OSError:
+        return {}
+    return {m.group(1): m.group(2).strip() for m in _POOL_ENTRY.finditer(md)}
+
+
+def _verbatim(line: str) -> re.Pattern:
+    """The line, word for word and character for character, with any whitespace
+    between its words. Nothing else is normalised — not case, not dashes, not quotes."""
+    return re.compile(r"\s+".join(re.escape(w) for w in line.split()))
+
+
+def without_pool_lines(script_text: str) -> tuple[str, list[str]]:
+    """The script with every VERBATIM pool line cut out, and which ids were cut.
+
+    Each cut leaves a paragraph break behind, so the words either side of the
+    invitation cannot run together into a figure neither of them stated."""
+    text = script_text or ""
+    cut: list[str] = []
+    for lid, line in midroll_pool().items():
+        if not line:
+            continue
+        text, n = _verbatim(line).subn("\n\n", text)
+        if n:
+            cut.append(lid if n == 1 else f"{lid} x{n}")
+    return text, cut
+
+
 # ------------------------------------------------------------------- the gate --
 def check(script_text: str, capture_text: str, licensed_text: str = "",
           allowed: list | None = None) -> list[str]:
@@ -724,6 +790,14 @@ def check(script_text: str, capture_text: str, licensed_text: str = "",
     every racing figure that was ever the point of this gate.
         AND IT IS DECLARED, NEVER SILENT: each allowance is appended to `allowed` and
     logged by the caller, so "the gate passed" always comes with what it waved and why.
+
+    ── THE APPROVED MIDROLL LINE IS NOT THE WRITER'S TEXT (ruling, 4 Sep 2026) ─────────
+    The one thing that IS taken out before the scan is a VERBATIM pool line — see the
+    block above `midroll_pool()`. It is not a section exemption (nothing is exempted by
+    location) and not a second source (nothing is licensed): the words are simply not
+    the writer's, so there is nothing of the writer's to trace in them. A line altered
+    by one character is the writer's, and is checked in full. Declared in `allowed`
+    like the packaging, so the run log says which line was standing furniture.
     """
     body = (capture_text or "").split(MARKER_BEGIN)[-1]
     if not body.strip():
@@ -733,8 +807,15 @@ def check(script_text: str, capture_text: str, licensed_text: str = "",
     # The approved packaging, folded exactly as the article is — same function, so
     # "ten" matching "10" is decided in ONE place and cannot drift between the two.
     lic = haystacks(licensed_text) if (licensed_text or "").strip() else []
+    text, furniture = without_pool_lines(script_text)
+    if furniture and allowed is not None:
+        allowed.append(
+            f"the midroll invitation is {' and '.join(furniture)} from the approved "
+            f"pool, word for word — standing furniture Jodie approved as a batch, not "
+            f"the writer's words, so its figures are not the writer's to trace (ruling, "
+            f"4 Sep 2026). Everything around it was checked as usual.")
     seen, out = set(), []
-    for fig in figures(script_text):
+    for fig in figures(text):
         if fig in seen or _contiguous(fig, hays):
             continue
         seen.add(fig)

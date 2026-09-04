@@ -1179,3 +1179,65 @@ It was settled on 22 August and was still being carried as *"unsettled three way
 in the one place rulings live. **A settled ruling kept only in a document that gets
 rewritten is a ruling that will be re-asked** — CLAUDE.md §11, the price of not landing
 something, pointed at a fact rather than at code.
+
+---
+
+## A31 · 4 Sep 2026 — 🔢 THE NUMBER CHECK DOES NOT READ AN APPROVED MIDROLL LINE · **Jodie**
+
+> ### THE CHECK IS AIMED AT THE WRITER'S TEXT. A VERBATIM POOL LINE IS NOT THE WRITER'S TEXT.
+
+**What forced it:** EP46 burned all three drafting attempts. Each time the writer produced
+a complete script and `script_fidelity.check` rejected *"second"* — the first word of the
+approved midroll invitation **L6**, *"Pause there a second."* — as a figure the article
+never states. The same line lands on every tenth episode; **L8** opens *"Two seconds"*.
+
+**The two options put to her were both refused, and the refusal is the ruling:**
+> *"The number check exists to stop the WRITER inventing or altering a figure about the
+> article. My midroll pool lines are not the writer's output — they are standing furniture
+> I approved, and they make no claim about the article at all. So the check is aimed at
+> the wrong text, and both of your options accept that aim: rewording my approved words to
+> suit the check treats the symptom, and exempting one line leaves the next pool line with
+> a time word in it to halt the same way."*
+
+**THE RULING, verbatim:**
+> *"Script text that is a VERBATIM, EXACT match to a line in the approved midroll pool is
+> not writer-authored, and the number check does not apply to it. Everything else is
+> checked exactly as it is today."*
+
+### THE REQUIREMENTS SHE ATTACHED, each with its status
+| # | requirement | status |
+|---|---|---|
+| 1 | **Exact match only.** A pool line altered by so much as a word, a comma or a dash is NOT the pool line and is checked in full. Match against `docs/midroll-line-pool.md` itself, never a copy in the checker. | ✅ DONE — `script_fidelity.midroll_pool()` parses the pool file on every call with the file's own contract; `without_pool_lines()` cuts only an exact substring. The ONE allowance is whitespace between words (the script file wraps lines). |
+| 2 | **Not a loophole.** A writer must not escape the check by wrapping an invented figure in something that merely resembles a pool line. | ✅ DONE — appended, prepended, sandwiched and first-sentence-only fixtures all catch the figure. A naive *"paragraph starts with a pool line"* matcher was shown to let all three escape, so the fixtures are known to bite. |
+| 3 | **Watch it say no, both ways.** (a) L6 verbatim passes; (b) L6 with a figure added or a word changed is still caught; (c) an ordinary sentence with an invented figure is still caught. | ✅ DONE — `engine/test_pool_line_exemption.py`, 47 cases. (a) was watched RED on the old gate (*1 blocker: 'second'*), (b) and (c) green on both. |
+| 4 | **EP40's file names a midroll line not in the pool** (`build.midroll.line_id: "L10"`; the pool is L0–L9 and the episode's ask text is L0's). Say whether a pool-membership check falls out of this work; do not build it this sitting unless it does. | 🅿️ NOT BUILT. Two of its three pieces now exist (the pool parser and the exact matcher); the third — knowing WHICH paragraph is the midroll and where in the build to ask — does not fall out. One thing at a time. |
+| 5 | Clear `docs/.draft-attempts.json` in the EP46 folder so the drafting pass tries again, and say when it starts. | see the session record |
+
+**Not done, by instruction:** nothing in the midroll pool was reworded. *"Those are my words
+and they stay as they are."*
+
+### WHY IT IS NOT A SECTION EXEMPTION AND NOT A LICENCE
+`check()`'s docstring already refuses to exempt anything by LOCATION, because every rule
+for finding "the midroll paragraph" is a guess that hands back a hole. This ruling exempts
+by IDENTITY instead: the bytes are either exactly hers or they are the writer's. Nothing is
+licensed — a figure inside an altered line still needs the article or the packaging behind
+it, exactly as before. The waiver is DECLARED in `allowed` and logged, like the packaging
+allowance, so *"the gate passed"* always says which line was standing furniture.
+
+---
+
+## A32 · 4 Sep 2026 — 📄 FENCE-LINE REPAIRS TO A PUBLISHED EPISODE'S `-youtube.txt` WERE WITHIN THE BRIEF · **Jodie**
+
+**Context:** the YouTube-copy reader had been matching prefixes and returning the whole
+file (see `docs/youtube-copy-form.json`). Backfilling EP38–44 meant adding two banner lines
+to the `-youtube.txt` files of five PUBLISHED episodes, and it was named as sitting against
+*"a shipped episode is not touched"* rather than done quietly.
+
+**Her ruling:** *"That was the right call, and the ruling is: it was within the brief, only
+fence lines moved, the words are byte-identical and the live YouTube descriptions were
+pasted from those same words, so nothing shipped has changed. Noted and accepted."*
+
+**How to read it alongside the standing rule:** the standing rule is unchanged. What made
+this within it was (1) an explicit brief asking for it, (2) no word of content moving, and
+(3) the published artefact having been made from the same words. Name the tension every
+time; do not infer a general licence from this instance.

@@ -3328,7 +3328,9 @@ def _draft_watch(provider):
                 # SAY WHAT WAS WAVED. An allowance nobody reads is an exemption, and
                 # this gate's whole job is that no figure passes unaccounted for.
                 for w in waved:
-                    log(f"   fidelity: allowed by the approved packaging — {w}")
+                    # Each entry says its own reason (the approved packaging, or the
+                    # approved midroll pool since 4 Sep 2026), so the prefix does not.
+                    log(f"   fidelity: allowed — {w}")
             except Exception as e:                                    # noqa: BLE001
                 log(f"   drafting pass: could not check PP-EP{int(nn):02d}'s "
                     f"figures against the article ({type(e).__name__}), so the "
