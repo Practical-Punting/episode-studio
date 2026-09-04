@@ -1648,12 +1648,30 @@ def step_youtube_copy(ctx):
     to go and open a file on a machine the reader may not have. The column is
     rendered straight onto the publish card, so the words themselves belong in
     it. The file stays on disk as the record, with its notes block.
+
+    🔴 AND THE COLUMN IS WRITTEN ONLY WHEN THE FILE PARSES HONESTLY (4 Sep 2026).
+    `pasteable_description` refuses a file without the form's banners. The plain
+    half of its refusal goes to the board as the flag; the machine half — which
+    lines it found, what it expected — travels in `.blockers` and is written to the
+    run log here, so the fault is visible where a maintainer reads and not only where
+    an operator does. This step used to fall back to "see <path>" on a read error: a
+    pointer the rail refuses anyway, three retries later, with a database error in
+    the operator's box.
     """
     out = ctx.provider.save_youtube_copy(ctx.ep)
     try:
-        copy = pasteable_description(Path(out).read_text(encoding="utf-8"))
-    except OSError:
-        copy = f"see {out}"          # never lose the pointer if the file moved
+        text = Path(out).read_text(encoding="utf-8")
+    except OSError as e:
+        raise EngineFlag(
+            "The YouTube words file was written but could not be read back, so nothing "
+            "was written to the publish card. Check that the episode's output folder is "
+            "reachable, then clear this flag.") from e
+    try:
+        copy = pasteable_description(text)
+    except EngineFlag as f:
+        for b in f.blockers:
+            log(f"   youtube_copy: {b}")
+        raise
     ctx.ep_set({"youtube_copy": copy})
     return {"file": out}
 

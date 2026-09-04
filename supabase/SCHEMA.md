@@ -83,7 +83,7 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | **script_approved_at / script_locked_at** | timestamptz | engine | when the gate passed (004). ⚠️ Written at `script_sync`, i.e. when the BUILD re-read the text — ~2s after `started_at`. Not the approval click. |
 | **words_approved_at** | timestamptz | board | the approve-words CLICK (007). `words_approved_at` → `render_started_at` is the real "approval to render startable" interval. NULL up to EP19 — not measured, deliberately not backfilled. |
 | **script_changed_since_approval** | bool | engine | Doc edited after approval — flags, never blocks (004) |
-| **youtube_copy** | text | engine | **the DESCRIPTION ITSELF — locked by trigger (005), min 1000 chars.** Rendered straight onto the publish card, so a pointer-note is refused. Written by `pasteable_description()` |
+| **youtube_copy** | text | engine | **the DESCRIPTION ITSELF — locked by trigger (005), min 1000 chars.** Rendered straight onto the publish card, so a pointer-note is refused. Written by `pasteable_description()`, which cuts the description out of the `-youtube.txt` file by the two banners in `docs/youtube-copy-form.json` and **REFUSES (flags) a file without them — it never falls back to the whole file.** (4 Sep 2026: the old fallback put six episodes' notes in this column, and a prefix match put a mid-sentence fragment in EP39's. Backfilled EP38–44 the same day.) |
 | **ebook_link** | text | human | public e-book URL (pasted into the YT copy at publish) |
 | **published_url** | text | human | the live YouTube URL |
 | notes | text | any | free notes |

@@ -1696,40 +1696,125 @@ def assert_capture_for_script(pp: Path, ep_number) -> Path:
 
 # ==========================================================================
 
+# THE -youtube.txt HOUSE FORM: ONE HOME, READ BY BOTH SIDES (4 Sep 2026).
+#
+# The banners that cut the description out of the file live in
+# docs/youtube-copy-form.json — the same shape as docs/house-form.json for the title.
+# The reader below takes them from there; so does the mock writer; and the commissioned
+# writer reads them through the kit, which engine/test_youtube_copy_banners.py holds to
+# the same file. Nothing in this module spells a banner.
+YOUTUBE_COPY_FORM = REPO_DIR / "docs/youtube-copy-form.json"
+
+
+def youtube_copy_form() -> dict:
+    """The banners, the rule and the floor. Read on every call: it is one small file,
+    and a cached copy would be a second source of truth with a lifetime of its own."""
+    return json.loads(YOUTUBE_COPY_FORM.read_text(encoding="utf-8"))
+
+
+_DASHES = str.maketrans({c: "-" for c in "‐‑‒–—―−"})
+
+
+def _banner_key(line: str) -> str:
+    """What a line IS once its dressing is removed — the `===` fence either side, the
+    spacing, the case, and whichever dash a keyboard produced. Two lines with the same
+    key are the same banner. A line that merely BEGINS with a banner's first word is not
+    (that prefix match is what read EP39's and EP45's notes as the description). A bare
+    rule (`=====`) keys to '' and can never match anything."""
+    s = line.strip().strip("=-─_ \t").strip()
+    return " ".join(s.translate(_DASHES).split()).casefold()
+
+
+def _is_rule(line: str) -> bool:
+    s = line.strip()
+    return len(s) >= 3 and len(set(s)) == 1 and s[0] in "=-─_"
+
+
+def render_youtube_copy(title: str, description: str, notes: str) -> str:
+    """A -youtube.txt in the house form — the ONE shape pasteable_description reads.
+
+    The mock provider writes with it, and a fixture built with it cannot drift from
+    the reader, because both took the banners from the same file a moment ago."""
+    f = youtube_copy_form()
+    return "\n".join([title.strip(), "", f["description_banner"], f["rule"], "",
+                      description.strip(), "", "", f["rule"], f["notes_banner"], f["rule"],
+                      "", notes.strip(), ""])
+
+
 def pasteable_description(text: str) -> str:
-    """The part of a -youtube.txt file a human actually pastes.
+    """The part of a -youtube.txt file a human actually pastes — or an EngineFlag.
 
-    The file carries THREE things: the derived title on line 1, the
-    description under a "DESCRIPTION — paste from here" banner, and a NOTES
-    block the file itself labels "for the record, not for pasting". Only the
-    middle one belongs in the rail column: `youtube_copy` is rendered
-    straight onto the publish card, and putting the notes there would show
-    Jodie two thousand words of hashtag reasoning where the description
-    should be.
+    The file carries THREE things: the derived title on line 1, the description under
+    the DESCRIPTION banner, and the NOTES block under the NOTES banner. Only the middle
+    one belongs in the rail column: `youtube_copy` is rendered straight onto the publish
+    card, and putting the notes there shows Jodie two thousand words of hashtag
+    reasoning where the description should be.
 
-    ⚠️ IF THE BANNERS ARE NOT THERE, RETURN THE WHOLE FILE. An older episode,
-    or a hand-written one, may not have them — and showing everything is a
-    visible oddity a person can fix, where showing nothing looks like the
-    step failed.
+    🔴 THIS FUNCTION REFUSES. IT DOES NOT GUESS. (4 Sep 2026.)
+    It used to take any line that BEGAN with "DESCRIPTION" as the banner, any later line
+    that began with "NOTES" as the end, and — its own docstring said so — "if the
+    banners are not there, return the whole file". The writer had never been told to
+    emit a banner. So for eight episodes it returned whatever it found: the WHOLE FILE
+    for EP38 and EP40–44 (the notes glued onto the description on six publish cards),
+    and a mid-sentence FRAGMENT of the notes for EP39 and EP45, because a sentence in
+    the notes began "DESCRIPTION CARRIES A CURLY APOSTROPHE". The rail's 1000-character
+    floor caught EP45's fragment (99 chars) and passed EP39's (4,668). A check that only
+    catches one shape of a fault is the shape of failure this studio keeps meeting.
+
+    A description is accepted only when ALL of these hold; anything else raises an
+    EngineFlag whose `.blockers` name the lines, for the run log:
+      · exactly one DESCRIPTION banner and exactly one NOTES banner, in that order,
+        matched as WHOLE LINES against docs/youtube-copy-form.json (the fence, the case
+        and the kind of dash are forgiven; the words are not);
+      · the DESCRIPTION banner sits at the top — nothing above it but the title line,
+        blanks and rules — so the description begins where the file begins;
+      · the text between the banners clears the form's floor (the rail's own 1000).
     """
+    form = youtube_copy_form()
     lines = text.replace("\r\n", "\n").split("\n")
-    start = end = None
-    for i, ln in enumerate(lines):
-        u = ln.upper()
-        if start is None and u.startswith("DESCRIPTION"):
-            start = i + 1
-        elif start is not None and u.startswith("NOTES"):
-            end = i
-            break
-    if start is None:
-        return text.strip()
-    body = lines[start:end if end is not None else len(lines)]
-    # drop the ==== rules that fence the banners, top and bottom
-    while body and set(body[0].strip()) <= {"="} :
-        body.pop(0)
-    while body and (not body[-1].strip() or set(body[-1].strip()) <= {"="}):
-        body.pop()
-    return "\n".join(body).strip() or text.strip()
+    banners = {"DESCRIPTION": form["description_banner"], "NOTES": form["notes_banner"]}
+    found = {name: [i for i, ln in enumerate(lines) if _banner_key(ln) == _banner_key(b)]
+             for name, b in banners.items()}
+    problems = []
+    for name, idx in found.items():
+        if not idx:
+            problems.append(f"no {name} banner: no line reads {banners[name]!r}")
+        elif len(idx) > 1:
+            problems.append(f"the {name} banner appears {len(idx)} times (lines "
+                            f"{', '.join(str(i + 1) for i in idx)}); it must appear once")
+    if not problems:
+        d, n = found["DESCRIPTION"][0], found["NOTES"][0]
+        if n <= d:
+            problems.append(f"the NOTES banner (line {n + 1}) sits above the DESCRIPTION "
+                            f"banner (line {d + 1})")
+        if d == 0 or not lines[0].strip():
+            problems.append("line 1 must be the title, alone")
+        stray = [i for i in range(1, d) if lines[i].strip() and not _is_rule(lines[i])]
+        if stray:
+            problems.append(
+                f"the DESCRIPTION banner is on line {d + 1}, not at the top of the file: "
+                f"line {stray[0] + 1} above it holds text ({lines[stray[0]].strip()[:60]!r})")
+    if not problems:
+        body = lines[d + 1:n]
+        while body and (not body[0].strip() or _is_rule(body[0])):
+            body.pop(0)
+        while body and (not body[-1].strip() or _is_rule(body[-1])):
+            body.pop()
+        desc = "\n".join(body).strip()
+        floor = int(form["min_description_chars"])
+        if len(desc) < floor:
+            problems.append(f"the description between the banners is {len(desc)} "
+                            f"characters; the floor is {floor} — a real description runs "
+                            f"past it")
+        else:
+            return desc
+    raise EngineFlag(
+        "The YouTube words file is not laid out the way the kit's File layout section "
+        "requires, so the description could not be cut out of it honestly — and nothing "
+        "was written to the publish card. Fix the file's layout (the title alone on "
+        "line 1, then the DESCRIPTION banner, the description, then the NOTES banner, "
+        "spelled exactly as the kit shows) and clear this flag. Retrying without "
+        "changing the file will not help.", blockers=problems)
 
 
 class MockProvider:
@@ -2098,7 +2183,21 @@ class MockProvider:
     def save_youtube_copy(self, ep) -> str:
         self.maybe_fail("youtube_copy")
         self._work()
-        return self._artifact(ep_folder(ep), "output/youtube.txt", "YT title + description")
+        # IN THE HOUSE FORM, through the same renderer a fixture uses, so the mock's
+        # file is one pasteable_description accepts. A one-line "mock artifact" stood
+        # here; the old reader returned it whole, which is the very fallback that put
+        # six real episodes' notes on the publish card (4 Sep 2026).
+        p = self.root / ep_folder(ep) / "output/youtube.txt"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        para = ("Mock description for a mock episode: steady, sensible form study, no "
+                "hype and no promises, written only so this file has the shape of a "
+                "real one and clears the floor a real description clears. ")
+        p.write_text(render_youtube_copy(
+            "Mock Episode | How to Win at Horse Racing",
+            (para * 8).strip() + "\n\n#AustralianHorseRacing #FormAnalysis "
+            "#HorseRacing101 #RacingTips #PracticalPunting",
+            "SOURCE: none — this is the mock provider."), encoding="utf-8")
+        return str(p)
 
 
 # ==========================================================================
@@ -4070,7 +4169,16 @@ class RealProvider:
             "asks a question is a halt wearing a text file's clothes, and the "
             "title is derived, not chosen.\n"
             "Leave the e-book link as the placeholder the kit specifies — a human "
-            "pastes the real one at upload.\n\n"
+            "pastes the real one at upload.\n"
+            # A POINTER WITH A CONSEQUENCE, NOT A RESTATEMENT: the banners are spelled
+            # in the kit's File layout section (quoted there from the one form file),
+            # and the engine cuts the description out of the file by them. Eight
+            # episodes were written without them because nothing said so (4 Sep 2026).
+            "LAY THE FILE OUT exactly as the kit's 'File layout' section shows — the "
+            "two banner lines, spelled as printed there, with the description between "
+            "them and the notes below. The engine cuts the description out of the file "
+            "by those banners and REFUSES a file without them: nothing reaches the "
+            "publish card and the episode halts.\n\n"
             + com.verdict_instructions()
         )
         return com.commission(

@@ -134,6 +134,45 @@ Please gamble responsibly. If betting is affecting you or someone you know, call
 #AustralianHorseRacing #FormAnalysis #[EPISODE TAG] #RacingTips #PracticalPunting
 ```
 
+## 📄 FILE LAYOUT — what `PP-EPxx-youtube.txt` must look like (ENFORCED, 4 Sep 2026)
+The file carries THREE things — the title, the description, the notes — and the engine cuts
+the middle one out for the publish card by two BANNER lines. **The banners are spelled in ONE
+place, `docs/youtube-copy-form.json`, and the engine's reader takes them from there.** Copy
+them exactly as they appear below (they are quoted from that file, and a test fails the day
+this page and that file disagree):
+
+```
+<the decided title, alone>
+
+DESCRIPTION — paste from here
+==============================================================================
+
+<the description — everything Jodie pastes, from the hook to the five hashtags>
+
+
+==============================================================================
+NOTES — for the record, not for pasting
+==============================================================================
+
+<the notes — the source for every figure, the hashtag reasoning, anything for the record>
+```
+
+- **A banner is the WHOLE line.** A sentence in the notes that merely *begins* with the word
+  DESCRIPTION is not a banner. (The `===` fence either side of a banner, its case and the kind
+  of dash are forgiven when matching; the words are not.)
+- **The description starts at the top.** Nothing but the title may sit above the DESCRIPTION
+  banner — no preamble, no menu, no note to the reader.
+- **Both banners, once each, DESCRIPTION first.**
+- 🔴 **A file without this layout is REFUSED.** The engine flags the episode, puts the reason in
+  the run log, and writes NOTHING to the publish card. It no longer guesses.
+- **Why (4 Sep 2026).** EP38–EP45 were written with a `=== NOTES — not part of the description,
+  do not paste ===` fence and no DESCRIPTION banner, because this page never asked for one. The
+  reader matched the first line that *began* with those words. Six episodes' publish cards got the
+  whole file — the description with thousands of words of notes glued on — and EP39 and EP45 got
+  a 99- or 4,668-character fragment of the notes, mid-sentence, because a notes sentence began
+  "DESCRIPTION CARRIES A CURLY APOSTROPHE". The rail's 1000-character floor caught EP45 by luck
+  and passed EP39 by luck. Nothing wrong went out: Jodie pastes from the file, not the card.
+
 ## #️⃣ HASHTAGS — EXACTLY FIVE, AT THE END, BEST FIRST
 **(Jodie, 28 July 2026, from her own hashtag research — 129 tags scored. These are her
 rulings.)**
