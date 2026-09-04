@@ -49,6 +49,13 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
   rewrite LF as CRLF and break byte-identity with the originals.
 
 ## Hard rules
+- **TWO CLIENTS, TWO WALLS (Jodie, 5 Sep 2026).** This repo is Practical Punting.
+  **Never read, write, move or delete anything under `G:\My Drive\Inspirational Women\`
+  or in the IW repo from a PP session** — different client, different repo, different
+  rules. If a memory, doc, lock file, download or Higgsfield job points across the wall,
+  STOP and flag it; do not follow it. `engine/render_lock.py` is a verbatim copy of the IW
+  line's module and changes only by agreement between the two lines, never by an edit
+  across the wall. Full rule: `~/.claude/CLAUDE.md`, "Two clients, two walls".
 - The 10-status contract lives in the DB; friendly lane labels live in the UI.
 - `needs_look` is ORTHOGONAL to status (the red card; status unchanged).
 - Human gates are sacred: never auto-render, never auto-publish.
