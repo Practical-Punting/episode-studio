@@ -1148,3 +1148,57 @@ names TIER 1, which is what it was always for.)*
 
 ## Hard "never" list
 **Never fabricate racing data** — every figure, form line, price, margin, date, horse or race on a card, e-book figure or thumbnail comes from the source article, or it does not appear (see §Motion-graphic cards); **never a horse on the wrong side of the running rail, and never runners on both sides of it** (added 28 Jul 2026 — racing-impossible, invisible to every automated check, so it is a human-eye reject); never ElevenLabs; never "tax"/"Agreement Tax"/"20% tax" framing; never hype/promises/guarantees; never a bare BR logo; never all-full-screen cards; never dirt tracks; never a repeated b-roll clip; never publish before the e-book exists; never let Jodie move files by hand; **never link-share a folder, and never link-share TIER 1 material (secrets, subscriber data, e-book lists) — individual episode script Docs only** (amended 28 Jul 2026: "method material" was removed, it is TIER 3 now); **never put a TIER 1 secret in the repo, public or private — that one has no exceptions and never will.**
+
+
+---
+
+# Atlas and the docs have a history — the private repo `pp-videos-docs`
+*Added 15 September 2026, the day `PP-ATLAS.md` was emptied to 0 bytes.*
+
+Every working document on the Drive is mirrored, **hourly**, into the **PRIVATE** repo
+`github.com/Practical-Punting/pp-videos-docs` — Windows scheduled task `PP-Docs-Sync`.
+Run one on demand with:
+
+```
+python C:\Users\jlral\repos\pp-videos-docs\sync_docs.py
+```
+
+**`G:\My Drive\PP Videos` remains canonical.** The repo is the HISTORY, never a second
+working copy: edit the Drive, never the repo. A sync copies the Drive's version straight
+back over anything edited in the repo.
+
+**To recover any file, at any version:**
+
+```
+git log -- <path>              # every version of that file, newest first
+git show <sha>:<path>          # print one version
+```
+
+⚠️ **It is PRIVATE and must stay private.** These documents carry email addresses, billing
+notes, credential file paths and HeyGen ids. `episode-studio` is **PUBLIC** — nothing from
+Atlas or the docs tree ever goes there. The sync refuses to commit at all if it finds a
+live `.env` value or a credential-shaped string anywhere in the tree.
+
+**It never deletes.** If a file disappears from the Drive, its last synced copy stays in
+the repo — that is the point of a history. Deletions are Jodie's, by hand.
+
+## ⭐ NEVER OPEN A FILE FOR WRITING IN ORDER TO APPEND TO IT
+
+**15 September 2026, 11:14.** A `pathlib.write_text()` call opened `PP-ATLAS.md` — which
+**empties it** — and then threw on a surrogate-escape encoding error before writing
+anything back. **443 lines, gone.** It was restored from a staged copy at ~14:45, but
+Google Drive keeps only **30 days** of versions, so the next one could have been permanent.
+
+**The rule, for Atlas and for every docs file:**
+
+1. Copy the file to `<name>.bak` before the first write of a session.
+2. Read the **whole** file.
+3. Write the **whole** new content to a **temp file beside it**.
+4. `os.replace()` the temp file over the original.
+
+**An interrupted rename leaves the original intact; an interrupted overwrite leaves
+nothing.** Append mode (`open(p, "a")`) is equally safe. What is never safe is truncating
+the target before you are holding the bytes you mean to put back — and that is exactly
+what `write_text()`, `open(p, "w")` and `>` all do.
+
+*Verify afterwards: the original bytes should still be a prefix of the new file.*
