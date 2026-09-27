@@ -891,7 +891,7 @@ changed** (a guard prevents recurrence; it does not oblige us to go back).
 - Photo rights: only PP-owned/licensed or Jodie's own AI stills on published materials — never web images.
 
 ## Audio (measured EP02 mix, approved)
-- loudnorm to −16 LUFS; music bed ~4%; sidechain-duck under speech (speech always clearly audible).
+- **Publish at −14 LUFS integrated, true peak ≤ −1.0 dBTP** (Jodie's ruling, 27 Sep 2026, from EP50 on — was −16, which YouTube played ~2 dB soft). Speech loudnorm to −14; music bed ~4% and the sidechain duck scaled by the same +2 dB so the balance is unchanged (speech always clearly audible); final limiter `level=0` so its ceiling is real. Asserted by `qc_episode.loudness_verdict` (±1 LU).
 - Series sting "Sleeves Full of Aces" (Alexandra Woodward, Epidemic Sound): full 0–4.5 s → fade ~1 s → low bed once Gordon speaks → **returns at the end card → soft under the warranty slide**. The end is NEVER silent.
 
 ## 🔚 END SEQUENCE (locked 25 Jul 2026 — the EP08 lessons, enforced by QC)

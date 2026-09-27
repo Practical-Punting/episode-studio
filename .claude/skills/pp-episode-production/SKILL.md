@@ -436,17 +436,25 @@ approved reference):
   transparent and the presenter flashes through (~0.5s, caught in EP02 v2).
   Hold the outgoing card solid past the incoming fade-in.
 - **Audio (the approved v3 recipe — ratio is everything):**
-  1. Speech `loudnorm=I=-16:TP=-1.5:LRA=11` (YouTube target; HeyGen output is
-     ~9 dB too quiet). loudnorm resamples to 192k — follow with
+  1. Speech `loudnorm=I=-14:TP=-1.5:LRA=11` — **PUBLISH AT −14 LUFS integrated, true peak
+     ≤ −1.0 dBTP** (Jodie's ruling, 27 Sep 2026, from EP50 on; YouTube plays at ~−14 and
+     never turns a quiet video UP, so −16 played ~2 dB soft). HeyGen output is ~10–12 dB
+     too quiet (EP48 raw: −26.2 LUFS). The music bed and the duck threshold are lifted
+     by the SAME +2 dB (`TARGET_LUFS`/`MIX_REF_LUFS` in assemble_episode.py), so the
+     balance and the ducking below are the −16 values, scaled — never retune them. loudnorm resamples to 192k — follow with
      `aformat=...:sample_rates=48000` or the mix breaks.
   2. Music bed **0.04** under speech; sting full 0–4.5s → ~1s fade to 0.5 →
      bed by first words; rise ~0.5 at the end card; ~0.42 under the warranty;
      out by the fade-to-black.
   3. **Sidechain duck** music against the speech key (`asplit` the normalised
-     speech): `sidechaincompress=threshold=0.015:ratio=14:attack=12:release=420:level_sc=2`.
+     speech): `sidechaincompress=threshold=0.015:ratio=14:attack=12:release=420:level_sc=2`
+     (0.015 at the −16 reference; ×1.2589 at −14).
      Music dips as he speaks, breathes back in pauses.
   4. `amix=inputs=2:duration=first:normalize=0` (essential — default rescales
-     and buries speech), then `alimiter=limit=0.95`.
+     and buries speech), then `alimiter=limit=0.7943:level=0` — a −2 dBFS ceiling.
+     ⚠️ `level=0` is essential: alimiter's auto-level is ON by default and turns the
+     output up to full scale, so the old `limit=0.95` never limited anything (every
+     master peaked at ~0 dBFS).
 - **Validate volume expressions before encoding** (paren-balance + print
   levels at key times in python) — a mis-parened nested `if()` chain only
   fails after the whole graph builds; cost two encode rounds on EP02.
@@ -464,7 +472,8 @@ approved reference):
    ~0.15s steps — a single frame either side misses the flash.
 3. Audio RMS (`astats`) at: sting full, sting half, 3+ speech windows, end
    card, warranty. Speech should sit ≈ −18 dB RMS after loudnorm; whole-file
-   integrated loudness ≈ −14 to −16 LUFS (`ebur128`).
+   integrated loudness **−14 ±1 LUFS, true peak ≤ −1.0 dBTP** (`ebur128`) —
+   `qc_episode.loudness_verdict` FAILS anything outside it.
 4. Write `output/ASSEMBLY-REPORT[-vN].md`: decisions, placements, settings,
    b-roll used/unused audit, flags for Jodie. Copy the SRT beside the output.
 

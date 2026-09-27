@@ -285,8 +285,38 @@ def stage_loudness(qc, final):
             qc.loudness["true_peak"] = float(tps[-1])
         if not mi:
             qc.warn("could not parse integrated loudness from ebur128")
+        else:
+            loudness_verdict(qc, qc.loudness.get("I"), qc.loudness.get("true_peak"))
     except Exception as e:
         qc.warn(f"loudness stage error: {e}")
+
+
+# THE PUBLISH LOUDNESS (Jodie's ruling, 27 Sep 2026): -14 LUFS integrated, true peak no
+# higher than -1.0 dBTP, from EP50 on. It used to be REPORTED here and asserted nowhere,
+# so the -16 recipe, the SKILL's "≈ −14 to −16" and a limiter that peaked every master at
+# 0 dBFS all passed QC side by side. assemble_episode.py's TARGET_LUFS / TARGET_TP make
+# it; this checks it. The window is ±1 LU because the ceiling costs about half a LU on a
+# master whose raw mix already peaks at full scale (EP48's inputs: -14.5 / -1.6).
+LOUDNESS_TARGET = -14.0
+LOUDNESS_TOL = 1.0
+LOUDNESS_TP_MAX = -1.0
+
+
+def loudness_verdict(qc, integrated, true_peak):
+    if integrated is not None and abs(integrated - LOUDNESS_TARGET) > LOUDNESS_TOL:
+        qc.fail(f"integrated loudness {integrated:.1f} LUFS is outside "
+                f"{LOUDNESS_TARGET:.0f} ±{LOUDNESS_TOL:.0f} LU - YouTube plays at about "
+                "-14 and never turns a quiet video up (publish standard, 27 Sep 2026)")
+    else:
+        qc.note(f"integrated loudness {integrated} LUFS - within "
+                f"{LOUDNESS_TARGET:.0f} ±{LOUDNESS_TOL:.0f} LU")
+    if true_peak is None:
+        qc.warn("could not parse the true peak from ebur128")
+    elif true_peak > LOUDNESS_TP_MAX:
+        qc.fail(f"true peak {true_peak:.1f} dBTP is above the {LOUDNESS_TP_MAX:.1f} dBTP "
+                "ceiling - it can clip on playback and in YouTube's re-encode")
+    else:
+        qc.note(f"true peak {true_peak} dBTP - under the {LOUDNESS_TP_MAX:.1f} ceiling")
 
 
 def _rms_window(final, t0, dur):

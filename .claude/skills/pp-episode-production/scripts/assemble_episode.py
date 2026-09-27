@@ -52,6 +52,35 @@ cardindex = {cid: i + 1 for i, cid in enumerate(content_ids)}      # 1-based in 
 M = len(content_ids)
 TITLE_IN, END_IN, WAR_IN, PRES_A_IN, MUSIC_IN = M + 1, M + 2, M + 3, M + 4, M + 5
 
+# --- LOUDNESS (Jodie's ruling, 27 Sep 2026: publish at -14 LUFS integrated, true peak
+# no higher than -1.0 dBTP, from EP50 on) ---
+# 🔴 WHY -14 AND NOT -16. YouTube plays everything at about -14 LUFS: it turns loud
+# uploads DOWN and never turns quiet ones UP, so the old -16 master played ~2 dB softer
+# than most of YouTube. Jodie heard it as "a bit soft".
+# ⚠️ THE WHOLE MIX MOVES, NOT JUST THE VOICE. loudnorm acts on the SPEECH alone; the
+# music bed (0.04 etc.) and the duck threshold (0.015) are absolute numbers that were
+# tuned against speech at MIX_REF_LUFS. Lifting only the speech would put Gordon 2 dB
+# further over the music AND duck the music harder, because the key got hotter. So both
+# are scaled by the same LIFT: the music is 2 dB louder, the threshold is 2 dB higher,
+# and the compressor sees exactly the key/threshold ratio it always did. Balance and
+# ducking are unchanged; only the level moves. qc_episode.py asserts the result.
+TARGET_LUFS = -14.0          # integrated, whole file
+TARGET_TP = -1.0             # dBTP ceiling, whole file (qc_episode.LOUDNESS_TP_MAX)
+MIX_REF_LUFS = -16.0         # the speech level the v3 balance was tuned at — do not move
+LIFT = 10 ** ((TARGET_LUFS - MIX_REF_LUFS) / 20)
+# The last stage is a SAMPLE-peak limiter and the AAC encode after it adds inter-sample
+# overs, so its ceiling sits under the true-peak target by LIMIT_MARGIN_DB.
+# 🔴 AND IT RUNS WITH level=0. alimiter's `level` (auto-level) is ON by default: it
+# turns the output up until the peaks hit FULL SCALE, so the old `limit=0.95` was never
+# a ceiling at all — every master came out peaking at ~0 dBFS (EP48's rebuilt mix: true
+# peak -0.1). With level=0 the limit IS the ceiling.
+# Measured on EP48's own inputs (27 Sep 2026): -14.5 LUFS, true peak -1.6 dBTP at a
+# 1.0 dB margin; at 0.5 dB the peak was -1.1, too close to the line after the encode.
+# The half-LU short of -14 is the price of the ceiling — the raw mix already peaks at
+# full scale, so every extra dB of level is a dB of peak that must be limited.
+LIMIT_MARGIN_DB = 1.0
+LIMIT = round(10 ** ((TARGET_TP - LIMIT_MARGIN_DB) / 20), 4)
+
 # The readable minimum (card-sync standard, 25 Jul 2026) SCALES with the card's
 # reading load — card_hold.py owns the rule, and derive_card_timings and qc_episode
 # read the same one. Clamping to a flat floor here while the shot map planned a
@@ -199,10 +228,10 @@ def passB():
               cards.get(content_ids[int(lbl[2:])] if lbl[2:].isdigit() else "", {}).get("layout") == "panel-push") else "0:0"
         fc += f"{ch}[{lbl}]overlay={pos}:eof_action=pass{out};\n"; ch = out
     fc += f"[vpre]fade=t=out:st={round(TOTAL-0.5,2)}:d=0.5[vout];\n"
-    # AUDIO — speech delayed by HEAD, loudnorm -16; music bed under speech, swells into the settle, soft under warranty
+    # AUDIO — speech delayed by HEAD, loudnorm to TARGET_LUFS; music bed under speech, swells into the settle, soft under warranty
     fc += (f"[{PRES_A_IN}:a]adelay={int(HEAD*1000)}|{int(HEAD*1000)},"
            f"apad=whole_dur={TOTAL},atrim=duration={TOTAL},asetpts=PTS-STARTPTS,"
-           f"loudnorm=I=-16:TP=-1.5:LRA=11,"
+           f"loudnorm=I={TARGET_LUFS:g}:TP=-1.5:LRA=11,"
            f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asplit=2[sp][spkey];\n")
     sw0 = round(SPEECH_END-5.3, 2); sw1 = round(SPEECH_END-1.3, 2); blm = round(SPEECH_END+2.2, 2); soft = round(TOTAL-0.5, 2)
     env = (f"if(lt(t,0.5),t/0.5,if(lt(t,5.0),1,if(lt(t,6.5),1-(t-5.0)/1.5*0.96,"
@@ -217,9 +246,9 @@ def passB():
     # A hardcoded loop count is a runtime limit nobody declared. Infinite + atrim has
     # no limit to exceed, so this cannot come back at a longer episode.
     fc += (f"[{MUSIC_IN}:a]aloop=loop=-1:size=6000000,atrim=duration={TOTAL},asetpts=PTS-STARTPTS,"
-           f"volume='{env}':eval=frame,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[musraw];\n")
-    fc += ("[musraw][spkey]sidechaincompress=threshold=0.015:ratio=14:attack=12:release=420:makeup=1:level_sc=2[mus];\n")
-    fc += "[sp][mus]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[aout]"
+           f"volume='{LIFT:.6f}*({env})':eval=frame,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[musraw];\n")
+    fc += (f"[musraw][spkey]sidechaincompress=threshold={0.015 * LIFT:.6f}:ratio=14:attack=12:release=420:makeup=1:level_sc=2[mus];\n")
+    fc += f"[sp][mus]amix=inputs=2:duration=first:normalize=0,alimiter=limit={LIMIT}:level=0[aout]"
     return fc
 
 if MODE.upper() == "A": print(passA())
