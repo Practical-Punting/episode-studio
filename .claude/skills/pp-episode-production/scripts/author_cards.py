@@ -1156,26 +1156,55 @@ def assert_no_invented_text(page, card, frame_tpl, blk):
 
 # ---------------------------------------------------------------- main
 
-def assert_enum_not_visible(page, card, blk):
+ENUM_PROBE = "zqenumprobezq"      # a word no card, template or article can contain
+
+
+def _template_draws(card, blk, frame, name, i, field):
+    """Does the TEMPLATE put this enum field on screen? Re-render the card with just
+    that one value swapped for ENUM_PROBE and look for the probe. True, False, or
+    None when the probe page cannot be rendered at all (then nothing is proven)."""
+    probe = json.loads(json.dumps(card))
+    probe["content"][name][i][field] = ENUM_PROBE
+    try:
+        return ENUM_PROBE in visible_text(render_card(probe, blk, frame))
+    except Exception:                                                 # noqa: BLE001
+        return None
+
+
+def assert_enum_not_visible(page, card, blk, frame=None):
     """🔴 THE CONTROL ON THE EXEMPTION check_trace TAKES FOR ENUM FIELDS.
 
     Those fields are skipped because they pick a CSS class and are never drawn.
     That is a CLAIM about the template, and a claim nothing checks is a hole: a
     block whose markup printed {{ITEM.band}} as text would put "b2" on screen with
     no trace required and no complaint from anywhere.
+
+    ⚠️ A WORD ON SCREEN IS A SUSPICION, NOT A PROOF (EP51 C9, 27 Sep 2026). The first
+    pass looks for the enum VALUE as a word anywhere on the page — and `compare`'s
+    tone is "yes"/"no", which are also English. C9's column heading is the article's
+    own "No more than 2 per cent of his bankroll", so " no " was on screen, traced,
+    and the card halted with the template entirely innocent (it uses tone as a CSS
+    class only). So every hit is now PUT TO THE TEMPLATE: the card is re-rendered
+    with that one value swapped for ENUM_PROBE. If the probe shows, the template
+    draws the field and the halt stands. If it does not, the word came from traced
+    content and is not a style token. If the probe cannot be rendered, nothing is
+    proven and the halt stands — the old verdict, never a quieter one.
     """
     schema = (blk.get("schema") or {})
     vis = " " + " ".join(visible_text(page).split()) + " "
     bad = []
     for name, spec in (schema.get("lists") or {}).items():
         for field, allowed in (spec.get("enum") or {}).items():
-            for it in (card.get("content") or {}).get(name) or []:
+            for i, it in enumerate((card.get("content") or {}).get(name) or []):
                 v = (it or {}).get(field)
                 if isinstance(v, str) and v and f" {v} " in vis:
+                    if frame is not None and _template_draws(
+                            card, blk, frame, name, i, field) is False:
+                        continue            # proven: the word is content, not the token
                     bad.append(f"{name}[].{field} = {v!r}")
     if bad:
         raise Halt(
-            f"card {card.get(chr(39)+chr(105)+chr(100)+chr(39), chr(63))}: a STYLE TOKEN is on screen as text "
+            f"card {card.get('id', '?')}: a STYLE TOKEN is on screen as text "
             f"({'; '.join(sorted(set(bad)))}). An enum field picks a CSS class and is "
             f"exempt from the trace check on that basis — if the template draws it, "
             f"the exemption is covering for a visible untraced value. Fix the "
@@ -1265,7 +1294,7 @@ def main():
         frame_tpl = load_frame(c.get("layout", "fullscreen"))
         page = render_card(c, blk, frame_tpl)
         assert_no_invented_text(page, c, frame_tpl, blk)
-        assert_enum_not_visible(page, c, blk)
+        assert_enum_not_visible(page, c, blk, frame_tpl)
         assert_measured_items_show_a_figure(c, blk)
         out = os.path.join(a.out_dir, c["page"])
         if os.path.exists(out):
