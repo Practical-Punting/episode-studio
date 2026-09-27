@@ -65,7 +65,15 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
 
     Ordered by EPISODE NUMBER, never by file mtime. PP-EP98 is a test folder that
     lives beside the real episodes; mtime ordering would drag it into every real
-    episode's window, numeric ordering keeps it out."""
+    episode's window, numeric ordering keeps it out.
+
+    🔴 THE WINDOW IS A RANGE OF NUMBERS — N-9 … N-1 — NOT "THE NINE NEAREST FILES"
+    (fixed 27 Sep 2026, EP50). It used to take the nine highest-numbered earlier
+    folders that HAD a spoken-words.txt. The two-way EP49 has none (its words are in
+    two furniture/turn files), so for EP50 the window silently slid back to EP40 —
+    exactly ten back, the pool's own legitimate repeat of L0 — and hard-failed a
+    correct script. A missing episode must shrink the count compared, never widen
+    the reach."""
     mine = _ep_num(ep_dir)
     if mine is None:
         return []
@@ -73,10 +81,10 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
     found = []
     for other in glob.glob(os.path.join(root, "PP-EP*", "docs", "spoken-words.txt")):
         n = _ep_num(os.path.dirname(os.path.dirname(other)))
-        if n is not None and n < mine:
+        if n is not None and mine - window <= n < mine:
             found.append((n, other))
     found.sort(key=lambda t: t[0], reverse=True)
-    return found[:window]
+    return found
 
 
 def midroll_clash(mine_text, ep_dir, window=MIDROLL_WINDOW):

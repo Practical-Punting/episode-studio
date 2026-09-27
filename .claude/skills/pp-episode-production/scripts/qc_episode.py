@@ -370,7 +370,12 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
 
     Ordered by EPISODE NUMBER, never by file mtime. PP-EP98 is a test folder
     sitting beside the real episodes; mtime ordering would drag it into every
-    real episode's window, numeric ordering keeps it out."""
+    real episode's window, numeric ordering keeps it out.
+
+    The window is a RANGE OF NUMBERS, N-9 .. N-1, never "the nine nearest files"
+    (fixed 27 Sep 2026: the two-way EP49 has no spoken-words.txt, so EP50's window
+    slid back to EP40 and failed the pool's legitimate ten-back repeat). A missing
+    episode shrinks the count compared; it never widens the reach."""
     import glob as _glob
     mine = _ep_num(ep_dir)
     if mine is None:
@@ -379,10 +384,10 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
     found = []
     for other in _glob.glob(os.path.join(root, "PP-EP*", "docs", "spoken-words.txt")):
         n = _ep_num(os.path.dirname(os.path.dirname(other)))
-        if n is not None and n < mine:
+        if n is not None and mine - window <= n < mine:
             found.append((n, other))
     found.sort(key=lambda t: t[0], reverse=True)
-    return found[:window]
+    return found
 
 
 def midroll_clash(mine_text, ep_dir, window=MIDROLL_WINDOW):
