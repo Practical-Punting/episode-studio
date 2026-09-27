@@ -11,6 +11,7 @@
   "optional": [
     "quote"
   ],
+  "flex_frame": true,
   "fit": {
     "quote_top": [
       ".quiet",
@@ -26,6 +27,15 @@
 <!--@css-->
 .quiet{margin-top:26px;font-size:44px;font-weight:600;color:#9A9A9A;font-style:italic;max-width:1180px;line-height:1.2;}
 .priceline{margin-top:auto;display:flex;align-items:center;gap:64px;}
+/* THE GAP UNDER THE HEADLINE (EP51 C8, 27 Sep 2026). Anton at 0.84 leading pushes the
+   figure's ink ABOVE its own line box, so on the panel — where the price row follows the
+   headline directly — a 360px "4/1" touched "FOR LONGSHOTS". `.pgap` is 36px of air that
+   SHRINKS TO NOTHING when the card has no room (flex-shrink), so a crowded card such as
+   EP33's "$4,000 or $5,000" is laid out exactly as before. On the full-screen card the
+   row stays pinned to the bottom by its auto margin and the spacer sits in the empty
+   space above it; on the panel the row stays under the headline (no auto margin). */
+.pgap{flex:0 1 36px;min-height:0;}
+.panel .priceline{margin-top:0;}
 .price{font-family:'Anton',sans-serif;font-size:360px;line-height:0.84;color:#DA532C;transform-origin:left center;}
 .said{font-size:56px;font-weight:800;color:#F2E4DD;line-height:1.14;}
 .said b{color:#DA532C;}
@@ -34,6 +44,7 @@ body.print .quiet{color:#777}
 body.print .said{color:#5a3a2c}
 <!--@markup-->
   <div id="quiet" class="quiet">{{quote}}</div>
+  <div class="pgap"></div>
   <div class="priceline">
     <div class="price" id="price">{{price}}</div>
     <div class="said" id="said">{{said}}</div>
