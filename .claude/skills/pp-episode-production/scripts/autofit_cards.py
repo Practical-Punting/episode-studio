@@ -254,6 +254,37 @@ def offenders(page, url, bust=0, shrinking=()):
                             f"lies across {b['owner']}, which it is not part of", 0))
                 break
 
+    # ── 1. TEXT COLLIDING WITH TEXT FROM A DIFFERENT BLOCK ────────────────────
+    # 🔴 EP51 C8, 27 Sep 2026 — THE EP16 SHAPE A FOURTH TIME, AND ON card_check's
+    # FIRST RULE. A panel `price` card: the 360px "4/1" sat 6px into the headline's
+    # second line. card_check failed it ("hl collides with price — measured on the
+    # INKED glyphs"); this function had rules for the logo, clipping, the card edge
+    # and foreign panels, and none for text-on-text — so autofit said "0 still
+    # failing", nothing was shrunk, and the build halted on a card that a 3% smaller
+    # price fits.
+    #     card_check's rule, field for field: its INK band (`cc.band`), its touch
+    # tolerance (`cc.rects_overlap`), one proposal per pair of blocks, and ITS pixel
+    # confirmation (`cc.confirm_by_pixels`) — so this fires exactly when the gate
+    # would fail the card for an overlap, and a clean card is never touched. The
+    # lever is the bigger of the two runs that is not frame furniture: display type
+    # owns the space, and a headline is not ours to resize.
+    proposed = {}
+    for i, a in enumerate(runs):
+        for b in runs[i + 1:]:
+            if a["block"] == b["block"]:
+                continue
+            if not cc.rects_overlap(cc.band(a), cc.band(b)):
+                continue
+            proposed.setdefault(tuple(sorted((a["block"], b["block"]))), (a, b))
+    if proposed:
+        for key in cc.confirm_by_pixels(page, list(proposed)):
+            a, b = proposed[key]
+            movable = [r for r in (a, b) if r["owner"] not in FURNITURE] or [a, b]
+            tgt = max(movable, key=lambda r: r["fs"])
+            other = b if tgt is a else a
+            out.append((tgt["owner"], tgt["fs"],
+                        f"collides with {other['owner']} (card_check's overlap rule)", 0))
+
     # ⚠️ THE LINE THAT FALLS OFF THE BOTTOM IS USUALLY NOT THE ONE AT FAULT.
     # EP19 C7: a 300px figure reading "Three to Seven" wrapped to two lines and shoved
     # the 46px caption and the 66px payoff off the card. card_check named the caption
