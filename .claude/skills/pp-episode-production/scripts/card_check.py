@@ -349,6 +349,50 @@ def label(r):
     return f"{r['owner']}{t}"
 
 
+# ── PACING (Jodie's ruling, 15 Sep 2026; made a FAILING CHECK 16 Sep) ─────────────
+# The numbers live in `.claude/skills/pp-motion-graphics/SKILL.md`. For eight months
+# they lived ONLY there: every block carried its own hand-tuned stagger, from 120ms to
+# 1000ms, and nothing compared either against the ruling. A rule written and not
+# enforced is a rule you do not have.
+BUILD_MAX_MS = 2500
+"""A card finishes assembling inside ~2.5s. 🔴 MEASURED TO THE END OF THE LAST
+ANIMATION (delay + duration), not to its start — a card whose last row is still moving
+has not finished. The LOGO is excluded: it is frame furniture that lands after the
+card is made, not part of the build."""
+
+DATA_STEP_MIN_MS, DATA_STEP_MAX_MS = 240, 320
+"""Data rows the viewer READS land 240-320ms apart. Structural elements (rules,
+eyebrows, headlines, container frames) are quick, 90-140ms, and are exempt: a block
+declares which of its series is which by its own `anim` entry, and only list series
+carrying content are measured here."""
+
+HOLD_MS = [0]      # set from --hold-ms; 0 means the settle is not checked here
+SETTLE_MIN_MS = 1500
+"""🔴 A NEW CONSTANT, AND DELIBERATELY NOT `min_card_hold`. `min_card_hold` (10s) is how
+long the card is ON SCREEN. This is how long the FINISHED card sits still after it stops
+assembling — the composition the viewer actually takes away. A card that completes and
+immediately cuts has wasted its own build, and with a 10s hold and a 2.5s build the
+settle is 7.5s, so the two cannot be read off each other."""
+
+
+def build_ms(page):
+    """When the card has finished assembling: max(delay + duration), logo excluded.
+
+    Read off the page's OWN ppInit spec rather than re-derived from the schema, so a
+    hand-authored `bespoke` page is measured by the same rule as a generated one.
+    """
+    return page.evaluate("""() => { if (window.ppBuildMs !== undefined) return Math.round(window.ppBuildMs);
+      const s = window.ppSpec || [];
+      let end = 0;
+      for (const a of s) {
+        if ((a.sel || '').indexOf('#logo') >= 0) continue;
+        const o = a.opts || {};
+        end = Math.max(end, (o.delay || 0) + (o.duration || 0));
+      }
+      return Math.round(end);
+    }""")
+
+
 def check_page(page, url):
     page.goto(url, wait_until="load")
     # 🔴 A GATE MUST NOT MEASURE MID-PAINT. See browser_wait.py: a late LAYOUT is
@@ -365,6 +409,56 @@ def check_page(page, url):
     data = page.evaluate(PROBE)
     runs, boxes, root, logo = data["runs"], data["boxes"], data["root"], data["logo"]
     problems, seen = [], set()
+
+    # ── 0. PACING. Three checks, and they FAIL the card, they do not warn. ────────
+    # ⚠️ CARDS ONLY. Standing furniture — the midroll chip, the end card, the warranty
+    # slide, the title card — is not a card assembling data for a viewer to read, and
+    # the 2.5s budget is not about it. The scope is DERIVED from `data-pp-block`, which
+    # author_cards stamps from the block that made the page, so neither a new standing
+    # asset nor a new block can drift out of it.
+    is_card = page.evaluate(
+        "() => !!document.body.getAttribute('data-pp-block')")
+    built = build_ms(page) if is_card else 0
+    if is_card and built > BUILD_MAX_MS:
+        problems.append(
+            f"the card takes {built}ms to finish assembling, over the "
+            f"{BUILD_MAX_MS}ms budget. That is not a speed problem — it is the "
+            f"pp-motion-graphics rule 5 problem: there is too much on the card. "
+            f"Cut rows; do not speed the rows up.")
+    staggers = page.evaluate("""() => {
+      const s = window.ppSpec || [];
+      const by = {};
+      for (const a of s) {
+        // A block may DECLARE a series structural — `ratio`'s marks are a
+        // picture of a proportion, not twelve values anybody reads one by one.
+        if (a.pace === 'structural') continue;
+        const m = (a.sel || '').match(/^([#.][A-Za-z_.-]*?)(\\d+)(\\D.*)?$/);
+        if (!m) continue;
+        (by[m[1] + (m[3] || '')] = by[m[1] + (m[3] || '')] || [])
+          .push((a.opts || {}).delay || 0);
+      }
+      const out = [];
+      for (const k in by) {
+        const d = by[k].slice().sort((a, b) => a - b);
+        if (d.length < 2) continue;
+        const gaps = d.slice(1).map((v, i) => v - d[i]).filter(g => g > 0);
+        if (gaps.length) out.push([k, Math.min(...gaps), d.length]);
+      }
+      return out;
+    }""")
+    for sel, gap, n in (staggers if is_card else []):
+        # A run of two is not a cadence; three or more is.
+        if n >= 3 and not (DATA_STEP_MIN_MS <= gap <= DATA_STEP_MAX_MS):
+            problems.append(
+                f"{sel} lands {gap}ms apart across {n} items. Rows a viewer READS "
+                f"want {DATA_STEP_MIN_MS}-{DATA_STEP_MAX_MS}ms; anything quicker is "
+                f"structural pace on material that has to be read.")
+    hold_ms = HOLD_MS[0] if is_card else 0
+    if hold_ms and hold_ms - built < SETTLE_MIN_MS:
+        problems.append(
+            f"the finished card settles for only {hold_ms - built}ms before it "
+            f"leaves ({hold_ms}ms on screen, {built}ms of build). The rule is "
+            f"{SETTLE_MIN_MS}ms: the assembled card is what the viewer takes away.")
 
     # 1. text colliding with text from a DIFFERENT block container.
     # Geometry proposes; confirm_by_pixels() disposes. See its docstring.
@@ -449,8 +543,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("target")
     ap.add_argument("--json", dest="json_out")
+    # The SETTLE check needs the hold, which lives in episode.json build.holds and not
+    # on the page. Given one, the settle is checked; without one it is skipped and said
+    # to be skipped — a check that silently does nothing is worse than no check.
+    ap.add_argument("--hold-ms", type=int, default=0)
     a = ap.parse_args()
 
+    HOLD_MS[0] = a.hold_ms
     target = pathlib.Path(a.target).resolve()
     if target.is_dir():
         serve, pages = target, sorted(p.name for p in target.glob("*.html"))

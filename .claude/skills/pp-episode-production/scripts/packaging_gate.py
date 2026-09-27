@@ -71,6 +71,54 @@ SERIES_EYEBROW = "How to Win at Horse Racing"
 # suffix's own words are approved vocabulary and do not read as an invention.
 COVER_ATTRIBUTION = "from the Practical Punting archives · with Gordon"
 
+COVER_ATTRIBUTION_STEM = "from the Practical Punting archives"
+"""🔴 THE SUFFIX NAMES WHOEVER READS THE EPISODE, AND IT IS DERIVED. (Jodie, 20 Sep 2026.)
+
+*"E-book cover: change the attribution to 'read by Gordon and Steve' — the episode has
+two readers."*
+
+The literal above was written when every episode had one presenter, and it is kept
+BYTE-IDENTICAL: `cover_attribution(None)` returns it unchanged, so every
+single-presenter cover ever built still grades exactly as it did. What is new is that a
+TWO-WAY episode's suffix is computed from `speakers[].reader` in `episode.json` — the
+field build spec A2 already added for the lower-third supers — rather than from a second
+literal sitting beside the first.
+
+⚖️ **THAT IS THE POINT, AND IT IS FAULT #2b.** The tempting fix was a second constant,
+`COVER_ATTRIBUTION_TWO_WAY`. Two constants is two homes for one idea, and the first
+episode with three readers, or with Steve reading alone, inherits the wrong one. One
+definition that reads the episode's own data cannot drift, and it also keeps rule 4
+honest for free: the allowed vocabulary is built from the SAME string, so "read", "by"
+and "Steve" become approved words because the readers are approved data — not because
+somebody widened a list.
+"""
+
+
+def cover_attribution(readers=None) -> str:
+    """The standing suffix for this episode's cover, naming whoever reads it.
+
+    `readers` is the reading order, host first. None or one reader gives the
+    single-presenter line, unchanged to the character.
+    """
+    names = [n for n in (readers or []) if n]
+    if len(names) <= 1:
+        return COVER_ATTRIBUTION
+    joined = f"{', '.join(names[:-1])} and {names[-1]}"
+    return f"{COVER_ATTRIBUTION_STEM} · read by {joined}"
+
+
+def readers_from_episode(epj: dict) -> list[str]:
+    """Who reads this episode, host first, out of `speakers[].reader`. [] if none.
+
+    Host first because Gordon is the channel's face and the audience meets him first —
+    the same order the open introduces them in, and the order Jodie wrote the ruling in.
+    A single-presenter episode has no `speakers` block at all and gets [].
+    """
+    spk = (epj or {}).get("speakers") or {}
+    rows = [(not s.get("host"), code, (s.get("reader") or "").strip())
+            for code, s in spk.items()]
+    return [r for _, _, r in sorted(rows) if r]
+
 # Where each zone lives in each page. The class and id names are part of the template
 # contract — the same contract author_thumbnail and author_title_card substitute into.
 ZONES = {
@@ -231,7 +279,7 @@ def _words(s: str) -> list[str]:
 
 
 def zone_faults(kind: str, zones: dict, title: str, byline: str,
-                part_source: str = "") -> list[str]:
+                part_source: str = "", readers=None) -> list[str]:
     """The four rules. [] means the page carries the rail's words and nothing else.
 
     `part_source` is where a SERIES POSITION is approved — "Hidden Aces — Part 2".
@@ -260,12 +308,26 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
     #      suffix, and nothing else. EP20 had the invented sentence here AS WELL as in
     #      the subtitle, so the same wrong copy appeared on one cover twice.
     if kind == "ebook_cover":
-        want = f"{byline} · {COVER_ATTRIBUTION}" if byline else COVER_ATTRIBUTION
-        if fold(zones.get("attribution")) != fold(want):
+        suffix = cover_attribution(readers)
+        # 🔴 THE SUFFIX MAY STAND ALONE, AND ON A COVER WHOSE SUBTITLE ALREADY CARRIES
+        # THE BYLINE IT SHOULD. (Jodie, 20 Sep 2026: *"which also fixes the doubled
+        # phrase"*.) The attribution was `byline + suffix` while `.subtitle` IS the
+        # byline, so EVERY cover this channel has made printed the same words twice —
+        # checked against EP47 and EP48, not assumed. Repeating a line that sits
+        # directly above it says nothing.
+        #
+        # ⚠️ AND THIS DOES NOT WEAKEN THE RULE. The rule is that nothing on the cover
+        # may be WRITTEN FOR the cover; both accepted forms are still made only of
+        # approved words, and rule 4 below still refuses any word from no field at all.
+        # What is dropped is a requirement to DUPLICATE, which was never the point.
+        want = f"{byline} · {suffix}" if byline else suffix
+        got = fold(zones.get("attribution"))
+        if got not in (fold(want), fold(suffix)):
             bad.append(
                 f"{what}: the attribution line reads {zones.get('attribution')!r} and it "
-                f"must be {want!r} — the approved byline, then the standing suffix every "
-                f"episode carries. It is not a second place to describe the episode.")
+                f"must be either {suffix!r} — the standing suffix alone — or "
+                f"{want!r}, the approved byline in front of it. It is not a second "
+                f"place to describe the episode.")
 
     # 2 — the headline IS the title. Not the byline, not a hook written for it.
     #     ⚠️ WITH OR WITHOUT THE SERIES PART. The part has a zone of its own on all three
@@ -299,7 +361,7 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
         if zone == "part":
             ok |= set(_words(part_source))
         if zone == "attribution":
-            ok |= set(_words(COVER_ATTRIBUTION))
+            ok |= set(_words(cover_attribution(readers)))
         stray = [w for w in _words(text) if w not in ok]
         if stray:
             bad.append(
@@ -340,8 +402,9 @@ def zone_faults(kind: str, zones: dict, title: str, byline: str,
 
 
 def page_faults(kind: str, page: str, title: str, byline: str,
-                part_source: str = "") -> list[str]:
-    return zone_faults(kind, zones_from_page(kind, page), title, byline, part_source)
+                part_source: str = "", readers=None) -> list[str]:
+    return zone_faults(kind, zones_from_page(kind, page), title, byline,
+                       part_source, readers)
 
 
 # ------------------------------------------------------------------ the files
@@ -362,12 +425,12 @@ def built_pages(ep_dir: Path) -> dict:
 
 
 def check_episode(ep_dir: Path, title: str, byline: str,
-                  part_source: str = "") -> dict:
+                  part_source: str = "", readers=None) -> dict:
     out = {"blockers": [], "checked": []}
     for kind, path in built_pages(ep_dir).items():
         out["checked"].append(f"{kind}: {path.name}")
         out["blockers"] += page_faults(kind, path.read_text(encoding="utf-8"),
-                                       title, byline, part_source)
+                                       title, byline, part_source, readers)
     return out
 
 

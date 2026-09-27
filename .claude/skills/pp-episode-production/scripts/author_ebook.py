@@ -670,6 +670,49 @@ def mark_headings(body):
     return out
 
 
+# ── THE DIALOGUE BODY (build spec §7 / step 5) ───────────────────────────────────
+# A two-way episode's e-book body IS a dialogue, and `author_ebook` hard-fails unless
+# every bare <p> reproduces a source paragraph character for character. A dialogue
+# reproduces fine — what was missing was a STYLE for the speaker label.
+#
+# 🔴 `BB:` / `BM:` SURVIVE EXACTLY AS PRINTED. Never expanded. The article's own first
+# paragraph names both men, so the initials are not an abbreviation the reader has to
+# decode — they are what the magazine printed.
+#
+# The labels are matched from the ARTICLE, not from a list: any `XX:` or `Firstname
+# Surname:` opening a paragraph is a speaker turn, which is what makes this work on the
+# first two turns of EP49's article — they are labelled `Barry Meadow:` and `Brian
+# Blackwell:` in full and only settle into initials from the third.
+SPEAKER_LEAD = re.compile(
+    r'(<p)((?![^>]*\bclass=)[^>]*)(>)(\s*)'
+    r'((?:[A-Z]{2}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}):\s)')
+
+
+def mark_speakers(body):
+    """Class every paragraph that OPENS WITH A SPEAKER LABEL. Markup only.
+
+    Adds `.speaks` plus `.spk-<initials>` so the stylesheet can give each man his own
+    side of the page without anything being typed per episode. Adds NOTHING inside the
+    paragraph: the fidelity gate strips tags before comparing, and an inner <span> is
+    the one edit that could reach the article's own bytes.
+    """
+    n = [0]
+
+    def add(m):
+        n[0] += 1
+        label = m.group(5).rstrip()[:-1]
+        code = label if len(label) <= 3 else "".join(
+            w[0] for w in label.split() if w)[:2]
+        return (f'{m.group(1)}{m.group(2)} class="speaks spk-{code.upper()}"'
+                f'{m.group(3)}{m.group(4)}{m.group(5)}')
+
+    out = SPEAKER_LEAD.sub(add, body)
+    if n[0]:
+        print(f"dialogue: {n[0]} paragraph(s) open with a speaker label "
+              f"(markup only \u2014 the labels are the article's and are untouched)")
+    return out
+
+
 def source_article_path(ep, ep_dir):
     """The verbatim source article named in episode.json -> source.
 
@@ -1903,7 +1946,7 @@ def main():
             + (f"{len(lifted)} chart(s) LIFTED from the capture into a slot the body "
                f"declared — no cell was re-typed. " if lifted else "")
             + f"The check is in author_ebook.py and it HARD-FAILS; it is not advisory. -->")
-    page = tpl.replace(SLOT_BODY, head + "\n" + mark_headings(body))
+    page = tpl.replace(SLOT_BODY, head + "\n" + mark_speakers(mark_headings(body)))
 
     os.makedirs(a.out_dir, exist_ok=True)
     out = os.path.join(a.out_dir, f"{ep_stem(a.out_dir)}-ebook-source.html")

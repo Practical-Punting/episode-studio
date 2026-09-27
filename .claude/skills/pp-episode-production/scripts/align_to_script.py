@@ -281,11 +281,20 @@ def two(s):
     return s if cut == -1 else s[:cut] + "\n" + s[cut + 1:]
 
 
-def build(ep_dir, model="base"):
+def build(ep_dir, model="base", master=None, spoken=None, out=None):
+    """Align one master to one script.
+
+    🔴 THE THREE PATHS ARE OVERRIDABLE BECAUSE A TWO-WAY HAS TWO OF EVERYTHING.
+    A dialogue episode has no `presenter-master.mp4` and no `spoken-words.txt` -- it has
+    `BB-master.mp4` / `spoken-words-BB.txt` and the same again for BM, and each must be
+    aligned to ITS OWN script. Defaulting to the single-presenter names keeps every
+    existing caller byte-identical; passing them is what makes the two-way possible
+    without a second copy of this file.
+    """
     d = Path(ep_dir).resolve()
-    master = d / "renders/presenter-master.mp4"
-    spoken = d / "docs/spoken-words.txt"
-    out = d / "renders/aligned.srt"
+    master = Path(master) if master else d / "renders/presenter-master.mp4"
+    spoken = Path(spoken) if spoken else d / "docs/spoken-words.txt"
+    out = Path(out) if out else d / "renders/aligned.srt"
     for p in (master, spoken):
         if not p.is_file():
             raise Halt(f"align_to_script: missing {p}")
@@ -354,10 +363,31 @@ def build(ep_dir, model="base"):
         s, e = span.get(si, (at[wi], at[wi]))
         span[si] = (min(s, at[wi]), max(e, at[wi]))
 
+    # 🔴 A "SENTENCE" WITH NO WORDS IN IT IS NOT A CUE, AND IT IS NOT AN
+    # ERROR. The splitter breaks on [.!?] followed by a space, and THE ARTICLE'S
+    # OWN SPACED ELLIPSIS -- "I circle, in green, these factors . . . like good
+    # trainer" -- becomes three pieces, two of which are a bare full stop. They
+    # have no words, so no word index points at them, so `span` has no entry and
+    # this raised KeyError 56 on a nine-minute master AFTER the forced alignment
+    # had already run -- the expensive half.
+    #
+    # They are KEPT, not dropped: the text folds into the neighbouring cue so the
+    # ellipsis still reaches the captions, and no cue is emitted for punctuation
+    # standing on its own. PP-STANDARDS section 0a -- we reproduce, we do not tidy
+    # -- so the fix belongs in the aligner and never in the article.
+    merged = []
+    for si, (pi, text) in enumerate(sents):
+        if si in span:
+            merged.append([si, text])
+        elif merged:
+            merged[-1][1] = merged[-1][1].rstrip() + ' ' + text.strip()
+        elif si + 1 < len(sents):
+            sents[si + 1] = (sents[si + 1][0],
+                             text.strip() + ' ' + sents[si + 1][1])
     cues, n = [], 1
-    for si, (_, text) in enumerate(sents):
+    for k, (si, text) in enumerate(merged):
         s, e = span[si]
-        nxt = span[si + 1][0] if si + 1 < len(sents) else speech_end
+        nxt = span[merged[k + 1][0]][0] if k + 1 < len(merged) else speech_end
         cues.append(f"{n}\n{fmt(s)} --> {fmt(min(e + 0.6, nxt) - 0.05)}\n{two(text)}\n")
         n += 1
     out.write_text("\n".join(cues), encoding="utf-8-sig", newline="\r\n")
@@ -386,6 +416,18 @@ def build(ep_dir, model="base"):
 
 
 def main():
+    import argparse
+    if len(sys.argv) > 2 and sys.argv[1] == "--two-way":
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--two-way", action="store_true")
+        ap.add_argument("ep_dir")
+        ap.add_argument("--master", required=True)
+        ap.add_argument("--spoken", required=True)
+        ap.add_argument("--out", required=True)
+        ap.add_argument("--model", default="base")
+        a = ap.parse_args()
+        print(build(a.ep_dir, a.model, a.master, a.spoken, a.out))
+        return 0
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     try:

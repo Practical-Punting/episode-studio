@@ -103,6 +103,14 @@ span{font-family:'Anton',sans-serif;font-weight:400;font-size:100px;
 <span id="p"></span>"""
 
 
+DEFAULT_SCRIM = ('linear-gradient(78deg, rgba(15,15,15,0.90) 0%, rgba(15,15,15,0.66) 42%, rgba(15,15,15,0.20) 78%, rgba(15,15,15,0.05) 100%)')
+"""The single-presenter wash: steep on the left where the type sits, nearly clear on
+the right so the photograph is still a photograph."""
+
+DEFAULT_TYPE_TOP = 'top:0;bottom:0;justify-content:center;'
+"""Vertically centred, which is where the type has sat since EP11."""
+
+
 def check(ep):
     cov = ep.get("cover") or {}
     pack = ep.get("packaging") or {}
@@ -133,13 +141,18 @@ def check(ep):
             f"packaging.ebook_title {pack['ebook_title']!r}, so the video and the e-book "
             f"would put the episode at different points in the series.")
 
+    # 🔵 THE BYLINE THE CARD CARRIES. `title_card.byline` overrides the packaging
+    # standfirst for THIS CARD ONLY — the two-way needs both authors named in type,
+    # because the spoken open that does that job is gated (build spec A8). Absent, the
+    # packaging byline is used exactly as before.
+    byline = str((ep.get("title_card") or {}).get("byline") or pack["byline"]).strip()
     focus = str(((ep.get("title_card") or {}).get("hero_focus")) or DEFAULT_FOCUS)
     if not FOCUS.match(focus):
         raise Halt(
             f"title_card.hero_focus {focus!r} is not a CSS object-position like 'center' "
             f"or 'center 62%'. It positions the photograph; it is a measurement, not a "
             f"caption.")
-    return head, focus
+    return head, focus, byline
 
 
 def measure_size(headline: str, lines=None):
@@ -231,7 +244,7 @@ def main():
     a = ap.parse_args()
 
     ep = json.load(open(a.episode_json, encoding="utf-8"))
-    head, focus = check(ep)
+    head, focus, byline = check(ep)
     cov, pack = ep["cover"], ep["packaging"]
 
     os.makedirs(a.out_dir, exist_ok=True)
@@ -289,7 +302,16 @@ def main():
         "%%PART_SIZE%%": f"{size / 2:g}",
         "%%TITLE_SETUP%%": esc(cov["title_setup"]),
         "%%TITLE_PAYOFF%%": esc(cov["title_payoff"]),
-        "%%BYLINE%%": esc(pack["byline"]),
+        "%%BYLINE%%": esc(byline),
+        # 🔵 THE SCRIM AND THE TYPE POSITION ARE DESIGN, SO THEY ARE DATA. The
+        # defaults are exactly the CSS this template carried before they became
+        # slots, so an episode that says nothing renders byte-identically. A two-way
+        # hero is a landscape with open sky and wants a VERTICAL scrim with the type
+        # up in it; a single-presenter hero wants the diagonal wash. One template.
+        "%%SCRIM%%": str((ep.get("title_card") or {}).get("scrim")
+                         or DEFAULT_SCRIM),
+        "%%TYPE_TOP%%": str((ep.get("title_card") or {}).get("type_top")
+                            or DEFAULT_TYPE_TOP),
     }
     for slot, val in subs.items():
         n = page.count(slot)
@@ -308,9 +330,12 @@ def main():
     # those comparisons came out of the same file, written in the same pass.
     #     The engine runs this same gate against the RAIL, which is the stronger test.
     # This one also covers a hand invocation, where there is no rail to hand.
+    # 🔴 THE GATE IS GIVEN THE BYLINE THE CARD ACTUALLY CARRIES. Feeding it the
+    # packaging string while the page carries another is the EP33 fault — a real
+    # failure (or a real pass) on an input the build never uses.
     faults = pg.page_faults("title_card", page,
                             (pack.get("hook") or "").strip(),
-                            (pack.get("byline") or "").strip(),
+                            byline,
                             (pack.get("ebook_title") or "").strip())
     if faults:
         raise Halt("the authored title card does not carry the approved packaging:\n  - "

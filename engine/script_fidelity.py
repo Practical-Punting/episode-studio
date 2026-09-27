@@ -387,7 +387,8 @@ def ranges_as_to(text: str, drop_first_marker: bool = False) -> str:
 
 
 def fold(text: str, frac=_frac_named, reading: str = "cardinal",
-         ordinal_dates: bool = False, spans_as_to: int = 0) -> str:
+         ordinal_dates: bool = False, spans_as_to: int = 0,
+         unit_reading: str | None = None) -> str:
     """The article, written the way it is SAID.
 
     ORDER IS LOAD-BEARING. Racing notation and units go first, because
@@ -419,6 +420,16 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     if spans_as_to:
         s = ranges_as_to(s, drop_first_marker=(spans_as_to == 2))
     s = re.sub(r"(\$\s?\d[\d,]*\.\d{2})\s*c\b", r"\1", s)
+    # 🔴 `3YO` IS AN AGE, AND NOBODY SAYS "THREE WHY OH". (Jodie, A11, 15 Sep 2026.)
+    # It must fire BEFORE `spoken_form`'s bare-integer rule, which would otherwise turn
+    # it into "three YO" and weld a non-word to the figure — the EP29 `$1.67c` shape
+    # exactly: no legal way for a script to say a figure the article prints.
+    #     ADDITIVE, and provably so. `figures()` only ever reads SPELLED-OUT number
+    # words, so `3YO` in a script was never a figure anyone had to trace; all this does
+    # is add "three-year-old" to what the source may be READ as. Nothing that matched
+    # before stops matching — `test_year_old_reading` holds that proof.
+    s = re.sub(r"\b(\d{1,2})\s*YO\b",
+               lambda m: f"{int_words(int(m.group(1)))}-year-old", s)
     s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
                lambda m: ordinal_words(int(m.group(1))), s)
     # A DECADE, before anything else can mistake it for a year. See `_decade`.
@@ -430,13 +441,22 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     # alone. Without this the unit rule eats "2300m" and the odds rule then finds
     # no pair, so the article never says "twenty one hundred TO twenty three
     # hundred" and EP13's approved script was called a liar for saying it.
+    # 🔴 A FOUR-FIGURE DISTANCE READS IN HUNDREDS, AND MONEY DOES NOT. (Jodie, A11.)
+    # `1200m` is "twelve hundred metres"; `$8000` is "eight thousand dollars" and is
+    # NOT "eighty hundred dollars", which is what asking for `reading="hundreds"`
+    # globally produces. The two cannot share one dial, so the unit-carrying numbers
+    # get their own: `unit_reading` overrides `reading` HERE and nowhere else.
+    #     🔒 DEFAULT None = EXACTLY TODAY'S BEHAVIOUR. `haystacks()` does not pass it,
+    # so the gate is untouched and every reading it accepted yesterday it accepts now.
+    # It is the WRITER that asks for the hundreds reading — see `twoway_split.spoken`.
+    ureading = unit_reading or reading
     s = re.sub(r"\b(\d[\d,]*)\s*-\s*(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), reading)
+               lambda m: (_num_readings(int(m.group(1).replace(",", "")), ureading)
                           + " to "
-                          + _num_readings(int(m.group(2).replace(",", "")), reading)
+                          + _num_readings(int(m.group(2).replace(",", "")), ureading)
                           + " " + UNITS[m.group(3)]), s)
     s = re.sub(r"\b(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), reading)
+               lambda m: (_num_readings(int(m.group(1).replace(",", "")), ureading)
                           + " " + UNITS[m.group(2)]), s)
     # ODDS CARRYING A DECIMAL, BEFORE `_decimals` SPELLS THE POINT OUT. Once `12.5`
     # has become "twelve point five" there is no digit left in front of the hyphen

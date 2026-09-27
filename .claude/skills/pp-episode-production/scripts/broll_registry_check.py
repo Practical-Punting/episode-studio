@@ -53,17 +53,28 @@ reg_kw = kw(reg_entries)
 targets = [b["target"] for b in brolls]
 
 issues = 0
-print("=== exact target repeats vs registry ===")
+# 🔴 CROSS-EPISODE RE-USE IS ALLOWED (Jodie, 18 September 2026) and is REPORTED, not
+# failed. The old law -- "no b-roll is ever repeated from an earlier episode" -- made
+# the library write-only: 278 clips nobody could touch. The test is now RELEVANCE to
+# the line, which no script can judge, so this prints the re-use and leaves the
+# judgement where it belongs. See docs/broll-registry.md, THE NO-REPEAT LAW.
+print("=== cross-episode re-use (ALLOWED when it matches the line — review) ===")
+reused = 0
 for b in brolls:
     t = b["target"]
     if t in existing_targets:
-        print(f"  ! REPEAT: {t} already logged in the registry"); issues += 1
+        print(f"  ~ RE-USE: {t} is already in the registry — "
+              f"check it matches this line: {b.get('line','')!r}")
+        reused += 1
     else:
-        print(f"  ok  {t}")
+        print(f"  ok  {t} is new")
+if reused:
+    print(f"  {reused} re-used clip(s). NOT a failure. "
+          f"Within-episode repeats below still are.")
 
 dupes = sorted({t for t in targets if targets.count(t) > 1})
 if dupes:
-    print(f"=== within-episode duplicate targets ===\n  ! {dupes}"); issues += len(dupes)
+    print(f"=== within-episode duplicate targets — HARD FAIL ===\n  ! {dupes}"); issues += len(dupes)
 
 print("=== advisory: subject overlap with existing registry (review, not a hard fail) ===")
 for b in brolls:

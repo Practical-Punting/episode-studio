@@ -183,10 +183,15 @@ def main():
     # invented strap line TWICE: once as the subtitle and once in front of the standing
     # attribution. `check()` above passed it, because every value it compares comes out
     # of this one file. This cover goes on Hugh's website (Jodie, 11 Aug 2026).
+    # 🔴 WHO READS THIS EPISODE IS DATA, NOT A SECOND LITERAL. `speakers[].reader` is
+    # the field build spec A2 added for the lower-third supers; the cover's standing
+    # suffix is computed from the same place, so a two-way cover says "read by Gordon
+    # and Steve" and a single-presenter one is unchanged to the character.
     faults = pg.page_faults("ebook_cover", page,
                             ((ep.get("packaging") or {}).get("hook") or "").strip(),
                             ((ep.get("packaging") or {}).get("byline") or "").strip(),
-                            (ep.get("packaging") or {}).get("ebook_title") or "")
+                            (ep.get("packaging") or {}).get("ebook_title") or "",
+                            pg.readers_from_episode(ep))
     if faults:
         raise Halt("the authored e-book cover does not carry the approved packaging:\n  - "
                    + "\n  - ".join(faults))

@@ -33,6 +33,7 @@ below. A page without it is treated as hand-authored and left alone; `block:
 """
 import argparse
 import html
+import functools
 import json
 import os
 import re
@@ -315,8 +316,14 @@ JOB_BLOCKS = {
     # `ladder` is a relating block by construction: it draws five to seven anchor rows
     # AGAINST each other so the trend is the picture — short odds eat your book, long
     # odds barely dent it — and no single row of it says that.
+    # `ruler` is a relating block by construction: it states each marker AGAINST a
+    # named band, so the card is the pairing and no single marker carries it. `gap`
+    # relates a NAMED ABSENCE to its closing — two states in tension, not one claim —
+    # and it is deliberately NOT in ASSERTION_BLOCKS, because the thing it renders is
+    # the question as well as the answer. `trackpair` relates two plan views to ONE
+    # shared value, which is the whole of what it says.
     "relate": {"compare", "steps", "bars", "ratio", "slate", "checklist", "matrix",
-               "ladder"},
+               "ladder", "ruler", "gap", "trackpair"},
     "orient": {"steps", "slate"},
     # `locate` is the rail modifier — it rides on any block, so it constrains none.
     "locate": None,
@@ -391,6 +398,18 @@ def check_job(card):
     return []
 
 
+@functools.lru_cache(maxsize=None)
+def _schema_for(block):
+    try:
+        return load_block(block)["schema"]
+    except Exception:
+        return {}
+
+
+def blk_schema_of(card):
+    """The schema of the block this card uses, or {} when it has none (bespoke)."""
+    return _schema_for(card.get("block") or "")
+
 def check_trace(card, article_norm):
     """Trace-or-halt. Any value with a digit must be traceable to the article."""
     cid = card.get("id", "<no id>")
@@ -422,11 +441,23 @@ def check_trace(card, article_norm):
     # a lifted card is still reported.
     lifted_lists = card_lift.lifted_lists(card)
     lifted_keys = card_lift.lifted_keys(card)
+    # 🔵 A STYLE TOKEN IS NOT A FIGURE. A field declared in the block's `enum` is a
+    # closed set that picks a CSS class — `tone: "no"`, `band: "b2"`, `shape: "tight"` —
+    # and is never drawn as text. `compare`'s `tone` only escaped this check because
+    # "yes" and "no" contain no digits; the ruler's `band` does, and asking a writer to
+    # quote a sentence for the string "b2" is asking for a citation for a class name.
+    #     DERIVED from the schema, so a new block is covered without editing this, and
+    # CONTROLLED by assert_enum_not_visible() at render time — the exemption cannot
+    # cover for a token that actually reaches the screen.
+    enum_fields = {f for spec in (blk_schema_of(card) or {}).get("lists", {}).values()
+                   for f in (spec.get("enum") or {})}
     for key, val in list(walk_values(card["content"])) + extra:
         if not isinstance(val, str) or not re.search(r"\d", val):
             continue
         base = key.split("[")[0]
         if base in lifted_lists or key in lifted_keys:
+            continue
+        if key.split(".")[-1] in enum_fields:
             continue
         sentence = trace.get(key, trace.get(base))
         if sentence is None:
@@ -931,9 +962,28 @@ def render_card(card, blk, frame):
     markup = fill(markup, content)
     anim = expand_each(blk["anim"], content, blk, anim=True, anim_over=anim_over)
 
+    # ── A RUNNING TOTAL IS COMPUTED FROM ITS OWN ROWS, NEVER HAND-SET ──────────
+    # Same rule, and the same reason, as the bar length in `bars`: a ledger whose
+    # total is typed in by a human can disagree with the rows sitting directly above
+    # it, and a card that adds up wrong in front of the viewer is worse than no card.
+    # The block declares which list accumulates; the cumulative sums after each row
+    # are derived here and handed to the Count driver as its stops, so the figure on
+    # screen at every tick IS the sum of the rows that have landed.
+    cum = (blk.get("schema") or {}).get("cumulative")
+    if cum:
+        running, stops = 0.0, []
+        for it in content.get(cum["list"]) or []:
+            running += float(it[cum["field"]])
+            stops.append(int(running) if running == int(running) else round(running, 2))
+        anim = anim.replace("%%" + cum["token"] + "%%", json.dumps(stops))
+
     last = max([int(d) for d in re.findall(r'"delay":(\d+)', anim)] or [500])
     page = frame
     page = page.replace("%%GENMARK%%", MARKER)
+    # THE BLOCK, ON THE PAGE, so a gate can tell a CARD from standing furniture
+    # without keeping a list of filenames. card_check scopes the pacing budget
+    # by this and nothing else.
+    page = page.replace("<body", f'<body data-pp-block="{card["block"]}"', 1)
     page = page.replace("%%TITLE%%", esc(card.get("title_tag", f"PP {card['id']}")))
     page = page.replace("%%EYEBROW%%", esc(card.get("eyebrow")))
     page = page.replace("%%HEADLINE%%", esc(card.get("headline_display", card.get("headline"))))
@@ -1106,6 +1156,31 @@ def assert_no_invented_text(page, card, frame_tpl, blk):
 
 # ---------------------------------------------------------------- main
 
+def assert_enum_not_visible(page, card, blk):
+    """🔴 THE CONTROL ON THE EXEMPTION check_trace TAKES FOR ENUM FIELDS.
+
+    Those fields are skipped because they pick a CSS class and are never drawn.
+    That is a CLAIM about the template, and a claim nothing checks is a hole: a
+    block whose markup printed {{ITEM.band}} as text would put "b2" on screen with
+    no trace required and no complaint from anywhere.
+    """
+    schema = (blk.get("schema") or {})
+    vis = " " + " ".join(visible_text(page).split()) + " "
+    bad = []
+    for name, spec in (schema.get("lists") or {}).items():
+        for field, allowed in (spec.get("enum") or {}).items():
+            for it in (card.get("content") or {}).get(name) or []:
+                v = (it or {}).get(field)
+                if isinstance(v, str) and v and f" {v} " in vis:
+                    bad.append(f"{name}[].{field} = {v!r}")
+    if bad:
+        raise Halt(
+            f"card {card.get(chr(39)+chr(105)+chr(100)+chr(39), chr(63))}: a STYLE TOKEN is on screen as text "
+            f"({'; '.join(sorted(set(bad)))}). An enum field picks a CSS class and is "
+            f"exempt from the trace check on that basis — if the template draws it, "
+            f"the exemption is covering for a visible untraced value. Fix the "
+            f"block's markup, not this check.")
+
 def source_article_raw(ep_json, ep_dir):
     """The verbatim source article named in episode.json -> source, AS WRITTEN.
 
@@ -1190,6 +1265,7 @@ def main():
         frame_tpl = load_frame(c.get("layout", "fullscreen"))
         page = render_card(c, blk, frame_tpl)
         assert_no_invented_text(page, c, frame_tpl, blk)
+        assert_enum_not_visible(page, c, blk)
         assert_measured_items_show_a_figure(c, blk)
         out = os.path.join(a.out_dir, c["page"])
         if os.path.exists(out):

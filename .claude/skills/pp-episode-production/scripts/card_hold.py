@@ -34,6 +34,110 @@ BASE_S = 6.0            # finding the card, taking in its headline, looking away
 PER_ITEM_S = 1.0        # each row / step / bar / chip the eye has to take in
 ABSOLUTE_FLOOR_S = 7.0  # never less, however light the card (Jodie's guardrail)
 
+WORDS_PER_S_READ = 2.5
+NOTICE_S = 1.0
+SETTLE_S = 1.5
+"""🔴 THE SECOND FLOOR, AND IT IS THE ONE v5 BROKE FOUR TIMES.
+
+`min_hold_for` counts ITEMS. It is right that a two-row card is lighter than a five-row
+one, and blind to the fact that a two-row card can carry thirty words. v5's C1 had 28
+words of content on two columns: two items, a 8.0s floor, and **12.2 seconds of actual
+reading** — held for 7.5s. Every mechanical check passed and nobody could finish it.
+
+**Jodie's ruling, 20 Sep 2026: a card MAY RUN PAST its sentence to finish its reading
+time plus a 1.5-second settle — and a card is NEVER SPED UP to fit.** So the hold a
+card asks for is the larger of the two floors, and the words are what drive the second
+one.
+
+`NOTICE_S` is the beat before reading starts — the eye has to arrive. `SETTLE_S` is the
+skill's own "hold the finished state at least 1.5 seconds": the assembled card is what
+the viewer takes away, and a card that completes and immediately cuts has wasted its
+own build.
+
+⚠️ THE EYEBROW AND THE HEADLINE ARE NOT COUNTED, deliberately. They are signposts read
+in a glance on the way in, not text the viewer works through, and counting them made
+every card ask for two seconds it did not need. This is the same measure the v5 planner
+used to report its R6 shortfalls, so the numbers in that report and the numbers here
+are the same numbers.
+"""
+
+
+ENUM_FIELDS = ("tone", "band", "shape")
+"""⚠️ CLOSED VOCABULARIES ARE NOT WORDS ON THE CARD.
+
+`tone: "yes"`, `band: "b1"`, `shape: "wide"` are instructions to the block — which side
+of a compare is affirmative, which band a ruler marker sits in — and none of them is
+rendered as text anybody reads. Counting them added a second to every compare card and
+two to every ruler.
+
+🔴 AND THIS LITERAL IS THE §7 SHAPE, WHICH IS WHY `enum_fields()` EXISTS BESIDE IT.
+A hand-kept tuple is right on the day it is written and decays from then on. It is the
+FALLBACK; the real answer is read out of the block's own schema, where the `enum` keys
+already say exactly which fields are closed vocabularies. The day a block is added with
+a fourth one, the schema knows and this tuple does not.
+"""
+
+
+def enum_fields(block: str | None, blocks_dir=None) -> tuple[str, ...]:
+    """Which of this block's fields are closed vocabularies, from its OWN schema."""
+    import json as _json
+    import pathlib as _pathlib
+    import re as _re
+    if not block:
+        return ENUM_FIELDS
+    d = _pathlib.Path(blocks_dir) if blocks_dir else \
+        _pathlib.Path(__file__).resolve().parent.parent / "assets/cards/blocks"
+    try:
+        src = (d / f"{block}.html").read_text(encoding="utf-8")
+        schema = _json.loads(_re.search(r"<!--@schema(.*?)-->", src, _re.S).group(1))
+    except Exception:
+        return ENUM_FIELDS
+    out: set[str] = set()
+    for spec in (schema.get("lists") or {}).values():
+        if isinstance(spec, dict):
+            out.update((spec.get("enum") or {}).keys())
+    return tuple(sorted(out)) or ()
+
+
+def content_words(card: dict) -> int:
+    """Every word of CONTENT on the card — not the eyebrow, not the headline.
+
+    Walks the content dict to whatever depth it has, so a block that nests (a matrix's
+    cells, a ruler's markers) is counted without this function knowing the block. A
+    guard whose coverage is a list of block names is a guard that goes stale the day a
+    block is added — §7.
+    """
+    skip = set(enum_fields(card.get("block")))
+
+    def walk(v, key=None) -> int:
+        if key in skip:
+            return 0
+        if isinstance(v, str):
+            return len(v.split())
+        if isinstance(v, dict):
+            return sum(walk(x, k) for k, x in v.items())
+        if isinstance(v, (list, tuple)):
+            return sum(walk(x, key) for x in v)
+        return 0
+    return walk(card.get("content") or {})
+
+
+def reading_hold_s(card: dict) -> float:
+    """How long this card must be up for its words to be READ, notice and settle in."""
+    return round(content_words(card) / WORDS_PER_S_READ + NOTICE_S + SETTLE_S, 2)
+
+
+def hold_for(card: dict, build: dict) -> float:
+    """The hold this card ASKS FOR: the larger of the two floors, never the smaller.
+
+    🔴 THE `min_card_hold` CEILING DOES NOT APPLY HERE, and that is the ruling. It caps
+    the ITEM floor so a heavy card is held exactly as long as it always was; capping
+    the READING floor with it would be speeding the card up to fit, which is the thing
+    Jodie ruled out in terms. A card that needs fourteen seconds gets fourteen seconds
+    or it is dropped and said so.
+    """
+    return round(max(min_hold_for(card, build), reading_hold_s(card)), 2)
+
 
 def reading_load(card: dict) -> int:
     """How many things this card asks the eye to take in.

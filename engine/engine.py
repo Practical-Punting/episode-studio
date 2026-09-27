@@ -75,6 +75,21 @@ CREDITS_PER_BROLL = 4                      # conservative planning figure
 # and while the balance is this low it should.
 CREDIT_CEILING = float(os.environ.get("ENGINE_CREDIT_CEILING", "65"))  # per episode
 
+# 🔴 THE TWO-WAY HAS ITS OWN CEILING: 110 (Jodie, 18 Sep 2026).
+# 65 is a FIVE-SECOND-CLIP number. The two-way asserts 8-10s b-roll
+# (twoway_beats.BROLL_DUR_MIN_S/MAX_S) and Kling bills 1.5 credits a second, so EP49's
+# seven slots cost 97.5 where seven 5s clips cost 52.5. The old ceiling did not disagree
+# with a plan; it disagreed with the FORMAT, and would have halted every two-way episode
+# before it began. 110 clears seven 10s clips (105) and still refuses a runaway.
+CREDIT_CEILING_TWO_WAY = float(
+    os.environ.get("ENGINE_CREDIT_CEILING_TWO_WAY", "110"))
+
+
+def credit_ceiling(ep) -> float:
+    """The ceiling this episode is judged against. THE FORMAT DECIDES, not the caller."""
+    return (CREDIT_CEILING_TWO_WAY if ((ep or {}).get("format") == "two-way")
+            else CREDIT_CEILING)
+
 # --- rail integrity gate (26 Jul 2026; git-backed from 28 Jul 2026) ---------
 # rail.py holds the Script Gate's enforcement — the claim filter that refuses to
 # hand out an episode nobody has read the script for. A revert would disable that
@@ -953,11 +968,13 @@ def step_credit_check(ctx):
         return {"estimate": 0, "pending": [], "covers": 0}
     log(f"   estimate ~{estimate:.0f} credits ({len(pending)} b-roll clips "
         f"+ {covers:.0f} for the cover heroes)")
-    if estimate > CREDIT_CEILING:
+    ceiling = credit_ceiling(ctx.ep)
+    if estimate > ceiling:
         raise EngineFlag(
             f"This build is estimated at ~{estimate} Higgsfield credits, over the "
-            f"per-episode ceiling of {CREDIT_CEILING:.0f}. Raise the ceiling "
-            "(ENGINE_CREDIT_CEILING) or trim the plan, then clear this flag.")
+            f"per-episode ceiling of {ceiling:.0f}. Raise the ceiling "
+            "(ENGINE_CREDIT_CEILING, or ENGINE_CREDIT_CEILING_TWO_WAY on a two-way) "
+            "or trim the plan, then clear this flag.")
     balance = ctx.provider.balance()
     if balance < estimate:
         raise EngineFlag(

@@ -53,6 +53,11 @@ import framing as _framing
 ENTRY_DELAY = 3.0          # PP-STANDARDS: card entry = spoken cue + 3.0s
 MIDROLL_MIN_FULL = 6.0     # >=6s of FULL visibility (fades on top)
 MIDROLL_FOLLOW = 1.0       # the chip enters this long AFTER the ask starts (never before)
+EARLY_FOLLOW = 1.0         # the early e-book card follows its spoken mention by this
+"""Hoisted out of `derive()` 22 Sep 2026 so the TWO-WAY assembler can import it instead
+of re-typing it. It was a local constant, which meant the only way for a second pipeline
+to obey the same rule was to copy the number — and a copied rule is two rules the day one
+of them moves (§2b). Same reason MIDROLL_FOLLOW sits up here."""
 
 
 # ---------- SRT -> a word-level timeline ------------------------------------
@@ -423,7 +428,6 @@ def main():
     # nobody could re-check. A typed timestamp is the EP15 `midroll.at = 235.0` fault
     # waiting to happen — right on the day it was written, stale by the next re-render.
     # Give it an `anchor` phrase and the SRT places it, exactly as the chip is placed.
-    EARLY_FOLLOW = 1.0
     cta = build.get("early_cta") or {}
     cta_at = None
     if cta:

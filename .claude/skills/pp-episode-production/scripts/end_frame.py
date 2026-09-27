@@ -90,18 +90,56 @@ def build_clip(out: Path, logo: Path, music: Path, spec: dict, seconds: float) -
           f"afade=t=out:st={round(seconds - FADE, 2)}:d={FADE},"
           f"aformat=sample_fmts=fltp:sample_rates={spec['ar'] or 48000}:"
           f"channel_layouts=stereo[a]")
+    # 🔴 NO `-loop 1` ON THE LOGO. IT HANGS ffmpeg 8.1.2, AND IT HANGS IT ALONE.
+    #
+    # This read `-loop 1 -t {seconds} -i {logo}` from August until 22 Sep 2026, when it
+    # stopped terminating: EP49's append sat for 43 minutes, burned 412 CPU-seconds and
+    # never created its output file, while the process grew past 865 MB of RSS.
+    #
+    # ⚠️ AND THE FIRST TWO EXPLANATIONS WERE BOTH WRONG, which is why this comment can
+    # be believed. It was not the Drive — the same command hangs writing to C:. It was
+    # not the missing output `-t` — adding one changed nothing. Bisected at 2 seconds:
+    # the colour source alone renders in **0.3s**, the music branch alone in **0.1s**,
+    # and `-loop 1 -t 2 -i logo.png` hangs at 90s **with no overlay in the graph and the
+    # image not even mapped**. The looped image demuxer is what never ends; everything
+    # downstream of it was innocent.
+    #
+    # ✅ THE FIX IS TO STOP LOOPING IT. One still frame is all there ever was to show,
+    # and `overlay` holds the last frame of its second input for the rest of the main
+    # by default (`repeatlast=1`) — so the logo sits there for the whole clip without
+    # anything having to generate 450 identical frames. Measured: **0.2s**, against a
+    # 90-second timeout on the looped form.
+    #
+    # 📌 The ffmpeg in use is recorded on the way past, because this is a version
+    # behaviour and the next person deserves to know which one it was:
+    # `ffmpeg 8.1.2-full_build-www.gyan.dev`.
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
            "-f", "lavfi", "-i",
            f"color=c={CHARCOAL}:s={spec['w']}x{spec['h']}:r={spec['fps']}:d={seconds}",
-           "-loop", "1", "-t", str(seconds), "-i", str(logo),
+           "-i", str(logo),
            "-i", str(music),
            "-filter_complex", vf + ";" + af, "-map", "[v]", "-map", "[a]",
+           "-t", str(seconds),
            "-c:v", "libx264", "-crf", "18", "-preset", "medium",
            "-pix_fmt", spec["pix"] or "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-ar", str(spec["ar"] or 48000),
            "-movflags", "+faststart", "-map_metadata", "-1", "-dn", str(out)]
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                       errors="replace")
+    # 🔴 AND A TIMEOUT, BECAUSE THIS STEP HAS NOW HUNG ONCE. An eighteen-second clip
+    # that has not finished in five minutes is not slow, it is stuck — and a step with
+    # no timeout is a step that reports nothing for forty-three minutes while somebody
+    # watches a file that will never grow. CLAUDE.md fault #3: anything that waits must
+    # say it is waiting, and say who it is waiting on.
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=300)
+    except subprocess.TimeoutExpired:
+        out.unlink(missing_ok=True)
+        raise Halt(
+            "the end frame did not render in five minutes. Eighteen seconds of "
+            "charcoal is a two-second job, so this is a hang, not slowness. It has "
+            "happened once before, on ffmpeg 8.1.2, and the cause was a `-loop 1` "
+            "image input that never ends — check the ffmpeg version and the input "
+            "list above before anything else. Nothing was promoted.")
     if r.returncode or not out.is_file():
         raise Halt(f"the end frame would not render: {(r.stderr or '').strip()[-500:]}")
     return out
