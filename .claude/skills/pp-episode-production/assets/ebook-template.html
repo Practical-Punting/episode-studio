@@ -131,6 +131,26 @@ blockquote { margin: 14px 0; padding: 10px 18px; border-left: 4px solid #DA532C;
    lines", which fits almost anywhere. */
 p { orphans: 2; widows: 2; }
 p.haslead { orphans: 3; page-break-after: avoid; break-after: avoid; }
+/* ── THE DIALOGUE SPEAKER LABEL (build spec §7 / step 5, 16 Sep 2026) ───────────
+   A two-way episode's body is a conversation, and the label `BB:` / `BM:` is the
+   ARTICLE'S OWN TEXT — never expanded to a name, never moved, never restyled into
+   something it is not. So the label is left sitting in the paragraph exactly where the
+   magazine printed it, and the PARAGRAPH is shaped around it: a hanging indent puts the
+   label out in the gutter where the eye finds it, and a thin rule down the left says
+   which man is speaking without a word being added.
+   🔴 NO INNER MARKUP. Nothing wraps the label. `author_ebook.mark_speakers` adds a class
+   to the <p> and nothing else, so the character-for-character gate is untouched — the
+   same contract `p.haslead` above already runs under. */
+p.speaks { padding-left: 2.6em; text-indent: -2.6em;
+           border-left: 3px solid #E4E4E4; padding-right: 0; margin-left: 0.2em;
+           orphans: 2; widows: 2; }
+p.speaks + p.speaks { margin-top: 0.55em; }
+/* Each man his own side of the page. The colours are the house orange and a quiet
+   slate — the HOST warm, the GUEST cool — so a reader can follow who is talking down a
+   column of type without reading the labels at all. */
+p.spk-BB { border-left-color: #DA532C; }
+p.spk-BM { border-left-color: #6E7C87; }
+
 /* A figure never splits across pages, but it MAY start one. `page-break-before: avoid`
    used to weld it to the paragraph above; with `p:has(+ .illus)` that made a
    paragraph-plus-picture into one indivisible block, and a block too tall for the

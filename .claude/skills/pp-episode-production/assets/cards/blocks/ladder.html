@@ -1,17 +1,50 @@
 <!--@schema
 {
-  "precedent": ["EP27 c15"],
+  "precedent": [
+    "EP27 c15"
+  ],
   "note": "THE CONVERSION LADDER — a big table's SHAPE, not its data. Five to seven ANCHOR rows lifted from the article's own table and drawn as bars whose height is the figure, under THE CANONICAL FOOTER: '<N> <unit> in all - the full chart is in the guide.' That sentence is house furniture (Jodie, 16 Aug 2026) and is NOT written in episode.json - card_lift composes it: N is the table's counted data rows, the unit word comes from the table's own key-column heading through a closed set, and the rest is a literal. A typed footer is refused. Leave `footer` out of content entirely. THE LAW (Jodie, 16 Aug 2026): the video tells the table's STORY - one hero number or trend, never a data dump - and the FULL table lives in the e-book, which reproduces it cell for cell. The cap of 7 IS that law: a card that could hold thirty-four rows would be asked to. Cells are LIFTED from the capture by card_lift.py and asserted against it; the writer picks which rows carry the shape and types no figure. Bar height is computed from the row's own lifted value, so a bar cannot misstate the proportion it draws.",
   "required": [],
-  "optional": ["footer"],
-  "lists": {"rows": {"min": 3, "max": 7, "fields": ["label", "value"],
-                     "numeric": ["value"], "shows_numeric": true,
-                     "scale": {"field": "value", "span": 235}}},
-  "anim": {"rows": {"base": 1400, "step": 320}},
+  "optional": [
+    "footer"
+  ],
+  "lists": {
+    "rows": {
+      "min": 3,
+      "max": 7,
+      "fields": [
+        "label",
+        "value"
+      ],
+      "numeric": [
+        "value"
+      ],
+      "shows_numeric": true,
+      "scale": {
+        "field": "value",
+        "span": 235
+      }
+    }
+  },
+  "anim": {
+    "rows": {
+      "base": 360,
+      "step": 280
+    }
+  },
   "fit": {
-    "value_size": [".ladder .pc", "font-size"],
-    "label_size": [".ladder .odds", "font-size"],
-    "footer_size": [".lfoot", "font-size"]
+    "value_size": [
+      ".ladder .pc",
+      "font-size"
+    ],
+    "label_size": [
+      ".ladder .odds",
+      "font-size"
+    ],
+    "footer_size": [
+      ".lfoot",
+      "font-size"
+    ]
   }
 }
 -->
@@ -46,6 +79,6 @@ body.print .lfoot{color:#777}
   <div class="lfoot" id="lfoot">{{footer}}</div>
 <!--@anim-->
 <!--@each rows-->
- {"sel":"#k{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#k{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#lfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":4300,"easing":"ease-out"}}
+ {"sel":"#lfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

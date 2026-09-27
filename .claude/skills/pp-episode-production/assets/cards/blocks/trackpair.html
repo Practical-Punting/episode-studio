@@ -1,0 +1,94 @@
+<!--@schema
+{
+  "precedent": [
+    "EP49 C5"
+  ],
+  "note": "TWO TRACKS, ONE NUMBER. The skill's block library calls this shape 'track plan' and has carried it as 'to build' since 15 Sep 2026. It exists for the commonest unanswerable question in form study - a time means nothing until you know where it was run - and it is the one card on the channel where THE SHAPE IS THE INFORMATION: a big roomy circuit and a tight turning one, drawn as plan views at honestly different sizes, with the SAME value under both and a pivot between them. Draw it as two labelled columns instead and the card says nothing a sentence could not, which is rule 6 of the motion-graphics skill. NOTHING IS WRITTEN ON THE SHAPES beyond each track's name: a plan view with furniture on it stops being a diagram and becomes a map nobody can read at phone size. The two `shape` values are a closed set, so a content value can never invent a size.",
+  "required": [
+    "pivot"
+  ],
+  "optional": [
+    "note"
+  ],
+  "lists": {
+    "plans": {
+      "min": 2,
+      "max": 2,
+      "fields": [
+        "k",
+        "shape",
+        "v"
+      ],
+      "enum": {
+        "shape": [
+          "wide",
+          "tight"
+        ]
+      }
+    }
+  },
+  "anim": {
+    "plans": {
+      "base": 320,
+      "step": 300
+    }
+  },
+  "fit": {
+    "name_size": [
+      ".pname",
+      "font-size"
+    ],
+    "value_size": [
+      ".pval",
+      "font-size"
+    ],
+    "note_size": [
+      ".tpnote",
+      "font-size"
+    ]
+  }
+}
+-->
+<!--@css-->
+.tpair{margin-top:56px;display:flex;align-items:center;justify-content:center;gap:56px;}
+.plan{flex:none;display:flex;flex-direction:column;align-items:center;}
+/* The rail is drawn as the BORDER of the plan, which is what a running rail is: the
+   boundary. The infield is the charcoal inside it, deliberately empty. */
+.ring{border:10px solid #C9C9C9;border-radius:50%;background:#232323;
+  transform-origin:center center;}
+.plan.wide .ring{width:560px;height:300px;}
+.plan.tight .ring{width:300px;height:250px;border-color:#DA532C;}
+.pname{margin-top:26px;font-family:'Anton',sans-serif;font-size:52px;line-height:1;
+  color:#EDEDED;text-transform:uppercase;letter-spacing:0.01em;text-align:center;}
+.pval{margin-top:14px;font-size:38px;font-weight:700;color:#9A9A9A;text-align:center;}
+/* THE PIVOT SITS BETWEEN THE TWO PLANS, and it has to get there by `order`: the
+   `each` expansion emits both plans consecutively, so document order cannot
+   interleave them. `.plan` takes order 3 first and `:first-child` wins it back to 1,
+   which puts the pivot in the middle for any two-plan card without the template
+   having to know which is which. */
+.pivot{flex:none;font-family:'Anton',sans-serif;font-size:150px;line-height:1;
+  color:#DA532C;order:2;}
+.tpair .plan{order:3;}
+.tpair .plan:first-child{order:1;}
+.tpnote{margin-top:auto;margin-bottom:16px;font-size:44px;font-weight:600;
+  font-style:italic;color:#9A9A9A;max-width:1440px;line-height:1.2;}
+<!--@print-->
+body.print .ring{border-color:#8A8A8A;background:#FFFFFF}
+body.print .plan.tight .ring{border-color:#DA532C}
+body.print .pname{color:#1e1e1e}
+body.print .pval{color:#666}
+body.print .tpnote{color:#777}
+<!--@markup-->
+  <div class="tpair">
+<!--@each plans-->
+    <div class="plan {{ITEM.shape}}" id="pl{{I}}"><div class="ring"></div><div class="pname">{{ITEM.k}}</div><div class="pval">{{ITEM.v}}</div></div>
+<!--@endeach-->
+    <div class="pivot anton" id="pivot">{{pivot}}</div>
+  </div>
+  <div class="tpnote" id="tpnote">{{note}}</div>
+<!--@anim-->
+<!--@each plans-->
+ {"sel":"#pl{{I}}","kf":[{"opacity":0,"transform":"scale(0.86)"},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":700,"delay":{{DELAY}},"easing":"cubic-bezier(0.2,0,0,1)"}},
+<!--@endeach-->
+ {"sel":"#pivot","kf":[{"opacity":0,"transform":"scale(1.18)"},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":340,"delay":1780,"easing":"cubic-bezier(0.2,0,0,1)"}},
+ {"sel":"#tpnote","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2140,"easing":"ease-out"}}

@@ -1,0 +1,58 @@
+<!--@schema
+{
+  "precedent": [
+    "EP49 C6"
+  ],
+  "note": "THE GAP CARD. A question, a beat of stillness, then the answer - Loewenstein's curiosity gap, which is the one mechanism on this channel that works BEFORE the viewer knows whether they care. The skill's block library has carried it as 'to build' since 15 Sep 2026. THE STILLNESS IS THE BLOCK'S WHOLE POINT and it is structural, not spare: 800ms of nothing between the question and the answer, and the answer SLAMS (1.18 to 1, 340ms, hard stop) rather than fading, because a payoff that fades has arrived without landing. A gap card relates two things - the named absence and its closing - so it declares `relate`; it is NOT an assertion block, and it must not be used to smuggle a bare claim past the 40% cap. The test is whether the question could be answered wrongly: if there is no real alternative answer, there is no gap and this is the wrong block.",
+  "required": [
+    "q",
+    "a"
+  ],
+  "optional": [
+    "note"
+  ],
+  "lists": {},
+  "anim": {},
+  "fit": {
+    "q_size": [
+      ".gq",
+      "font-size"
+    ],
+    "a_size": [
+      ".ga",
+      "font-size"
+    ],
+    "note_size": [
+      ".gnote",
+      "font-size"
+    ]
+  }
+}
+-->
+<!--@css-->
+.gap{margin-top:auto;margin-bottom:auto;}
+/* The question is set as a QUESTION — large, but in the body face, because it is a
+   sentence the viewer reads. The answer is the display face: it is the thing the card
+   is for, and the change of face is half of what makes it land. */
+.gq{font-size:76px;font-weight:700;line-height:1.16;color:#C9C9C9;max-width:1500px;}
+.grule{margin-top:40px;width:120px;height:8px;background:#DA532C;transform-origin:left center;}
+.ga{margin-top:40px;font-family:'Anton',sans-serif;font-size:132px;line-height:0.98;
+  color:#FFFFFF;max-width:1560px;text-transform:uppercase;letter-spacing:0.01em;}
+.gnote{margin-top:44px;font-size:42px;font-weight:600;font-style:italic;color:#9A9A9A;
+  max-width:1440px;line-height:1.2;}
+<!--@print-->
+body.print .gq{color:#555}
+body.print .ga{color:#1e1e1e}
+body.print .gnote{color:#777}
+<!--@markup-->
+  <div class="gap">
+    <div class="gq" id="gq">{{q}}</div>
+    <div class="grule" id="grule"></div>
+    <div class="ga anton" id="ga">{{a}}</div>
+  </div>
+  <div class="gnote" id="gnote">{{note}}</div>
+<!--@anim-->
+ {"sel":"#gq","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":260,"delay":200,"easing":"cubic-bezier(0.2,0,0,1)"}},
+ {"pace":"structural","sel":"#grule","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":300,"delay":1260,"easing":"cubic-bezier(0.2,0,0,1)"}},
+ {"sel":"#ga","kf":[{"opacity":0,"transform":"scale(1.18)"},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":340,"delay":1300,"easing":"cubic-bezier(0.2,0,0,1)"}},
+ {"sel":"#gnote","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":1860,"easing":"ease-out"}}

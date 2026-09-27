@@ -1,13 +1,40 @@
 <!--@schema
 {
-  "precedent": ["EP12 c12"],
+  "precedent": [
+    "EP12 c12"
+  ],
   "note": "The marks are the article's ratio made visible, not a data set. Every mark is written out explicitly so the count is readable in episode.json rather than computed behind your back.",
-  "required": ["payoff"],
+  "required": [
+    "payoff"
+  ],
   "optional": [],
-  "lists": {"marks": {"min": 2, "max": 12, "fields": ["tone"],
-                      "enum": {"tone": ["", "win"]}}},
-  "anim": {"marks": {"base": 1150, "step": 140}},
-  "fit": {"payoff_size": [".pay", "font-size"]}
+  "lists": {
+    "marks": {
+      "min": 2,
+      "max": 12,
+      "fields": [
+        "tone"
+      ],
+      "enum": {
+        "tone": [
+          "",
+          "win"
+        ]
+      }
+    }
+  },
+  "anim": {
+    "marks": {
+      "base": 240,
+      "step": 120
+    }
+  },
+  "fit": {
+    "payoff_size": [
+      ".pay",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -28,7 +55,7 @@ body.print .pay{color:#1e1e1e}
   <div class="pay" id="pay">{{payoff}}</div>
 <!--@anim-->
 <!--@each marks-->
- {"sel":"#m{{I}}:not(.win)","kf":[{"opacity":0.15,"background":"#4E4E4E"},{"opacity":1,"background":"#3A3A3A"}],"opts":{"duration":260,"delay":{{DELAY}},"easing":"ease-out"}},
+ {"pace":"structural","sel":"#m{{I}}:not(.win)","kf":[{"opacity":0.15,"background":"#4E4E4E"},{"opacity":1,"background":"#3A3A3A"}],"opts":{"duration":240,"delay":{{DELAY}},"easing":"ease-out"}},
 <!--@endeach-->
- {"sel":".m.win","kf":[{"opacity":0,"transform":"scaleY(0.2)"},{"opacity":1,"transform":"scaleY(1.06)","offset":0.72},{"opacity":1,"transform":"scaleY(1)"}],"opts":{"duration":760,"delay":2600,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#pay","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":640,"delay":3400,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}}
+ {"sel":".m.win","kf":[{"opacity":0,"transform":"scaleY(0.2)"},{"opacity":1,"transform":"scaleY(1.06)","offset":0.72},{"opacity":1,"transform":"scaleY(1)"}],"opts":{"duration":700,"delay":1560,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#pay","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":2160,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}}

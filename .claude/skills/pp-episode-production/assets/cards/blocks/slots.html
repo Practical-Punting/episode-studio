@@ -1,13 +1,46 @@
 <!--@schema
 {
-  "precedent": ["EP12 c02"],
+  "precedent": [
+    "EP12 c02"
+  ],
   "note": "THE EMPTY-SLOT BLOCK. A slot's v is written null when the article names the label but gives no figure. That is EP12 C2: the source says the First-up line tells you how many times a horse has won first-up, and gives no numbers. Explicit null draws the dotted rule; a MISSING v halts.",
-  "required": ["tag"],
-  "optional": ["said"],
-  "lists": {"slots": {"min": 1, "max": 4, "fields": ["k", "v"]},
-            "chips": {"min": 0, "max": 4, "fields": null}},
-  "anim": {"slots": {"base": 1550, "step": 350}, "chips": {"base": 2950, "step": 300}},
-  "fit": {"said_size": [".said", "font-size"]}
+  "required": [
+    "tag"
+  ],
+  "optional": [
+    "said"
+  ],
+  "lists": {
+    "slots": {
+      "min": 1,
+      "max": 4,
+      "fields": [
+        "k",
+        "v"
+      ]
+    },
+    "chips": {
+      "min": 0,
+      "max": 4,
+      "fields": null
+    }
+  },
+  "anim": {
+    "slots": {
+      "base": 360,
+      "step": 300
+    },
+    "chips": {
+      "base": 1500,
+      "step": 240
+    }
+  },
+  "fit": {
+    "said_size": [
+      ".said",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -39,11 +72,11 @@ body.print .chip{background:#F4F4F4;border-color:#DDD;color:#555}
 <!--@endeach-->
   </div>
 <!--@anim-->
- {"sel":"#tag","kf":[{"opacity":0,"transform":"translateX(-30px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":520,"delay":1150,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#tag","kf":[{"opacity":0,"transform":"translateX(-30px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":320,"delay":240,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@each slots-->
- {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":540,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#said","kf":[{"opacity":0,"transform":"translateY(22px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":580,"delay":2400,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#said","kf":[{"opacity":0,"transform":"translateY(22px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":1760,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@each chips-->
- {"sel":"#ch{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":{{DELAY}},"easing":"ease-out"}},
+ {"sel":"#ch{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":280,"delay":{{DELAY}},"easing":"ease-out"}},
 <!--@endeach-->

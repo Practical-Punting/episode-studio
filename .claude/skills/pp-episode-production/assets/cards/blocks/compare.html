@@ -1,12 +1,45 @@
 <!--@schema
 {
-  "precedent": ["EP12 c04"],
+  "precedent": [
+    "EP12 c04"
+  ],
   "required": [],
-  "optional": ["note"],
-  "lists": {"cols": {"min": 2, "max": 2, "fields": ["tone", "k", "v"],
-                     "enum": {"tone": ["yes", "no"]}}},
-  "anim": {"cols": {"base": 1200, "step": 600}},
-  "fit": {"value_size": [".col .v", "font-size"], "note_size": [".note", "font-size"]}
+  "optional": [
+    "note"
+  ],
+  "lists": {
+    "cols": {
+      "min": 2,
+      "max": 2,
+      "fields": [
+        "tone",
+        "k",
+        "v"
+      ],
+      "enum": {
+        "tone": [
+          "yes",
+          "no"
+        ]
+      }
+    }
+  },
+  "anim": {
+    "cols": {
+      "base": 360,
+      "step": 320
+    }
+  },
+  "fit": {
+    "value_size": [
+      ".col .v",
+      "font-size"
+    ],
+    "note_size": [
+      ".note",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -33,6 +66,6 @@ body.print .note{color:#777}
   <div class="note" id="note">{{note}}</div>
 <!--@anim-->
 <!--@each cols-->
- {"sel":"#c{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#c{{I}}","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":560,"delay":2500,"easing":"ease-out"}}
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":800,"easing":"ease-out"}}

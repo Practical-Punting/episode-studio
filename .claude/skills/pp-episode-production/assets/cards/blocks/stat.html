@@ -1,12 +1,29 @@
 <!--@schema
 {
-  "precedent": ["EP12 c01"],
-  "required": ["figure", "payoff"],
-  "optional": ["figure_sub", "note"],
+  "precedent": [
+    "EP12 c01"
+  ],
+  "required": [
+    "figure",
+    "payoff"
+  ],
+  "optional": [
+    "figure_sub",
+    "note"
+  ],
   "fit": {
-    "figure_size": [".big", "font-size"],
-    "figure_leading": [".big", "line-height"],
-    "payoff_size": [".pay", "font-size"]
+    "figure_size": [
+      ".big",
+      "font-size"
+    ],
+    "figure_leading": [
+      ".big",
+      "line-height"
+    ],
+    "payoff_size": [
+      ".pay",
+      "font-size"
+    ]
   }
 }
 -->
@@ -37,7 +54,7 @@ body.print .note{color:#777}
   <div id="pay" class="pay">{{payoff}}</div>
   <div id="note" class="note">{{note}}</div>
 <!--@anim-->
- {"sel":"#big","kf":[{"opacity":0,"transform":"scale(0.44)"},{"opacity":1,"transform":"scale(1.07)","offset":0.7},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":900,"delay":1150,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#sub","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":1900,"easing":"ease-out"}},
- {"sel":"#pay","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":2300,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":2950,"easing":"ease-out"}}
+ {"sel":"#big","kf":[{"opacity":0,"transform":"scale(0.44)"},{"opacity":1,"transform":"scale(1.07)","offset":0.7},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":900,"delay":360,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#sub","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":320,"delay":1380,"easing":"ease-out"}},
+ {"sel":"#pay","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":1820,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

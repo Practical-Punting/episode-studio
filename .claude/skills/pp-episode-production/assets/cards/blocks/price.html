@@ -1,11 +1,25 @@
 <!--@schema
 {
-  "precedent": ["EP11 c05", "EP12 c11"],
-  "required": ["price", "said"],
-  "optional": ["quote"],
+  "precedent": [
+    "EP11 c05",
+    "EP12 c11"
+  ],
+  "required": [
+    "price",
+    "said"
+  ],
+  "optional": [
+    "quote"
+  ],
   "fit": {
-    "quote_top": [".quiet", "margin-top"],
-    "price_size": [".price", "font-size"]
+    "quote_top": [
+      ".quiet",
+      "margin-top"
+    ],
+    "price_size": [
+      ".price",
+      "font-size"
+    ]
   }
 }
 -->
@@ -25,6 +39,6 @@ body.print .said{color:#5a3a2c}
     <div class="said" id="said">{{said}}</div>
   </div>
 <!--@anim-->
- {"sel":"#quiet","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":1100,"easing":"ease-out"}},
- {"sel":"#price","kf":[{"opacity":0,"transform":"scale(0.46)"},{"opacity":1,"transform":"scale(1.08)","offset":0.68},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":880,"delay":1700,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#said","kf":[{"opacity":0,"transform":"translateX(34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":620,"delay":2600,"easing":"ease-out"}}
+ {"sel":"#quiet","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":320,"delay":360,"easing":"ease-out"}},
+ {"sel":"#price","kf":[{"opacity":0,"transform":"scale(0.46)"},{"opacity":1,"transform":"scale(1.08)","offset":0.68},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":880,"delay":800,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#said","kf":[{"opacity":0,"transform":"translateX(34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":340,"delay":1800,"easing":"ease-out"}}

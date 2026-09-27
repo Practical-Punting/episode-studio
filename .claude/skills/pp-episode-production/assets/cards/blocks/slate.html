@@ -1,13 +1,38 @@
 <!--@schema
 {
-  "precedent": ["EP12 c09"],
+  "precedent": [
+    "EP12 c09"
+  ],
   "required": [],
-  "optional": ["warn"],
-  "lists": {"cells": {"min": 2, "max": 4, "fields": ["k", "v", "sub"]}},
-  "anim": {"cells": {"base": 1200, "step": 500}},
+  "optional": [
+    "warn"
+  ],
+  "lists": {
+    "cells": {
+      "min": 2,
+      "max": 4,
+      "fields": [
+        "k",
+        "v",
+        "sub"
+      ]
+    }
+  },
+  "anim": {
+    "cells": {
+      "base": 360,
+      "step": 300
+    }
+  },
   "fit": {
-    "value_size": [".s .v", "font-size"],
-    "warn_size": [".warn", "font-size"]
+    "value_size": [
+      ".s .v",
+      "font-size"
+    ],
+    "warn_size": [
+      ".warn",
+      "font-size"
+    ]
   }
 }
 -->
@@ -33,6 +58,6 @@ body.print .warn{color:#777}
   <div class="warn" id="warn">{{warn}}</div>
 <!--@anim-->
 <!--@each cells-->
- {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(28px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#s{{I}}","kf":[{"opacity":0,"transform":"translateY(28px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#warn","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":540,"delay":2850,"easing":"ease-out"}}
+ {"sel":"#warn","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":1380,"easing":"ease-out"}}

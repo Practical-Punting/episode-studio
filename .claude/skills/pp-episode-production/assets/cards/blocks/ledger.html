@@ -1,0 +1,123 @@
+<!--@schema
+{
+  "precedent": [],
+  "note": "THE POINTS LEDGER — the library's first block that shows ACCUMULATION. EP46 C9 listed seven factors as seven identical fade-and-slides, 620ms each, staggered 300, 3.57s to assemble, and taught nothing beyond 'here is a list'. A ledger teaches the thing the article is actually about: the score is BUILT, factor by factor, and you can watch it being built. Rows Enter fast (all seven inside ~1.1s, against the old 3.57s) because the reveal is not the point; the climbing total is. THE TOTAL IS STEPPED, NOT SLID: it ticks to each cumulative sum as its row lands, so every frame shows a number the ledger genuinely reaches. A smooth 0-to-total slide would put figures on screen that are not the sum of the rows sitting beside them — which on a PP card is a number that looks like the article's and is not. Then a BEAT of stillness, then the SLAM: the final figure punches once. See pp-anim.js's seek-versus-play note for why the counter is driven off a real animation's currentTime. SEVEN ROWS IS THE CAP AND IT IS MEASURED, NOT CHOSEN: seven rows, a total bar and a one-line headline fill the card to within 20px. An eighth row overflows the frame, so the block declares seven rather than accepting eight and drawing the last one off the bottom edge — the first build of this block did exactly that, bottoming the total bar out at y=1165 on a 1080 frame. THE HEADLINE MUST BE ONE LINE for the same reason; two lines costs 100px the ledger does not have.",
+  "required": [
+    "total_label"
+  ],
+  "optional": [
+    "note"
+  ],
+  "lists": {
+    "rows": {
+      "min": 2,
+      "max": 6,
+      "fields": [
+        "label",
+        "points"
+      ],
+      "numeric": [
+        "points"
+      ]
+    }
+  },
+  "anim": {
+    "rows": {
+      "base": 360,
+      "step": 280
+    }
+  },
+  "cumulative": {
+    "list": "rows",
+    "field": "points",
+    "token": "STOPS"
+  },
+  "_motion_numbers_are_unspecified": "READ THIS BEFORE RETUNING. This block was built to a brief that named a `pp-motion-graphics` skill as its specification. That skill is COWORK-SIDE (claude.ai) and does not exist in this repo or anywhere on this machine — confirmed by Jodie, 15 Sep 2026. Nothing was invented in its place; the numbers below are Claude Code's own, derived from the brief's one stated constraint (seven rows land in ABOUT A SECOND, not the 3.57s EP46 C9 took) plus the library's existing house values. If the skill is ever copied across, THESE are the numbers to check against it. TASTE — free to change, nothing depends on them: row stagger 120ms (anim.rows.step); row enter 400ms; row base delay 1180ms; count segment 120ms and count delay 1380ms (rows+200ms, so the total ticks as a row SETTLES rather than as it starts); the ANTICIPATION BEAT of 340ms (last tick 2100 -> slam 2440); the Slam at 300ms, scale 1.22, cubic-bezier(0.2,1.5,0.4,1); total-bar enter 420ms@900; note fade 460ms@2800. MEASURED — bounded by the 1080px frame, so a skill value that exceeds them will overflow and must be re-measured, not just pasted: body type 46px = 4.26% of frame height on the tight rung (58px = 5.37% at five rows or fewer); total figure 84px = 7.78% (104px = 9.63%); the `:has()` rung threshold at six rows; and max 6 rows (RAISED TO A MEASUREMENT, Jodie 16 Sep 2026 -- see `_rows_max_why`; this note previously said 7, which the block cannot hold). HOUSE — not mine and not the skill's, do not touch here: the cubic-bezier(0.16,1,0.3,1) entrance easing, the palette, Anton/Barlow, and the rule/eyebrow/headline/logo timings, which come from the FRAME template and author_cards.py.",
+  "fit": {
+    "row_size": [
+      ".lrow .llabel",
+      "font-size"
+    ],
+    "points_size": [
+      ".lrow .lpts",
+      "font-size"
+    ],
+    "total_size": [
+      ".ltotfig",
+      "font-size"
+    ],
+    "note_size": [
+      ".note",
+      "font-size"
+    ]
+  },
+  "_rows_max_why": "SIX, MEASURED, NOT CHOSEN. At seven rows with realistic labels the total figure runs under the logo chip and autofit_cards.py refuses to shrink it away: 'the words are longer than the design can hold'. Jodie, 16 Sep 2026 — a declared maximum is a measurement, and a block that cannot hold its own maximum is declaring the wrong one."
+}
+-->
+<!--@css-->
+/* BOTTOM-ALIGNED, LIKE EVERY OTHER BLOCK — but stopping short of the logo chip.
+   The logo is frame furniture at bottom:56 (y 959-1024) and the total bar is the
+   full 1700px width, so a group bottomed out on the padding edge puts the chip on
+   top of the orange bar. The margin below the total is what keeps them apart. */
+.ledger{margin-top:auto;display:flex;flex-direction:column;gap:10px;width:1700px;}
+.lrow{box-sizing:border-box;display:flex;align-items:baseline;gap:26px;
+  background:#2B2B2B;border-radius:16px;border-left:8px solid #4A4A4A;padding:16px 30px;}
+.lrow .ln{font-family:'Anton',sans-serif;font-size:44px;line-height:1;color:#DA532C;min-width:50px;}
+.lrow .llabel{flex:1;font-family:'Anton',sans-serif;font-size:58px;line-height:1.04;
+  text-transform:uppercase;letter-spacing:0.01em;}
+/* THE POINTS COLUMN IS FIXED-WIDTH AND RIGHT-ALIGNED, so figures of different
+   digit-counts form one straight edge the eye can add up. A ledger whose numbers
+   wander horizontally is a list again. Tabular figures for the same reason. */
+.lrow .lpts{flex:none;width:150px;text-align:right;font-family:'Anton',sans-serif;
+  font-size:58px;line-height:1;color:#FFFFFF;font-variant-numeric:tabular-nums;}
+.lrow .lpts::before{content:'+';color:#8F8F8F;margin-right:8px;}
+
+/* THE TOTAL BAR — the thing the rows are climbing towards. It is on screen BEFORE
+   the first row lands, reading 0, because a total that appears only once it is full
+   has nothing to accumulate into. */
+.ltot{margin-top:16px;margin-bottom:64px;display:flex;align-items:center;gap:32px;
+  background:#DA532C;border-radius:18px;padding:14px 36px;}
+.ltot .ltotlbl{flex:1;font-size:40px;font-weight:800;letter-spacing:0.2em;
+  text-transform:uppercase;color:#2A1108;}
+.ltotfig{flex:none;font-family:'Anton',sans-serif;font-size:104px;line-height:1;
+  color:#FFFFFF;font-variant-numeric:tabular-nums;transform-origin:right center;}
+
+/* THE TIGHT RUNG — six rows and up (28 Jul 2026's :has() pattern, from `steps`).
+   The DATA picks the layout, so nothing is declared twice and a six-row card cannot
+   be authored at five-row sizes by accident. Measured: seven rows at these sizes
+   leave ~20px of headroom under a one-line headline. */
+.ledger:has(.lrow:nth-child(6)){gap:7px;}
+.ledger:has(.lrow:nth-child(6)) .lrow{padding:11px 30px;}
+.ledger:has(.lrow:nth-child(6)) .lrow .ln{font-size:36px;min-width:44px;}
+.ledger:has(.lrow:nth-child(6)) .lrow .llabel{font-size:46px;}
+.ledger:has(.lrow:nth-child(6)) .lrow .lpts{font-size:46px;width:130px;}
+.ledger:has(.lrow:nth-child(6)) ~ .ltot .ltotfig{font-size:84px;}
+.ledger:has(.lrow:nth-child(6)) ~ .ltot .ltotlbl{font-size:34px;}
+
+/* THE 64px OF CLEARANCE BELONGS TO WHICHEVER BOX IS LAST. With a note present the
+   total bar hands it over, or the note is pushed into the logo chip's band. */
+.ltot:has(+ .note){margin-bottom:14px;}
+.note{margin-bottom:64px;width:1420px;font-size:32px;font-weight:600;
+  font-style:italic;color:#9A9A9A;line-height:1.24;}
+<!--@print-->
+body.print .lrow{background:#F4F4F4;border-left-color:#D8D8D8}
+body.print .lrow .lpts{color:#1e1e1e}
+body.print .ltot{background:#DA532C}
+body.print .ltotfig{color:#FFFFFF}
+body.print .note{color:#777}
+<!--@markup-->
+  <div class="ledger">
+<!--@each rows-->
+    <div class="lrow" id="lr{{I}}"><div class="ln anton">{{I}}</div><div class="llabel anton">{{ITEM.label}}</div><div class="lpts anton">{{ITEM.points}}</div></div>
+<!--@endeach-->
+  </div>
+  <div class="ltot" id="ltot"><div class="ltotlbl">{{total_label}}</div><div class="ltotfig anton" id="ltotfig">0</div></div>
+  <div class="note" id="note">{{note}}</div>
+<!--@anim-->
+ {"sel":"#ltot","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":240,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@each rows-->
+ {"sel":"#lr{{I}}","kf":[{"opacity":0,"transform":"translate(-34px,-14px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+<!--@endeach-->
+ {"sel":"#ltotfig","count":{"from":0,"stops":%%STOPS%%,"segment":120},"opts":{"duration":1050,"delay":1060,"easing":"linear"}},
+ {"sel":"#ltotfig","kf":[{"transform":"scale(1.22)"},{"transform":"scale(1)"}],"opts":{"duration":300,"delay":2110,"easing":"cubic-bezier(0.2, 1.5, 0.4, 1)"}},
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

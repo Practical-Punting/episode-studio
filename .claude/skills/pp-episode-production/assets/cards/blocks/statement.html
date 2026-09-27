@@ -1,10 +1,25 @@
 <!--@schema
 {
-  "precedent": ["EP12 c08"],
+  "precedent": [
+    "EP12 c08"
+  ],
   "flex_frame": true,
-  "required": ["line"],
-  "optional": ["note"],
-  "fit": {"line_size": [".big", "font-size"], "note_size": [".small", "font-size"]}
+  "required": [
+    "line"
+  ],
+  "optional": [
+    "note"
+  ],
+  "fit": {
+    "line_size": [
+      ".big",
+      "font-size"
+    ],
+    "note_size": [
+      ".small",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -18,5 +33,5 @@ body.print .small{color:#777}
   <div class="big" id="big">{{line}}</div>
   <div class="small" id="small">{{note}}</div>
 <!--@anim-->
- {"sel":"#big","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":700,"delay":1250,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#small","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":540,"delay":2150,"easing":"ease-out"}}
+ {"sel":"#big","kf":[{"opacity":0,"transform":"translateY(30px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":700,"delay":360,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#small","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":1180,"easing":"ease-out"}}

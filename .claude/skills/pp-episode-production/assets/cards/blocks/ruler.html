@@ -1,0 +1,119 @@
+<!--@schema
+{
+  "precedent": [
+    "EP49 C2",
+    "EP49 C4"
+  ],
+  "note": "THE BANDED RULER. A named scale, and items that TRAVEL to the band they belong in. It is the block for 'how much of this is knowable' and for 'how long does this take' - questions whose answer is a POSITION on a scale rather than a number. The skill's block library has carried it as 'to build' since 15 Sep 2026; EP49 C4 (five handicapping categories from measured to guesswork) is the card that needed it, and EP49 C2 (a tick against hours and hours) is the second use that proved it was a block and not a one-off. NO NUMERIC FIELD, ON PURPOSE: a band is a name, not a value, so this block can draw a scale the article describes in words without anybody inventing a figure to put on it - which is the trap `bars` sets for exactly this content (EP18 C9: a bar length with no figure in its caption).",
+  "required": [],
+  "optional": [
+    "note"
+  ],
+  "lists": {
+    "bands": {
+      "min": 2,
+      "max": 4
+    },
+    "markers": {
+      "min": 2,
+      "max": 5,
+      "fields": [
+        "k",
+        "band"
+      ],
+      "enum": {
+        "band": [
+          "b1",
+          "b2",
+          "b3",
+          "b4"
+        ]
+      }
+    }
+  },
+  "anim": {
+    "bands": {
+      "base": 240,
+      "step": 120
+    },
+    "markers": {
+      "base": 700,
+      "step": 280
+    }
+  },
+  "fit": {
+    "marker_size": [
+      ".mk",
+      "font-size"
+    ],
+    "band_size": [
+      ".band",
+      "font-size"
+    ],
+    "note_size": [
+      ".rnote",
+      "font-size"
+    ]
+  }
+}
+-->
+<!--@css-->
+/* The band count drives the column count, so the DATA picks the layout and nothing
+   is declared twice — the same :has() trick the ladder uses. Source order matters:
+   the four-band rule must come after the three-band rule to win. */
+/* auto above and auto below the note: the ruler and its note are ONE
+   centred group, so a two-marker card does not split into two halves
+   with a dead third in the middle. */
+.rul{margin-top:auto;}
+.bandrow,.mkgrid{display:grid;gap:24px;grid-template-columns:repeat(2,1fr);}
+.rul:has(.band:nth-child(3)) .bandrow,
+.rul:has(.band:nth-child(3)) .mkgrid{grid-template-columns:repeat(3,1fr);}
+.rul:has(.band:nth-child(4)) .bandrow,
+.rul:has(.band:nth-child(4)) .mkgrid{grid-template-columns:repeat(4,1fr);}
+.band{font-size:34px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;
+  color:#9A9A9A;text-align:center;line-height:1.14;}
+/* THE AXIS IS THE SCALE, so it is drawn once, left to right, and it carries the
+   colour gradient that says which end is which. It is structural: it has nothing on
+   it to read. */
+.axis{margin-top:18px;height:14px;background:#2B2B2B;border-radius:7px;overflow:hidden;}
+.axisline{height:100%;transform-origin:left center;
+  background:linear-gradient(90deg,#DA532C 0%,#9A6A55 52%,#6E6E6E 100%);}
+.mkgrid{margin-top:34px;align-items:start;}
+.mk{background:#2B2B2B;border-radius:18px;border-top:6px solid #6E6E6E;
+  padding:22px 24px;font-family:'Anton',sans-serif;font-size:46px;line-height:1.04;
+  color:#EDEDED;text-align:center;}
+.mk.b1{border-top-color:#DA532C;grid-column:1;}
+.mk.b2{border-top-color:#9A6A55;grid-column:2;}
+.mk.b3{border-top-color:#6E6E6E;grid-column:3;}
+.mk.b4{border-top-color:#4A4A4A;grid-column:4;}
+.rnote{margin-top:44px;margin-bottom:auto;font-size:42px;font-weight:600;
+  font-style:italic;color:#9A9A9A;max-width:1440px;line-height:1.2;}
+<!--@print-->
+body.print .band{color:#777}
+body.print .axis{background:#E4E4E4}
+body.print .mk{background:#F4F4F4;color:#1e1e1e}
+body.print .rnote{color:#777}
+<!--@markup-->
+  <div class="rul">
+    <div class="bandrow">
+<!--@each bands-->
+      <div class="band" id="bd{{I}}">{{ITEM}}</div>
+<!--@endeach-->
+    </div>
+    <div class="axis"><div class="axisline" id="axis"></div></div>
+    <div class="mkgrid">
+<!--@each markers-->
+      <div class="mk {{ITEM.band}}" id="mk{{I}}">{{ITEM.k}}</div>
+<!--@endeach-->
+    </div>
+  </div>
+  <div class="rnote" id="rnote">{{note}}</div>
+<!--@anim-->
+ {"pace":"structural","sel":"#axis","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":600,"delay":60,"easing":"cubic-bezier(0.2,0,0,1)"}},
+<!--@each bands-->
+ {"pace":"structural","sel":"#bd{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":300,"delay":{{DELAY}},"easing":"ease-out"}},
+<!--@endeach-->
+<!--@each markers-->
+ {"sel":"#mk{{I}}","kf":[{"opacity":0,"transform":"translateX(-72px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":520,"delay":{{DELAY}},"easing":"cubic-bezier(0.05,0.7,0.1,1)"}},
+<!--@endeach-->
+ {"sel":"#rnote","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":1980,"easing":"ease-out"}}

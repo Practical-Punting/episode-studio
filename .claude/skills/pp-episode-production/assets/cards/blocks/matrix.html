@@ -1,21 +1,61 @@
 <!--@schema
 {
-  "precedent": ["EP15 c12", "EP19 c12"],
+  "precedent": [
+    "EP15 c12",
+    "EP19 c12"
+  ],
   "note": "A MATRIX: n columns by m rows, BOTH AXES LABELLED. It exists because two episodes in five had to hand-author one. EP19 C12's own note is the argument: the article's 3x3 form-points grid could not be drawn by any other block without losing something that matters - `steps` gives three rungs reading '9 / 6 / 3' with the column headings gone, so a viewer cannot tell which figure belongs to which run; `slate` caps at four cells against nine; `chips` flattens it into a row and reproduces the exact failure the capture file warns about. A hand-authored page also gets NOTHING for free: it must remember to load pp-anim.js and call ppInit or render_card waits 60s on window.ppDuration and gives up silently, and autofit will not touch it because it carries no PP-GENERATED marker. Through the vocabulary it gets all of that.",
   "required": [],
-  "optional": ["foot"],
+  "optional": [
+    "foot"
+  ],
   "lists": {
-    "columns": {"min": 2, "max": 4},
-    "rows": {"min": 2, "max": 5, "fields": ["label", "cells"],
-             "cells": {"field": "cells", "min": 2, "max": 4}}
+    "columns": {
+      "min": 2,
+      "max": 4
+    },
+    "rows": {
+      "min": 2,
+      "max": 5,
+      "fields": [
+        "label",
+        "cells"
+      ],
+      "cells": {
+        "field": "cells",
+        "min": 2,
+        "max": 4
+      }
+    }
   },
-  "grid": {"columns": "columns", "rows": "rows", "cells": "cells"},
-  "anim": {"rows": {"base": 1500, "step": 350}},
+  "grid": {
+    "columns": "columns",
+    "rows": "rows",
+    "cells": "cells"
+  },
+  "anim": {
+    "rows": {
+      "base": 360,
+      "step": 280
+    }
+  },
   "fit": {
-    "cell_size": [".mcell", "font-size"],
-    "label_size": [".mplace", "font-size"],
-    "column_size": [".mx th", "font-size"],
-    "foot_size": [".mfoot", "font-size"]
+    "cell_size": [
+      ".mcell",
+      "font-size"
+    ],
+    "label_size": [
+      ".mplace",
+      "font-size"
+    ],
+    "column_size": [
+      ".mx th",
+      "font-size"
+    ],
+    "foot_size": [
+      ".mfoot",
+      "font-size"
+    ]
   }
 }
 -->
@@ -64,8 +104,8 @@ body.print .mfoot{color:#555;font-size:24px}
   </table>
   <div class="mfoot" id="mfoot">{{foot}}</div>
 <!--@anim-->
- {"sel":"#mxhead","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":1150,"easing":"ease-out"}},
+ {"sel":"#mxhead","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":320,"delay":240,"easing":"ease-out"}},
 <!--@each rows-->
- {"sel":"#mr{{I}}","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":540,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#mr{{I}}","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#mfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":3000,"easing":"ease-out"}}
+ {"sel":"#mfoot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":1600,"easing":"ease-out"}}

@@ -1,0 +1,126 @@
+{
+ "_what_this_is": "The reaction clip library. R1a-R12 are defined in PP-TWO-WAY-FORMAT.md §4 and PP-TWO-WAY-REACTIONS.md §3 — those say what each one MEANS and how the footage is MADE; this says where the footage IS. One home each.",
+ "_durations": "MEASURED from the files by twoway_reactions.py, never typed.",
+ "_fallback": "A code with no file plays R1a and the run log says so.",
+ "reactions": [
+  {
+   "id": "R1a",
+   "kind": "bed",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R1b",
+   "kind": "bed",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R11",
+   "kind": "bed",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R2",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": true
+  },
+  {
+   "id": "R3",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R4",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R5",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R6",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R7",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R8",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R9",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  },
+  {
+   "id": "R10",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": false,
+   "loopable": false
+  },
+  {
+   "id": "R12",
+   "kind": "punct",
+   "clips": {},
+   "ends_neutral": true,
+   "loopable": false
+  }
+ ],
+ "_missing": [
+  "BB-R1a",
+  "BM-R1a",
+  "BB-R1b",
+  "BM-R1b",
+  "BB-R11",
+  "BM-R11",
+  "BB-R2",
+  "BM-R2",
+  "BB-R3",
+  "BM-R3",
+  "BB-R4",
+  "BM-R4",
+  "BB-R5",
+  "BM-R5",
+  "BB-R6",
+  "BM-R6",
+  "BB-R7",
+  "BM-R7",
+  "BB-R8",
+  "BM-R8",
+  "BB-R9",
+  "BM-R9",
+  "BB-R10",
+  "BM-R10",
+  "BB-R12",
+  "BM-R12"
+ ]
+}

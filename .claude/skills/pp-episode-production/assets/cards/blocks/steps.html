@@ -1,12 +1,39 @@
 <!--@schema
 {
-  "precedent": ["EP12 c10"],
+  "precedent": [
+    "EP12 c10"
+  ],
   "note": "FLOW ONLY, ON PURPOSE. The shipped EP12 C10 built this cascade out of absolutely-positioned cards (.st.a/b/c at left:0/180/360, top:0/150/300) with the footnote pinned to the right of .steps — and the note overlapped the third card between 1040px and 1300px. Here the cascade is margin-left on boxes in normal flow and the note is the next box down, so no string length and no step count can make two of them share the same pixels. See DESIGN §11: the collision class is designed out, card_check.py is only the backstop. Cost of the change: the shipped card overlapped its steps by ~8px vertically (a deck-of-cards look) and this one does not. That is a visible difference and Jodie's call, not mine.",
   "required": [],
-  "optional": ["note"],
-  "lists": {"steps": {"min": 2, "max": 8, "fields": ["k", "v"]}},
-  "anim": {"steps": {"base": 1150, "step": 300}},
-  "fit": {"step_gap": [".st + .st", "margin-top"], "note_size": [".note", "font-size"]}
+  "optional": [
+    "note"
+  ],
+  "lists": {
+    "steps": {
+      "min": 2,
+      "max": 7,
+      "fields": [
+        "k",
+        "v"
+      ]
+    }
+  },
+  "anim": {
+    "steps": {
+      "base": 360,
+      "step": 280
+    }
+  },
+  "fit": {
+    "step_gap": [
+      ".st + .st",
+      "margin-top"
+    ],
+    "note_size": [
+      ".note",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -56,6 +83,6 @@ body.print .note{color:#777}
   <div class="note" id="note">{{note}}</div>
 <!--@anim-->
 <!--@each steps-->
- {"sel":"#st{{I}}","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":620,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#st{{I}}","kf":[{"opacity":0,"transform":"translate(-40px,-20px)"},{"opacity":1,"transform":"translate(0,0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":560,"delay":3150,"easing":"ease-out"}}
+ {"sel":"#note","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

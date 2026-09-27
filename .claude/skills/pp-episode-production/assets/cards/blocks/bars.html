@@ -1,15 +1,57 @@
 <!--@schema
 {
-  "precedent": ["EP12 c03"],
+  "precedent": [
+    "EP12 c03"
+  ],
   "note": "Bar LENGTH is computed from the item's own traced number, never hand-set. EP12 C3 drew the 180-day bar at exactly twice the 90-day bar because 180 is twice 90; making that proportion a computation rather than a measurement means a bar cannot misstate the ratio it is drawing.",
   "required": [],
-  "optional": ["ask", "chip"],
-  "lists": {"bars": {"min": 2, "max": 3, "fields": ["label", "value", "note", "tone"],
-                     "enum": {"tone": ["hi", ""]},
-                     "numeric": ["value"],
-                     "scale": {"field": "value", "span": 1040}}},
-  "anim": {"bars": {"base": 1150, "step": 1000, "base2": 1800, "step2": 1250}},
-  "fit": {"label_size": [".blabel", "font-size"], "ask_size": [".ask", "font-size"]}
+  "optional": [
+    "ask",
+    "chip"
+  ],
+  "lists": {
+    "bars": {
+      "min": 2,
+      "max": 3,
+      "fields": [
+        "label",
+        "value",
+        "note",
+        "tone"
+      ],
+      "enum": {
+        "tone": [
+          "hi",
+          ""
+        ]
+      },
+      "numeric": [
+        "value"
+      ],
+      "scale": {
+        "field": "value",
+        "span": 1040
+      }
+    }
+  },
+  "anim": {
+    "bars": {
+      "base": 360,
+      "step": 280,
+      "base2": 700,
+      "step2": 280
+    }
+  },
+  "fit": {
+    "label_size": [
+      ".blabel",
+      "font-size"
+    ],
+    "ask_size": [
+      ".ask",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -36,7 +78,7 @@ body.print .chip{background:#F4F4F4;border-color:#DDD;color:#555}
 <!--@anim-->
 <!--@each bars-->
  {"sel":"#bar{{I}}","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":700,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#bn{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":420,"delay":{{DELAY2}},"easing":"ease-out"}},
+ {"sel":"#bn{{I}}","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":{{DELAY2}},"easing":"ease-out"}},
 <!--@endeach-->
- {"sel":"#ask","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":600,"delay":3450,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
- {"sel":"#chip","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":460,"delay":4050,"easing":"ease-out"}}
+ {"sel":"#ask","kf":[{"opacity":0,"transform":"translateY(24px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":1740,"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#chip","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

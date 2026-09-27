@@ -1,0 +1,184 @@
+{
+  "_source": "COWORK'S APPROVED DESIGN v2, filled 18 Sep 2026 from _review/2026-09-16-twobox-design/twobox-design-v2-APPROVED-layout.html. v1 (framed windows) and v3 (vignette) were REJECTED by Jodie: 'a huge frame with a whole lot of stuff', 'a shadow around the edge'. These are no longer placeholders — every number below is a design decision and changing one is a design change.",
+  "_supersedes": "The placeholder set of 16 Sep, which declared a furniture band, a title strip and inset windows. THE DESIGN HAS NO FURNITURE: the men fill the screen. PP-TWO-WAY-FORMAT.md §9's 'logo lives in the frame furniture' is superseded — the logo sits over the picture.",
+  "canvas": {
+    "w": 1920,
+    "h": 1080,
+    "background": "#121212"
+  },
+  "panels": {
+    "_why": "Two full-height panels, edge to edge: 8px outer margin, 8px gap. 1920-16-8 = 1896, halved = 948. 1080-16 = 1064.",
+    "margin": 8,
+    "gap": 8,
+    "radius": 6,
+    "background": "#000000",
+    "left": {
+      "rect": [
+        8,
+        8,
+        948,
+        1064
+      ],
+      "speaker": "BB",
+      "_who": "Gordon, reading Brian Blackwell"
+    },
+    "right": {
+      "rect": [
+        964,
+        8,
+        948,
+        1064
+      ],
+      "speaker": "BM",
+      "_who": "Steve, reading Barry Meadow"
+    }
+  },
+  "source": {
+    "_why": "Each panel shows its render at NATIVE scale — 1080 tall into a 1064 panel — cropped at the sides, never letterboxed. The head sits toward the OUTSIDE of its panel so the two men look at each other across the gap.",
+    "fit": "native",
+    "head_across_panel_pct": {
+      "left": 40,
+      "right": 60
+    },
+    "x_offset_at_1064": {
+      "left": -560,
+      "right": -400
+    },
+    "_x_offset_note": "As the approved HTML: the left panel shows source x 560..1508, the right 400..1348, measured in the 1891.6px-wide image a 1064-tall native scale produces. A renderer that scales to a different height must scale these with it."
+  },
+  "eyes": {
+    "_why": "🔴 HEADS ARE ANCHORED ON THE EYES, NEVER THE FRAME BOTTOM. 23 Aug 2026: two renders that were otherwise the same size had eye lines 53px apart, and bottom-aligning them reads as one man sitting lower than the other.",
+    "measured_1080": {
+      "BM": 430,
+      "BB": 402
+    },
+    "_measured_note": "MEASURED 18 Sep 2026 on the small-framing renders (REACT-BM-R1a-small / REACT-BB-R1a-small), not assumed, and verified by drawing the line on the frame. 28px apart at 1080p.",
+    "target_in_panel": 406,
+    "_slack_note": "Anchoring needs vertical slack the native 1064 scale does not have, so a renderer scales to 1104 and crops 1064 at a per-presenter offset. The 2.2% upscale is what buys the anchor."
+  },
+  "grade": {
+    "_why": "🔴 THE TWO RENDERS DO NOT MATCH IN BRIGHTNESS AND THE COMPOSITE IS WHERE IT IS FIXED. Jodie, 18 Sep 2026: 'the Steve side of the screen is a lot brighter than the Gordon side.' MEASURED on the panel crop the composite actually shows, over the whole of both pair-test renders, with a skin-tone mask so a cream wall cannot vote: Steve's FACE 135.15, Gordon's 121.51 on a 0-255 luma scale — Steve +11.2%. Whole panel: 152.22 v 136.24, +11.7%. They move together, so grading the face grades the side.",
+    "_why_gamma": "GAMMA, not brightness. An additive lift washes the black out of a dark suit and lifts the background as much as the face; gamma pivots on black and white and moves the MIDTONES, which is where a face lives. The two values meet in the middle — Steve is trimmed and Gordon is lifted — so neither man is re-lit to look like the other's set.",
+    "_how_solved": "Not by algebra: eq's gamma is not linear in the mean, so each value was found by APPLYING it and re-measuring the rendered pixels (nine-step bisection). AFTER: Steve's face 128.38, Gordon's 128.32 — 0.05% apart, against a ~5% target. Panel 146.40 v 142.43, 2.8% apart.",
+    "_order": "The presenter grade is applied FIRST and the listener dim SECOND, so .84 is relative to the graded value, exactly as the design intends. Two chained eq filters, never one merged filter, so the order is visible in the graph.",
+    "gamma": {
+      "BM": 0.925,
+      "BB": 1.079
+    },
+    "measured_face_luma_1080": {
+      "BM": 135.15,
+      "BB": 121.51
+    },
+    "graded_face_luma_1080": {
+      "BM": 128.38,
+      "BB": 128.32
+    },
+    "tolerance_pct": 5.0
+  },
+  "speaker": {
+    "_why": "Who is talking is said ONE way: full brightness against the listener's .84. 🔴 CHANGED 18 Sep 2026 — it used to be said twice, brightness AND an orange keyline, and the keyline moving from panel to panel was reading as a second cut inside a shot that had not changed.",
+    "keyline": {
+      "width": 4,
+      "colour": "#DA532C",
+      "inside": true
+    },
+    "brightness": 1.0,
+    "saturation": 1.0
+  },
+  "listener": {
+    "_why": "A touch darker and a touch less saturated — present, clearly not talking. **The keyline is NOT what says so.**",
+    "brightness": 0.84,
+    "saturation": 0.92,
+    "keyline": {
+      "width": 4,
+      "colour": "#DA532C",
+      "inside": true
+    }
+  },
+  "chips": {
+    "_why": "The 'reading …' lower-thirds, OVER the picture at the lower-left of each panel — not in a furniture band, because there is none. Shown for the FIRST 60 SECONDS OF DIALOGUE ONLY, then out.",
+    "left": 40,
+    "bottom": 64,
+    "background": "rgba(18,18,18,.92)",
+    "radius": 18,
+    "padding": [
+      20,
+      30,
+      22,
+      30
+    ],
+    "shadow": "0 10px 34px rgba(0,0,0,.45)",
+    "rule": {
+      "w": 56,
+      "h": 5,
+      "colour": "#DA532C",
+      "listener_colour": "#6A6A6A",
+      "margin_bottom": 10
+    },
+    "name": {
+      "font": "Anton",
+      "size": 52,
+      "transform": "uppercase",
+      "letter_spacing": "0.01em",
+      "colour": "#FFFFFF"
+    },
+    "read": {
+      "font": "Barlow",
+      "weight": 600,
+      "size": 26,
+      "line_height": 1.2,
+      "colour": "#B9B9B9",
+      "emphasis_colour": "#FFFFFF",
+      "emphasis_weight": 700,
+      "margin_top": 6
+    },
+    "visible_s": [
+      0,
+      60
+    ],
+    "move_ms": 260,
+    "_content_note": "Generated from episode.json speakers[].name / .reader / .role — never typed into the renderer. 'GORDON / reading Brian Blackwell / editor, Practical Punting'."
+  },
+  "logo": {
+    "_why": "The PP logo bottom-right OVER the picture, as every episode. It is outside both chips and belongs to the channel, not to either man.",
+    "asset": "video-logo-chip.png",
+    "width": 390,
+    "opacity": 0.9,
+    "right": 56,
+    "bottom": 48
+  },
+  "push": {
+    "_why": "Two-box ↔ single is an eased PUSH, never a dissolve and never a hard cut.",
+    "duration_ms": 750,
+    "easing_out": "cubic-bezier(0.16, 1, 0.3, 1)",
+    "easing_in": "cubic-bezier(0.16, 1, 0.3, 1)"
+  },
+  "single": {
+    "rect": [
+      0,
+      0,
+      1920,
+      1080
+    ]
+  },
+  "audio": {
+    "overlap_s": 0.5,
+    "overlap_gain_db": -9.0
+  },
+  "keyline": {
+    "_why": "🔴 THE ORANGE FRAME IS PART OF THE TWO-BOX, NOT A BADGE. Jodie, 18 Sep 2026, verbatim: 'THE ORANGE FRAME — ON BOTH PANELS, ALWAYS. The 4px #DA532C keyline is now part of the two-box frame on both panels, speaker and listener alike; who is talking is carried by the dimming alone (.84).' It is drawn on both panels on every two-box frame, LEFT FIRST THEN RIGHT, so the graph does not change when the speaker changes — a keyline that moves reads as a cut inside a shot that has not changed, which is what it was doing.",
+    "width": 4,
+    "colour": "#DA532C",
+    "inside": true,
+    "on": [
+      "left",
+      "right"
+    ]
+  },
+  "dwell": {
+    "_why": "🔴 THE MINIMUM DWELL LAW. Jodie, 18 Sep 2026: 'If you're going to have something, have it on there for at least a certain number of seconds. One or two seconds is not right.' A picture STATE — two-box, speaker single, card, b-roll — holds at least this long before anything changes. It is a CONSTRAINT THE PLANNER MUST SATISFY, not a check run afterwards: when a graphic would leave some state under the floor, the graphic MOVES to the next legal sentence in its turn, or is dropped. The picture is never the thing that gives way.",
+    "min_state_s": 5.0,
+    "_measured_on": "CONTIGUOUS RUNS of the same picture, never single segments. The plan splits a two-box at a turn boundary because the SPEAKER changes, and a viewer watching a handover sees one unbroken shot of two men — so a 2s tail and the next turn's 5s opening are ONE seven-second state. Measuring per segment is what squeezed C6 to 4.1s in v4 and it is the wrong unit.",
+    "exception": "the handover latency beat — the ~0.4s audio overlap at a turn change, which is a sound event inside a shot, not a picture state."
+  }
+}

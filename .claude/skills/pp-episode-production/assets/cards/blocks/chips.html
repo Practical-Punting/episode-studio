@@ -1,13 +1,46 @@
 <!--@schema
 {
-  "precedent": ["EP11 c01", "EP29 c04"],
+  "precedent": [
+    "EP11 c01",
+    "EP29 c04"
+  ],
   "note": "A CHIP IS A LABEL, NOT A SENTENCE — aim at 20 characters and treat 30 as the ceiling. Six chips at 46 characters is a paragraph cut into pieces. EP29's C04 arrived as five clauses up to 46 chars ('Those who prefer to concentrate on the exotics'), wrapped to FOUR rows and pushed the footer 217px clean off the card; autofit ground the type to its floor and still could not save it. Tightened to 'Place punters' / 'Longshot pickers' / 'Eachway backers' / 'More than one horse in a race' / 'The exotics' it fell to two rows with 99px to spare, at full template size, with every one of the five kinds kept. If the idea will not survive at 20 characters it is not a chip - use checklist, which holds twelve and resizes itself.",
   "required": [],
-  "optional": ["foot"],
-  "lists": {"chips": {"min": 2, "max": 6, "fields": ["label", "tone"],
-                      "enum": {"tone": ["", "last"]}}},
-  "anim": {"chips": {"base": 1150, "step": 330}},
-  "fit": {"chip_size": [".chip", "font-size"], "foot_size": [".foot", "font-size"]}
+  "optional": [
+    "foot"
+  ],
+  "lists": {
+    "chips": {
+      "min": 2,
+      "max": 6,
+      "fields": [
+        "label",
+        "tone"
+      ],
+      "enum": {
+        "tone": [
+          "",
+          "last"
+        ]
+      }
+    }
+  },
+  "anim": {
+    "chips": {
+      "base": 360,
+      "step": 280
+    }
+  },
+  "fit": {
+    "chip_size": [
+      ".chip",
+      "font-size"
+    ],
+    "foot_size": [
+      ".foot",
+      "font-size"
+    ]
+  }
 }
 -->
 <!--@css-->
@@ -34,8 +67,8 @@ body.print .foot{color:#555}
   </div>
 <!--@anim-->
 <!--@each chips-->
- {"sel":"#k{{I}}:not(.last)","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":460,"delay":{{DELAY}},"easing":"ease-out"}},
- {"sel":"#k{{I}}.last","kf":[{"opacity":0,"transform":"scale(0.82)"},{"opacity":1,"transform":"scale(1.05)","offset":0.72},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":700,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#k{{I}}:not(.last)","kf":[{"opacity":0,"transform":"translateY(26px)"},{"opacity":1,"transform":"translateY(0)"}],"opts":{"duration":340,"delay":{{DELAY}},"easing":"ease-out"}},
+ {"sel":"#k{{I}}.last","kf":[{"opacity":0,"transform":"scale(0.82)"},{"opacity":1,"transform":"scale(1.05)","offset":0.72},{"opacity":1,"transform":"scale(1)"}],"opts":{"duration":480,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
- {"sel":".chip.last .strike","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":480,"delay":2950,"easing":"ease-out"}},
- {"sel":"#foot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":520,"delay":3500,"easing":"ease-out"}}
+ {"sel":".chip.last .strike","kf":[{"transform":"scaleX(0)"},{"transform":"scaleX(1)"}],"opts":{"duration":280,"delay":1880,"easing":"ease-out"}},
+ {"sel":"#foot","kf":[{"opacity":0},{"opacity":1}],"opts":{"duration":340,"delay":2160,"easing":"ease-out"}}

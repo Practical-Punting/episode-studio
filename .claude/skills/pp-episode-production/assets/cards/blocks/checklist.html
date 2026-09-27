@@ -1,27 +1,74 @@
 <!--@schema
 {
-  "precedent": ["EP11 c02", "EP12 c06", "EP27 c17"],
+  "precedent": [
+    "EP11 c02",
+    "EP12 c06",
+    "EP27 c17"
+  ],
   "note": "A list of any length the article actually prints. THE CAP WAS SIX AND EP27's ARTICLE PRINTS TEN, so C17 went block:'bespoke' — past the schema, the trace gate and the invented-text gate, to a hand-rendered page nothing measured. A layout limit turned itself into a hole in the gates. It resizes now instead of halting: the `reflow` below picks the type size, the row gap and the column count from HOW MANY items there are, through the same numeric-only fit channel a human uses. Twelve is still a cap, because thirty is a data dump - the same reason the ladder stops at seven. AT SIX ITEMS OR FEWER THE PICTURE DOES NOT MOVE: the first rung restates this block's own base values (52/34/56, one column), MEASURED pixel-for-pixel against the previous version of the block on a six-item card - 1920x1080, zero differing pixels. The FILE is not byte-identical, because those values are now also stated in the fit block, so an already-built page will be re-authored the next time author_cards runs over it: same picture, new bytes.",
   "required": [],
   "optional": [],
-  "lists": {"items": {"min": 2, "max": 12, "fields": null}},
-  "anim": {"items": {"base": 1150, "step": 550}},
+  "lists": {
+    "items": {
+      "min": 2,
+      "max": 7,
+      "fields": null
+    }
+  },
+  "anim": {
+    "items": {
+      "base": 360,
+      "step": 280
+    }
+  },
   "reflow": {
     "list": "items",
     "steps": [
-      {"upto": 6,  "fit": {"item_size": "52px", "item_gap": "34px", "tick_size": "56px", "columns": "1"}},
-      {"upto": 8,  "fit": {"item_size": "44px", "item_gap": "26px", "tick_size": "48px", "columns": "1"},
-                   "anim": {"base": 1150, "step": 420}},
-      {"upto": 12, "fit": {"item_size": "35px", "item_gap": "20px", "tick_size": "38px", "columns": "2"},
-                   "anim": {"base": 1150, "step": 300}}
+      {
+        "upto": 6,
+        "fit": {
+          "item_size": "52px",
+          "item_gap": "34px",
+          "tick_size": "56px",
+          "columns": "1"
+        }
+      },
+      {
+        "upto": 7,
+        "fit": {
+          "item_size": "44px",
+          "item_gap": "26px",
+          "tick_size": "48px",
+          "columns": "1"
+        },
+        "anim": {
+          "base": 360,
+          "step": 280
+        }
+      }
     ]
   },
   "fit": {
-    "list_top": [".qs", "margin-top"],
-    "item_gap": [".q", "margin-top"],
-    "item_size": [".q", "font-size"],
-    "tick_size": [".q .t", "font-size"],
-    "columns": [".qs", "column-count"]
+    "list_top": [
+      ".qs",
+      "margin-top"
+    ],
+    "item_gap": [
+      ".q",
+      "margin-top"
+    ],
+    "item_size": [
+      ".q",
+      "font-size"
+    ],
+    "tick_size": [
+      ".q .t",
+      "font-size"
+    ],
+    "columns": [
+      ".qs",
+      "column-count"
+    ]
   }
 }
 -->
@@ -45,5 +92,5 @@ body.print .q{color:#444}
   </div>
 <!--@anim-->
 <!--@each items-->
- {"sel":"#q{{I}}","kf":[{"opacity":0,"transform":"translateX(-34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":560,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
+ {"sel":"#q{{I}}","kf":[{"opacity":0,"transform":"translateX(-34px)"},{"opacity":1,"transform":"translateX(0)"}],"opts":{"duration":380,"delay":{{DELAY}},"easing":"cubic-bezier(0.16, 1, 0.3, 1)"}},
 <!--@endeach-->
