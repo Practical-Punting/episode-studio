@@ -1,11 +1,32 @@
 # B-roll registry — every clip we've ever used
 
-**Why this exists:** so no b-roll is ever repeated from an earlier episode, and
-none is repeated within an episode (Jodie's EP03 feedback, 2026-07-21).
-**Rule:** before generating b-roll for a new episode, read this file. Every new
-clip's subject must NOT already appear below. After an episode ships, add its
-clips here (episode, file, one-line subject). Turf-only, relevant-to-the-line,
-crowd diversity still all apply.
+**Why this exists:** so the same clip is never seen twice inside one episode, and so
+every clip we own can be found and re-used when it genuinely fits.
+
+## 🔴 THE NO-REPEAT LAW, AS IT NOW STANDS (Jodie, 18 September 2026)
+
+> ### **No repeat WITHIN an episode. Cross-episode re-use is ALLOWED — when the clip
+> ### MATCHES THE LINE it sits under.** Relevance is the test, not novelty.
+
+⚠️ **THIS REPLACES THE OPENING LAW THIS FILE CARRIED FROM 21 JULY 2026** — *"so no b-roll
+is ever repeated from an earlier episode … every new clip's subject must NOT already
+appear below."* That rule made the library write-only: 278 clips nobody was allowed to
+touch, and a new generation for every slot whether or not we already owned the shot.
+**The library is now the FIRST place to look.**
+
+📌 **WHAT DID NOT CHANGE, and is not softened by this:**
+- **Within one episode, no subject twice.** That was Jodie's EP03 note and it stands.
+- **Relevance to the line is the whole test.** A clip re-used because it is *there* and
+  not because it *fits* is worse than a new one — it is the reason the old rule existed.
+- **Turf only, crowd diversity, and every hard-fail below.** A clip that was acceptable
+  once is not grandfathered: **a rejected clip stays rejected for every use**, and the
+  EP46 rail-crossing clip at the foot of this file is the standing example.
+- **After an episode ships, add its clips here** (episode, file, one-line subject).
+
+🔴 **AND A LENGTH RULE THE OLD LAW NEVER HAD TO THINK ABOUT.** The two-way format asserts
+**8–10s** b-roll (`twoway_beats.BROLL_DUR_MIN_S/MAX_S`). **267 of the 278 clips in this
+library are exactly 5.0s and the longest is 8.1s**, so for a two-way episode re-use is
+usually blocked by DURATION before relevance gets a say. Measured 18 Sep 2026.
 
 ## 🔴 CHECK THE RUNNING RAIL ON EVERY CLIP (Jodie, 28 July 2026)
 
@@ -420,3 +441,137 @@ binoculars in the stand, horses cooling down after the race.
   EP01 was an unpublished test — never posted — so this image has never been seen by
   viewers; not a real repeat. Used on the EP08 e-book cover + end card only (not b-roll).
   Cover A/B autogen options were rejected; ~0 new credits.
+
+
+### 🎬 EP49 — THE FIRST TWO-WAY B-ROLL (18 September 2026). **JODIE REVIEWED EVERY CLIP.**
+
+Four slots, generated at **8–10s** — the first clips in this library that meet the
+two-way duration rule rather than the 5.04s default. **84.00 credits for the four plus
+two regenerations**; the rest of EP49's slots stay unfilled until the full episode is
+built.
+
+| clip | Jodie's verdict | note |
+|---|---|---|
+| `broll-yearling-led-past-the-sale-ring-boards` (8s) | ✅ **KEEP** | *the horse reads
+slightly odd* — accepted with that noted, in the spirit of the 5 Aug ruling that an
+occasional odd clip is cheaper than the process that would catch it |
+| `broll-trackwork-riders-at-dawn-in-the-mist` (10s) | ✅ **KEEP** | two riders cantering
+away, rail on their inside and stable throughout |
+| `broll-finish-line-clock-ticking-over-an-empty-straight` | 🚫 **REJECTED, AND NOT TO BE
+REGENERATED AS A CLOCK** | take 1 showed numerals despite the prompt; take 2 showed
+number- and letter-like marks that are not characters, and the hands moved wrongly. **The
+subject is banned, not the wording** — see PP-STANDARDS §B-roll, *Nothing that carries
+numerals or a mechanism*. Replaced by a punter at a kitchen table and a hand circling a
+name in red biro. |
+| `broll-field-rounding-the-turn-clues-everywhere` | 🚫 **REJECTED TWICE** | take 1: the
+rail dissolved and the horses changed sides of it (the EP46 fault, caused by a prompt
+asking for a rail between camera and field AND the field driving at the camera — an
+impossible geometry). take 2: **the rail bent in an S and the field galloped in step.**
+Regenerated once more under the new rules. |
+
+📌 **The trackwork clip's KEEP came from asking.** It was the one clip Jodie's review did not name, and silence was held rather than read as approval — on the day the review rule was written, that is the only reading available. One word put it in the cut.
+
+#### THE FINAL FOUR, ALL PASSED BY JODIE BEFORE THEY WERE FILED
+
+| slot | clip | length |
+|---|---|---|
+| *"taking in breeding, sales prices"* | `broll-yearling-led-past-the-sale-ring-boards` | 8.0s |
+| *"serious punters examining in greater detail"* | `broll-a-punter-over-the-formguide-at-the-kitchen-table` | 9.0s |
+| *"was that fast workout an indication of something good"* | `broll-trackwork-riders-at-dawn-in-the-mist` | 10.0s |
+| *"each race is a mystery"* | `broll-field-rounding-the-turn-clues-everywhere` (take 3) | 8.5s |
+
+🔁 **THE SECOND SLOT WAS RENAMED.** It asked for a finish-line clock; the clock's SUBJECT
+is now banned, so the slot became the shot that is actually in it — a man over the
+formguide at a kitchen table under a lamp. **A clip must match its name and its recorded
+prompt**, and a slot whose target describes a shot that will never exist is a halt
+waiting to happen.
+
+🚫 **AND ONE MORE REJECT, WITH A LESSON THAT IS NOT ABOUT RACING.** The second of the two
+replacement ideas — *a hand circling a horse's name with a red biro* — came back with
+Jodie's verdict **"he is drawing a long circle around nothing!"**, and she is right. The
+prompt asked for the page to be *"heavily defocused into soft grey texture"* with *"only
+the wet red ink sharp"*, to satisfy the no-legible-print rule — **and that removed the
+thing the action was FOR.** Not regenerated: the slot it was offered for is filled by the
+kitchen table, which Jodie picked. **Rule added to PP-STANDARDS: ask for the STRUCTURE
+without the words — *"neat printed rows and columns of grey type, the individual words
+too soft to read"* — so the pen still has something to circle.**
+
+⚖️ **THREE OF MY PROMPTS BROKE THEIR OWN SHOTS IN ONE DAY**, each by making a rule true
+and the shot impossible: a rail between camera and field that the field had to run
+through; a dial with no numerals that came back as gibberish; a page blurred past the
+point where a circle could land on it. **When a constraint is added, read the whole
+prompt back and ask whether the SUBJECT still survives it.**
+
+🔴 **AND THE FINDING THAT MATTERS MORE THAN ANY OF THE CLIPS.** Take 2 of the field was
+checked by machine, passed, promoted and composited into a cut. **It was wrong in two
+ways the checker had no rule for** — an S-bent rail and a synchronised field — and Jodie
+found both by looking at it. Both are now standing rules and both are on the
+watch-through list; and the process rule that came out of it is in PP-STANDARDS:
+**she reviews every generated clip in the widget before it is filed or placed. The
+automated watch-through is a floor, not the gate.**
+
+⚠️ **THE OUT-OF-STEP WORDING WAS IN THAT PROMPT AND THE FIELD STILL GALLOPED IN STEP.**
+Saying it once is not enough. The field must ALSO be described as **spread** — *"a spread
+field, horses at different strides and different positions, staggered, no two in step"* —
+because a bunched field is what the model synchronises.
+
+### 🚫 EP46 — ONE CLIP REJECTED (Jodie, 15 September 2026)
+
+| clip | why it is rejected |
+|---|---|
+| `broll-a-field-of-runners-sweeping-past-the-outside-rail-at-the-turn-seen-from-the-lawn` | **The horses change sides of the rail during the clip.** Every individual frame is plausible; the MOVEMENT is not. |
+
+🔴 **THIS IS THE CLIP THAT BOUGHT THE ONE-PASS WATCH.** The rail rule at the top of this
+file has been in force since 28 July and this clip still shipped — because the control
+was the 6-up `broll-contact.png`, which **samples six frames**, and a fault that happens
+*between* frames cannot appear in a sample of them. **A still is judged frame by frame; a
+clip is not.** So every clip is now watched end to end once, or motion-mapped, and
+anything crossing a rail or fence, morphing, or changing count is a REJECT.
+Full rule: `PP-STANDARDS.md` §B-roll -> "NEW QC STEP: EVERY CLIP IS WATCHED THROUGH ONCE".
+
+⚠️ **REJECTED FOR EVERY USE, NOT JUST THIS ONE** — the standing rule beside the cover
+heroes applies here too. Do not lift a frame of it for a thumbnail or a cover.
+
+📌 **EP46 ITSELF IS NOT BEING CHANGED.** It is a separate conversation, and the standing
+ruling holds: *a guard prevents recurrence; it does not oblige us to go back.* The clip
+file is left exactly where it is; this entry is the record.
+
+## 🔴 FOUR RULES OUT OF FOUR REJECTED CLIPS — 20 SEPTEMBER 2026 (Jodie)
+
+**Every one of these was written from a clip that was generated, paid for and looked at.
+Three of the four faults were in prompts I wrote, and two of those had already been
+written down on 18 Sep in another form.**
+
+### a. 🔴 HIGGSFIELD CANNOT COUNT. NEVER ASK FOR MORE THAN **FOUR** HORSES OR PEOPLE.
+*"a field"*, *"eight thoroughbreds"*, *"twelve saddled thoroughbreds"*, *"each led by a
+strapper"* — all of them produce **horses that vanish mid-clip and handlers that
+are simply missing**. EP49's field-of-eight lost a horse in front of the camera; its
+walk-on of twelve gave most of the horses no strapper at all.
+⭐ **A COUNT IN A PROMPT IS A WISH, NOT A SPECIFICATION.** Ask for four, get four.
+Ask for twelve and the model will produce a crowd that does not survive nine seconds.
+
+### b. 🔴 SADDLECLOTHS ARE PLAIN. SAY SO: *"plain saddlecloths, no numbers"*.
+Numerals were banned outright on 18 Sep and the ban was read as being about **clocks and
+boards**. It is not: **every saddlecloth in the field-of-eight carried the same number**,
+which is both a numeral on screen and a racing impossibility. The positive instruction
+works where the negative one did not — the same lesson as the skullcap.
+
+### c. 🔴 THE WORD "JOCKEY" PRODUCES A RACING CROUCH, WHATEVER THE HORSE IS DOING.
+The walk-on asked for *"jockeys up"* on horses **walking**, and got riders folded into a
+racing crouch on horses at a walk — a shot no racegoer would believe.
+⚙️ **SO: a walking or parading horse is RIDERLESS AND LED. A jockey appears
+only on a horse at a gallop.** If the shot needs a person beside a walking horse, that
+person is a strapper at its head, not a rider on its back.
+
+### d. ↻ THE RAIL GOES BEHIND THE HORSES, NEVER BETWEEN THE CAMERA AND THE HORSES.
+**Restated from 18 Sep because it was broken again on 20 Sep, twice, by me.** A rail in
+the near foreground plus a subject that must cross that line is an impossible geometry,
+and the model resolves it by drawing the rail THROUGH the horses' legs. Put the rail on
+the far side of the action or leave it out of the prompt.
+
+⚠️ **AND THE PATTERN UNDER ALL FOUR, WHICH IS THE PART WORTH KEEPING:** every
+one of these faults came from asking for something SPECIFIC that the model cannot hold
+— a count, a marking, a posture, a geometry — rather than from asking for too
+little. **A prompt is a description of a photograph, not a list of requirements.** When
+a constraint is added, read the whole prompt back and ask whether the SUBJECT survives
+it.

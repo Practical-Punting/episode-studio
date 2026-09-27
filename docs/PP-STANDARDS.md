@@ -742,7 +742,135 @@ surfaced, and the run is recorded in the episode's run log.**
 - **~50% of people wear a hat** (Akubra + fedora types included — Australian racing crowd).
 - **Australian ethnic mix ≈ 75% white, 9% Asian, 9% Middle-Eastern, 5% Black, remainder a mix.** Wide age range. Reject uniform crowds at QC.
 - **Turf only** — lush green grass track, never dirt (models default to US dirt — specify "lush green turf track" every time; reject dirt).
-- Relevance is law: every clip matches the exact line it plays under. ~5 s each. **No clip repeats within an episode** (audit at assembly). Photoreal footage only; atmosphere over galloping.
+- Relevance is law: every clip matches the exact line it plays under. **No clip repeats within an episode** (audit at assembly). Photoreal footage only; atmosphere over galloping.
+
+### 🔴 SLOTS, LENGTHS AND THE ONE-PASS WATCH (Jodie, 15 September 2026)
+
+**This replaces "~5 s each" above, and the 5-second default that produced it.**
+
+- **SIX TO EIGHT b-roll slots an episode.**
+- **EACH 8–10 SECONDS, AND THE LENGTHS ARE VARIED — NEVER ALL EQUAL.** Identical lengths
+  read as a template; a viewer feels the metronome before they can name it.
+- 🔴 **THE HIGGSFIELD CALL PASSES THE DURATION EXPLICITLY. NEVER THE 5-SECOND DEFAULT.**
+  A default is a value nobody chose, and every clip in the library so far inherited it.
+- Relevance law, the turf rule and no-repeat are **unchanged**.
+
+### 🔴 NOTHING THAT CARRIES NUMERALS OR A MECHANISM (Jodie, 18 September 2026)
+
+> ## **NO CLOCKS. NO DIALS. NO SCOREBOARDS. NO ODDS BOARDS OR TOTE BOARDS.**
+> ## **Nothing whose subject is numerals, and nothing whose subject is a mechanism.**
+
+**Generated video cannot do text and it cannot do mechanism, and a shot built on either
+fails in a way no prompt fixes.** EP49's b-roll proved both halves in one sitting, on the
+same slot:
+
+| take | what came back |
+|---|---|
+| a race clock, asked for a PLAIN UNMARKED DIAL | a fully numbered face — the negation was ignored |
+| the same shot, regenerated | **number- and letter-like marks that are not characters**, and hands that move wrongly |
+
+**Asking for "no numerals" did not remove the markings. It removed their MEANING** —
+which is worse, because a dial of gibberish is a defect a viewer can read as a defect.
+And the second take got the hands wrong: a mechanism has rules, and the model does not
+know them.
+
+⚠️ **THIS IS A RULE ABOUT THE SUBJECT, NOT ABOUT THE PROMPT.** There is no wording that
+makes a clock safe. **Choose a different shot.** The idea a clock was carrying — time
+spent, time saved — is always available as a PERSON DOING SOMETHING: a punter at a
+kitchen table under a lamp with the formguide open is "the hours"; a hand circling a
+horse's name with a red biro is "the tick". Both are people and paper, which generated
+video does well.
+
+📌 **Incidental numerals on a real object are not what this bans** — a saddlecloth in a
+racing shot is part of the sport. What is banned is a shot whose SUBJECT is a numbered
+face or a working mechanism.
+
+### 🔴 A SPREAD FIELD, AND A RAIL THAT DOES NOT WOBBLE (Jodie, 18 September 2026)
+
+**Say both, in every racing shot with more than one horse in motion:**
+
+> *"a SPREAD field, horses at different strides and different positions, staggered,
+> NO TWO IN STEP"*
+
+> *"one LONG STRAIGHT white running rail"* — or, on a bend, *"ONE GENTLE CONTINUOUS
+> CURVE that curves the same way from one edge of the frame to the other and never
+> bends back"*
+
+**Both are EP49 faults, on a clip that had already been regenerated once.** The field
+galloped in step — the §1 fault the shot template has warned about since EP16, and the
+prompt for that very clip DID carry the out-of-step wording, so saying it once is not
+enough: the field must also be described as SPREAD, because a bunched field is what the
+model synchronises. And the rail **bent in an S**. A running rail is straight, or it is
+one smooth curve; it is never wobbly, and a wobbly one tells a racing audience
+immediately that nothing in the shot is real.
+
+### 🔴 DEFOCUS HIDES TEXT. IT ALSO HIDES THE THING THE ACTION IS FOR. (Jodie, 18 Sep 2026)
+
+> ## **If the shot is somebody DOING something to a thing, that thing has to be**
+> ## **visible enough to be done to.**
+
+**Jodie, on a rejected take: *"he is drawing a long circle around nothing!"*** The prompt
+asked for a hand circling a horse's name in a formguide with a red biro — and, to satisfy
+the no-legible-print rule, for the page to be *"heavily defocused into soft grey texture"*
+with *"only the wet red ink sharp"*. **So there was nothing on the page for the circle to
+land on, and the pen drew a long loop around empty paper.**
+
+⚠️ **THE RULE THAT CAUSED IT IS A GOOD RULE.** Generated text comes back as gibberish, so
+print must not be legible. What went wrong is the DEGREE: blurred far enough to hide the
+words, the page also stopped being a page of horses.
+
+**Ask for the STRUCTURE without the words.** A formguide at this distance is rows and
+columns: *"the page reads as neat printed ROWS AND COLUMNS of grey type, the individual
+words too soft to read"* keeps something for the pen to circle and still carries no
+readable text. Same for a racebook, a ledger, a noticeboard.
+
+📌 **AND IT IS THE SAME SHAPE AS THE RAIL FAULT ABOVE** — a prompt that made one rule
+true and quietly made the shot impossible. **When a constraint is added, read the whole
+prompt back and ask whether the SUBJECT still survives it.**
+
+### ⚖️ JODIE REVIEWS EVERY GENERATED CLIP HERSELF, BEFORE IT IS FILED OR PLACED
+**(Jodie, 18 September 2026.)**
+
+> ## **The automated watch-through is a FLOOR, not the gate.**
+
+**She reviews every generated clip in the Higgsfield widget before it is filed into an
+episode's `broll/` or placed in a cut.** The mechanical pass below still runs and still
+rejects what it can name — but it only finds the defects somebody has already thought
+of, and the two faults that reached EP49's cut were both outside its list.
+
+⚠️ **THIS IS NOT THE B-ROLL APPROVAL GATE RULED OUT ON 5 AUG 2026**, and the difference
+is who is deciding. That ruling refused a step where somebody judges whether a clip is
+*good enough* — a taste gate in the middle of the build. This is the PERSON WHO OWNS THE
+OUTPUT looking at what was paid for, at the moment it exists, in the widget it already
+appears in. **The evidence is EP49: a clip I had checked, promoted and composited was
+wrong in two ways I had not thought to look for.** A checker verifies the fault it was
+written for; an eye sees the one nobody has met yet.
+
+### 🔴 NEW QC STEP: EVERY CLIP IS WATCHED THROUGH ONCE (Jodie, 15 September 2026)
+
+**Watched end to end, or motion-mapped — not glanced at as a contact sheet.** Five
+things are an outright **REJECT and regenerate**:
+
+1. **Anything crossing a rail or a fence.** Already the hard-fail rule above; a MOVING
+   clip is where it hides, because a still is judged frame by frame and a clip is not.
+2. **Anything morphing** — a horse, a person or an object changing shape mid-clip.
+3. **Anything changing COUNT** — runners or people appearing or disappearing.
+4. **A SYNCHRONISED FIELD** — two or more horses in the same phase of stride. (Jodie,
+   18 Sep 2026.)
+5. **A WOBBLING RAIL** — a running rail that bends in an S, or reverses its curve.
+   (Jodie, 18 Sep 2026.) Straight, or one smooth curve, and nothing else.
+
+> ⚠️ **THIS IS NOT THE B-ROLL APPROVAL STEP JODIE RULED OUT ON 5 AUG 2026.** That ruling
+> refused a step where a human *chooses* whether a clip is good enough. This is a
+> mechanical pass/fail against three named defects, on the clips the build already
+> produces, and it takes about a minute an episode.
+
+**Where it came from — EP46's `broll-a-field-of-runners-sweeping-past-the-outside-rail-
+at-the-turn-seen-from-the-lawn.mp4`: the horses change sides of the rail during the
+clip.** Every frame is plausible; the MOVEMENT is not. The contact-sheet glance cannot
+catch it by construction — it samples six frames, and this fault lives between them.
+That clip is marked rejected in `docs/broll-registry.md`. **EP46 itself is not being
+changed** (a guard prevents recurrence; it does not oblige us to go back).
 - **🔁 THE NO-REPEAT LAW IS ABOUT COMPOSITION, NOT SUBJECT (Jodie, 26 Jul 2026).**
   **So long as the COMPOSITION is different, the idea or subject can be similar.** A clip is a
   repeat when it *looks* like one on screen — same framing, same angle, same action, same shot.
@@ -1202,3 +1330,43 @@ the target before you are holding the bytes you mean to put back — and that is
 what `write_text()`, `open(p, "w")` and `>` all do.
 
 *Verify afterwards: the original bytes should still be a prefix of the new file.*
+
+## 🔴 FOUR RULES OUT OF FOUR REJECTED CLIPS — 20 SEPTEMBER 2026 (Jodie)
+
+**Every one of these was written from a clip that was generated, paid for and looked at.
+Three of the four faults were in prompts I wrote, and two of those had already been
+written down on 18 Sep in another form.**
+
+### a. 🔴 HIGGSFIELD CANNOT COUNT. NEVER ASK FOR MORE THAN **FOUR** HORSES OR PEOPLE.
+*"a field"*, *"eight thoroughbreds"*, *"twelve saddled thoroughbreds"*, *"each led by a
+strapper"* — all of them produce **horses that vanish mid-clip and handlers that
+are simply missing**. EP49's field-of-eight lost a horse in front of the camera; its
+walk-on of twelve gave most of the horses no strapper at all.
+⭐ **A COUNT IN A PROMPT IS A WISH, NOT A SPECIFICATION.** Ask for four, get four.
+Ask for twelve and the model will produce a crowd that does not survive nine seconds.
+
+### b. 🔴 SADDLECLOTHS ARE PLAIN. SAY SO: *"plain saddlecloths, no numbers"*.
+Numerals were banned outright on 18 Sep and the ban was read as being about **clocks and
+boards**. It is not: **every saddlecloth in the field-of-eight carried the same number**,
+which is both a numeral on screen and a racing impossibility. The positive instruction
+works where the negative one did not — the same lesson as the skullcap.
+
+### c. 🔴 THE WORD "JOCKEY" PRODUCES A RACING CROUCH, WHATEVER THE HORSE IS DOING.
+The walk-on asked for *"jockeys up"* on horses **walking**, and got riders folded into a
+racing crouch on horses at a walk — a shot no racegoer would believe.
+⚙️ **SO: a walking or parading horse is RIDERLESS AND LED. A jockey appears
+only on a horse at a gallop.** If the shot needs a person beside a walking horse, that
+person is a strapper at its head, not a rider on its back.
+
+### d. ↻ THE RAIL GOES BEHIND THE HORSES, NEVER BETWEEN THE CAMERA AND THE HORSES.
+**Restated from 18 Sep because it was broken again on 20 Sep, twice, by me.** A rail in
+the near foreground plus a subject that must cross that line is an impossible geometry,
+and the model resolves it by drawing the rail THROUGH the horses' legs. Put the rail on
+the far side of the action or leave it out of the prompt.
+
+⚠️ **AND THE PATTERN UNDER ALL FOUR, WHICH IS THE PART WORTH KEEPING:** every
+one of these faults came from asking for something SPECIFIC that the model cannot hold
+— a count, a marking, a posture, a geometry — rather than from asking for too
+little. **A prompt is a description of a photograph, not a list of requirements.** When
+a constraint is added, read the whole prompt back and ask whether the SUBJECT survives
+it.
