@@ -293,6 +293,27 @@ function slugToTitle(url) {
  * are not the same string and are the same article. */
 const PP_HOSTS = ["practicalpunting.com.au"];
 
+/* EPISODE NUMBERS THAT ARE TAKEN BUT NOT ON THE RAIL (27 Sep 2026).
+ * The paste numbers a new episode max(ep_number) + 1, and the rail is all it can see.
+ * EP49 is the two-way "Fighting a Complex Game Part 1": it has a Drive folder and a
+ * capture (docs\EP49-source-article-…) but deliberately NO rail row, so the next paste
+ * would have been PP-EP49 too — and ep_paths.episode_dir(49) globs PP-EP49*, so the
+ * engine would have built straight into the two-way's folder.
+ *   Listing the URL as well means pasting the two-way's own article is refused like
+ * any other duplicate, instead of queueing a second EP for it.
+ *   An entry becomes dead weight, not a fault, once its number is on the rail. */
+const RESERVED_EPS = [
+  { ep_number: 49, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
+    "form-analysis/range-of-form-analysis-techniques/fighting-a-complex-game-part-1-20031112",
+    why: "the two-way episode (no rail row by design)" },
+];
+
+function nextEpNumber(maxOnRail) {
+  let n = (maxOnRail || 0) + 1;
+  while (RESERVED_EPS.some((r) => r.ep_number === n)) n++;
+  return n;
+}
+
 function normUrl(u) {
   try {
     const p = new URL(u);
@@ -315,6 +336,11 @@ function articleUrlProblem(url) {
   if (dupe) {
     return "That article is already on the rail as PP-EP" + (dupe.ep_number ?? "?") +
            " (" + (dupe.status || "queued") + "). Nothing has been added.";
+  }
+  const held = RESERVED_EPS.find((r) => normUrl(r.source_url) === want);
+  if (held) {
+    return "That article is already PP-EP" + held.ep_number + " — " + held.why +
+           ". Nothing has been added.";
   }
   return "";
 }
@@ -882,11 +908,11 @@ $("start-form").addEventListener("submit", async (e) => {
 
   btn.disabled = true; btn.textContent = "Adding…";
   try {
-    // ep_number = max + 1
+    // ep_number = max + 1, skipping RESERVED_EPS
     const { data: maxRows, error: maxErr } = await db.from("episodes")
       .select("ep_number").order("ep_number", { ascending: false, nullsFirst: false }).limit(1);
     if (maxErr) throw maxErr;
-    const nextNum = ((maxRows && maxRows[0] && maxRows[0].ep_number) || 0) + 1;
+    const nextNum = nextEpNumber(maxRows && maxRows[0] && maxRows[0].ep_number);
     const title = slugToTitle(url);
 
     const { error } = await db.from("episodes").insert({
@@ -1653,7 +1679,22 @@ function gateRender(ep) {
     '<p class="g-warn"><b>Before you hit render: turn captions OFF.</b> ' +
     "HeyGen burns them into the picture and they cannot be taken out afterwards. " +
     "This episode ships its own subtitles, so leaving them on puts two sets of " +
-    "words on screen.</p>";
+    "words on screen.</p>" +
+    /* THE PASTE FIX — Jodie's own find, 16 Sep 2026, and the only thing that has ever
+     * predicted the robotic voice BEFORE the credits are spent. Gordon went robotic
+     * twice in one evening; the third take, with this step, came back clean. Five
+     * robotic renders across EP44, EP46 and two two-way pair-tests say this is worth
+     * a paragraph on the card rather than a line in a guide.
+     *   The refusal is the signal: HeyGen declines to preview a 2.5-minute script it
+     * would preview happily if the text were clean, which is why "too long" must be
+     * read as "this will render badly", not as a nuisance. (Bundle F: put the thing
+     * where the person is standing.) */
+    '<p class="g-warn"><b>After you paste: click into the text, press Enter, ' +
+    "then Backspace — then play the voice preview.</b> " +
+    "It must actually play. If HeyGen refuses to preview and says the script is " +
+    "too long, <b>do not hit Generate</b> — that refusal predicts a robotic render, " +
+    "and a robotic render is a wasted one. Enter-then-Backspace makes the editor " +
+    "rebuild the pasted text as its own, which has fixed it every time so far.</p>";
 
   h += '<div class="copyrow">' +
     '<button class="mini copy" data-act="copy-heygen" data-ep="' + ep.id + '">' +
