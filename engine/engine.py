@@ -493,19 +493,19 @@ def step_script_sync(ctx):
     return {"words": words, "sha256": sha, "source": source}
 
 
-def _reference_episodes(nn, want=2):
-    """The `want` most recent episodes that have a readable episode.json, newest first.
+def _reference_episodes(nn, want=2, fmt="single"):
+    """The `want` most recent episodes OF THE SAME FORMAT that have a readable
+    episode.json, newest first.
 
-    One lookup, two readers — the config pre-flight and the shape gate. A second copy
-    of this loop would be a second thing to get out of step (#2).
+    One lookup, three readers — the config pre-flight, the shape gate, and the
+    episode.json commission's examples (providers) — all through
+    `preflight_episode_json.reference_dirs`. A second copy of this loop would be a
+    second thing to get out of step (#2). SAME FORMAT: see that function (EP50).
     """
     refs, names = [], []
-    for n in range(int(nn) - 1, 0, -1):
-        if len(refs) == want:
-            break
+    for n, d in preflight_episode_json.reference_dirs(nn, want, fmt):
         try:
-            p = preflight_episode_json.ep_dir(n) / "docs/episode.json"
-            refs.append(json.loads(p.read_text(encoding="utf-8")))
+            refs.append(json.loads((d / "docs/episode.json").read_text(encoding="utf-8")))
             names.append(f"EP{n:02d}")
         except Exception:                                             # noqa: BLE001
             continue
@@ -541,7 +541,8 @@ def _preflight_shape(ctx) -> list[str]:
             "    The file has to be written again — running this step again will not "
             "change it.",
             blockers=[f"episode.json is not readable as settings: {e}"])
-    refs, _names = _reference_episodes(ctx.ep.get("ep_number"))
+    refs, _names = _reference_episodes(ctx.ep.get("ep_number"),
+                                       fmt=preflight_episode_json.fmt_of(ctx.ep))
     if len(refs) < 2:
         return ["shape gate: fewer than two reference episodes — standing aside"]
     bad = preflight_episode_json.check_wellformed(j, refs)
@@ -572,7 +573,7 @@ def _preflight_config(ctx) -> list[str]:
     if not target.is_file():
         return ["config pre-flight: no episode.json yet — nothing to compare"]
 
-    refs, names = _reference_episodes(nn)
+    refs, names = _reference_episodes(nn, fmt=preflight_episode_json.fmt_of(ctx.ep))
     if len(refs) < 2:
         return ["config pre-flight: fewer than two reference episodes — standing aside"]
 

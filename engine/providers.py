@@ -4243,16 +4243,11 @@ class RealProvider:
         # THE SAME TWO REFERENCES E26 WILL JUDGE IT AGAINST — asked of E26's own
         # resolver, so the brief cannot point at one pair while the gate uses
         # another. Showing real files beats describing a schema.
-        refs = []
-        for n in range(int(ep["ep_number"]) - 1, 0, -1):
-            if len(refs) == 2:
-                break
-            try:
-                p = pj.ep_dir(n) / "docs/episode.json"
-                if p.is_file():
-                    refs.append(p)
-            except Exception:                                  # noqa: BLE001
-                continue
+        # SAME FORMAT ONLY (EP50, 27 Sep 2026): the two-way EP49 was handed to a
+        # single-presenter commission as a "shipped example" and its no-logo early-CTA
+        # clip was copied. See pj.reference_dirs.
+        refs = [d / "docs/episode.json"
+                for _n, d in pj.reference_dirs(ep["ep_number"], 2, pj.fmt_of(ep))]
 
         docs = REPO_DIR / "docs"
         prompt = (

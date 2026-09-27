@@ -72,6 +72,43 @@ def ep_dir(n: int, root: Path = PP_VIDEOS) -> Path:
     return hits[0]
 
 
+def fmt_of(d: dict | None) -> str:
+    """An episode's format — "two-way", or "single" when nothing says otherwise.
+
+    Read off the rail row or the episode.json alike; both carry `format` only for a
+    two-way, so the single-presenter default is the absence of the key."""
+    return (d or {}).get("format") or "single"
+
+
+def reference_dirs(nn: int, want: int = 2, fmt: str = "single",
+                   root: Path = PP_VIDEOS) -> list[tuple[int, Path]]:
+    """The `want` most recent episodes BEFORE `nn` of the SAME FORMAT, newest first,
+    each with a readable docs/episode.json — as (number, folder).
+
+    🔴 SAME FORMAT, OR THE TWO-WAY LEAKS (EP50, 27 Sep 2026). This used to take simply
+    the two most recent episodes with an episode.json. The two-way EP49 has one, so
+    EP50's episode.json commission was handed EP49 as "a REAL, SHIPPED example" and
+    copied its early-CTA clip, `end-card-template-nologo.mp4` — a copy that exists
+    because a two-way draws its corner logo OVER the cards. A single-presenter episode
+    draws the logo UNDER them (pass A), so a full-frame card's own logo is the only one
+    on screen, and the no-logo copy would have left no logo at all. Assembly halted on
+    the missing file; had the file existed, it would have shipped. A reference teaches
+    by example, so it must be an example of the thing being built.
+    """
+    out = []
+    for n in range(int(nn) - 1, 0, -1):
+        if len(out) == want:
+            break
+        try:
+            d = ep_dir(n, root)
+            j = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+        except Exception:                                             # noqa: BLE001
+            continue
+        if isinstance(j, dict) and fmt_of(j) == fmt:
+            out.append((n, d))
+    return out
+
+
 # --------------------------------------------------------------------------- shapes
 def key_types(o, pre: str = "", out: dict | None = None) -> dict[str, set[str]]:
     """Every key path -> the SET of types observed there.
