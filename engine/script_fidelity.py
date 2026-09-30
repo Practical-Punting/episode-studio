@@ -201,6 +201,19 @@ def half_reading(s: str) -> str:
     return _HALF_SAID.sub("and a half", s)
 
 
+# 🔴 A FRACTION BEFORE A NOUN IS SINGULAR. (EP53, 30 Sep 2026.) `2 3/4 lengths` is said
+# "two and three-QUARTER lengths" — the fraction is an adjective there — while the fold
+# only ever writes the plural "three quarters". Offered as an EXTRA reading beside the
+# plural, exactly like the half and one-dollar readings: it widens what the source may
+# be READ as, never what it says. The fraction words come from `_FRACTION` itself.
+_FRAC_PLURAL = re.compile(r"\b(" + "|".join(sorted(set(_FRACTION.values()))) + r")s\b")
+
+
+def singular_fraction_reading(s: str) -> str:
+    """"three quarters lengths" -> "three quarter lengths". A rendering, not a value change."""
+    return _FRAC_PLURAL.sub(r"\1", s)
+
+
 def _frac_named(m) -> str:
     n, d = int(m.group(1)), int(m.group(2))
     w = _FRACTION.get(d)
@@ -442,8 +455,12 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     # words, so `3YO` in a script was never a figure anyone had to trace; all this does
     # is add "three-year-old" to what the source may be READ as. Nothing that matched
     # before stops matching — `test_year_old_reading` holds that proof.
-    s = re.sub(r"\b(\d{1,2})\s*YO\b",
-               lambda m: f"{int_words(int(m.group(1)))}-year-old", s)
+    # ⚠️ ANY CASE, AND THE PLURAL (30 Sep 2026). The rule knew only capital `3YO`; the
+    # captures also print `3yo`, `3yos` and `2yo's` (EP19, EP38, EP39, EP42), which it
+    # left as a digit welded to a non-word — the same no-legal-way-to-say-it shape.
+    s = re.sub(r"\b(\d{1,2})\s*yo('?s)?\b",
+               lambda m: f"{int_words(int(m.group(1)))}-year-old" + ("s" if m.group(2) else ""),
+               s, flags=re.I)
     s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
                lambda m: ordinal_words(int(m.group(1))), s)
     # A DECADE, before anything else can mistake it for a year. See `_decade`.
@@ -464,14 +481,22 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     # so the gate is untouched and every reading it accepted yesterday it accepts now.
     # It is the WRITER that asks for the hundreds reading — see `twoway_split.spoken`.
     ureading = unit_reading or reading
-    s = re.sub(r"\b(\d[\d,]*)\s*-\s*(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), ureading)
-                          + " to "
-                          + _num_readings(int(m.group(2).replace(",", "")), ureading)
+
+    # 🔴 A UNIT MAY FOLLOW A DECIMAL. (EP53, 30 Sep 2026.) The article prints Quinn's
+    # standards as "Sprints to 6.5f" and "8.5f and longer". These rules ran on the
+    # WHOLE part only — `\b` sits happily between "." and "5" — so they took "5f" and
+    # left "six.five furlongs", and the script's correct "six point five furlongs" had
+    # nothing to match. Three attempts, the writer right each time. The number now
+    # includes its decimal, and may not begin just after a point.
+    def _unum(x: str) -> str:
+        x = x.replace(",", "")
+        return _dec_words(x) if "." in x else _num_readings(int(x), ureading)
+    _U = r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)"
+    s = re.sub(_U + r"\s*-\s*(\d[\d,]*(?:\.\d+)?)\s*(kg|km|m|f)\b",
+               lambda m: (_unum(m.group(1)) + " to " + _unum(m.group(2))
                           + " " + UNITS[m.group(3)]), s)
-    s = re.sub(r"\b(\d[\d,]*)\s*(kg|km|m|f)\b",
-               lambda m: (_num_readings(int(m.group(1).replace(",", "")), ureading)
-                          + " " + UNITS[m.group(2)]), s)
+    s = re.sub(_U + r"\s*(kg|km|m|f)\b",
+               lambda m: _unum(m.group(1)) + " " + UNITS[m.group(2)], s)
     # ODDS CARRYING A DECIMAL, BEFORE `_decimals` SPELLS THE POINT OUT. Once `12.5`
     # has become "twelve point five" there is no digit left in front of the hyphen
     # for the odds rule at the foot of this function to see. See `_odds_dec` for the
@@ -494,6 +519,16 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
         s = re.sub(r"\$\s?(\d{4})\b",
                    lambda m: fn(int(m.group(1))) + " dollars", s)
         s = re.sub(r"(?<![$\d.,])\b(\d{4})\b", lambda m: fn(int(m.group(1))), s)
+    # 🔴 A MIXED NUMBER IS SAID WITH "AND". (EP53, 30 Sep 2026.) "2 3/4 lengths" folded
+    # to "two three quarters lengths", which nobody says; Gordon says "two and three
+    # quarter lengths". Only on the NAMED pass — "two three in four" and "two three to
+    # four" are not readings of a mixed number either way, so the other passes are left
+    # exactly as they were.
+    if frac is _frac_named:
+        s = re.sub(r"\b(\d+)\s+(\d+)\s*/\s*(\d+)\b",
+                   lambda m: f"{int_words(int(m.group(1)))} and "
+                             + _frac_named(re.match(r"(\d+)/(\d+)", f"{m.group(2)}/{m.group(3)}")),
+                   s)
     s = re.sub(r"\b(\d+)\s*/\s*(\d+)\b", frac, s)
     s = re.sub(r"\b(\d+)\s*-\s*(\d+)\s*\bON\b", _odds_on, s, flags=re.I)
     s = re.sub(r"\b(\d+)\s*-\s*(\d+)\b", _odds, s)
@@ -569,6 +604,12 @@ def haystacks(capture_text: str) -> list[list[str]]:
                 if h != s:
                     out.append(norm_words(h))
                     out.append(norm_words(re.sub(units, " ", h)))
+                # A FRACTION SAID AS AN ADJECTIVE — "three-quarter lengths". See
+                # singular_fraction_reading; extra, never a replacement.
+                q = singular_fraction_reading(s)
+                if q != s:
+                    out.append(norm_words(q))
+                    out.append(norm_words(re.sub(units, " ", q)))
                 # 🔴 A SINGLE DOLLAR IS SAID "ONE DOLLAR". (EP29, 16 Aug 2026.)
                 # The money fold always writes the plural — `$1.50` becomes "one
                 # dollarS fifty" — so the ONLY grammatical way to say it, "one
@@ -671,7 +712,15 @@ def figures(text: str) -> list[str]:
                 prev = tok
                 in_decimal = True
                 continue
-            if tok == "and" and not (run and run[-1] in _AND_AFTER):
+            # 🔴 "FIVE AND THREE QUARTER" IS ONE FIGURE. (EP53, 30 Sep 2026.) Splitting a
+            # mixed number at its "and" checked the whole part and the fraction apart,
+            # so an invented "five and three quarter lengths" passed on any article that
+            # happens to say "five" somewhere and "3/4" somewhere else. "and" joins the
+            # figure when a fraction follows it: a number word, then a fraction word.
+            if tok == "and" and run and ahead[i + 1] in _ONES \
+                    and ahead[i + 2] in _FRACW:
+                tok_is_connector = True
+            elif tok == "and" and not (run and run[-1] in _AND_AFTER):
                 tok_is_connector = False
             else:
                 tok_is_connector = tok in CONNECTORS
