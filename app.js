@@ -1443,8 +1443,19 @@ setInterval(tickTimers, 1000);
 /* The cover pick is offered the moment BOTH heroes exist — which, under the
  * locked order, is early in the build, while Gordon is still rendering. */
 function coverPickOpen(ep) {
-  return !!(ep.cover_a_url && ep.cover_b_url &&
-            ep.cover_choice !== "A" && ep.cover_choice !== "B");
+  return !!(ep.cover_a_url && ep.cover_b_url && !coverPicked(ep));
+}
+
+/* Is `cover_choice` a pick? The SAME rule as providers.parse_cover_pick: "A"/"B" is the
+ * pair on the board now, "A2" is round 2's A, and the round must already exist.
+ * 🔴 (EP53, 30 Sep 2026) This used to accept only a bare "A"/"B", so after Jodie picked
+ * "A2" — which the engine took and built from — the cover card stayed up asking her to
+ * pick again. Two definitions of one idea; now the board asks the engine's question. */
+function coverPicked(ep) {
+  const m = /^([AB])(\d+)?$/.exec(String(ep.cover_choice || "").trim().toUpperCase());
+  if (!m) return false;
+  const rnd = m[2] ? parseInt(m[2], 10) : (ep.cover_round || 1);
+  return rnd >= 1 && rnd <= (ep.cover_round || 1);
 }
 
 /* ═══ THE SCRIPT PANEL — ONE implementation, TWO gates ═══════════════════════

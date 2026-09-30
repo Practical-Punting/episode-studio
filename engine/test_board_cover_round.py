@@ -84,6 +84,14 @@ OTHER = {"id": "id60", "ep_number": 60, "status": "queued", "title": "Another ep
          "script_read": False, "script_snapshot": None, "script_doc_url": None,
          "progress_pct": 0, "heartbeat_at": None, "claimed_by": None}
 
+# The lingering card (30 Sep): "A2" was picked AND built from, and the card still asked.
+PICKED = dict(EP, id="id54", ep_number=54, title="Picked from an earlier round",
+              cover_round=3, cover_a_url=A3, cover_b_url=B3, cover_choice="A2",
+              cover_rounds=[{"round": 1, "a_url": A1, "b_url": B1},
+                            {"round": 2, "a_url": A2, "b_url": B2}])
+# …and the control: a round that does not exist is NOT a pick, so the card stays.
+NOT_PICKED = dict(PICKED, id="id55", ep_number=55, title="Not a real round", cover_choice="A4")
+
 STUB = """
 window.__rows = { episodes: window.__ROWS__, messages: [] };
 window.__writes = [];
@@ -145,7 +153,7 @@ def run():
     with sync_playwright() as pw:
         b = pw.chromium.launch(headless=True)
         pg = b.new_page(viewport={"width": 1400, "height": 1200})
-        pg.add_init_script(f"window.__ROWS__ = {json.dumps([EP, OTHER])};")
+        pg.add_init_script(f"window.__ROWS__ = {json.dumps([EP, OTHER, PICKED, NOT_PICKED])};")
         pg.route("**/supabase-js*", lambda r: r.fulfill(
             status=200, content_type="application/javascript", body=STUB))
         try:
@@ -157,6 +165,14 @@ def run():
                  bool(c0) and c0["imgs"] == [A1, B1], str(c0 and c0["imgs"]))
             if not c0:
                 return
+
+            print("\n-- a pick from an earlier round closes the card, like 'A' or 'B' does --")
+            p54, p55 = pg.evaluate(CARD, "id54"), pg.evaluate(CARD, "id55")
+            case("🔴 'A2' picked (round 3 showing): the card no longer asks her to pick",
+                 bool(p54) and "pick the cover" not in p54["text"],
+                 (p54 or {}).get("text", "")[:200])
+            case("  CONTROL: 'A4' (no such round) is not a pick, so the card still asks",
+                 bool(p55) and "pick the cover" in p55["text"], (p55 or {}).get("text", "")[:200])
 
             # ── (a) SEND ─────────────────────────────────────────────────────────
             print("\n-- (a) she presses Send on 'Neither' with a note --")
