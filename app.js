@@ -229,7 +229,10 @@ let channel = null;
 const inflight = new Set();    // idempotency: one write per key at a time
 // Survives the full re-render that realtime triggers, so a half-typed note isn't lost.
 const UI = { open: new Set(), drafts: new Map(), kinds: new Map(), words: new Map(),
-             dirty: new Set(), scroll: new Map() };
+             dirty: new Set(), scroll: new Map(),
+             // episode id -> the cover pair (coverPairKey) she asked to replace, held
+             // from the moment she presses Send until a DIFFERENT pair is on the rail.
+             coverAsked: new Map() };
 // What `needs_look` looked like at the last render, so a NEW halt can be spotted
 // while the board is paused. Keyed by episode id.
 let LAST_FLAGS = new Map();
@@ -946,6 +949,7 @@ async function loadAll() {
     return;
   }
   EPISODES = data || [];
+  pruneCoverAsked();
 
   // One query for every thread, rather than one per card.
   MSGS = new Map();
@@ -1202,16 +1206,52 @@ function rememberScripts() {
   LAST_SCRIPTED = new Map(EPISODES.map((e) => [e.id, !!e.script_snapshot]));
 }
 
+/* 🔴 (b) A NEW COVER PAIR MUST REACH HER EVEN WHILE THE BOARD IS PAUSED (EP53, 30 Sep).
+ * The same shape as refreshSeatedCards: the pause protects the node she is typing in,
+ * and it was also hiding round 2 — so a card whose cover round, cover pictures or cover
+ * request changed is rebuilt on its own, and whatever she had typed is put back by
+ * restoreDrafts(). Everything else stays paused. */
+let LAST_COVERS = new Map();
+
+function coverSig(e) {
+  return coverPairKey(e) + "|" + (e.cover_more_requested_at || "") + "|" +
+    (UI.coverAsked.has(e.id) ? "asked" : "");
+}
+
+function refreshCoverCards() {
+  EPISODES.forEach((ep) => {
+    const was = LAST_COVERS.get(ep.id);
+    if (was === undefined || was === coverSig(ep)) return;
+    const node = document.querySelector('[data-card="' + CSS.escape(ep.id) + '"]');
+    if (!node) return;
+    node.outerHTML = cardFor(ep);
+    restoreDrafts();
+  });
+}
+
+function rememberCovers() {
+  LAST_COVERS = new Map(EPISODES.map((e) => [e.id, coverSig(e)]));
+}
+
+/* What a PAUSED board still rebuilds: a card whose script has just been seated, and a
+ * card whose cover pair has just changed. Nothing else. */
+function refreshArrivedCards() {
+  refreshSeatedCards();
+  refreshCoverCards();
+  rememberCovers();
+}
+
 function renderBoard(force) {
   const editing = force ? [] : editingNow();
   if (editing.length) {
     pauseBanner(editing, newlyFlagged());
-    refreshSeatedCards();         // a script arriving is not "the node she is in"
+    refreshArrivedCards();        // a script arriving is not "the node she is in"
     rememberScripts();
     tickTimers();
     return;                       // the node she is in is never touched
   }
   rememberScripts();
+  rememberCovers();
   pauseBanner([], []);
   rememberFlags();
   const host = $("lanes");
@@ -1711,6 +1751,35 @@ function gateRender(ep) {
   return h;
 }
 
+/* ═══ "NEITHER" MUST NEVER TURN DOWN A PAIR SHE HAS NOT SEEN (EP53, 30 Sep 2026) ═══
+ * After Send the card went on showing the OLD pictures with her note still in the box:
+ * the note box counted as "being typed in", so renderBoard() paused the whole board,
+ * and nothing released it. The new round only appeared on a manual refresh — so she
+ * pressed Send again, and round 2 was turned down 15 seconds after it arrived, unseen.
+ *     AND THE ENGINE OPENS A ROUND BEFORE ITS PICTURES EXIST: it bumps cover_round and
+ * clears the request, THEN spends a minute or two making the pair, and all that time the
+ * rail still carries the OLD urls. A "Neither" pressed then rejects the round being made.
+ * So "fresh covers are being made" is DERIVED FROM THE RAIL, never remembered: a request
+ * the engine has not taken yet, or a current pair that is the one just archived. */
+function coverPairKey(e) {
+  return [e.cover_round || 1, e.cover_a_url || "", e.cover_b_url || ""].join("|");
+}
+
+function coverMaking(e) {
+  if (e.cover_more_requested_at) return true;
+  const hist = e.cover_rounds || [];
+  const last = hist.length ? hist[hist.length - 1] : null;
+  return !!(last && last.a_url && e.cover_a_url === last.a_url && e.cover_b_url === last.b_url);
+}
+
+/* A Send she has pressed, until the rail shows a pair other than the one she turned down. */
+function pruneCoverAsked() {
+  UI.coverAsked.forEach((key, id) => {
+    const ep = EPISODES.find((e) => e.id === id);
+    if (!ep || (coverPairKey(ep) !== key && !coverMaking(ep))) UI.coverAsked.delete(id);
+  });
+}
+
 function gateCover(ep) {
   // cover_choice is 'A' | 'B'; older rows may hold other text, so match exactly.
   const choice = ep.cover_choice === "A" || ep.cover_choice === "B" ? ep.cover_choice : null;
@@ -1753,9 +1822,14 @@ function gateCover(ep) {
     ? '<p class="g-hint">This is round ' + rnd + ". If the direction still isn’t right, "
       + "the brief may be worth a look rather than more pictures — no rush either way.</p>"
     : "";
-  const askBlock = asked
-    ? '<p class="g-hint">✓ Asked for different covers — ' + esc(ago(asked)) +
-      " ago. Nothing is stuck, and the two above are still yours to pick.</p>"
+  // While fresh covers are being made there is NO Send and NO Neither: a pair that is
+  // not on the screen yet cannot be turned down. See coverMaking().
+  const making = coverMaking(ep) || UI.coverAsked.has(ep.id);
+  const askBlock = making
+    ? '<p class="g-hint" data-covermaking="' + ep.id + '">Making fresh covers from your notes…' +
+      (asked ? " (asked " + esc(ago(asked)) + " ago)" : "") +
+      " They’ll appear here by themselves in a minute or two — no need to refresh. " +
+      "Nothing is stuck, and the pairs on this card are still yours to pick.</p>"
     : '<div class="askmore">' +
       '<button class="ghost" data-act="cover-more-open" data-ep="' + ep.id + '">' +
       "Neither — ask for different ones</button>" +
@@ -1764,7 +1838,8 @@ function gateCover(ep) {
       "(optional)</label>" +
       '<textarea id="askwhy-' + ep.id + '" rows="2" ' +
       'placeholder="e.g. no grandstand crowds, and keep it on turf"></textarea>' +
-      '<button class="btn" data-act="cover-more" data-ep="' + ep.id + '">Send</button>' +
+      '<button class="btn" data-act="cover-more" data-ep="' + ep.id + '" data-pair="' +
+      esc(coverPairKey(ep)) + '">Send</button>' +
       "</div></div>";
 
   return '<div class="gate"><h4>Your turn — pick the cover</h4>' +
@@ -1779,7 +1854,10 @@ function gateCover(ep) {
    be a bare 'A' | 'B', which cannot name a pair once there is more than one. */
 function oneOf(ep, letter, url, round) {
   const safe = safeUrl(url);
-  const val = letter + (round > 1 ? String(round) : "");
+  // 🔴 ALWAYS WITH ITS ROUND, ROUND 1 INCLUDED (30 Sep 2026). A bare "A" means the pair
+  // on the board NOW (providers.parse_cover_pick), so round 1's tile writing "A" while
+  // round 3 showed would have built the book from round 3's A — not the one she tapped.
+  const val = letter + String(round || 1);
   const chosen = ep.cover_choice === val;
   return '<button class="cover' + (chosen ? " chosen" : "") + '" ' +
     'data-act="cover" data-ep="' + ep.id + '" data-pick="' + val + '">' +
@@ -2235,11 +2313,45 @@ $("lanes").addEventListener("click", async (e) => {
     // Nothing halts: the episode does not flag, does not go red, and Gordon keeps
     // rendering. The two tiles above stay tappable, because a request is not a veto.
     const why = ($("askwhy-" + id)?.value || "").trim();
+    const shown = btn.getAttribute("data-pair") || "";
+    if (inflight.has(id + ":covermore")) return;
+    btn.disabled = true;
+    // 🔴 (c) A PAIR CAN ONLY BE TURNED DOWN IF IT IS THE ONE ON HER SCREEN. Asked of the
+    // RAIL at the moment of sending, not of the card: the card is exactly what went stale.
+    const { data: got, error: rerr } = await db.from("episodes")
+      .select("id,cover_round,cover_a_url,cover_b_url,cover_more_requested_at,cover_rounds")
+      .eq("id", id).single();
+    // One row from .single(); tolerate a list too, and take THIS episode's row from it.
+    const fresh = Array.isArray(got) ? got.find((r) => r.id === id) : got;
+    if (rerr || !fresh) {
+      toast("toast", "Could not check the covers just now — nothing was sent. Try again.", false);
+      btn.disabled = false;
+      return;
+    }
+    if (coverPairKey(fresh) !== shown || coverMaking(fresh)) {
+      fieldSaved("askwhy-" + id);
+      await loadAll();
+      toast("toast", coverMaking(fresh)
+        ? "Fresh covers are already being made — they’ll appear here by themselves."
+        : "New covers have just arrived — have a look at them first. Nothing was sent.", false);
+      return;
+    }
+    // (a) THE BOX LETS GO AND THE CARD SAYS WHAT IS HAPPENING, BEFORE THE WRITE.
+    // Releasing the note box is what un-pauses the board; UI.coverAsked holds the
+    // "making" state until the rail shows a different pair.
+    fieldSaved("askwhy-" + id);
+    UI.coverAsked.set(id, shown);
+    const node = document.querySelector('[data-card="' + CSS.escape(id) + '"]');
+    if (node) node.outerHTML = cardFor(ep);
     const patch = { cover_more_requested_at: new Date().toISOString() };
     if (why) patch.cover_more_note = why;
-    if (await writeEpisode(id, patch, id + ":covermore", btn))
-      toast("toast", "Asked for different covers — nothing is stuck, and you can " +
-                     "still pick one of these.", true);
+    if (await writeEpisode(id, patch, id + ":covermore", null)) {
+      toast("toast", "Asked for different covers — they’ll appear here by themselves. " +
+                     "You can still pick one of these.", true);
+    } else {
+      UI.coverAsked.delete(id);                     // nothing was asked: put Send back
+      await loadAll();
+    }
     return;
   }
 

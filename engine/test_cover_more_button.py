@@ -182,10 +182,13 @@ s = board([row(cover_round=2, cover_rounds=hist,
 picks = sorted(t["pick"] for t in s["tiles"])
 case("round 1's pair is still on the card alongside round 2",
      len(s["tiles"]) == 4, f"tiles: {picks}")
+# 🔴 CORRECTED 30 Sep 2026 (EP53). This used to demand that round 1's tiles write a
+# BARE "A"/"B" ("A1" not in picks). But a bare letter is the pair on the board NOW
+# (providers.parse_cover_pick), so round 1's "A" tapped while round 2 showed would have
+# built the book from ROUND 2's A. The current pair stays bare; every EARLIER tile names
+# its round, round 1 included.
 case("  …and each names its round, so a pick is unambiguous",
-     "A" in picks and "A1" not in picks and any(p and p.endswith("1") is False
-                                                for p in picks),
-     f"picks: {picks}")
+     picks == ["A", "A1", "B", "B1"], f"picks: {picks}")
 case("  …and none of the old ones is disabled",
      not [t for t in s["tiles"] if t["disabled"]], str(s["tiles"]))
 case("  …and her earlier reason is shown back to her",
