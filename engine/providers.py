@@ -301,6 +301,32 @@ def pipeline_authors_page(card) -> bool:
     return "title" in page and page.endswith(".html")
 
 
+def parse_cover_pick(choice, current_round) -> tuple[str, int] | None:
+    """The board's cover pick as (letter, round) — or None if it is not a pick.
+
+    🔴 THE BOARD NAMES A ROUND AND THE ENGINE DID NOT. (EP53, 30 Sep 2026.) Every
+    earlier pair stays tappable on the board, and a tile from round N writes its
+    letter WITH the round — "A2" is round 2's Cover A — because a bare letter cannot
+    say which pair once there is more than one. The engine only ever accepted "A" or
+    "B", so Jodie's pick of "A2" was never seen: EP53 sat at "pick a cover" for good,
+    and a plain "A" would have built the book from ROUND 3's A, a picture she did not
+    choose. ONE parser, read by the pick step, the e-book cover and the render-window
+    check, so the three cannot disagree about what she picked.
+
+      "A" / "B"      the pair on the board now, i.e. `current_round`
+      "A2" / "B3"    that letter from that round; the round must already exist
+    """
+    import re as _re                                             # noqa: PLC0415
+    m = _re.fullmatch(r"([AB])(\d+)?", str(choice or "").strip().upper())
+    if not m:
+        return None
+    cur = int(current_round or 1)
+    rnd = int(m.group(2)) if m.group(2) else cur
+    if not 1 <= rnd <= cur:
+        return None
+    return m.group(1), rnd
+
+
 def author_missing_cover(ep_dir: Path) -> str:
     """Author ebook/cover-src/cover.html when it does not exist yet.
 
@@ -2528,7 +2554,7 @@ class RealProvider:
                               "--prompt", self._broll_prompt(ep, probe))["credits"])
 
     # -- cover heroes (gens-first batch, alongside the b-roll) ---------------
-    def _hero_paths(self, ep):
+    def _hero_paths(self, ep, rnd=None):
         """hero-a.png / hero-b.png are the two OPTIONS; hero.png is whichever one
         is currently ACTIVE (what cover.html draws). Older episodes only have
         hero.png + hero-b.png — hero.png IS option A there, so adopt it.
@@ -2544,7 +2570,9 @@ class RealProvider:
         — the EP15 shape. New round, new paths, genuinely absent files.
         """
         src = self.dir(ep) / "ebook/cover-src"
-        rnd = int((ep or {}).get("cover_round") or 1)
+        # `rnd` names an EARLIER round's pair (a pick like "A2"); by default the pair
+        # on the board now.
+        rnd = int(rnd or (ep or {}).get("cover_round") or 1)
         sfx = "" if rnd <= 1 else f"-r{rnd}"
         a, b = src / f"hero-a{sfx}.png", src / f"hero-b{sfx}.png"
         active = src / "hero.png"
@@ -3112,6 +3140,17 @@ class RealProvider:
         self.run(cmd, cwd=d, timeout=300)
         return str(out)
 
+    def _picked_hero(self, ep, choice):
+        """(the hero file she picked, the active hero.png) — the round comes from the pick.
+
+        "A" is Cover A of the pair on the board now; "A2" is round 2's Cover A, even
+        when round 3 is showing. See parse_cover_pick.
+        """
+        parsed = parse_cover_pick(choice, (ep or {}).get("cover_round"))
+        letter, rnd = parsed if parsed else ("A", None)
+        hero_a, hero_b, active = self._hero_paths(ep, rnd)
+        return (hero_b if letter == "B" else hero_a), active
+
     def render_ebook_cover(self, ep, choice="A") -> str:
         """Build the cover FROM THE PICK: activate the chosen hero (cover.html
         always draws hero.png), re-render from cover-src (never trust a handed
@@ -3119,8 +3158,8 @@ class RealProvider:
         overlay/export/ebook-cover.png — the cover must land before the card
         batch or the end card renders blank."""
         d = self.dir(ep)
-        hero_a, hero_b, active = self._hero_paths(ep)
-        pick = hero_b if str(choice).strip().upper() == "B" else hero_a
+        pick, active = self._picked_hero(ep, choice)
+        print(f"    building the cover from {pick.name} (pick {str(choice).strip().upper()})")
         # 🔴 A MISSING PICK MUST HALT, NOT SHRUG. This used to be a bare `if
         # pick.is_file()`, and the else-branch was silence: `hero.png` kept whatever it
         # already held, so the book was built from the WRONG PICTURE and nothing said

@@ -125,7 +125,7 @@ import render_lock                             # noqa: E402
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
                        assert_capture_for_script, find_capture, SKILL_DIR,
-                       answer_pending_gates, ask_once)
+                       answer_pending_gates, ask_once, parse_cover_pick)
 
 HUMAN_GATES = {"awaiting_render", "awaiting_cover", "awaiting_approval"}
 
@@ -1171,10 +1171,13 @@ def step_cover_pick(ctx):
         if asked and asked != asked_seen:
             asked_seen = asked
             _open_a_new_cover_round(ctx, row)
+        # "A"/"B" is the pair on the board now; "A2" is round 2's A — see parse_cover_pick.
         choice = (row.get("cover_choice") or "").strip().upper()
-        if choice in ("A", "B"):
+        parsed = parse_cover_pick(choice, row.get("cover_round"))
+        if parsed:
             ctx.stamp("cover_picked_at")
-            log(f"   cover {choice} picked — building the cover page from it")
+            log(f"   cover {choice} picked (cover {parsed[0]}, round {parsed[1]}) — "
+                f"building the cover page from it")
             return {"choice": choice}
         if ctx.mock and waited >= 2:
             # mock has no human; auto-answer so `run --mock --watch` exercises the
@@ -2266,7 +2269,7 @@ def _finish_phase(ctx, status):
         # The cover was picked back in the build (step cover_pick), so this is
         # normally a straight walk into assembly. The awaiting_cover park stays
         # as the honest fallback for an episode that skipped that step.
-        if (ctx.ep.get("cover_choice") or "").strip().upper() in ("A", "B"):
+        if parse_cover_pick(ctx.ep.get("cover_choice"), ctx.ep.get("cover_round")):
             log(">> cover already picked during the render window — straight to assembling")
             ctx.ep_set({"status": "assembling"})
         else:
