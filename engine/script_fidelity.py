@@ -327,7 +327,21 @@ def _decimals(s: str) -> str:
         whole, frac = int(m.group(1)), m.group(2)
         digits = " ".join(int_words(int(d)) for d in frac)
         return f"{int_words(whole)} point {digits}"
-    return re.sub(r"(?<![\d$.])(\d+)\.(\d+)(?!\d)", one, s)
+    s = re.sub(r"(?<![\d$.])(\d+)\.(\d+)(?!\d)", one, s)
+    # 🔴 A DECIMAL WITH NO WHOLE PART IS STILL A DECIMAL. (EP54, 30 Sep 2026.)
+    # The article prints "tripled their profits (.05 to .15)". The rule above needs a
+    # digit in front of the point, so `.05` fell through to spoken_form's bare-integer
+    # rule, which dropped the point and read it "five" — and `.15` "fifteen". That is
+    # a CHANGE OF VALUE, the one thing this module exists to refuse, and it left the
+    # script's correct "point oh five to point one five" nothing to match. The writer
+    # refused to alter the author's figure on all three attempts, rightly.
+    #     🔒 A READING, NOT A WIDENING: it spells the digits after the point exactly
+    # as `one` does, so `.05` can only ever be "point zero five". It REPLACES the old
+    # "five" reading rather than adding to it, because "five" was never what `.05`
+    # says. Money (`$.50`) is left to spoken_form, as above.
+    return re.sub(r"(?<![\w$.,])\.(\d+)(?!\d)",
+                  lambda m: "point " + " ".join(int_words(int(d)) for d in m.group(1)),
+                  s)
 
 
 
@@ -601,6 +615,16 @@ _ORDINAL_WORDS = set(_ORD_ONES.values()) | set(_ORD_TENS.values())
 # Words that may sit INSIDE a spoken figure but never start or end one.
 CONNECTORS = set("and to on per cent dollars dollar point in".split())
 
+# 🔴 "OH" IS ZERO AFTER A DECIMAL POINT, AND NOWHERE ELSE. (EP54, 30 Sep 2026.)
+# `.05` is said "point oh five". "oh" was not a number word, so the reader broke the
+# figure at it and traced the FRAGMENT "five to point one five" — the tail of one
+# figure glued to the whole of the next — which no article ever states. After
+# "point" the only thing "oh" (or "nought") can mean is the digit 0, so it is read
+# "zero", which is how the article side spells it. Anywhere else "oh" is English
+# ("Oh, and another thing") and is left alone.
+_POINT_ZERO = {"oh", "nought", "naught"}
+_DIGIT_WORDS = set("zero one two three four five six seven eight nine".split())
+
 # ⚠️ "and" IS ONLY A CONNECTOR WHERE A NUMBER ACTUALLY USES ONE — after "hundred"
 # or "thousand", which is precisely where int_words emits it ("one hundred AND
 # twenty"). Everywhere else it joins two SEPARATE figures, and treating it as
@@ -631,7 +655,22 @@ def figures(text: str) -> list[str]:
         prev = ""
         before = ""      # the word immediately BEFORE the run began — see _is_prose
         toks = norm_words(chunk)
-        for tok in toks + ["\x00"]:
+        ahead = toks + ["\x00", "\x00", "\x00"]
+        in_decimal = False   # inside the digits that follow a spoken "point"
+        for i, tok in enumerate(toks + ["\x00"]):
+            # The digits after "point" are read one at a time, and "oh" is one of them.
+            if run and tok in _POINT_ZERO and (run[-1] == "point" or in_decimal):
+                tok = "zero"
+            # A figure may OPEN on "point" only where what follows can be nothing but
+            # decimal digits — "point oh five". A bare "point two" stays out: "at this
+            # point two things matter" is English and was never read as a figure.
+            if not run and tok == "point" and ahead[i + 1] in _POINT_ZERO | {"zero"} \
+                    and ahead[i + 2] in _DIGIT_WORDS | _POINT_ZERO:
+                before = prev
+                run.append(tok)
+                prev = tok
+                in_decimal = True
+                continue
             if tok == "and" and not (run and run[-1] in _AND_AFTER):
                 tok_is_connector = False
             else:
@@ -647,7 +686,9 @@ def figures(text: str) -> list[str]:
                         run.append("one")
                 run.append(tok)
                 prev = tok
+                in_decimal = tok == "point" or (in_decimal and tok in _DIGIT_WORDS)
                 continue
+            in_decimal = False
             while run and run[-1] in CONNECTORS:
                 run.pop()
             if run and any(t in NUMBER_WORDS for t in run) \
