@@ -142,12 +142,42 @@ else:
         bounds[i1+1] = t1
     starts_ = [SPEECH_START] + [bounds[i] for i in range(1, len(paras))]
 
+# 🔴 THE END OF SPEECH MAY NOT LAND BEFORE THE SIGN-OFF BEGINS. (EP54, 30 Sep 2026.)
+# SPEECH_END above is the start of the LAST pause of 0.55s or more. That assumes the
+# render ends in silence, and since EP31 HeyGen stops ~0.5s after the last word — too
+# short to count — so the "last pause" is the one leading INTO the sign-off paragraph.
+# That is the house ending (Jodie's ruling, 30 Sep 2026: speech continuing under the
+# warranty slide is acceptable; the EP31+ endings are not a fault), and on EP31-EP52 it
+# sits 0.65-0.8s before the last shot starts. It is KEPT exactly: EP50-52 must build
+# byte-identical.
+#     EP54 had no such pause before its sign-off, so the last pause found was 13.5s
+# earlier, mid-way through the free-guide line. The last shot then ended 13.5s before
+# it started, the end card was given -1.32s to live, and ffmpeg refused pass B three
+# times. So where the pause is not the one leading into the sign-off, the end of speech
+# is the sign-off's own start — the same look: the warranty comes in over "That's me
+# for this one", never before it.
+LEADIN_TOL = 1.0      # the lead-in pause may sit this far before the last shot's start
+if SPEECH_END < starts_[-1] - LEADIN_TOL:
+    print(f"!! the last pause ({SPEECH_END:.2f}s) is {starts_[-1] - SPEECH_END:.2f}s before "
+          f"the sign-off starts ({starts_[-1]:.2f}s), so it is not the pause leading into "
+          f"it. The end of speech is taken as the sign-off's start instead.")
+    SPEECH_END = starts_[-1]
+
 table = []
 for i,p in enumerate(paras):
     end = starts_[i+1] if i+1 < len(paras) else SPEECH_END
     fr = "MCU" if (i+1) % 2 == 1 else "WIDE"   # default alternation; adjust to shot script!
     table.append({"shot": i+1, "start": round(starts_[i],2), "end": round(end,2),
                   "framing": fr, "first_words": " ".join(norm(p)[:5])})
+# REFUSE, NEVER WRITE, A MAP IN WHICH A SHOT ENDS BEFORE IT STARTS. The one tolerated
+# overlap is the last shot's lead-in pause above (at most LEADIN_TOL); anything else is
+# a broken timeline, and every card, b-roll slot and the end sequence would inherit it.
+bad = [s for s in table[:-1] if s["end"] <= s["start"]]
+if table and table[-1]["end"] < table[-1]["start"] - LEADIN_TOL:
+    bad.append(table[-1])
+if bad:
+    sys.exit("REFUSED: shot-map.json not written — these shots end before they start: "
+             + "; ".join(f"shot {s['shot']} {s['start']:.2f}->{s['end']:.2f}" for s in bad))
 json.dump(table, open(f"{OUTDIR}/shot-map.json","w"), indent=1)
 
 # 4. sentence-level SRT, word-proportional inside each paragraph
