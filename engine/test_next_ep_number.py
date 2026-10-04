@@ -60,9 +60,11 @@ console.log(JSON.stringify({
 """
 EP49_URL = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
             "range-of-form-analysis-techniques/fighting-a-complex-game-part-1-20031112")
-args = {"maxes": [48, 49, 50, 0, None],
+EP55_URL = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
+            "range-of-form-analysis-techniques/is-the-trainer-so-important-part-2-20031210.html")
+args = {"maxes": [48, 49, 50, 0, None, 54, 55],
         "urls": [EP49_URL, "https://www." + EP49_URL[8:] + "/",
-                 "https://practicalpunting.com.au/some-new-article/"]}
+                 "https://practicalpunting.com.au/some-new-article/", EP55_URL]}
 r = subprocess.run([node, "-e", harness, json.dumps(args)],
                    capture_output=True, text=True, timeout=60)
 got = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else None
@@ -82,6 +84,11 @@ check("  and it says which episode it already is", "PP-EP49" in got["paste"][0],
       got["paste"][0])
 check("  across www and a trailing slash", bool(got["paste"][1]), got["paste"][1])
 check("a new article is still allowed through", got["paste"][2] == "", got["paste"][2])
+# EP55, the second two-way (5 Oct 2026): reserved the same way as EP49.
+check("rail at 54 -> the next paste is EP56, not EP55", nxt[5] == 56, nxt[5])
+check("rail at 55 -> 56", nxt[6] == 56, nxt[6])
+check("pasting the second two-way's article is REFUSED as PP-EP55",
+      "PP-EP55" in (got["paste"][3] or ""), got["paste"][3])
 
 # ── the live question: is the number the board would hand out NOW already taken? ──
 try:

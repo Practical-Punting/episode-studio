@@ -309,6 +309,10 @@ const RESERVED_EPS = [
   { ep_number: 49, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
     "form-analysis/range-of-form-analysis-techniques/fighting-a-complex-game-part-1-20031112",
     why: "the two-way episode (no rail row by design)" },
+  // EP55 is the second two-way, "The Fundamentals of Handicapping" Part 2 (Jodie, 5 Oct 2026).
+  { ep_number: 55, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
+    "form-analysis/range-of-form-analysis-techniques/is-the-trainer-so-important-part-2-20031210.html",
+    why: "the second two-way episode (no rail row by design)" },
 ];
 
 function nextEpNumber(maxOnRail) {
