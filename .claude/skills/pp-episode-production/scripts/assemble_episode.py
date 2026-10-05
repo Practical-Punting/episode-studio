@@ -64,10 +64,10 @@ TITLE_IN, END_IN, WAR_IN, PRES_A_IN, MUSIC_IN = M + 1, M + 2, M + 3, M + 4, M + 
 # are scaled by the same LIFT: the music is 2 dB louder, the threshold is 2 dB higher,
 # and the compressor sees exactly the key/threshold ratio it always did. Balance and
 # ducking are unchanged; only the level moves. qc_episode.py asserts the result.
-TARGET_LUFS = -14.0          # integrated, whole file
-TARGET_TP = -1.0             # dBTP ceiling, whole file (qc_episode.LOUDNESS_TP_MAX)
-MIX_REF_LUFS = -16.0         # the speech level the v3 balance was tuned at — do not move
-LIFT = 10 ** ((TARGET_LUFS - MIX_REF_LUFS) / 20)
+# 📌 THE NUMBERS LIVE IN publish_loudness.py (6 Oct 2026), shared with twoway_render.py —
+# the two-way kept the old -16 recipe for nine days because it had its own copy.
+from publish_loudness import TARGET_LUFS, TARGET_TP, MIX_REF_LUFS, LIFT  # noqa: E402,F401
+from publish_loudness import LIMIT_MARGIN_DB, LIMIT, DUCK_THRESHOLD_REF  # noqa: E402,F401
 # The last stage is a SAMPLE-peak limiter and the AAC encode after it adds inter-sample
 # overs, so its ceiling sits under the true-peak target by LIMIT_MARGIN_DB.
 # 🔴 AND IT RUNS WITH level=0. alimiter's `level` (auto-level) is ON by default: it
@@ -78,8 +78,6 @@ LIFT = 10 ** ((TARGET_LUFS - MIX_REF_LUFS) / 20)
 # 1.0 dB margin; at 0.5 dB the peak was -1.1, too close to the line after the encode.
 # The half-LU short of -14 is the price of the ceiling — the raw mix already peaks at
 # full scale, so every extra dB of level is a dB of peak that must be limited.
-LIMIT_MARGIN_DB = 1.0
-LIMIT = round(10 ** ((TARGET_TP - LIMIT_MARGIN_DB) / 20), 4)
 
 # The readable minimum (card-sync standard, 25 Jul 2026) SCALES with the card's
 # reading load — card_hold.py owns the rule, and derive_card_timings and qc_episode
@@ -247,7 +245,7 @@ def passB():
     # no limit to exceed, so this cannot come back at a longer episode.
     fc += (f"[{MUSIC_IN}:a]aloop=loop=-1:size=6000000,atrim=duration={TOTAL},asetpts=PTS-STARTPTS,"
            f"volume='{LIFT:.6f}*({env})':eval=frame,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[musraw];\n")
-    fc += (f"[musraw][spkey]sidechaincompress=threshold={0.015 * LIFT:.6f}:ratio=14:attack=12:release=420:makeup=1:level_sc=2[mus];\n")
+    fc += (f"[musraw][spkey]sidechaincompress=threshold={DUCK_THRESHOLD_REF * LIFT:.6f}:ratio=14:attack=12:release=420:makeup=1:level_sc=2[mus];\n")
     fc += f"[sp][mus]amix=inputs=2:duration=first:normalize=0,alimiter=limit={LIMIT}:level=0[aout]"
     return fc
 

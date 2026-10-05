@@ -22,8 +22,10 @@ the real build, which is how "it looked right in the proof" stops meaning anythi
 ── THE AUDIO IS NOT ASSEMBLED HERE ───────────────────────────────────────────────────
 It comes from the interleaved timeline in one pass — each man's own master at his own
 in/out, the latency beats as silence — and the music rides the standing envelope with
-the speech as its sidechain key. That recipe is IMPORTED from `assemble_episode`, never
-re-typed: one home for the thing that decides how loud the bed is under a voice.
+the speech as its sidechain key. Its LEVELS come from `publish_loudness`, the module
+`assemble_episode` reads too — one home for how loud the film is and how loud the bed is
+under a voice. (Until 6 Oct 2026 this sentence claimed the recipe was imported while the
+file carried its own -16 copy; see `audio_graph`.)
 """
 from __future__ import annotations
 
@@ -39,6 +41,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / ".claude/skills/pp-episode-production/scripts"))
 
 import ep_paths                                                   # noqa: E402
+import publish_loudness as pl                                     # noqa: E402
 import twoway_assemble as ta                                      # noqa: E402
 import twoway_composite as tc                                     # noqa: E402
 
@@ -707,20 +710,7 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     # derives and what `assemble_episode`'s pass A does (it overlays the chip with no
     # scale filter at all). A scale here would be a fifth description of one mark.
     fc = ("[1:v]format=rgba[lg];\n" + chips_fc +
-          "".join(x[3] for x in gfx) + vfc +
-          f"[2:a]apad=whole_dur={total},atrim=duration={total},asetpts=PTS-STARTPTS,"
-          f"adelay={int(ta.TITLE_HEAD_S * 1000)}|{int(ta.TITLE_HEAD_S * 1000)},"
-          f"apad=whole_dur={total},atrim=duration={total},"
-          f"loudnorm=I=-16:TP=-1.5:LRA=11,"
-          f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
-          f"asplit=2[sp][spkey];\n"
-          f"[3:a]aloop=loop=-1:size=6000000,atrim=duration={total},"
-          f"asetpts=PTS-STARTPTS,volume='{mus_env}':eval=frame,"
-          f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
-          f"[musraw];\n"
-          f"[musraw][spkey]sidechaincompress=threshold=0.015:ratio=14:attack=12:"
-          f"release=420:makeup=1:level_sc=2[mus];\n"
-          f"[sp][mus]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]")
+          "".join(x[3] for x in gfx) + vfc + audio_graph(total, mus_env))
     # 📌 THE INPUT ORDER IS THE GRAPH'S CONTRACT AND THE TWO ARE READ TOGETHER:
     # [0] picture · [1] logo · [2] speech · [3] music · [4] chips (only if there are
     # chips) · then the standing graphics in `gin` order, which is the order `gfx` was
@@ -936,6 +926,36 @@ def card_logo_geometry(d: pathlib.Path, plan: dict) -> dict:
             "x": W - int(g["right"]) - int(g["width"]),
             "y": H - int(g["bottom"]) - int(g["height"]),
             "pages": len(next(iter(found.values())))}
+
+
+def audio_graph(total: float, mus_env: str) -> str:
+    """The finish's audio: [2:a] speech, [3:a] music -> [a]. Publish loudness (6 Oct 2026).
+
+    🔴 THIS WAS A SECOND, OLDER RECIPE. `assemble_episode` moved to -14 LUFS / -1.0 dBTP
+    on 27 Sep and this kept `loudnorm=I=-16`, a duck threshold tuned for -16 and
+    `alimiter=limit=0.95` with auto-level ON — which turns every master up to full scale,
+    so 0.95 was never a ceiling. The numbers now come from `publish_loudness`, the one
+    home both mixers read, and the whole mix lifts together: speech to TARGET_LUFS, the bed
+    and the duck threshold by the same LIFT (balance and ducking unchanged), and a limiter
+    with level=0 whose limit IS the ceiling. `twoway_qc` measures the finished file
+    against the same numbers through `qc_episode.loudness_verdict`.
+    """
+    hd = int(ta.TITLE_HEAD_S * 1000)
+    return (f"[2:a]apad=whole_dur={total},atrim=duration={total},asetpts=PTS-STARTPTS,"
+            f"adelay={hd}|{hd},"
+            f"apad=whole_dur={total},atrim=duration={total},"
+            f"loudnorm=I={pl.TARGET_LUFS:g}:TP=-1.5:LRA=11,"
+            f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
+            f"asplit=2[sp][spkey];\n"
+            f"[3:a]aloop=loop=-1:size=6000000,atrim=duration={total},"
+            f"asetpts=PTS-STARTPTS,volume='{pl.LIFT:.6f}*({mus_env})':eval=frame,"
+            f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
+            f"[musraw];\n"
+            f"[musraw][spkey]sidechaincompress="
+            f"threshold={pl.DUCK_THRESHOLD_REF * pl.LIFT:.6f}:ratio=14:attack=12:"
+            f"release=420:makeup=1:level_sc=2[mus];\n"
+            f"[sp][mus]amix=inputs=2:duration=first:normalize=0,"
+            f"alimiter=limit={pl.LIMIT}:level=0[a]")
 
 
 def music_envelope(plan: dict) -> str:

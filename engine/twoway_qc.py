@@ -23,6 +23,8 @@ What it asks, in the order that matters:
      picture, and holes are what a concat of sixty-four pieces gets wrong.
   5. **Is the end ever silent?** PP-STANDARDS §END SEQUENCE item 3 — the warranty
      window's RMS, measured, because "the end is NEVER silent" is the EP08 lesson.
+  5b. **Is it at the publish loudness?** -14 LUFS ±1, true peak ≤ -1.0 dBTP, judged by
+     `qc_episode`'s own verdict (6 Oct 2026).
 """
 from __future__ import annotations
 
@@ -103,6 +105,27 @@ def seam_check(path: pathlib.Path, t: float, layout: dict) -> dict:
         out[side] = {"keyline_pct": round(hit * 100, 1),
                      "brightness": round(float(body.mean()), 1)}
     return out
+
+
+class _LoudnessQC:
+    """The slice of qc_episode's QC object that `stage_loudness` writes into."""
+
+    def __init__(self):
+        self.loudness, self.failed, self.notes, self.warned = {}, [], [], []
+
+    def fail(self, m): self.failed.append(m)
+    def note(self, m): self.notes.append(m)
+    def warn(self, m): self.warned.append(m)
+
+
+def loudness(ep: pathlib.Path) -> _LoudnessQC:
+    """Measure AND judge the finished file with `qc_episode.stage_loudness` — its parse
+    and its `loudness_verdict`, both, so there is one rule for every PP film."""
+    sys.path.insert(0, str(HERE.parent / ".claude/skills/pp-episode-production/scripts"))
+    import qc_episode
+    q = _LoudnessQC()
+    qc_episode.stage_loudness(q, str(ep))
+    return q
 
 
 def main() -> int:
@@ -257,6 +280,20 @@ def main() -> int:
                           f"silent (§END SEQUENCE item 3, the EP08 lesson).")
     else:
         notes.append("could not measure the warranty window's RMS")
+
+    # 5b \u2014 \ud83d\udd34 THE PUBLISH LOUDNESS, MEASURED ON THE FINISHED FILE (6 Oct 2026).
+    # -14 LUFS \u00b11 integrated, true peak \u2264 -1.0 dBTP \u2014 the verdict is
+    # `qc_episode.loudness_verdict` itself, not a copy, so the two-way and the
+    # single-presenter cannot be judged by different rules. EP49 shipped at -15.9
+    # with nothing here to say so.
+    lq = loudness(ep)
+    p["lufs"], p["true_peak"] = lq.loudness.get("I"), lq.loudness.get("true_peak")
+    print(f"\n  loudness {p['lufs']} LUFS integrated, true peak {p['true_peak']} dBTP")
+    faults += lq.failed
+    notes += lq.notes + [f"loudness: {w}" for w in lq.warned]
+    if p["lufs"] is None:
+        faults.append("the loudness could not be measured, so it was not checked — "
+                      "an unmeasured film is not a film at -14.")
 
     # 6 \u2014 \ud83d\udd34 THE PLAIN END FRAME, IN PIXELS. \u00a7END SEQUENCE has no rule for this and
     # `end_frame.py` does: YouTube draws its end-screen boxes over the last 15-20

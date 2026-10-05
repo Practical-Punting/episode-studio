@@ -297,9 +297,10 @@ def stage_loudness(qc, final):
 # 0 dBFS all passed QC side by side. assemble_episode.py's TARGET_LUFS / TARGET_TP make
 # it; this checks it. The window is ±1 LU because the ceiling costs about half a LU on a
 # master whose raw mix already peaks at full scale (EP48's inputs: -14.5 / -1.6).
-LOUDNESS_TARGET = -14.0
-LOUDNESS_TOL = 1.0
-LOUDNESS_TP_MAX = -1.0
+import publish_loudness as _pl  # noqa: E402 — the maker's own numbers (6 Oct 2026)
+LOUDNESS_TARGET = _pl.TARGET_LUFS
+LOUDNESS_TOL = _pl.TOLERANCE_LU
+LOUDNESS_TP_MAX = _pl.TARGET_TP
 
 
 def loudness_verdict(qc, integrated, true_peak):
