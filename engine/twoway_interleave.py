@@ -686,11 +686,27 @@ def merged_srt(tl: list[dict], srts: dict[str, list[dict]]) -> str:
 # ─────────────────────────────────────────────────────────── the idle pool ──
 
 def idle_pool(pauses: dict[str, list], masters: dict[str, str],
-              out_dir: pathlib.Path, write: bool) -> list[dict]:
-    """Bank the pauses. 📌 THE STEP HAS JUST CUT THEM OUT; SAVING THEM IS FREE."""
+              out_dir: pathlib.Path, write: bool,
+              exclude: list[dict] | None = None) -> list[dict]:
+    """Bank the pauses. 📌 THE STEP HAS JUST CUT THEM OUT; SAVING THEM IS FREE.
+
+    🔴 EXCEPT A PAUSE A HUMAN HAS RULED OUT. `exclude` is `build.idle_exclude` from
+    episode.json — `{"speaker", "from_s", "to_s", "why"}` on that man's master clock. Jodie,
+    6 Oct 2026, EP55: Steve's render vocalised gibberish and blips inside six of his seven
+    breaks; the AUDIO can be cut, but the PICTURE of those pauses still shows his mouth
+    moving, so *"don't harvest any of those broken pauses as listening footage."* A pause
+    that overlaps an exclusion is not banked, and each one skipped is printed.
+    """
     made = []
+    ex = [e for e in (exclude or []) if e.get("speaker") in pauses]
     for code, spans in pauses.items():
         for i, (a, b) in enumerate(spans, start=1):
+            hit = next((e for e in ex if e["speaker"] == code
+                        and a < float(e["to_s"]) and float(e["from_s"]) < b), None)
+            if hit:
+                print(f"  idle: NOT banking {code} pause {i} ({a:.2f}-{b:.2f}s) — "
+                      f"{hit.get('why', 'excluded in build.idle_exclude')}", flush=True)
+                continue
             a, b = silence_inset(a, b)   # a PAUSE, pulled in off the words
             d = round(b - a, 3)
             if d < MIN_IDLE_S:
@@ -744,7 +760,8 @@ def snap_plan(plan: list[dict], cues: list[dict]) -> list[dict]:
 
 def run(turns: list[dict], masters: dict[str, str], srt_text: dict[str, str],
         out_dir: pathlib.Path, write: bool = False,
-        manifest: dict | None = None, host: str | None = None) -> dict:
+        manifest: dict | None = None, host: str | None = None,
+        idle_exclude: list[dict] | None = None) -> dict:
     # 🔴 THE HOST'S MASTER IS COUNTED IN SEGMENTS, NOT TURNS. His render holds
     # the furniture as well as his five turns, so the n-1 silence assertion has to be
     # about what is IN the file. Counting turns would halt every two-way from 20 Sep on
@@ -759,7 +776,7 @@ def run(turns: list[dict], masters: dict[str, str], srt_text: dict[str, str],
     tl = timeline(turns, spans, masters, manifest, host)
     cues = {c: read_srt(t) for c, t in srt_text.items()}
     srt = merged_srt(tl, cues)
-    idle = idle_pool(pauses, masters, out_dir, write)
+    idle = idle_pool(pauses, masters, out_dir, write, idle_exclude)
 
     speech = sum(s["dur_s"] for s in tl if s.get("kind") != "latency")
     beats = sum(s["dur_s"] for s in tl if s.get("kind") == "latency")
@@ -797,9 +814,10 @@ def main() -> int:
             return 1
         masters[code], srts[code] = str(m), s.read_text(encoding="utf-8")
     epj_p = d / "docs/episode.json"
-    host, manifest = None, None
+    host, manifest, exclude = None, None, None
     if epj_p.is_file():
         epj = json.loads(epj_p.read_text(encoding="utf-8"))
+        exclude = (epj.get("build") or {}).get("idle_exclude")
         host = next((c for c, v in (epj.get("speakers") or {}).items()
                      if v.get("host")), None)
         mp = d / f"docs/script-manifest-{host}.json" if host else None
@@ -809,7 +827,7 @@ def main() -> int:
                   f"({sum(1 for x in manifest['segments'] if x['kind'] == 'furniture')} "
                   f"furniture) from {mp.name}")
     try:
-        res = run(turns, masters, srts, d, a.write, manifest, host)
+        res = run(turns, masters, srts, d, a.write, manifest, host, exclude)
     except Mismatch as e:
         print(f"\n🚫 {e}")
         return 1
