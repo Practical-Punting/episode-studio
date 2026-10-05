@@ -762,9 +762,18 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
                     END_SETTLE_S)
     end_card, warranty, total = tail["end_card"], tail["warranty"], tail["total_s"]
 
+    # 🔴 THE TITLE CARD IS THIS EPISODE'S. This read `overlay/clips/ep49-title.mp4` as a
+    # literal until 6 Oct 2026 — EP55 would have asked its own folder for EP49's file.
+    # `author_title_card` writes `<ep>-title.html`, so the clip is `<ep>-title.mp4`.
+    title = d / f"overlay/clips/{str(epj['episode']).lower()}-title.mp4"
+    if not title.is_file():
+        raise Unassemblable(
+            f"the title card {title.name} is not in overlay/clips. Every episode opens on "
+            f"its own title card; render {title.stem}.html first.")
+
     return {
         "episode": epj["episode"],
-        "head": {"title_card": str(d / "overlay/clips/ep49-title.mp4"),
+        "head": {"title_card": str(title),
                  "from_s": 0.0, "to_s": TITLE_HEAD_S},
         "segments": mapped,
         "furniture": [s for s in tl if s.get("kind") == "furniture"],

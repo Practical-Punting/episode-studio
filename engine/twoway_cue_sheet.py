@@ -124,7 +124,7 @@ def build(ep_number: int, pp: pathlib.Path = PP) -> str:
                      f"{mmss(spec['spoken_at_s'])}"))
     rows.sort(key=lambda r: (int(r[0].split(":")[0]) * 60 + float(r[0].split(":")[1])))
 
-    out = [f"# EP49 — CUE SHEET",
+    out = [f"# {epj['episode']} — CUE SHEET",
            f"",
            f"**{epj['packaging']['youtube_title']}**",
            f"",
