@@ -389,3 +389,22 @@ eleven breaks sit wholly within one render and no harvested listening pause carr
 seam. 🔴 **The PICTURE still jumps at both seams** — hands and posture
 change instantly — because they are two renders of the same man. **Both originals
 are kept on disk.**
+
+## 🎬 EP55 — THE TWO FULL RENDERS (downloaded 5 Oct 2026, NOT yet listened to)
+
+**Pulled 5 October 2026 via the API `video_url` by EXACT title, each verified against
+the server's own byte count. Jodie's paste and click, on plan credits. No API render.**
+Files: `PP-EP55-Is-the-Trainer-So-Important-Part-2\renders\<title>.mp4`.
+
+| title | who | template | voice | video id | bytes | length |
+|---|---|---|---|---|---|---|
+| `PP-EP55-BM-full` | Steve | `Barry test 2 small ` | Narrative Nolan | **`f791a5f8155b440e9121422d983b37d4`** | 66,082,321 | 401.7s (6:42) |
+| `PP-EP55-BB-full` | Gordon | `Gordon two-way small` | Patrick | **`13691f4a26074984914fa0b486d7ea08`** | 100,036,062 | 547.9s (9:08) |
+
+✅ **Gordon:** render QC clean — 14 of 14 six-second breaks landed (5.87–6.69s).
+🔴 **Steve: the breaks did NOT land as asked.** Break 2 is a true 6.3s digital silence;
+breaks 1, 3, 4, 5 and 7 measure 1.9–2.4s of quiet broken by short loud blips; break 6
+(after "...wait and see what develops.") is replaced by ~4s of SPOKEN GIBBERISH,
+5:03.9–5:07.5: *"Iron in that mochit, Argezal is the man and dollars."* Every scripted
+word is present (Whisper vs script, 98.4%). Detail: `output\qc\render-qc-BM.json`.
+Whether these are the takes in the episode waits on Jodie's end-to-end listen.
