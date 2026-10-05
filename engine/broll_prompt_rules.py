@@ -152,7 +152,9 @@ def orientation_for(text: str) -> str:
     a ridden horse on a track; a plain frame line for a horse off it; and no horses at
     all where there are none."""
     t = text or ""
-    if is_ridden(t):
+    # A jockey ON FOOT is "ridden" by the word list but has no horse in the picture: the
+    # running-horse line is only for a picture that actually contains one (EP55 cover B).
+    if is_ridden(t) and shows_actual_horses(t):
         return ORIENTATION if several_horses(t) else ORIENTATION_ONE
     return ORIENTATION_PLAIN if shows_actual_horses(t) else ORIENTATION_NO_HORSES
 ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
@@ -1244,7 +1246,9 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
     # Fault 8 — asked HERE and not through `gaps`, because this rule is about a PORTRAIT
     # COVER HERO and must never be graded against a b-roll clip. See MIDDLE_THIRD.
     # Gated on horses: a cover of a man at a desk has no field to put in the middle third.
-    if has_horses(text) and not any(re.search(p, text, re.I) for p in MIDDLE_THIRD_NEEDS):
+    # The FIELD in the middle third — only where horses are actually in the picture. A
+    # jockey on foot with "no horse in frame" was being told about a field of horses.
+    if shows_actual_horses(text) and not any(re.search(p, text, re.I) for p in MIDDLE_THIRD_NEEDS):
         text = _add_sentence(text, MIDDLE_THIRD)
         applied.append("the field in the MIDDLE THIRD, so a 16:9 crop lands on it")
     return text, applied

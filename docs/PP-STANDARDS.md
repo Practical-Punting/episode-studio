@@ -138,6 +138,22 @@ it takes effect. Clearing the red flag alone will NOT rebuild anything.**
    perfectly: all three artefacts agreed — on the wrong name. A consistency check proves
    SAMENESS, never CORRECTNESS. Only the source page can do that.** See the EP17 item.
 
+   ### ⚖️ NAMING RULING, 5 OCTOBER 2026 (Jodie) — A DECLARED SERIES CARRIES TWO NAMES
+   **A SERIES episode properly carries two names: the series with its part ("The
+   Fundamentals of Handicapping - Part 2") and the episode's own headline ("Is the Trainer
+   So Important?").** A surface may carry either one, or the two combined ("The
+   Fundamentals of Handicapping, Part 2: Is the Trainer So Important?"). The question mark
+   and the page's own punctuation stay.
+   - **It applies only where the series is DECLARED**, in `packaging._series` (name, parts,
+     this_part, episode_name). EP49 and EP55 are the first, the two-way *Fundamentals*.
+     Every other episode is held to ONE name exactly as above. This is not the deleted
+     "series name carries the title" provision: the headline is still the episode's name.
+   - **Enforced:** `youtube_title.check_one_name` passes a series episode when every name is
+     the series+part, the episode name, or the two combined. It still FAILS any other
+     mismatch, including the wrong part or a near-miss of the name.
+     `engine/test_one_name_series.py`; this closes the check that EP49 had failed on
+     purpose since 27 Sep.
+
 2a. **🔒 EVERY FIGURE MUST BE TRACED TO A SOURCE SENTENCE — AUTOMATICALLY, AND IT HALTS THE
    BUILD (Jodie, 27 Jul 2026; pre-EP12 improvement).**
    The fidelity rule already says *"if you cannot point to the source sentence, it does not

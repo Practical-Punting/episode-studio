@@ -218,9 +218,51 @@ def episode_names(epj: dict) -> dict:
     }
 
 
+def _words(s: str) -> str:
+    """Letters and digits only, upper-cased — for comparing a name's WORDS, not its punctuation."""
+    return " ".join(re.findall(r"[A-Z0-9]+", (s or "").upper()))
+
+
+def series_names(epj: dict):
+    """The names a SERIES episode may legitimately carry, or None if it is not one.
+
+    ⚖️ JODIE'S RULING, 5 OCT 2026 (closes the item left open since EP49, 27 Sep):
+    A SERIES EPISODE PROPERLY CARRIES TWO NAMES — the series with its part ("The
+    Fundamentals of Handicapping - Part 2") and the episode's own headline ("Is the
+    Trainer So Important?") — and a surface may carry either, or the two combined
+    ("The Fundamentals of Handicapping, Part 2: Is the Trainer So Important?").
+    Read from `packaging._series`, the one place the hierarchy is declared. Compared on
+    WORDS, so a comma, colon, dash or question mark between them is not a difference;
+    the PART must still be this episode's part.
+    """
+    s = (epj.get("packaging") or {}).get("_series") or {}
+    name, ep_name, n = s.get("name"), s.get("episode_name"), s.get("this_part")
+    if not (name and ep_name and n):
+        return None
+    part = f"Part {n}"
+    return {_words(x) for x in (f"{name} {part}", ep_name, f"{ep_name} {part}",
+                                f"{name} {part} {ep_name}", f"{name} {ep_name} {part}",
+                                f"{ep_name} {name} {part}")}
+
+
 def check_one_name(epj: dict) -> list[str]:
-    """Halt-worthy problems if the three artefacts do not name the same episode."""
+    """Halt-worthy problems if the three artefacts do not name the same episode.
+
+    A series episode (packaging._series) passes when every name is the series+part, the
+    episode's own name, or the two combined — and still fails on any other mismatch.
+    Every other episode must carry ONE name everywhere, as before."""
     names = episode_names(epj)
+    allowed = series_names(epj)
+    if allowed is not None:
+        stray = {k: v for k, v in names.items() if _words(v) not in allowed}
+        if not stray:
+            return []
+        return ["A SERIES EPISODE IS CALLED SOMETHING THAT IS NEITHER ITS SERIES NOR ITS OWN "
+                "NAME. Each place may carry the series with its part, the episode's own "
+                "headline, or the two together (Jodie, 5 Oct 2026) — these carry something "
+                "else:\n"
+                + "\n".join(f"       {v!r}\n         in {k}" for k, v in stray.items())
+                + "\n     The names it may carry come from packaging._series in episode.json."]
     folded = {k: _fold(v) for k, v in names.items()}
     distinct = set(folded.values())
     if len(distinct) <= 1:

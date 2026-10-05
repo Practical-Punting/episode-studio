@@ -197,6 +197,18 @@ check("'safety helmet' in a ridden prompt is a finding for a person",
 check("EP49's 'no brim, no peak' is too",
       "old-headgear" in keys(GALLOP + " Each in a skullcap, no brim, no peak."))
 
+print("\n-- 8b. a jockey ON FOOT, no horse in frame (EP55 cover B) --")
+ON_FOOT = ("Portrait cover hero. A woman jockey in bright silks stands with her trainer in the "
+           "mounting yard, saddle over her arm, no horse in frame.")
+o, _ = R.apply_frame_rules(ON_FOOT)
+check("the cover funnel gives no 'running horse' orientation to a picture with no horse",
+      "running along the ground" not in o and "upright orientation" in o, o[-260:])
+check("  and no 'field of horses in the middle third'", "field of horses" not in o, o[-260:])
+check("CONTROL: a galloping cover hero still gets both",
+      all(x in R.apply_frame_rules("Portrait cover hero, four racehorses galloping on the "
+                                   "turf, jockeys in silks.")[0]
+          for x in ("running along the ground", "MIDDLE THIRD")))
+
 print("\n-- 9. a crowd at a rail with NO horses is not a rail fault --")
 check("people leaning over the rail with no horse in shot is fine",
       "rail-in-front" not in keys("A crowd of racegoers leans over the white rail on the lawn, "

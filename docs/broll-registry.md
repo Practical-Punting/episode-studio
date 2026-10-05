@@ -620,3 +620,15 @@ The corrector's own stride line ends *"…across the field"*, so a led yearling,
 - **The writer is told** (`commission_brief()`, handed to the episode.json commission), so the backstop is not reached. A crowd at a rail with no horse in shot is not a rail fault.
 - **Length:** subject first, standing lines short. EP55's six run 473–877 characters. Two are over ~700, and the excess is in the SUBJECT itself (Cowork's wording plus the 147-character headgear sentence), not in the appended lines.
 - **Dry run against the morning's checker (`374203d`), all 379 prompts:** nothing is loosened on a ridden horse beyond the ruled cases — 20 stride lines on single or walking horses, and 16 rail lines on prompts that already place the rail. **37 of the 146 single-presenter prompts in the archive would still stop the engine on the writer's own choices** (a field or a count over four, a rider on a walking horse, a foreground rail); 81 more would stop only on "safety helmet", which the OLD corrector itself wrote into them. All are published, or EP50 (already generated), so none should be generated again.
+
+### 📋 STANDING ORDER FOR B-ROLL (Jodie, 5 October 2026): GENERATE → JODIE CHECKS IN HIGGSFIELD → ONLY APPROVED CLIPS ARE DOWNLOADED
+1. **Generate** every clip through `engine/hf_guard.py`, inside the episode's 110-credit ceiling.
+2. **Jodie checks each clip in Higgsfield.** Nothing is downloaded before she has looked.
+3. **Only the clips she approves are downloaded** into the episode's `broll\` folder, by job id and never by "the most recent generation", because the IW line shares the account.
+
+**First run: EP55, 5 Oct 2026, all six slots.** Riders appear in slots 3 and 5, so on those two Jodie is checking that the skull cap has a **short peak**, not a baseball cap. That is the first real test of the 5 Oct headgear wording.
+
+### ✅ EP55's SIX CLIPS — ALL SIX PASS (Jodie, 5 October 2026, checked in Higgsfield)
+- ✅ **VERDICT: all six approved, first time, NO re-rolls.** That is six of six on the first run of the new rules: the **shot-aware checker** (5 Oct), **the four 20 Sep rules** (four at most, plain saddlecloths, a walking horse riderless and led, the rail behind the horses), and **the skull-cap wording** (Jodie's headgear ruling). On slots 3 and 5 she checked that the skull cap has a short peak, not a baseball cap. It passed.
+- Spend: 79.5 credits for six clips, the guard's quote matching the real spend on every job.
+- ⚠️ One run is evidence, not a rate. Earlier episodes measured about 1 fault in 18 clips, so six clean clips cannot tell a better rate from luck. Keep logging in `docs/broll-fault-tally.md`.

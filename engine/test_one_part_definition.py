@@ -164,7 +164,7 @@ def _only_ep34_changes():
     from ep_paths import PP, episode_dir
     if not PP.is_dir():
         raise AssertionError(f"{PP} is not reachable — this control did not run")
-    changed, checked = [], 0
+    changed, checked, series_set_aside = [], 0, []
     for n in range(1, 60):
         d = episode_dir(n) / "docs/episode.json"
         if not d.is_file():
@@ -172,6 +172,13 @@ def _only_ep34_changes():
         try:
             e = json.loads(d.read_text(encoding="utf-8"))
         except Exception:                                             # noqa: BLE001
+            continue
+        # ⚖️ A SERIES episode (packaging._series) is judged by Jodie's 5 Oct 2026 ruling —
+        # it may carry the series+part and its own name — and that ruling has its own
+        # suite (test_one_name_series.py). It is set aside HERE, and named, because this
+        # control is about the 20 Aug part definition, not about the series hierarchy.
+        if getattr(yt, "series_names", None) and yt.series_names(e) is not None:
+            series_set_aside.append(f"EP{n}")
             continue
         checked += 1
         names = yt.episode_names(e)
@@ -186,6 +193,7 @@ def _only_ep34_changes():
         f"{len(changed)} episodes changed verdict, expected exactly one (EP34): "
         f"{changed}. A fix that re-opens or silently repairs a shipped episode is worse "
         f"than the bug.")
+    print(f"      (series episodes set aside for the 5 Oct ruling: {series_set_aside})")
 
 
 case("INERT — of every episode on disk, only EP34's verdict changes (FAULT -> clean)",
