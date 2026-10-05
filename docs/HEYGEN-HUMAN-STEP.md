@@ -408,3 +408,18 @@ breaks 1, 3, 4, 5 and 7 measure 1.9–2.4s of quiet broken by short loud blips; 
 5:03.9–5:07.5: *"Iron in that mochit, Argezal is the man and dollars."* Every scripted
 word is present (Whisper vs script, 98.4%). Detail: `output\qc\render-qc-BM.json`.
 Whether these are the takes in the episode waits on Jodie's end-to-end listen.
+
+### EP55 — Gordon re-rendered as `PP-EP55-BB-full v2` (6 Oct 2026, NOT yet listened to)
+
+Jodie's paste and click, plan credits. Found by EXACT title (the space before `v2` is real),
+downloaded by id as a NEW file beside v1 — v1 kept exactly as it was.
+
+| title | who | video id | bytes | length |
+|---|---|---|---|---|
+| `PP-EP55-BB-full v2` | Gordon (Patrick) | **`172db065e85344448ddf6710d8b2fdc2`** | 102,458,694 | 563.8s (9:24) |
+
+✅ Render QC clean: 14 of 14 breaks (5.50–6.78s). Every scripted word present; the odds line was
+transcribed as "66-1" (6:33), so whether "to" was said is for the ear. Robotic-voice detector
+(15s/5s): whole-file median 6.53 against v1's 5.55; v1's flagged segments 8–10 read 6.37–7.21 in v2
+(v1: 4.75–4.89). Detail: `output\qc\render-qc-BB-v2.json`, `robot15-BB-v2.*`.
+Which take goes in the episode waits on Jodie's listen.
