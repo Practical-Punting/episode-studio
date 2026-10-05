@@ -249,6 +249,29 @@ def _frac_odds(m) -> str:
     return f"{int_words(int(m.group(1)))} to {int_words(int(m.group(2)))}"
 
 
+def _frac_said(m) -> str:
+    """The ONE reading a writer speaks a slash with: a price as "X to Y", else a fraction.
+
+    🔴 RACING ODDS ARE NEVER READ "OVER" (Jodie, 5 Oct 2026, EP55). The writer's fold
+    used `_frac_named`, which has no name for a denominator of one, so the article's
+    `3/1` and `66/1` came out "three over one" and "sixty six over one" in a two-way
+    script — words nobody on a racecourse says.
+    A slash is read as a price when it CANNOT be a named fraction anybody says: the top is
+    at least the bottom (`3/1`, `66/1`, `7/4`, `6/4` — never "seven quarters"), or the
+    bottom has no name (the old "over" reading). Anything else keeps the named fraction,
+    so EP16's `1/9` is still "one ninth".
+    🔒 THE GATE IS NOT TOUCHED. `haystacks()` passes `_frac_named`, `_frac_in` and
+    `_frac_odds` explicitly and already accepted "three to one"; this is only the
+    DEFAULT, which is what a writer (`twoway_split.spoken`) speaks with.
+    ⚠️ STILL AMBIGUOUS, AND SAID SO: an odds-on price with a named bottom (`4/6`, `8/11`)
+    reads as a fraction here. The notation cannot tell a price from a probability.
+    """
+    n, d = int(m.group(1)), int(m.group(2))
+    if n >= d or d not in _FRACTION:
+        return _frac_odds(m)
+    return _frac_named(m)
+
+
 # ── ORDINALS ────────────────────────────────────────────────────────────────
 # Articles write `2nd`, `3rd`, `4th`; scripts say "second", "the third". And a
 # DATE written `September 23` is spoken "the twenty third of September" — the
@@ -413,7 +436,7 @@ def ranges_as_to(text: str, drop_first_marker: bool = False) -> str:
     return _RANGE_PAIR.sub(sub, text or "")
 
 
-def fold(text: str, frac=_frac_named, reading: str = "cardinal",
+def fold(text: str, frac=_frac_said, reading: str = "cardinal",
          ordinal_dates: bool = False, spans_as_to: int = 0,
          unit_reading: str | None = None) -> str:
     """The article, written the way it is SAID.
@@ -461,8 +484,12 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     s = re.sub(r"\b(\d{1,2})\s*yo('?s)?\b",
                lambda m: f"{int_words(int(m.group(1)))}-year-old" + ("s" if m.group(2) else ""),
                s, flags=re.I)
-    s = re.sub(r"\b(\d+)(st|nd|rd|th)\b",
-               lambda m: ordinal_words(int(m.group(1))), s)
+    # 🔴 A PLACING IS PLURAL TOO: "two 2nds", "no 2nds", "three 3rds" (Jodie, 5 Oct 2026,
+    # EP55). The rule used to stop at the `\b` after "nd", which an "s" removes, so `2nds`
+    # was left as a digit welded to letters and nobody could say it. Placings in the plural
+    # read "seconds", "thirds"; the singular is unchanged.
+    s = re.sub(r"\b(\d+)(st|nd|rd|th)(s?)\b",
+               lambda m: ordinal_words(int(m.group(1))) + m.group(3), s)
     # A DECADE, before anything else can mistake it for a year. See `_decade`.
     s = re.sub(r"\b(\d{2})(\d0)s\b", _decade, s)
     if ordinal_dates:
@@ -524,7 +551,7 @@ def fold(text: str, frac=_frac_named, reading: str = "cardinal",
     # quarter lengths". Only on the NAMED pass — "two three in four" and "two three to
     # four" are not readings of a mixed number either way, so the other passes are left
     # exactly as they were.
-    if frac is _frac_named:
+    if frac is _frac_named or frac is _frac_said:
         s = re.sub(r"\b(\d+)\s+(\d+)\s*/\s*(\d+)\b",
                    lambda m: f"{int_words(int(m.group(1)))} and "
                              + _frac_named(re.match(r"(\d+)/(\d+)", f"{m.group(2)}/{m.group(3)}")),
