@@ -1370,3 +1370,14 @@ one of these faults came from asking for something SPECIFIC that the model canno
 little. **A prompt is a description of a photograph, not a list of requirements.** When
 a constraint is added, read the whole prompt back and ask whether the SUBJECT survives
 it.
+
+## 💳 HIGGSFIELD SPEND — 110 CREDITS PER EPISODE, THROUGH THE GUARD (Jodie, 5 October 2026)
+
+**Claude Code may generate Higgsfield b-roll and cover heroes for PP WITHOUT ASKING, up to 110 credits per episode, every episode. Over that, stop and ask Jodie.** It replaces "ask before spending Higgsfield credits" wherever that was written.
+
+- **Enforced in code, not by memory: `engine/hf_guard.py`.** Every PP generation goes through it: the engine's cover heroes and b-roll, and Claude Code's own (`python engine/hf_guard.py <ep> <label> [--wait] -- <model> <hf create args>`).
+- **What it does:** asks the cost first (free); refuses the job, creating nothing (exit 2, plain words), if the episode's spend so far plus that estimate would pass 110; otherwise reads the balance, creates the job and reads the balance again.
+- **The ledger:** `<episode>/docs/higgsfield-spend.json`, with the estimate and the REAL movement of the balance for every job. `--status` shows what is left.
+- ⚠️ **The account is shared with the Inspirational Women line,** and Higgsfield's transaction log carries no job id. So the guard counts the LARGER of the estimate and the balance movement, and notes any gap between them. An over-count stops PP early; an under-count would let it overspend.
+- **Calling `hf.exe generate` directly, and the Higgsfield MCP generate tools, are denied** in the repo's `.claude/settings.local.json`, so the guard is the way in.
+- **HeyGen is unchanged:** ask before starting a new render, and say what it will cost.

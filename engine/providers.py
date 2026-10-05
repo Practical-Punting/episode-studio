@@ -2276,6 +2276,27 @@ class RealProvider:
     def hf_ready(self) -> bool:
         return self.hf.is_file()
 
+    def _hf_create(self, ep, label: str, *create_args) -> str:
+        """Create ONE Higgsfield job THROUGH THE SPEND GUARD, and return its job id.
+
+        🔴 JODIE, 5 OCT 2026: up to 110 credits per PP episode without asking; over that,
+        stop and ask her — enforced in `engine/hf_guard.py`, which keeps the episode's
+        ledger and records what the balance really moved by. Every PP generation goes
+        through that one door, the engine's included, so there is one count per episode.
+        """
+        import hf_guard                                          # noqa: PLC0415
+        hf_guard.HF = self.hf
+        try:
+            entry = hf_guard.guarded_create(ep["ep_number"], label, list(create_args),
+                                            pp=self.pp)
+        except hf_guard.Refused as r:
+            raise EngineFlag(str(r))
+        except hf_guard.GuardError as g:
+            raise RuntimeError(str(g))
+        print(f"    higgsfield: {label} — estimate {entry['estimate']:g}, balance moved "
+              f"{entry['charged']:g} (ledger docs/{hf_guard.LEDGER_NAME})")
+        return entry["job_id"]
+
     # ── AN ID IS A PROMISE; "THE MOST RECENT GENERATION" IS A GUESS ──────────
     # (§0a pointed at Higgsfield, 30 Aug 2026.)
     #
@@ -2828,11 +2849,10 @@ class RealProvider:
         for key, path in want:
             rec = book.setdefault(lk[key], {})
             if not rec.get("job_id"):
-                job = self._hf("generate", "create", self.cover_model,
-                               "--prompt", prompts[key],
-                               "--aspect_ratio", self.cover_aspect,
-                               "--resolution", self.cover_res)
-                rec["job_id"] = job[0] if isinstance(job, list) else job["id"]
+                rec["job_id"] = self._hf_create(ep, f"cover:{key}", self.cover_model,
+                                                "--prompt", prompts[key],
+                                                "--aspect_ratio", self.cover_aspect,
+                                                "--resolution", self.cover_res)
                 rec["model"] = self.cover_model
                 rec["credits"] = per
                 rec["slot"] = key
@@ -3085,9 +3105,8 @@ class RealProvider:
             self.py("broll_registry_check.py", REPO_DIR / "docs/broll-registry.md",
                     self.dir(ep) / "docs/episode.json", cwd=self.dir(ep), timeout=120)
             self._registry_checked = True
-        job = self._hf("generate", "create", self.broll_model,
-                       "--prompt", self._broll_prompt(ep, clip))
-        return job[0] if isinstance(job, list) else job["id"]
+        return self._hf_create(ep, f"broll:{clip}", self.broll_model,
+                               "--prompt", self._broll_prompt(ep, clip))
 
     def poll_broll(self, ep, clip, job_id, polls_so_far):
         p = self.dir(ep) / "broll" / f"{clip}.mp4"

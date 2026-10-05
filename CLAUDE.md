@@ -59,6 +59,14 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - The 10-status contract lives in the DB; friendly lane labels live in the UI.
 - `needs_look` is ORTHOGONAL to status (the red card; status unchanged).
 - Human gates are sacred: never auto-render, never auto-publish.
+- **HIGGSFIELD SPEND (Jodie, 5 Oct 2026): up to 110 credits per PP episode WITHOUT asking —
+  b-roll AND cover heroes together, every episode — and over that, stop and ask her.**
+  Enforced by `engine/hf_guard.py`: every PP generation goes through it (the engine's two
+  create calls and Claude Code's own: `python engine/hf_guard.py <ep> <label> -- <model> …`).
+  It keeps `docs/higgsfield-spend.json` in the episode, records what the balance really moved
+  by, and refuses (exit 2) the job that would cross 110. Calling `hf.exe generate` directly and
+  the Higgsfield MCP generate tools are denied in `.claude/settings.local.json`. The guard
+  does not replace the engine's own pre-batch estimate ceilings in `engine.py`.
 - **SCRIPT GATE** (Jodie, 26 Jul 2026): the script lives as a Google Doc in the
   episode's Drive folder — its ONE home. The gate passes only when the words are
   approved AND "I've read the script" is ticked. The engine re-reads the Doc on
