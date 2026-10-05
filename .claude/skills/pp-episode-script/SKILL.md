@@ -554,7 +554,15 @@ point to the source sentence, it does not ship"* finally became something a mach
   🔒 **The engine checks this before spending a credit** (`engine/broll_prompt_rules.py`), so a
   prompt missing these lines halts rather than generating. Full wording and reasoning:
   `docs/broll-registry.md` §5 and the Australian racing spec block under it.
-- **Horses must be MOUNTED** — riders up, jockeys in silks, saddles and bridles clearly visible.
+- 🔴 **THE 20 SEP RULES AND THE HEADGEAR RULING (Jodie, 5 Oct 2026) — these REPLACE the old
+  "horses must be MOUNTED, riders up" line, which produced a racing crouch on walking horses.**
+  The words live once, in `engine/broll_prompt_rules.commission_brief()`, which the episode.json
+  commission is handed; the checker in the same file is the backstop. In short: **four horses or
+  people at most** (never "a field"); **a walking or parading horse is riderless and led**, and a
+  jockey appears only at a gallop or canter; **the rail stands behind the horses**; **plain
+  saddlecloths, no numbers**; and **each jockey wears a racing skull cap covered by a silk cap in
+  the same colours as his silks, with a short peak, goggles pushed up on the cap** — never "safety
+  helmet", never "no peak". Light: warm golden hour outdoors, window and lamp light indoors.
 - **Everyone fully and appropriately dressed; no AI anatomy/artifact weirdness** (no rider-detached
   horses, no object-through-body, no extra/missing/fused limbs). "Invisible at speed" is **not** the
   bar — these get caught and rejected. (Engine exports a 6-up contact sheet for a human glance.)

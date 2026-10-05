@@ -575,3 +575,48 @@ one of these faults came from asking for something SPECIFIC that the model canno
 little. **A prompt is a description of a photograph, not a list of requirements.** When
 a constraint is added, read the whole prompt back and ask whether the SUBJECT survives
 it.
+
+## ⚙️ 5 OCTOBER 2026 — THE 20 SEP RULES ARE NOW ENFORCED, AND TWO OLD RULES ASK THE RIGHT SHOT (Jodie, EP55)
+
+**In code, `engine/broll_prompt_rules.py`, commit `03dff94`. This section is the reasoning; the words live in the code.**
+
+### Two rules made shot-aware — they were firing on shots they do not fit
+- **`silks` is asked only of a RIDDEN or RACING horse** (`is_ridden`). It used to fire on any horse, and its fix wrote *"jockeys up and crouched in the irons"* onto led, stabled and grazing horses. That is the crouch-at-a-walk fault of rule c below, put there by the corrector itself.
+- **`turf` is asked only of horses ON A TRACK** (`on_a_track`). A stable yard, a mounting-yard lawn, a path or a horse float is exempt, unless the horse there is ridden.
+- **Proved by a dry run over all 379 prompts on the Drive, against the old code:** nothing is loosened on a ridden or racing horse. Eight prompts lose silks or turf, all unridden: a parade ring, a spelling paddock, a float, a sale ring, mounting yards, and EP55's three. ⚠️ The first version of the race words let EP9's *"horses blurring past"* lose its silks; `blur`, `racing` and `race` were added after that dry run, not before.
+
+### The four rules of 20 Sep (a–d above), enforced for the first time
+| | rule | what the checker does |
+|---|---|---|
+| a | **no more than FOUR horses or people** | *"a field"*, a count over four, *"a crowd of runners"* → a finding for a PERSON (a count is the subject; the corrector never rewrites it). The crowd far out of focus is the one exception. |
+| b | **plain saddlecloths** | a named saddlecloth, or any ridden horse → adds *"plain saddlecloths, no numbers"*. |
+| c | **a walking horse is riderless and led** | a horse walking in a sentence → adds *"the horse riderless and led by a strapper at its head"*; a rider on a walking horse → a finding for a person. |
+| d | **the rail behind the horses** | a rail with horses → adds *"the running rail stands behind the horses, on the far side of them from the camera"*; a rail in the foreground, or a shot through or over it → a finding for a person. |
+
+**Phrased positively, as this file has said since 14 Aug.** `CONTRADICTION_KEYS` names the findings that legitimately reach a person, once.
+
+### And §10 a second time
+The corrector's own stride line ends *"…across the field"*, so a led yearling, once corrected, re-read as a racing shot and was asked for silks. **`apply_rules` now classifies the shot from the ORIGINAL prompt** (`check_prompt(…, shot=)`).
+
+### 🔴 STILL OPEN — reported 5 Oct, not ruled on
+- **`strides` and `orientation` have the same fault, not yet fixed.** On EP55's single standing, walking and galloping horses, the corrector still adds *"each horse at a different point of its stride … across the field"* and *"green turf and track at the bottom … horses upright and running along the ground"*. That puts running into a walk and turf and a track into a stable yard.
+- **The `silks` FIX says "safety helmets with the silk cover on"**, against the 20 Sep skullcap rule. It now reaches only ridden horses, but it still says helmet.
+- **The rail fix says "the whole field"**, even when there is one horse.
+- **Lighting is golden hour (Jodie, 5 Oct: her 15 Aug rule stands).** *"Bright overcast daylight"* was never a ruling; it crept into EP49's prompts. It is gone from EP55's.
+
+### 🪖 RULING — JOCKEY HEADGEAR (Jodie, 5 October 2026). It REPLACES "safety helmets with the silk cover on" AND EP49's "no brim, no peak".
+> **"each jockey wears a racing skull cap covered by a silk cap in the same colours as his silks, with a short peak, goggles pushed up on the cap"** — *"her"* where the rider is a woman.
+
+**Why:** the Rules of Racing require a helmet (AR 122). In racing it is called a **skull cap**, and the cap over it matches the owner's colours and, in flat racing, normally has a **short peak**. "Safety helmet" on its own made the model draw a generic riding or bike helmet that did not match the silks.
+- **Enforced:** `headgear` asks for it on every ridden horse. `old-headgear` hands any remaining "safety helmet" or "no peak" to a person. The silks fix no longer mentions the head at all.
+- ⚠️ **WATCH THE FIRST TEST CLIP FOR THE PEAK TURNING INTO A BASEBALL CAP.** That is the obvious way this wording could fail, and it has not been seen on a real clip yet.
+- A mixed field takes *"their silks"* in the checker's line, because one sentence has to cover every rider.
+
+### 5 October 2026, second pass — THE STANDING LINES NOW FIT THE SHOT (Jodie, after Cowork read EP55's six prompts: *"the subjects are good, the appended lines are the problem"*)
+- **Strides:** only for TWO OR MORE horses moving together. Nothing for one horse, and nothing for a walk or a standstill. EP49's own *"staggered with no two in step"* counts as stating it.
+- **Orientation:** track, turf and running only for a ridden horse on a track (and *"the horse"* for one of them). A stable yard or a path gets a plain line: horizon level, camera at eye level.
+- **Rail:** only when the horses are ON a track beside a rail. It is ONE sentence (where the rail stands, plus open turf infield beyond it) with the right count, *"the horse"* or *"the horses"*, never *"the whole field"* for one. **A prompt that already places the rail behind the horses is not given another**, and that placement now satisfies the side and far-side rules (Jodie's ruling).
+- **Lighting:** two variants, never both. OUTDOOR is the golden-hour sentence; INDOOR is the window-and-lamp sentence. ⚠️ *"the inside"* is a racing word (the rail side), not a room. The first version lit EP55's two gallops as a kitchen.
+- **The writer is told** (`commission_brief()`, handed to the episode.json commission), so the backstop is not reached. A crowd at a rail with no horse in shot is not a rail fault.
+- **Length:** subject first, standing lines short. EP55's six run 473–877 characters. Two are over ~700, and the excess is in the SUBJECT itself (Cowork's wording plus the 147-character headgear sentence), not in the appended lines.
+- **Dry run against the morning's checker (`374203d`), all 379 prompts:** nothing is loosened on a ridden horse beyond the ruled cases — 20 stride lines on single or walking horses, and 16 rail lines on prompts that already place the rail. **37 of the 146 single-presenter prompts in the archive would still stop the engine on the writer's own choices** (a field or a count over four, a rider on a walking horse, a foreground rail); 81 more would stop only on "safety helmet", which the OLD corrector itself wrote into them. All are published, or EP50 (already generated), so none should be generated again.

@@ -123,9 +123,17 @@ is_racing_shot = has_horses
 # somewhere, and if it is not told where, it will put it anywhere. The line says where
 # everything GOES — sky up, turf down, horizon level and central, camera at eye level —
 # which is the same reasoning as the rail's "open green turf infield beyond it" (A21).
-ORIENTATION = ("Correct upright orientation — horizon level and near the middle, sky at "
-               "the top, green turf and track at the bottom, camera at eye level; horses "
-               "upright and running along the ground")
+ORIENTATION = ("Correct upright orientation — horizon level, sky at the top, turf at the "
+               "bottom, camera at eye level, horses upright and running along the ground")
+# 🔴 AND A PLAIN ONE FOR A HORSE THAT IS NOT RACING. (Jodie, 5 Oct 2026, EP55.) The line
+# above landed on a horse standing in a stable yard and one led at a walk, and told the
+# model about "turf and track at the bottom" and horses "running along the ground" — a
+# track in a stable yard, and running in a walk. A horse off the track gets the frame
+# facts only: level horizon, eye-level camera.
+ORIENTATION_PLAIN = ("Correct upright orientation — horizon level, camera at eye level, "
+                     "verticals upright and true")
+# One ridden horse is "the horse", never "horses" — the same count rule as the rail line.
+ORIENTATION_ONE = ORIENTATION.replace("horses upright", "the horse upright")
 # 🔴 AND A VERSION FOR A PICTURE WITH NO HORSE IN IT. (EP37, 23 Aug 2026.)
 # Orientation is UNIVERSAL — it lands on the desk shots, the TAB counter and the
 # enclosure as well as the gallops — and the line above ends "horses upright and running
@@ -140,9 +148,13 @@ ORIENTATION_NO_HORSES = ("Correct upright orientation — horizon level and near
 
 
 def orientation_for(text: str) -> str:
-    """The orientation line in the form THIS shot can be — the horses clause only where
-    there are horses."""
-    return ORIENTATION if shows_actual_horses(text or "") else ORIENTATION_NO_HORSES
+    """The orientation line in the form THIS shot can be: track, turf and running only for
+    a ridden horse on a track; a plain frame line for a horse off it; and no horses at
+    all where there are none."""
+    t = text or ""
+    if is_ridden(t):
+        return ORIENTATION if several_horses(t) else ORIENTATION_ONE
+    return ORIENTATION_PLAIN if shows_actual_horses(t) else ORIENTATION_NO_HORSES
 ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top",
                      r"horizon .{0,20}(level|middle|centre|center)"]
 
@@ -162,12 +174,27 @@ ORIENTATION_NEEDS = [r"upright orientation", r"horizon level", r"sky at the top"
 # model cannot draw "not dark": it has to choose an exposure, and told nothing it chooses
 # the safe middle, which prints murky. The line says what the light IS, and names the
 # indoor case explicitly because "golden hour" means nothing at a desk.
-LIGHTING = (
-    "Bright, warm and luminous light, generously exposed and richly cinematic — a low "
-    "dramatic late-afternoon sun, long warm golden-hour light and a warm sunset glow "
-    "through the scene; an indoor, desk or portrait scene is warmly and generously lit, "
-    "warm sunlight through a window and lamp-warm highlights, the subject bright and "
-    "clearly visible")
+LIGHTING_OUTDOOR = ("Warm golden-hour light from a low late-afternoon sun, bright and "
+                    "generously exposed")
+LIGHTING_INDOOR = ("Warmly and generously lit, warm sunlight through a window and lamp-warm "
+                   "highlights, the subject bright and clearly visible")
+# 🔴 TWO VARIANTS, NEVER BOTH. (Jodie, 5 Oct 2026, EP55.) This used to be ONE sentence
+# carrying the golden-hour sun AND the indoor window-and-lamp case, so every outdoor clip
+# was told about a desk and every desk about a sunset, at 330 characters. The fact is
+# the same — say what the light IS — and the shot decides which half it needs.
+# Golden hour is Jodie's 15 Aug rule and it stands: "Bright overcast daylight" was never
+# a ruling; it crept into EP49's prompts.
+LIGHTING = LIGHTING_OUTDOOR
+INDOOR_WORDS = re.compile(
+    r"\b(indoors?|kitchen|desk|office|room|study|lounge|interior|weighing room|"
+    r"lamp\w*)\b", re.I)
+"""⚠️ NOT "inside": on a racecourse "the inside" is the rail side of the track, and EP55's
+two gallops ("clear on the inside", "along the inside of the rail") were lit as a kitchen."""
+
+
+def lighting_for(text: str) -> str:
+    """The lighting line in the form THIS shot can be — indoor or outdoor, never both."""
+    return LIGHTING_INDOOR if _affirms(INDOOR_WORDS, text or "") else LIGHTING_OUTDOOR
 # Any ONE of these says the fact. "Bright natural daylight" is deliberately NOT enough:
 # it is what the cover brief already said while EP26 came back dim, and a pattern that
 # the failing prompts already match is a rule that changes nothing.
@@ -435,11 +462,86 @@ def rail_in_front(prompt: str) -> list[str]:
             if not _NEGATED.search(p[max(0, m.start() - 60):m.start()])]
 
 
+# ══ COUNT-AWARE AND SHOT-AWARE STANDING LINES (Jodie, 5 Oct 2026, EP55) ═══════════
+# Cowork read EP55's six prompts: "the subjects are good, the appended lines are the
+# problem." The stride line told ONE horse standing in a stable yard about "each horse …
+# across the field"; the rail line called one galloping horse "the whole field". Each line
+# now asks the narrower question it is about.
+PLURAL_HORSES = re.compile(
+    r"\b(racehorses|horses|runners|thoroughbreds|mounts|field|string|pair|two|three|four|"
+    r"several|both)\b", re.I)
+
+
+def several_horses(prompt: str) -> bool:
+    """More than one horse in the picture."""
+    return _affirms(PLURAL_HORSES, prompt or "")
+
+
+def a_moving_group(prompt: str) -> bool:
+    """TWO OR MORE horses moving together — the only shot the stride line is about. One
+    horse has nobody to be out of step with; a walk or a standstill has no stride to stagger."""
+    p = prompt or ""
+    return (shows_actual_horses(p) and several_horses(p) and not a_walking_horse(p)
+            and (_affirms(GALLOP_WORDS, p) or _affirms(RACE_WORDS, p)))
+
+
+RAIL_PLACED = [r"rail[^.]{0,80}\bbehind\b", r"\bbehind\b[^.]{0,40}\brail",
+               r"rail[^.]{0,60}far side of (the|them)"]
+"""A prompt that already says where the rail STANDS. Jodie, 5 Oct: don't add the rail line
+if the prompt already places the rail — EP55's slots 3 and 5 described it twice."""
+
+
+def rail_line_for(prompt: str) -> str:
+    """ONE rail sentence, in the form this shot can be: the right count, the bend if there
+    is one, the rail behind the horses, and a job for the far side."""
+    p = prompt or ""
+    who = "the horses" if several_horses(p) else "the horse"
+    # ⚠️ The bend form must NOT say "curves with the track": that phrase satisfies the
+    # kink rule (`rail-smooth`) by itself, and then the stronger "single smooth even
+    # sweeping curve" line is never added. Where the rail stands is this line's job; how
+    # it bends is `rail_smooth_for`'s.
+    where = "on this bend " if BEND_WORDS.search(p) else ""
+    return (f"{where}the running rail stands behind {who}, on the far side from the "
+            f"camera, open green turf infield beyond it")
+
+
+# 🔴 JOCKEY HEADGEAR — Jodie's ruling, 5 Oct 2026. It REPLACES both the old "safety
+# helmets with the silk cover on" and EP49's "no brim, no peak". The Rules of Racing
+# require a helmet (AR 122); in racing it is called a SKULL CAP, and the silk cap over it
+# is in the owner's colours and, in flat racing, normally has a short peak. "Safety
+# helmet" alone made the model draw a generic riding or bike helmet that did not match
+# the silks. ⚠️ Watch the first test clip for the peak turning into a baseball cap.
+WOMAN_WORDS = re.compile(r"\b(woman|women|female|she|her)\b", re.I)
+
+
+def headgear_for(prompt: str) -> str:
+    p = prompt or ""
+    if several_horses(p):
+        pron = "their"           # a mixed field: one sentence must cover every rider
+    else:
+        pron = "her" if _affirms(WOMAN_WORDS, p) else "his"
+    return (f"each jockey wears a racing skull cap covered by a silk cap in the same "
+            f"colours as {pron} silks, with a short peak, goggles pushed up on the cap")
+
+
+def a_rider_in_shot(prompt: str) -> bool:
+    p = prompt or ""
+    return is_ridden(p)
+
+
+OLD_HEADGEAR = re.compile(r"\bsafety helmets?\b|\bno brim, no peak\b|\bno peak\b", re.I)
+
+
 # The findings that are the writer's choice of SUBJECT rather than a missing fact: the
 # corrector may not resolve them, so they are the ones that legitimately reach a person.
 # ONE list, read by `apply_rules` and by the archive sweep in test_broll_rail_rule.
 CONTRADICTION_KEYS = frozenset({"straight-rail-on-a-bend", "four-max",
-                                "rider-on-a-walking-horse", "rail-in-front"})
+                                "rider-on-a-walking-horse", "rail-in-front",
+                                "old-headgear"})
+
+# The lines whose WORDS depend on the shot. Read from the ORIGINAL prompt (§10).
+SHOT_AWARE_FIXES = {"orientation": orientation_for, "lighting": lighting_for,
+                    "headgear": headgear_for}
 
 # ── the standing lines ──────────────────────────────────────────────────────────
 # Each rule is (key, human name, what it must SAY, why it exists). `needs` is a list of
@@ -552,18 +654,28 @@ CONDITIONAL = [
     dict(
         key="rail-behind",
         name="the rail BEHIND the horses",
-        needs=[r"rail[^.]{0,80}\bbehind\b", r"\bbehind\b[^.]{0,40}\brail",
-               r"rail[^.]{0,60}far side of (the|them)"],
-        when=a_rail_with_horses,
+        needs=RAIL_PLACED,
+        when=lambda p: a_rail_with_horses(p) and on_a_track(p),
         why=("A rail between the camera and the horses is impossible geometry, and the "
              "model draws it through their legs (registry, 18 and 20 Sep 2026, d). Say "
              "where it IS: behind the horses."),
     ),
     dict(
+        key="headgear",
+        name="the jockey's skull cap and peaked silk cap",
+        needs=[r"skull ?cap.{0,120}short peak"],
+        when=a_rider_in_shot,
+        why=("Jodie, 5 Oct 2026: the Rules of Racing require a helmet (AR 122), called a "
+             "SKULL CAP in racing, under a silk cap in the owner's colours with a short "
+             "peak. 'Safety helmet' alone draws a generic riding or bike helmet that does "
+             "not match the silks."),
+    ),
+    dict(
         key="strides",
         name="horses out of step with one another",
-        needs=[r"different point.{0,20}stride", r"out of phase", r"staggered stride"],
-        when=shows_actual_horses,
+        needs=[r"different point.{0,20}stride", r"out of phase", r"staggered stride",
+               r"no two in step"],
+        when=a_moving_group,
         why="EP16 at 1:25 — every horse in identical rhythm, hooves landing together.",
     ),
     dict(
@@ -579,8 +691,8 @@ CONDITIONAL = [
         name="the whole field on ONE side of the rail",
         needs=[r"one side of (a|the|a single) .{0,30}rail",
                r"all on the same side of the .{0,20}rail",
-               r"the (whole )?field .{0,40}(on|to) one side"],
-        when=a_rail_with_horses,
+               r"the (whole )?field .{0,40}(on|to) one side"] + RAIL_PLACED,
+        when=lambda p: a_rail_with_horses(p) and on_a_track(p),
         why=("EP23 shipped with horses on BOTH SIDES of the running rail (Hugh, "
              "14 Aug 2026). Five of six prompts NAMED the rail and not one said which "
              "side the horses go, so the model drew the rail and filled both sides."),
@@ -589,8 +701,8 @@ CONDITIONAL = [
         key="rail-beyond",
         name="what lies BEYOND the rail (open turf infield)",
         needs=[r"(open|empty) .{0,20}(turf|grass|infield)",
-               r"infield beyond", r"beyond it,? (open|empty)"],
-        when=a_rail_with_horses,
+               r"infield beyond", r"beyond it,? (open|empty)"] + RAIL_PLACED,
+        when=lambda p: a_rail_with_horses(p) and on_a_track(p),
         why=("The positive half is the half that works. A model must render SOMETHING "
              "beyond the rail; unless the far side is given a job it reaches for the "
              "subject the rest of the prompt describes — a horse."),
@@ -816,8 +928,17 @@ def check_prompt(prompt: str, shot: str | None = None) -> list[dict]:
                     "'jockey' gives a racing crouch at a walk (EP49's walk-on). Make it "
                     "riderless and led, or make it a gallop."),
         })
+    if is_ridden(prompt) and OLD_HEADGEAR.search(prompt):
+        out.append({
+            "key": "old-headgear",
+            "name": "the old jockey headgear wording",
+            "why": ('says "' + OLD_HEADGEAR.search(prompt).group(0) + '". Jodie, 5 Oct '
+                    "2026: each jockey wears a racing skull cap covered by a silk cap in "
+                    "his colours, with a SHORT PEAK. 'Safety helmet' draws a bike helmet, "
+                    "and EP49's 'no peak' is now wrong. Replace the phrase."),
+        })
     front = rail_in_front(prompt)
-    if front and has_horses(prompt):
+    if front and shows_actual_horses(prompt):    # a crowd at a rail is not a rail fault
         out.append({
             "key": "rail-in-front",
             "name": "a rail between the camera and the horses",
@@ -848,19 +969,15 @@ def check_prompt(prompt: str, shot: str | None = None) -> list[dict]:
 FIXES = {
     "rail-side": None,          # handled with rail-beyond, in one sentence
     "rail-beyond": None,
-    "strides": ("each horse at a different point of its stride, staggered strides, "
-                "hooves landing at different moments, legs out of phase across the field"),
-    "silks": ("jockeys up and crouched in the irons, actively riding, in bright and "
-              "varied Australian racing silks and matching caps, white or cream breeches, "
-              "black riding boots, safety helmets with the silk cover on"),
+    "strides": "the horses staggered, each at a different point of its stride",
+    "silks": "jockeys in bright, varied Australian racing silks, white breeches, black boots",
     "turf": "lush green Australian turf",
     # The registry's 20 Sep wording, exactly — the positive instruction that worked.
     "saddlecloth": "plain saddlecloths, no numbers",
     "led": "the horse riderless and led by a strapper at its head",
     "rail-behind": "the running rail stands behind the horses, on the far side of them "
                    "from the camera",
-    "anatomy": ("anatomically correct horses — four legs, one head, no fused or extra "
-                "limbs"),
+    "anatomy": "anatomically correct, four legs each",
     "hat-variety": ("Akubra-style hats in a variety of natural colours — fawn, sand, tan, "
                     "brown, grey, black, olive — worn at different angles, no two "
                     "neighbours alike"),
@@ -1011,10 +1128,14 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
 
     # 2. The rail sentence, in the form this shot can actually be — placed EARLY, in
     #    the scene, rather than appended to the constraint pile. See RAIL_STRAIGHT.
-    if gaps & {"rail-side", "rail-beyond"}:
-        text = _add_sentence_early(text, RAIL_BEND if bend else RAIL_STRAIGHT)
-        applied.append("the field runs on ONE side of the rail, with open green turf "
-                       "infield beyond it" + (" (bend wording)" if bend else ""))
+    # 🔴 ONE SENTENCE NOW, NOT THREE (Jodie, 5 Oct 2026, EP55). The side, the far side and
+    # where the rail stands were three appended lines, and the side line called a single
+    # galloping horse "the whole field". `rail_line_for` says all three at once, with the
+    # right count — and a prompt that already PLACES the rail is not given one at all.
+    if gaps & {"rail-side", "rail-beyond", "rail-behind"}:
+        text = _add_sentence_early(text, rail_line_for(prompt))
+        applied.append("the rail stands behind the horse(s), open turf infield beyond it"
+                       + (" (bend wording)" if bend else ""))
 
     # 2b. The rail's LINE, which is a different claim from which side the field is on.
     #
@@ -1031,25 +1152,17 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
         applied.append("the rail is one smooth, true, evenly-posted line"
                        + (" (bend wording)" if BEND_WORDS.search(text) else ""))
 
-    # 2c. Where the rail STANDS (registry, 20 Sep 2026, d) — a fact about the scene, so
-    # in the scene with the rail sentence, and re-asked against the updated text for the
-    # same reason as 2b: step 2 may have just introduced the rail.
-    if any(g["key"] == "rail-behind" for g in check_prompt(text, shot=prompt)):
-        text = _add_sentence_early(text, FIXES["rail-behind"])
-        applied.append("the rail stands behind the horses")
-
     # 3. Everything else is a fact appended in the registry's own words.
     # `orientation` and `lighting` LAST, because they are statements about the whole
     # frame and read as the closing instruction rather than as one more fact about the
     # horses. Lighting last of all: it is the only one that lands on every picture.
-    for key in ("strides", "silks", "saddlecloth", "led", "turf", "anatomy",
+    for key in ("strides", "silks", "headgear", "saddlecloth", "led", "turf", "anatomy",
                 "hat-variety", "orientation", "lighting"):
-        if key in gaps and FIXES.get(key):
-            # orientation is SHOT-AWARE — see orientation_for(). Read through the
-            # resolver so a horse-free picture is never handed the horses clause, which
-            # is how the corrector used to turn a jockey-on-foot shot into a horse shot
-            # and then complain about its strides.
-            words = orientation_for(text) if key == "orientation" else FIXES[key]
+        if key in gaps and (FIXES.get(key) or key in SHOT_AWARE_FIXES):
+            # orientation, lighting and headgear are SHOT-AWARE — read through their
+            # resolvers, and from the ORIGINAL prompt (§10), so a horse-free picture is
+            # never handed the horses clause and a desk is never handed a sunset.
+            words = SHOT_AWARE_FIXES[key](prompt) if key in SHOT_AWARE_FIXES else FIXES[key]
             text = _add_sentence(text, words)
             applied.append(words[:60] + "…")
 
@@ -1121,10 +1234,10 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
         text = _add_sentence(text, rail_smooth_for(text))
         applied.append("the rail is one smooth, true, evenly-posted line")
     for key in ("orientation", "lighting"):
-        if key in gaps and FIXES.get(key):
+        if key in gaps:
             # shot-aware, and through the SAME resolver the b-roll funnel uses — the
             # cover door must not have its own idea of what the line says (A22).
-            words = orientation_for(text) if key == "orientation" else FIXES[key]
+            words = SHOT_AWARE_FIXES[key](prompt or "")
             text = _add_sentence(text, words)
             applied.append({"orientation": "the upright-orientation line",
                             "lighting": "the bright, warm lighting line"}[key])
@@ -1152,3 +1265,32 @@ def check_episode(broll: list[dict], ep_number: int | None) -> list[str]:
             findings.append(f"{b.get('target', '?')} — needs {g['name']}.\n"
                             f"      why: {g['why']}")
     return findings
+
+
+# ══ THE WRITER'S BRIEF — the same rules, said to whoever WRITES the prompts ═══════
+# (Jodie, 5 Oct 2026.) The checker is the BACKSTOP. Rule (a) and its siblings are a
+# finding for a person, so a commissioned prompt that asks for "a field" stops the
+# single-presenter engine at b-roll. The cure is upstream: tell the writer, in the brief
+# that writes the prompts, so the backstop is never reached. ONE home for the words — the
+# checker that enforces them — and `providers._commission_episode_json` reads this.
+def commission_brief() -> str:
+    return (
+        "B-ROLL PROMPTS — the rules every prompt is checked against before a credit is "
+        "spent. Write them in, so nothing is stopped:\n"
+        "  - FOUR AT MOST. Never more than four horses or people in a shot, named or "
+        "implied: never 'a field', never a count over four, never 'a crowd of runners'. "
+        "Ask for two, three or four horses by number. (A crowd far out of focus in the "
+        "background is fine.) Higgsfield cannot count; a field of eight lost a horse "
+        "mid-clip.\n"
+        "  - A WALKING OR PARADING HORSE IS RIDERLESS AND LED by a strapper at its head. "
+        "A jockey appears ONLY on a horse at a gallop or canter — the word 'jockey' "
+        "produces a racing crouch whatever the horse is doing.\n"
+        "  - THE RAIL STANDS BEHIND THE HORSES, never between the camera and them: no "
+        "rail in the foreground, no shot through or over the rail.\n"
+        "  - SADDLECLOTHS ARE PLAIN: write 'plain saddlecloths, no numbers' on any ridden "
+        "horse.\n"
+        "  - JOCKEY HEADGEAR: '" + headgear_for("one jockey") + "' (use 'her' for a "
+        "woman rider). Never 'safety helmet', never 'no peak'.\n"
+        "  - Light is warm golden hour outdoors, warm window and lamp light indoors.\n"
+        "  - Subject first; keep each prompt short — a prompt is a description of a "
+        "photograph, not a list of requirements.\n\n")

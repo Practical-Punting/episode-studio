@@ -65,12 +65,16 @@ GOOD_RAIL = ("The whole field runs on ONE side of a single white running rail �
 # fixed sentence, it is whatever the standing rules currently ask for; every time a rule
 # is added, this fixture has to gain its line or every case below starts failing for a
 # reason that has nothing to do with the clause it removes.
+# Jodie's headgear ruling, 5 Oct 2026, and the rail placement the fixture states.
+HEADGEAR = 'Each jockey wears a racing skull cap covered by a silk cap in the same colours as their silks, with a short peak, goggles pushed up on the cap. '
+PLACED = ("The running rail stands behind the horses, on the far side of them from "
+          "the camera. ")
 GOOD = ("Photoreal cinematic wide shot of four racehorses galloping on lush green "
         "turf at an Australian racecourse. " + GOOD_RAIL + ". The running rail stands "
         "behind the horses, on the far side of them from the camera. The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding, plain saddlecloths, no numbers. Natural daylight, horizon level and near "
+        "bright racing silks, actively riding, plain saddlecloths, no numbers. " + HEADGEAR + "Natural daylight, horizon level and near "
         "the middle with sky at the top and turf at the bottom, horses upright. The rail "
         "is one clean unbroken line, evenly spaced upright posts and a level top rail. "
         "Warm golden-hour light, generously exposed.")
@@ -80,15 +84,18 @@ check("the fully-specified racing shot raises nothing", keys(GOOD) == set(), key
 
 print("\n-- and each standing line is genuinely load-bearing --")
 check("dropping the rail-side clause is caught",
-      "rail-side" in keys(GOOD.replace(GOOD_RAIL, "a white running rail alongside")),
+      "rail-side" in keys(GOOD.replace(GOOD_RAIL, "a white running rail alongside")
+                          .replace(PLACED, "")),
       "this is EP23's exact fault and it must not pass")
 check("dropping what lies BEYOND the rail is caught",
-      "rail-beyond" in keys(GOOD.replace(", open green turf infield beyond it", "")),
+      "rail-beyond" in keys(GOOD.replace(", open green turf infield beyond it", "")
+                            .replace(PLACED, "")),
       "a negation cannot be drawn; the far side needs a job or a horse fills it")
 check("dropping the stride line is caught",
       "strides" in keys(GOOD.replace("different points in their stride", "close together")
                         .replace("legs out of phase across the field", "bunched")))
-check("dropping the silks is caught", "silks" in keys(GOOD.replace("racing silks", "gear")))
+check("dropping the silks is caught",            # BOTH mentions: the headgear line says silks too
+      "silks" in keys(GOOD.replace("racing silks", "gear").replace(HEADGEAR, "")))
 check("dropping the turf is caught",
       # BOTH mentions — the rail clause also says "open green turf infield", so replacing
       # only the first leaves the prompt still stating turf and the rule rightly quiet.
@@ -208,8 +215,10 @@ check("it does not invent a subject, framing or action",
 # actually testing is untouched.
 railed = (bare + " A single white running rail crosses the frame.")
 check("the bend wording is used on a bend and the straight wording on a straight",
-      "curves with the track" in R.apply_rules(railed + " The field rounds the bend.")[0]
-      and "curves with the track" not in R.apply_rules(railed)[0],
+      # 5 Oct 2026: the bend now arrives as the kink rule's own sweeping-curve line, not
+      # as "curves with the track" inside the rail sentence (see rail_line_for).
+      "sweeping curve" in R.apply_rules(railed + " The field rounds the bend.")[0]
+      and "sweeping curve" not in R.apply_rules(railed)[0],
       "a straight line pasted into a bend is A21's second finding, rebuilt by the fixer")
 
 print("\n-- THE HALT THAT IS LEFT: what it genuinely cannot decide --")
@@ -245,7 +254,8 @@ l_fixed, l_applied, l_unfix = R.apply_rules(lawn)
 # assertion that survives Fault 6: what this case has always been about is that no RACING
 # line reaches a shot of a crowd, and a lighting line is not a racing line.
 check("  only the light is added to it — no racing line",
-      [a for a in l_applied if "Bright, warm" not in a] == [] and l_unfix == [],
+      [a for a in l_applied if not a.startswith(R.LIGHTING_OUTDOOR[:40])] == []
+      and l_unfix == [],
       (l_applied, l_unfix))
 check("  no silks are written into it", "silks" not in l_fixed)
 check("  and no rail is written into it", "running rail" not in l_fixed)
@@ -338,7 +348,7 @@ bare = ("Photoreal cinematic wide shot of four racehorses galloping on lush gree
         "behind the horses, on the far side of them from the camera. The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding, plain saddlecloths, no numbers. The rail is one clean unbroken line, "
+        "bright racing silks, actively riding, plain saddlecloths, no numbers. " + HEADGEAR + "The rail is one clean unbroken line, "
         "evenly spaced upright posts and a level top rail. Warm golden-hour light, "
         "generously exposed.")
 check("a racing b-roll prompt with everything BUT orientation is not clean",
@@ -374,9 +384,9 @@ check("  …and is STILL asked for the light — the universal tier",
       keys(DESK) == {"lighting"}, keys(DESK))
 lit, applied_l, unfix_l = R.apply_rules(DESK)
 check("  apply_rules lights it, with no other line added",
-      "golden-hour" in lit and "running rail" not in lit and not unfix_l, lit[-140:])
+      R.LIGHTING_INDOOR in lit and "running rail" not in lit and not unfix_l, lit[-140:])
 check("  and the indoor case is named — 'golden hour' means nothing at a desk",
-      "indoor, desk or portrait scene is warmly and generously lit" in lit)
+      "warm sunlight through a window" in lit and "golden-hour" not in lit)
 check("  EP26's actual complaint is answered: the subject is bright and visible",
       "subject bright and clearly visible" in lit)
 
@@ -438,7 +448,7 @@ nr_fixed, nr_applied = R.apply_frame_rules(NO_RAIL)
 check("  and the cover funnel never writes a rail into it",
       "unbroken line" not in nr_fixed, nr_fixed[-160:])
 check("  while the LIGHT still reaches it — the point of the universal tier",
-      "golden-hour" in nr_fixed)
+      R.LIGHTING_INDOOR in nr_fixed)       # a desk portrait: the indoor variant
 check("  an affirmative rail in the SAME prompt would still count",
       R.shows_a_rail("No dirt or sand. A single white running rail runs along the inside."))
 check("  a negation in an EARLIER sentence does not suppress a real rail",

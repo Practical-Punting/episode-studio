@@ -4309,7 +4309,8 @@ class RealProvider:
             "paragraphs, in order, and every card cue must be a literal substring "
             "of it.\n\n"
             f"WRITE the settings to docs/episode.json\n\n"
-            + _card_vocabulary_note() +
+            + _card_vocabulary_note()
+            + broll_prompt_rules.commission_brief() +
             "TRACE OR IT DOES NOT SHIP. Any value carrying a figure needs a "
             "trace{} entry quoting the SOURCE SENTENCE verbatim from the article, "
             "and the figure must actually appear in that sentence. A card once "

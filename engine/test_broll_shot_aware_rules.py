@@ -141,5 +141,83 @@ check("a led yearling, once corrected, is not then asked for silks",
       not any("silks" in u or "saddlecloth" in u for u in _u), _u)
 check("  and the corrector added no rider to it", "jockeys up" not in _f.lower(), _f[-300:])
 
+# ══ SECOND BATCH (Jodie, 5 Oct 2026, after Cowork read EP55's six prompts) ══════════
+print("\n-- 4. strides: only TWO OR MORE horses moving together --")
+LONE = ("One saddled thoroughbred gallops alone along the turf straight at trackwork, the rider "
+        "low over the withers.")
+WALKERS = "Three horses walk round the mounting yard, each riderless and led by a strapper."
+check("ONE galloping horse is not given the stride line", "strides" not in keys(LONE), keys(LONE))
+check("a group at a WALK is not given it", "strides" not in keys(WALKERS), keys(WALKERS))
+check("a horse standing in a stable yard is not given it", "strides" not in keys(STABLE))
+check("CONTROL: three horses galloping still are", "strides" in keys(GALLOP), keys(GALLOP))
+
+print("\n-- 5. orientation: track, turf and running only for a ridden horse on a track --")
+for name, p in (("a stable yard", STABLE), ("a led horse at a walk", LED)):
+    o = R.apply_rules(p)[0]
+    tail = o[o.find("orientation"):] if "orientation" in o else ""
+    check(f"{name}: the orientation line says no turf, track or running",
+          tail and not any(w in tail.split(".")[0] for w in ("turf", "track", "running")),
+          tail[:160])
+check("CONTROL: a ridden gallop keeps the full line",
+      "running along the ground" in R.apply_rules(GALLOP)[0])
+
+print("\n-- 6. the rail line: the right count, and never twice --")
+ONE_ON_RAIL = ("One saddled thoroughbred gallops along the turf beside a single white running "
+               "rail, the rider in bright silks.")
+o = R.apply_rules(ONE_ON_RAIL)[0]
+check("one horse is 'the horse', never 'the whole field'",
+      "the whole field" not in o and "behind the horse," in o, o[:260])
+PLACED_ALREADY = ("Three racehorses gallop on green turf, jockeys in silks, one white running rail "
+                  "runs straight behind the field with evenly spaced posts.")
+o = R.apply_rules(PLACED_ALREADY)[0]
+check("a prompt that already PLACES the rail is not given a second rail sentence",
+      "open green turf infield beyond it" not in o and "stands behind" not in o, o[:300])
+check("CONTROL: a rail with nowhere to stand still gets one", "stands behind" in R.apply_rules(RAIL)[0])
+
+print("\n-- 7. lighting: OUTDOOR or INDOOR, never both --")
+o = R.apply_rules(GALLOP)[0]
+check("an outdoor shot gets golden hour and no window or lamp",
+      "golden-hour" in o and "window" not in o and "lamp" not in o, o[-200:])
+i = R.apply_rules(GALLOP + " One horse is clear on the inside of the rail.")[0]
+check("'the inside' of the rail is a racing word, not a room — still outdoor",
+      "golden-hour" in i and "window" not in i, i[-200:])
+d = R.apply_rules("Photoreal close shot of a man's hands at a kitchen table, a ring binder open.")[0]
+check("an indoor shot gets window and lamp and no sunset",
+      "window" in d and "golden-hour" not in d and "sunset" not in d, d[-200:])
+
+print("\n-- 8. jockey headgear (Jodie, 5 Oct 2026) --")
+o = R.apply_rules(GALLOP)[0].lower()
+check("a ridden shot is given the skull cap under a peaked silk cap",
+      "racing skull cap covered by a silk cap" in o and "short peak" in o, o[-400:])
+check("  and never a 'safety helmet'", "safety helmet" not in o)
+w = R.apply_rules("One horse gallops on the turf, a woman rider in bright silks.")[0].lower()
+check("a single woman rider is 'her silks'", "colours as her silks" in w, w[-300:])
+check("'safety helmet' in a ridden prompt is a finding for a person",
+      "old-headgear" in keys(GALLOP + " Each rider in a safety helmet."))
+check("EP49's 'no brim, no peak' is too",
+      "old-headgear" in keys(GALLOP + " Each in a skullcap, no brim, no peak."))
+
+print("\n-- 9. a crowd at a rail with NO horses is not a rail fault --")
+check("people leaning over the rail with no horse in shot is fine",
+      "rail-in-front" not in keys("A crowd of racegoers leans over the white rail on the lawn, "
+                                  "no horses in shot."))
+
+print("\n-- 10. the writer is told, so the backstop is not reached --")
+import ast                                                            # noqa: E402
+_src = (HERE / "providers.py").read_text(encoding="utf-8")
+# There are TWO `_commission_episode_json`s in providers.py; the real one is the one that
+# writes the brief, so pick it by the brief's own opening words rather than by order.
+_fn = next(n for n in ast.walk(ast.parse(_src))
+           if isinstance(n, ast.FunctionDef) and n.name == "_commission_episode_json"
+           and any(isinstance(c, ast.Constant) and isinstance(c.value, str)
+                   and "You are writing episode.json" in c.value for c in ast.walk(n)))
+_calls = [n for n in ast.walk(_fn) if isinstance(n, ast.Call)
+          and isinstance(n.func, ast.Attribute) and n.func.attr == "commission_brief"]
+check("the episode.json commission CALLS broll_prompt_rules.commission_brief()", bool(_calls))
+_b = R.commission_brief() if hasattr(R, "commission_brief") else ""
+for phrase in ("four", "never 'a field'", "riderless and led", "behind the horses",
+               "plain saddlecloths, no numbers", "skull cap", "short peak"):
+    check(f"  and the brief says {phrase!r}", phrase in _b.lower() or phrase in _b, _b[:120])
+
 print(f"\nshot-aware b-roll rules: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
