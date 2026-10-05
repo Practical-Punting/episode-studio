@@ -69,7 +69,7 @@ SR = 48000
 and never off a piece's own duration. Getting one right and the other wrong is what put
 EP49's picture 0.95s ahead of its words."""
 
-PICTURE_RECIPE = "2026-09-27/cards-rendered-without-their-own-logo"
+PICTURE_RECIPE = "2026-10-06/listeners-planned-never-back-to-back"
 """🔴 THE PIECE CACHE MUST COVER THE RECIPE, NOT ONLY THE FRAME COUNT.
 
 `seg-NNN-<frames>f.mp4` keys on how LONG a piece is, which was enough while the only
@@ -119,36 +119,164 @@ def timeline_at(tl: list[dict], t: float) -> dict | None:
     return None
 
 
-def listener_source(idle: list[dict], beds: dict, code: str, want_s: float,
-                    used: dict) -> tuple[str, float, float]:
-    """Footage of a man who is NOT speaking, long enough to cover `want_s`.
+REUSE_WINDOW_S = 90.0
+"""A listener doing the identical head-tilt twice inside a minute and a half is the tell
+that the footage is looped. Inside this window a stretch is reused only when nothing
+else fits — a PREFERENCE. The back-to-back rule below is not a preference."""
 
-    🔴 THE IDLE POOL FIRST, THE BEDS AFTER. The pauses came out of his OWN render
-    minutes ago, in the same light, at the same size — nothing matches a master like
-    the master. The beds are a separate render and are what the pool cannot cover.
 
-    ⚠️ AND NOTHING IS REUSED WITHIN ~90s. A listener doing the identical head-tilt twice
-    inside a minute and a half is the tell that the footage is looped, which is the one
-    thing the format may not look like.
+def _overlaps(a0: float, a1: float, b0: float, b1: float) -> bool:
+    return a0 < b1 - 0.01 and b0 < a1 - 0.01
+
+
+def plan_listeners(segs: list[dict], idle: list[dict], beds: dict,
+                   side_of: dict, dur_of=None) -> dict[int, dict]:
+    """Every two-box piece's listening footage, chosen ONCE, before anything renders.
+
+    Jodie's ruling, 5 Oct 2026: NO new beds and NO longer breaks — the beds are REUSED,
+    never looped inside a run, and never the same stretch back to back.
+
+    🔴 IT USED TO BE CHOSEN INSIDE `render_segment`, PIECE BY PIECE, AND THAT BROKE ALL
+    THREE. Every bed started at 0:00, so two listening shots of Gordon from his one 64s
+    bed were the SAME stretch; when nothing was free it fell back to "the longest bed"
+    with no check at all; and a piece served from cache never re-ran the choice, so what
+    was on screen and what the code believed could differ. Planned up front, the choice
+    is one deterministic list the render follows and the QC can read.
+
+    For each two-box piece, in screen order, for the man LISTENING:
+      1. his own clean pauses (the idle pool) — same light, same size as his master;
+      2. then the beds, WALKED: each starts where that bed last stopped, so reuse moves
+         on through the footage instead of replaying its opening;
+    HARD: never overlaps the stretch his previous listening shot showed (back to back),
+          and never longer than its source (a bed is never looped).
+    SOFT: avoids any stretch used in the last REUSE_WINDOW_S.
+    Nothing satisfying the hard rules is a HALT, never a loop or a freeze.
     """
-    cands = [c for c in idle if c["speaker"] == code
-             and c["dur_s"] >= want_s
-             and used.get(c["file"], -999) < used["_t"] - 90.0]
-    if cands:
-        c = min(cands, key=lambda x: x["dur_s"])
-        used[c["file"]] = used["_t"]
-        return c["source"], c["in_s"], c["in_s"] + want_s
-    for name, path in beds.get(code, []):
-        d = probe_dur(path)
-        if d >= want_s and used.get(str(path), -999) < used["_t"] - 90.0:
-            used[str(path)] = used["_t"]
-            return str(path), 0.0, want_s
-    # Nothing long enough: take the longest bed and say so. A bed is never looped, so
-    # the caller reports a shortfall rather than this function inventing a loop.
-    if beds.get(code):
-        name, path = max(beds[code], key=lambda p: probe_dur(p[1]))
-        return str(path), 0.0, min(want_s, probe_dur(path))
-    raise Unrenderable(f"no listening footage at all for {code}")
+    dur_of = dur_of or probe_dur
+    picks: dict[int, dict] = {}
+    history: list[dict] = []                      # every pick so far
+    last: dict[str, dict] = {}                    # man -> his previous pick
+    ptr: dict[str, float] = {}                    # bed -> where it last stopped
+    order = [s for s in sorted(segs, key=lambda s: s["from_s"])
+             if s.get("layout") == "two-box" and not s.get("card") and not s.get("broll")]
+
+    def man_of(s):
+        return s.get("listener") or [c for c in side_of if c != s["speaker"]][0]
+
+    def want_of(s):
+        return round((frames_between(s["from_s"], s["to_s"]) + 2) / FPS, 3)
+
+    def leaves_room(man, src, s0, e0, nxt):
+        """🔴 ONE STEP OF LOOK-AHEAD. With one 64s bed, a 20s shot parked in the MIDDLE
+        of it leaves no 38.5s stretch for his next shot that avoids it (measured on
+        Gordon's plan, 6 Oct). So a placement is only taken if his NEXT shot can still
+        be covered by something other than the stretch this one shows."""
+        if nxt is None:
+            return True
+        if any(c["speaker"] == man and c["dur_s"] >= nxt for c in idle):
+            return True
+        for _n, p in beds.get(man, []):
+            d = dur_of(p)
+            if str(p) != src and d >= nxt:
+                return True
+            if str(p) == src and (s0 >= nxt - 0.01 or d - e0 >= nxt - 0.01):
+                return True
+        return False
+
+    for k, seg in enumerate(order):
+        man = man_of(seg)
+        want = want_of(seg)
+        nxt = next((want_of(s) for s in order[k + 1:] if man_of(s) == man), None)
+        t = seg["from_s"]
+        cands = []
+        for c in sorted((c for c in idle if c["speaker"] == man and c["dur_s"] >= want),
+                        key=lambda c: c["dur_s"]):
+            cands.append(("idle", c["source"], c["in_s"], c["in_s"] + c["dur_s"],
+                          c["in_s"]))
+        for _name, path in sorted(beds.get(man, []), key=lambda p: str(p[1])):
+            d = dur_of(path)
+            if d < want:
+                continue
+            p = ptr.get(str(path), 0.0)
+            starts = [p if p + want <= d else 0.0, 0.0, round(d - want, 3)]
+            for s0 in dict.fromkeys(starts):
+                cands.append(("bed", str(path), 0.0, d, s0))
+        prev = last.get(man)
+
+        def hard_ok(src, s0):
+            return not (prev and prev["source"] == src
+                        and _overlaps(s0, s0 + want, prev["in_s"], prev["out_s"]))
+
+        def recent(src, s0):
+            return any(h["source"] == src and t - h["at_s"] < REUSE_WINDOW_S
+                       and _overlaps(s0, s0 + want, h["in_s"], h["out_s"])
+                       for h in history)
+
+        fits = [c for c in cands if c[4] + want <= c[3] + 0.01 and hard_ok(c[1], c[4])]
+        ok = [c for c in fits if leaves_room(man, c[1], c[4], c[4] + want, nxt)] or fits
+        if not ok:
+            longest = max([c[3] - c[2] for c in cands], default=0.0)
+            raise Unrenderable(
+                f"no listening footage for {man} at {t:.1f}s: the shot needs {want:.2f}s "
+                f"and the longest clean source is {longest:.2f}s, or every one that fits "
+                f"is the stretch his previous listening shot already showed. Jodie's "
+                f"ruling (5 Oct 2026) is no looping and never the same stretch back to "
+                f"back, so this HALTS rather than repeat or freeze the picture.")
+        fresh = [c for c in ok if not recent(c[1], c[4])]
+        kind, src, _lo, hi, s0 = (fresh or ok)[0]
+        pick = {"seg": seg["n"], "at_s": round(t, 3), "dur_s": round(seg["dur_s"], 3),
+                "man": man, "side": side_of.get(man), "kind": kind, "source": src,
+                "in_s": round(s0, 3), "out_s": round(s0 + want, 3),
+                "src_dur_s": round(hi, 3), "reused_within_window": not fresh}
+        picks[seg["n"]] = pick
+        history.append(pick)
+        last[man] = pick
+        if kind == "bed":
+            ptr[src] = pick["out_s"]
+    return picks
+
+
+def back_to_back(ledger: list[dict]) -> list[str]:
+    """Faults in a listener ledger: the same stretch twice in a row, or a source looped.
+
+    Pure arithmetic on what the render USED. `twoway_qc` first proves the ledger is the
+    ledger OF THE FINISHED FILE (its fingerprints match the file's pixels), then asks
+    this — so the answer is about the film, not about the plan.
+    """
+    out, last = [], {}
+    for e in sorted(ledger, key=lambda e: e["at_s"]):
+        p = last.get(e["man"])
+        if p and p["source"] == e["source"] and _overlaps(e["in_s"], e["out_s"],
+                                                          p["in_s"], p["out_s"]):
+            out.append(f"{e['man']} listens to the SAME stretch back to back: "
+                       f"{pathlib.Path(e['source']).name} {p['in_s']:.1f}-{p['out_s']:.1f}s "
+                       f"at {p['at_s']:.1f}s, then {e['in_s']:.1f}-{e['out_s']:.1f}s at "
+                       f"{e['at_s']:.1f}s. The identical head movement twice running is "
+                       f"the tell that the footage is looped.")
+        if e["out_s"] > e["src_dur_s"] + 0.05:
+            out.append(f"{e['man']} at {e['at_s']:.1f}s needs {e['out_s']:.2f}s of "
+                       f"{pathlib.Path(e['source']).name}, which is only "
+                       f"{e['src_dur_s']:.2f}s — the footage runs out mid-shot.")
+        last[e["man"]] = e
+    return out
+
+
+def panel_fingerprint(video, t: float, layout: dict, side: str) -> list[float]:
+    """The inner half of one panel at one moment, as 12x8 grey means.
+
+    The INNER half, because the chips and the corner logo can sit over a panel's edges
+    in the finished film and must not make a true match look false.
+    """
+    import numpy as np
+    x, y, w, h = layout["panels"][side]["rect"]
+    cx, cy, cw, ch = x + w // 4, y + h // 4, w // 2, h // 2
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.3f}",
+                        "-i", str(video), "-frames:v", "1",
+                        "-vf", f"crop={cw}:{ch}:{cx}:{cy},scale=12:8:flags=area",
+                        "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                       capture_output=True, timeout=300)
+    a = np.frombuffer(r.stdout, np.uint8)
+    return [round(float(v), 1) for v in a] if a.size == 96 else []
 
 
 _DUR: dict[str, float] = {}
@@ -331,9 +459,8 @@ def render_segment(seg: dict, ctx: dict, out: pathlib.Path) -> None:
 
     # THE TWO-BOX. The graph comes from twoway_composite so the design stays data.
     sp = seg["speaker"]
-    ls = seg.get("listener") or [c for c in side_of if c != sp][0]
-    ctx["used"]["_t"] = seg["from_s"]
-    lsrc, lin, _lout = listener_source(ctx["idle"], ctx["beds"], ls, dur, ctx["used"])
+    pick = ctx["listeners"][seg["n"]]          # chosen up front — see plan_listeners
+    ls, lsrc, lin = pick["man"], pick["source"], pick["in_s"]
     graph = tc.composite_graph(layout, side_of,
                                [{"speaker": sp, "listener": ls}], ctx["offsets"])
     graph = graph.split("\n# push")[0]
@@ -1014,7 +1141,14 @@ def main() -> int:
                          else c["source"]) for c in tlj["idle"]],
            "beds": beds, "cards": plan["cards_on_disk"],
            "broll": plan["broll_on_disk"], "offsets": offsets,
-           "head_s": ta.TITLE_HEAD_S, "used": {"_t": 0.0}}
+           "head_s": ta.TITLE_HEAD_S}
+    # Every listening shot is chosen here, for the WHOLE plan, before any piece renders
+    # — so a --from/--to proof picks exactly what the full render will.
+    ctx["listeners"] = plan_listeners(plan["segments"], ctx["idle"], beds, side_of)
+    b2b = back_to_back(list(ctx["listeners"].values()))
+    if b2b:
+        raise Unrenderable("the listening plan breaks the bed rules:\n  - "
+                           + "\n  - ".join(b2b))
 
     work = pathlib.Path(a.work) if a.work else (d / "renders/_pieces")
     work.mkdir(parents=True, exist_ok=True)
@@ -1054,6 +1188,23 @@ def main() -> int:
         out.parent.mkdir(parents=True, exist_ok=True)
         print(f"\nfinishing into {out} ...", flush=True)
         finish(plan, d, work, out)
+
+        # 🔴 THE LISTENER LEDGER — what every listening shot in THIS film shows, with a
+        # fingerprint of its panel taken from the piece that was actually concatenated.
+        # `twoway_qc` matches the fingerprints against the finished file's pixels, so
+        # the back-to-back check is proved to be about this film and not a plan.
+        ledger = []
+        for s in plan["segments"]:
+            pk = ctx["listeners"].get(s["n"])
+            if not pk:
+                continue
+            piece = final_piece_path(s, work)
+            ledger.append(dict(pk, fingerprint=panel_fingerprint(
+                piece, s["dur_s"] / 2, layout, pk["side"])))
+        lp = out.with_name(out.stem + "-listeners.json")
+        lp.write_text(json.dumps({"film": out.name, "picture_recipe": PICTURE_RECIPE,
+                                  "listeners": ledger}, indent=1), encoding="utf-8")
+        print(f"  listener ledger: {len(ledger)} shot(s) -> {lp.name}", flush=True)
 
         # 🔴 THE PLAIN END FRAME — 18s of charcoal and one logo, APPENDED to the
         # finished film. It is not decoration and it is not new: `end_frame.py` has

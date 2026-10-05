@@ -128,6 +128,68 @@ def loudness(ep: pathlib.Path) -> _LoudnessQC:
     return q
 
 
+def _mad(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 999.0
+    return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+
+
+def listener_faults(ep: pathlib.Path, layout: dict) -> dict:
+    """Is the listener ledger this film's, and does it break the bed rules?
+
+    ⚠️ THE FINGERPRINT MATCH CARRIES ITS OWN CONTROL. A threshold typed here would be a
+    guess about how alike two stretches of a man sitting still can look. Instead every
+    shot is also compared with the film at a DIFFERENT listening shot of the same panel:
+    the ledger is accepted only if the worst true match is closer than the best
+    mismatch. If the fingerprint cannot tell shots apart, that is reported as
+    UNVERIFIED, never as a pass.
+    """
+    import twoway_render as tr
+    out = {"faults": [], "notes": []}
+    lp = ep.with_name(ep.stem + "-listeners.json")
+    if not lp.is_file():
+        out["faults"].append(
+            f"no listener ledger ({lp.name}) beside the film, so whether a bed stretch "
+            f"plays back to back cannot be checked. Re-render with twoway_render.py.")
+        return out
+    led = json.loads(lp.read_text(encoding="utf-8")).get("listeners") or []
+    if not led:
+        out["notes"].append("listener ledger is empty — no two-box shots")
+        return out
+    got = [tr.panel_fingerprint(ep, e["at_s"] + e["dur_s"] / 2, layout, e["side"])
+           for e in led]
+    true = [_mad(e["fingerprint"], g) for e, g in zip(led, got)]
+    ctrl = []
+    for i, e in enumerate(led):
+        j = next((k for k in range(len(led)) if k != i and led[k]["side"] == e["side"]
+                  and abs(led[k]["at_s"] - e["at_s"]) > 5), None)
+        if j is not None:
+            ctrl.append(_mad(e["fingerprint"], got[j]))
+    worst, best_ctrl = max(true), (min(ctrl) if ctrl else None)
+    print(f"\n  listener ledger: {len(led)} shots, true-match MAD worst {worst:.1f}, "
+          f"control MAD best {best_ctrl if best_ctrl is None else round(best_ctrl, 1)}")
+    if best_ctrl is None or worst >= best_ctrl:
+        out["faults"].append(
+            f"the listener ledger could not be VERIFIED against this film: the worst true "
+            f"match ({worst:.1f}) is not closer than the best control ({best_ctrl}). "
+            f"Either the ledger belongs to another render or the fingerprint cannot tell "
+            f"these shots apart — the back-to-back answer below is about the ledger, not "
+            f"proven about the film.")
+    else:
+        out["notes"].append(f"listener ledger verified against the film's pixels "
+                            f"({len(led)} shots; worst true match {worst:.1f} < best "
+                            f"control {best_ctrl:.1f})")
+    b2b = tr.back_to_back(led)
+    out["faults"] += b2b
+    if not b2b:
+        reused = sum(1 for e in led if e.get("reused_within_window"))
+        out["notes"].append(f"no bed stretch plays back to back and none loops"
+                            + (f"; {reused} shot(s) reuse footage inside "
+                               f"{tr.REUSE_WINDOW_S:.0f}s because nothing else fitted"
+                               if reused else ""))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("ep_number", type=int)
@@ -294,6 +356,15 @@ def main() -> int:
     if p["lufs"] is None:
         faults.append("the loudness could not be measured, so it was not checked — "
                       "an unmeasured film is not a film at -14.")
+
+    # 5c \u2014 \ud83d\udd34 THE BEDS: NEVER THE SAME STRETCH BACK TO BACK, ON THE FINISHED FILE.
+    # Jodie, 5 Oct 2026: beds are reused, never looped in a run, never the same stretch
+    # back to back. The render writes a ledger of every listening shot; this proves the
+    # ledger is THIS film's (fingerprints against the film's own pixels, with a control),
+    # then asks the arithmetic question of it.
+    lf = listener_faults(ep, layout)
+    faults += lf["faults"]
+    notes += lf["notes"]
 
     # 6 \u2014 \ud83d\udd34 THE PLAIN END FRAME, IN PIXELS. \u00a7END SEQUENCE has no rule for this and
     # `end_frame.py` does: YouTube draws its end-screen boxes over the last 15-20
