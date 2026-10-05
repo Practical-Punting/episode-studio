@@ -152,6 +152,16 @@ LATENCY_BEATS_S = (0.32, 0.45, 0.38, 0.50, 0.35, 0.42)
 0.3–0.5s and says DO NOT TIGHTEN IT. Cycled rather than fixed because identical gaps are
 the tell — the same rule the singles follow."""
 
+REGISTER_EXTRA_S = 0.5
+"""🔴 A CHANGE OF REGISTER NEEDS MORE AIR THAN A HANDOVER (build spec A15, Jodie, 27 Sep
+2026). Where Gordon steps OUT of the reading to speak as himself — or back into it — the
+gap is a handover beat PLUS this. EP49 used one number for both and at ~13:21 she heard
+*"he stops talking and starts talking again in the same breath. It's too rushed"*; her
+remedy was *"another half second pause or something"*. So it is exactly that: the cycled
+handover beat (still varied, so no two register gaps match either) plus half a second.
+Two numbers, not one. The silence is already in the master — the furniture sits between
+~6s SSML breaks — so nothing needs re-rendering; the assembler just takes more of it."""
+
 AUDIO_OVERLAP_S = 0.5
 """How much of the next voice is carried under the outgoing window (build spec §6).
 "This does more for 'these two are talking' than anything else in the build."
@@ -607,9 +617,12 @@ def _timeline_with_furniture(turns, spans, masters, manifest, host) -> list[dict
         out.append(row)
         clock += dur
         if i < len(speaking) - 1:
-            beat = _beat(i)
+            # A15: reading <-> Gordon-as-himself is a change of register, not a handover.
+            register = (item["kind"] == "furniture") != (speaking[i + 1]["kind"] == "furniture")
+            beat = round(_beat(i) + (REGISTER_EXTRA_S if register else 0.0), 3)
             out.append({"n": len(out) + 1, "turn": None, "speaker": None,
                         "source": None, "kind": "latency",
+                        "pause": "register" if register else "handover",
                         "from_s": round(clock, 3), "to_s": round(clock + beat, 3),
                         "dur_s": beat})
             clock += beat
