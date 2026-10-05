@@ -1161,6 +1161,22 @@ not, the episode carries no byline.** The test is what the page says, not a hous
     picked hero is wrong for a 16:9 crop, or the episode wants deliberate variation. **The
     REJECTED case is one of them:** EP13's unused hero was racing-impossible, which is exactly
     why the rule points at the PICKED hero and not at "the other one".
+- 🔒 **THE THUMBNAIL IS FULL-BLEED — the photograph runs edge to edge, always (Jodie, 5 Oct 2026 —
+  RULED).** *"Normally the thumbnail does not have black on the left hand side. The image goes all
+  the way across the picture."* **Never a solid charcoal panel with the photo as a side panel**, even
+  when a brief says "recomposed for 16:9, not cropped". The text sits over the photo on the angled
+  scrim (template: full-bleed angled gradient only).
+  - **The EP55 case that produced it.** Hero B's two faces ran across the middle of a portrait
+    picture, and at the template's 660px copy width "OF HANDICAPPING" wrapped into a tall block that
+    sat on both faces in every full-bleed crop. Claude Code recomposed it charcoal-left and Jodie
+    rejected it.
+  - **The fix that keeps it full-bleed, approved the same day ("new thumbnail is perfect"):**
+    **widen `.copy`** so each headline line runs on ONE line across the top (Jodie: *"I am happy to
+    have the text go wider across the thumbnail page"*; EP55 used 1168px), move
+    `thumbnail.hero_focus` so the faces sit whole in the lower frame (EP55: `center 23%`), and
+    lengthen the angled scrim's stops if the orange line lands on sky (EP55: 118deg, orange l2
+    3.68:1). Measured: faces clear by 80px. **Reach for the wider copy block before anything that
+    takes the photo off part of the frame.**
 - Bold Anton caps, colour-split headline, orange eyebrow, small WHITE-wordmark logo in a corner. The thumbnail text is a HOOK (3–5 words), different from — but not contradicting — the title. Strategy/curiosity only; no odds/guarantees.
 - ✅ **DONE 28 Jul 2026 — the thumbnail template CARRIES the series part treatment.**
   The §E-book SERIES PART TREATMENT rule (Jodie, 26 Jul 2026) applies to the cover, the
