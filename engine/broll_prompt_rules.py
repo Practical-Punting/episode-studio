@@ -302,6 +302,145 @@ def a_rail_with_horses(prompt: str) -> bool:
     """
     return shows_a_rail(prompt) and has_horses(prompt)
 
+
+# ══ IS THE HORSE RIDDEN? IS THE SHOT ON A TRACK? (Jodie, 5 Oct 2026, EP55) ══════
+#
+# 🔴 TWO RULES WERE FIRING ON SHOTS THEY DO NOT FIT. EP55's six prompts were graded
+# against the whole file and got 31 findings, and two of them were plainly wrong:
+#   · `silks` asked for "Australian racing silks on every rider" on a horse being LED
+#     at a walk, a horse standing in a stable yard and a horse walking past its
+#     owners — three shots with no rider in them, because the 20 Sep rule (c) says a
+#     walking horse is riderless and led. Applied, the fix writes "jockeys up and
+#     crouched in the irons" onto a led horse: the exact crouch-at-a-walk fault rule
+#     (c) was written to stop.
+#   · `turf` asked for "lush green Australian turf" in a stable yard.
+# Same family as HORSE_WORDS, `shows_actual_horses` and `a_rail_with_horses`: a rule may
+# only be applied to a shot it is actually about. Both ask their own narrower question.
+#
+# ⚠️ AND NEITHER MAY LOOSEN A RIDDEN HORSE ON A TRACK — the dry run against every prompt
+# on the Drive is the proof, not this comment. So the race words below lean WIDE: a
+# runner, a field, a barrier, a turn, a gallop or a canter all count as ridden racing,
+# whether or not a rider is named, because a field rounding the turn has riders on it
+# whether the prompt says so or not.
+RIDER_WORDS = re.compile(
+    r"\b(jockey|jockeys|rider|riders|mounted|ridden|in the irons)\b", re.I)
+RACE_WORDS = re.compile(
+    r"\b(gallop\w*|canter\w*|breez\w*|runners?|field|rounding|home straight|"
+    r"finishing post|winning post|barriers?|starting gates?|turn for home|in a race|"
+    r"blur\w*|thunder\w*|racing|races?(?!\s*-?\s*day))\b",
+    re.I)
+"""⚠️ `blur`, `racing` and `race` were added after the dry run, not before: EP9's
+`broll-04` is "a feature-race crowd … horses blurring past on brilliant green turf" — a
+race with its riders implied and never named — and the first version of this list let it
+lose its silks line. "race-day" (clothes, hats) is not a race."""
+
+
+def is_ridden(prompt: str) -> bool:
+    """A horse with somebody on it, or a horse racing — the shots `silks` is about."""
+    p = prompt or ""
+    return has_horses(p) and (_affirms(RIDER_WORDS, p) or _affirms(RACE_WORDS, p))
+
+
+# Where a horse can be that is NOT the track. A ridden or racing horse is on the track
+# wherever the prompt says it is, so this only ever exempts an UNRIDDEN horse.
+OFF_TRACK_WORDS = re.compile(
+    r"\b(stables?|stable yard|stall|barn|mounting yard|parade ring|enclosure|lawn|"
+    r"indoors?|kitchen|desk|office|sales? ring|weighing room|path|float)\b", re.I)
+
+
+def on_a_track(prompt: str) -> bool:
+    """The shots `turf` is about: horses on the racing or training surface."""
+    p = prompt or ""
+    return has_horses(p) and (is_ridden(p) or not _affirms(OFF_TRACK_WORDS, p))
+
+
+# ══ THE FOUR EP49 RULES (docs/broll-registry.md, 20 Sep 2026, a–d) ══════════════
+# Written down after four rejected, paid-for clips — and enforced nowhere until 5 Oct.
+# "A rule nothing enforces is a hope." Each is either a positive LINE the corrector can
+# append, or a CONTRADICTION it cannot resolve and must hand to a person.
+#
+# (a) HIGGSFIELD CANNOT COUNT. More than FOUR horses or people, named or implied, makes
+# horses vanish mid-clip and handlers go missing. Implied = "a field", "a crowd of
+# runners". A count is the writer's choice of SUBJECT, so the corrector never rewrites
+# it: it is a finding for a person. The one exception is the background crowd far out
+# of focus, which is texture, not subjects.
+_NUM_OVER_FOUR = (r"(?:five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|"
+                  r"fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|"
+                  r"dozens?|[5-9]|[1-9]\d+)")
+_SUBJECTS = (r"(?:racehorses?|horses?|runners?|thoroughbreds?|jockeys?|riders?|people|"
+             r"men|women|strappers?|handlers?|owners?|racegoers?|punters?|spectators?)")
+OVER_FOUR = re.compile(
+    r"\b" + _NUM_OVER_FOUR + r"\b(?:\s+\w+){0,3}?\s+" + _SUBJECTS + r"\b"
+    r"|\ba\s+(?:\w+\s+)?field\b"
+    r"|\b(?:a\s+)?crowd\s+of\s+(?:runners|horses|jockeys|riders|thoroughbreds)\b", re.I)
+
+
+def too_many(prompt: str) -> list[str]:
+    """Every phrase asking for more than four horses or people. Negated mentions, and a
+    sentence that puts its crowd far out of focus, do not count."""
+    out = []
+    for sent in re.split(r"(?<=\.)\s+", prompt or ""):
+        if re.search(r"out of focus", sent, re.I):
+            continue
+        for m in OVER_FOUR.finditer(sent):
+            back = sent[max(0, m.start() - 60):m.start()]
+            if not _NEGATED.search(back):
+                out.append(m.group(0))
+    return out
+
+
+# (b) SADDLECLOTHS ARE PLAIN. EP49's field-of-eight carried the SAME number on every
+# cloth — a numeral on screen and a racing impossibility. Any saddlecloth in the
+# picture: named, or implied by a horse being ridden.
+SADDLECLOTH_WORDS = re.compile(r"\bsaddle\s?cloths?\b", re.I)
+
+
+def shows_a_saddlecloth(prompt: str) -> bool:
+    p = prompt or ""
+    return _affirms(SADDLECLOTH_WORDS, p) or is_ridden(p)
+
+
+# (c) "JOCKEY" PRODUCES A RACING CROUCH, WHATEVER THE HORSE IS DOING. A walking or
+# parading horse is RIDERLESS AND LED; a rider appears only on a horse at a gallop.
+WALK_WORDS = re.compile(r"\b(walk\w*|parad\w*|led|leads?|leading|amble\w*|stroll\w*)\b",
+                        re.I)
+GALLOP_WORDS = re.compile(r"\b(gallop\w*|canter\w*|breez\w*)\b", re.I)
+
+
+def a_walking_horse(prompt: str) -> bool:
+    """A HORSE walking — the walk word and a horse word in the SAME sentence.
+
+    ⚠️ SENTENCE-LEVEL, FROM THE DRY RUN: EP30's "two friends … walking away towards the
+    gates" is PEOPLE walking, and a prompt-wide test called it a walking horse because a
+    horse is mentioned in another sentence."""
+    p = prompt or ""
+    if _affirms(GALLOP_WORDS, p):
+        return False
+    return any(_affirms(WALK_WORDS, s) and _affirms(HORSE_ANIMAL_WORDS, s)
+               for s in re.split(r"(?<=[.;])\s+", p))
+
+
+# (d) THE RAIL GOES BEHIND THE HORSES, NEVER BETWEEN THE CAMERA AND THE HORSES. A
+# foreground rail plus horses that must cross that line is impossible geometry, and the
+# model draws the rail through their legs.
+RAIL_IN_FRONT = re.compile(
+    r"\brail\w*\s+(?:in|across)\s+the\s+(?:near\s+)?foreground\b"
+    r"|\bforeground\b[^.]{0,30}\brail"
+    r"|\b(?:through|over|across)\s+the\s+(?:white\s+)?(?:running\s+)?rail\b", re.I)
+
+
+def rail_in_front(prompt: str) -> list[str]:
+    p = prompt or ""
+    return [m.group(0) for m in RAIL_IN_FRONT.finditer(p)
+            if not _NEGATED.search(p[max(0, m.start() - 60):m.start()])]
+
+
+# The findings that are the writer's choice of SUBJECT rather than a missing fact: the
+# corrector may not resolve them, so they are the ones that legitimately reach a person.
+# ONE list, read by `apply_rules` and by the archive sweep in test_broll_rail_rule.
+CONTRADICTION_KEYS = frozenset({"straight-rail-on-a-bend", "four-max",
+                                "rider-on-a-walking-horse", "rail-in-front"})
+
 # ── the standing lines ──────────────────────────────────────────────────────────
 # Each rule is (key, human name, what it must SAY, why it exists). `needs` is a list of
 # alternatives — any ONE satisfies it — so a prompt may phrase a line in its own words
@@ -334,19 +473,9 @@ RULES = [
     # asked on.
     # 📌 `strides` USED TO LIVE HERE too. It moved to CONDITIONAL on 23 Aug 2026 for the
     # same reason the rail rules did — see `shows_actual_horses`. A rider is not a horse.
-    dict(
-        key="silks",
-        name="Australian racing silks on every rider",
-        needs=[r"silks?\b"],
-        why=("EP16 at 8:11 — tweed jackets and flat caps on an Australian provincial "
-             "race day. 'Mounted' is not a costume instruction."),
-    ),
-    dict(
-        key="turf",
-        name="lush green Australian turf",
-        needs=[r"(green|lush).{0,20}turf", r"turf.{0,20}(course|racecourse|track)"],
-        why="These models default to American dirt. Say turf every time.",
-    ),
+    # 📌 `silks` and `turf` USED TO LIVE HERE, gated on horses alone. They moved to
+    # CONDITIONAL on 5 Oct 2026 (EP55) — see `is_ridden` and `on_a_track`. Nothing about
+    # the lines changed; only the question they are asked on.
     # 📌 `anatomy` MOVED TO CONDITIONAL on 23 Aug 2026, for the same reason as `strides`.
     # Its correction reads "anatomically correct HORSES — four legs, one head" and it was
     # gated on a word list that counts a jockey, so a horse-free shot missing the line
@@ -384,6 +513,52 @@ UNIVERSAL = [
 # cover has horses (in framed photographs) and explicitly no rail. Each rule carries the
 # question it is entitled to be applied on.
 CONDITIONAL = [
+    dict(
+        key="silks",
+        name="Australian racing silks on every rider",
+        needs=[r"silks?\b"],
+        when=is_ridden,
+        why=("EP16 at 8:11 — tweed jackets and flat caps on an Australian provincial "
+             "race day. 'Mounted' is not a costume instruction. Asked only of a RIDDEN "
+             "horse since 5 Oct 2026: a led or stabled horse has no rider to dress."),
+    ),
+    dict(
+        key="turf",
+        name="lush green Australian turf",
+        needs=[r"(green|lush).{0,20}turf", r"turf.{0,20}(course|racecourse|track)"],
+        when=on_a_track,
+        why=("These models default to American dirt. Say turf every time the horses are "
+             "on a track — not in a stable yard, on a mounting-yard lawn or indoors."),
+    ),
+    dict(
+        key="saddlecloth",
+        name="plain saddlecloths with no numbers",
+        needs=[r"plain saddle\s?cloths?", r"saddle\s?cloths?[^.]{0,20}no numbers?"],
+        when=shows_a_saddlecloth,
+        why=("EP49's field-of-eight carried the SAME number on every saddlecloth — a "
+             "numeral on screen and a racing impossibility (registry, 20 Sep 2026, b). "
+             "The positive instruction works where the numeral ban did not."),
+    ),
+    dict(
+        key="led",
+        name="a walking horse is riderless and led",
+        needs=[r"riderless", r"no rider", r"\bled\b", r"\bleads?\b", r"\bleading\b",
+               r"strapper"],
+        when=a_walking_horse,
+        why=("The word 'jockey' produces a racing crouch whatever the horse is doing; "
+             "EP49's walk-on got riders folded into a crouch at a walk (registry, "
+             "20 Sep 2026, c). A walking horse is riderless and led by a strapper."),
+    ),
+    dict(
+        key="rail-behind",
+        name="the rail BEHIND the horses",
+        needs=[r"rail[^.]{0,80}\bbehind\b", r"\bbehind\b[^.]{0,40}\brail",
+               r"rail[^.]{0,60}far side of (the|them)"],
+        when=a_rail_with_horses,
+        why=("A rail between the camera and the horses is impossible geometry, and the "
+             "model draws it through their legs (registry, 18 and 20 Sep 2026, d). Say "
+             "where it IS: behind the horses."),
+    ),
     dict(
         key="strides",
         name="horses out of step with one another",
@@ -572,21 +747,33 @@ def strip_straight_claims(text: str) -> tuple[str, list[str]]:
     return out, found
 
 
-def check_prompt(prompt: str) -> list[dict]:
-    """Every standing line this prompt fails to state. Empty list = nothing to say."""
+def check_prompt(prompt: str, shot: str | None = None) -> list[dict]:
+    """Every standing line this prompt fails to state. Empty list = nothing to say.
+
+    `shot` is the text the GATES classify the picture from — which rules this shot is
+    about — and defaults to the prompt itself. `apply_rules` passes the ORIGINAL prompt.
+
+    🔴 CLAUDE.md §10, A SECOND TIME (EP55, 5 Oct 2026): "never let a fixer re-read its
+    own writing as evidence about the input." The stride line the corrector appends ends
+    "…across the field", and `field` is a race word, so a led yearling at a sale ring was
+    re-checked AFTER correction as a racing shot and asked for silks and saddlecloths it
+    could never have. Whether a line is PRESENT is still asked of the corrected text;
+    WHAT THE SHOT IS is asked of the shot as written.
+    """
     out = []
+    cls = prompt if shot is None else shot
     # THE UNIVERSAL TIER FIRST, and unconditionally. A prompt with no horses, no crowd
     # and no rail still has a light in it, and EP26's discarded desk card is why that
     # sentence had to be written down. Every other rule below stays gated on the shot
     # actually being about the thing the rule is about (the HORSE_WORDS note).
     rules = list(UNIVERSAL)
-    if has_horses(prompt):
+    if has_horses(cls):
         rules += RULES                 # a kitchen table is not a racing shot
-    if _affirms(CROWD_WORDS, prompt):
+    if _affirms(CROWD_WORDS, cls):
         rules.append(CROWD_RULE)       # …and a crowd shot needs its hats, horses or not
     # …and a rule that carries its own question answers it here. One place, so a new
     # conditional rule cannot be added and then forgotten by one of the three callers.
-    rules += [r for r in CONDITIONAL if r["when"](prompt or "")]
+    rules += [r for r in CONDITIONAL if r["when"](cls or "")]
     if not (prompt or "").strip():
         return []                      # nothing to grade; an empty prompt is a different fault
     for r in rules:
@@ -607,6 +794,36 @@ def check_prompt(prompt: str) -> list[dict]:
                     "around it. On a bend the rail curves with the track and the field "
                     "stays outside it. Asking for a straight rail on a bend is asking "
                     "for incoherent geometry, which is the soil this fault grows in."),
+        })
+    # 🔴 THREE MORE CONTRADICTIONS (registry, 20 Sep 2026, a, c, d). Each is the writer's
+    # choice of SUBJECT, so the corrector may not rewrite it — a person does.
+    many = too_many(prompt)
+    if many:
+        out.append({
+            "key": "four-max",
+            "name": "no more than FOUR horses or people",
+            "why": ("asks for " + ", ".join(f'"{m}"' for m in many) + ". Higgsfield "
+                    "cannot count: EP49's field of eight lost a horse in front of the "
+                    "camera and its walk-on of twelve left most horses with no strapper. "
+                    "Ask for four or fewer by name; a crowd far out of focus is the one "
+                    "exception."),
+        })
+    if a_walking_horse(prompt) and _affirms(RIDER_WORDS, prompt):
+        out.append({
+            "key": "rider-on-a-walking-horse",
+            "name": "a rider on a walking horse",
+            "why": ("a walking or parading horse is RIDDEN in this prompt. The word "
+                    "'jockey' gives a racing crouch at a walk (EP49's walk-on). Make it "
+                    "riderless and led, or make it a gallop."),
+        })
+    front = rail_in_front(prompt)
+    if front and has_horses(prompt):
+        out.append({
+            "key": "rail-in-front",
+            "name": "a rail between the camera and the horses",
+            "why": ("puts the rail " + ", ".join(f'"{f}"' for f in front) + ". The rail "
+                    "goes BEHIND the horses; in front of them the model draws it through "
+                    "their legs."),
         })
     return out
 
@@ -637,6 +854,11 @@ FIXES = {
               "varied Australian racing silks and matching caps, white or cream breeches, "
               "black riding boots, safety helmets with the silk cover on"),
     "turf": "lush green Australian turf",
+    # The registry's 20 Sep wording, exactly — the positive instruction that worked.
+    "saddlecloth": "plain saddlecloths, no numbers",
+    "led": "the horse riderless and led by a strapper at its head",
+    "rail-behind": "the running rail stands behind the horses, on the far side of them "
+                   "from the camera",
     "anatomy": ("anatomically correct horses — four legs, one head, no fused or extra "
                 "limbs"),
     "hat-variety": ("Akubra-style hats in a variety of natural colours — fawn, sand, tan, "
@@ -804,17 +1026,24 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
     # reported "rail-smooth — still missing after auto-apply", which is the tool telling
     # a human to do something the tool could do. Caught by the existing auto-inject
     # tests, which is what they are for.
-    if any(g["key"] == "rail-smooth" for g in check_prompt(text)):
+    if any(g["key"] == "rail-smooth" for g in check_prompt(text, shot=prompt)):
         text = _add_sentence(text, rail_smooth_for(text))
         applied.append("the rail is one smooth, true, evenly-posted line"
                        + (" (bend wording)" if BEND_WORDS.search(text) else ""))
+
+    # 2c. Where the rail STANDS (registry, 20 Sep 2026, d) — a fact about the scene, so
+    # in the scene with the rail sentence, and re-asked against the updated text for the
+    # same reason as 2b: step 2 may have just introduced the rail.
+    if any(g["key"] == "rail-behind" for g in check_prompt(text, shot=prompt)):
+        text = _add_sentence_early(text, FIXES["rail-behind"])
+        applied.append("the rail stands behind the horses")
 
     # 3. Everything else is a fact appended in the registry's own words.
     # `orientation` and `lighting` LAST, because they are statements about the whole
     # frame and read as the closing instruction rather than as one more fact about the
     # horses. Lighting last of all: it is the only one that lands on every picture.
-    for key in ("strides", "silks", "turf", "anatomy", "hat-variety", "orientation",
-                "lighting"):
+    for key in ("strides", "silks", "saddlecloth", "led", "turf", "anatomy",
+                "hat-variety", "orientation", "lighting"):
         if key in gaps and FIXES.get(key):
             # orientation is SHOT-AWARE — see orientation_for(). Read through the
             # resolver so a horse-free picture is never handed the horses clause, which
@@ -826,10 +1055,15 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
 
     # 4. RE-CHECK. If applying the rules did not satisfy the rules, the tool is wrong and
     #    must say so rather than quietly generating a clip that breaks them — the one
-    #    thing genuinely worth a human here.
-    left = {g["key"] for g in check_prompt(text)}
-    for key in sorted(left):
-        unfixable.append(f"{key} — still missing after auto-apply")
+    #    thing genuinely worth a human here. A CONTRADICTION is not a missing line, so it
+    #    says what it found and why, not "still missing".
+    for g in check_prompt(text, shot=prompt):
+        if g["key"] == "straight-rail-on-a-bend":
+            continue                   # reported by step 1 with the phrase it found
+        if g["key"] in CONTRADICTION_KEYS:
+            unfixable.append(f"{g['name']} — this prompt {g['why']}")
+        else:
+            unfixable.append(f"{g['key']} — still missing after auto-apply")
     return text, applied, unfixable
 
 

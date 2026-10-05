@@ -65,11 +65,12 @@ GOOD_RAIL = ("The whole field runs on ONE side of a single white running rail �
 # fixed sentence, it is whatever the standing rules currently ask for; every time a rule
 # is added, this fixture has to gain its line or every case below starts failing for a
 # reason that has nothing to do with the clause it removes.
-GOOD = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
-        "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
+GOOD = ("Photoreal cinematic wide shot of four racehorses galloping on lush green "
+        "turf at an Australian racecourse. " + GOOD_RAIL + ". The running rail stands "
+        "behind the horses, on the far side of them from the camera. The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding. Natural daylight, horizon level and near "
+        "bright racing silks, actively riding, plain saddlecloths, no numbers. Natural daylight, horizon level and near "
         "the middle with sky at the top and turf at the bottom, horses upright. The rail "
         "is one clean unbroken line, evenly spaced upright posts and a level top rail. "
         "Warm golden-hour light, generously exposed.")
@@ -180,7 +181,7 @@ print("\n-- IT APPLIES, IT DOES NOT ASK (Jodie, 14 Aug 2026) --")
 # wording is computed and there is one of it. Same ruling as auto-WIDE and auto-broll.
 # And the halt was worse than noise — _broll_prompt runs PER CLIP, so it named one clip
 # when six were short: six halts in a row, each needing a human before the next appeared.
-bare = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
+bare = ("Photoreal cinematic wide shot of four racehorses galloping on lush green "
         "turf at an Australian racecourse, mounted jockeys in bright silks, the horses at "
         "clearly different points in their stride. Present day, natural daylight.")
 fixed, applied, unfixable = R.apply_rules(bare)
@@ -332,11 +333,12 @@ check("  and writes them back to episode.json",
 # says nothing about the other** — and the tell was that this file was entirely green
 # while EP25 carried six unoriented racing prompts.
 print("\n-- 1b, second funnel: the RACING B-ROLL prompts, not only the covers --")
-bare = ("Photoreal cinematic wide shot of a field of racehorses galloping on lush green "
-        "turf at an Australian racecourse. " + GOOD_RAIL + ". The horses at clearly "
+bare = ("Photoreal cinematic wide shot of four racehorses galloping on lush green "
+        "turf at an Australian racecourse. " + GOOD_RAIL + ". The running rail stands "
+        "behind the horses, on the far side of them from the camera. The horses at clearly "
         "different points in their stride, legs out of phase across the field, "
         "anatomically correct with four legs and one head. Mounted jockeys crouched in "
-        "bright racing silks, actively riding. The rail is one clean unbroken line, "
+        "bright racing silks, actively riding, plain saddlecloths, no numbers. The rail is one clean unbroken line, "
         "evenly spaced upright posts and a level top rail. Warm golden-hour light, "
         "generously exposed.")
 check("a racing b-roll prompt with everything BUT orientation is not clean",
@@ -389,7 +391,7 @@ check("  …and so is one that says it in its own words",
       "lighting" not in keys(DESK + " The room is warmly and generously lit."))
 
 print("\n-- Fault 7: the RAIL is one smooth, true line --")
-RAILED = ("Photoreal wide shot of a field of racehorses on lush green turf, the whole "
+RAILED = ("Photoreal wide shot of four racehorses on lush green turf, the whole "
           "field running on ONE side of a single white running rail, open green turf "
           "infield beyond it.")
 check("a shot with a rail is asked for the rail's LINE",
@@ -477,7 +479,7 @@ check("  a cover that DOES show a rail gets the rail line through the cover funn
 # straight" / "straight and true" / "perfectly level" are never forced onto a bend.
 print("\n-- EP27: the straight-rail claim is found AND removed, in any wording --")
 
-EP27_SHAPE = ("Photoreal cinematic wide side-on shot of a full field of racehorses "
+EP27_SHAPE = ("Photoreal cinematic wide side-on shot of four racehorses "
               "sweeping around a bend and straightening for home. The whole field "
               "running on ONE side of a single DEAD STRAIGHT, PERFECTLY LEVEL white "
               "running rail — the rail is the inside boundary of the track, open green "
@@ -500,7 +502,7 @@ check("  nothing is left failing", not keys(e_fixed), keys(e_fixed))
 
 # EVERY WORDING THE PHRASE HAS EVER ARRIVED IN, and the ones Jodie's law names. The point
 # is that DETECTION AND REMOVAL CANNOT DISAGREE — they are built from one list now.
-BENDY = ("Wide shot of a field of racehorses rounding the home turn on lush green turf, "
+BENDY = ("Wide shot of four racehorses rounding the home turn on lush green turf, "
          "the whole field on ONE side of a single white running rail, open green turf "
          "infield beyond it, jockeys in silks at different points of stride, "
          "anatomically correct, horizon level and sky at the top, warm golden-hour light.")
@@ -541,7 +543,7 @@ check("  and the CURVE wording is applied",
 
 # THE OTHER DIRECTION, which is the control: a straight shot keeps the straight wording
 # and is never handed a curve it does not have.
-STRAIGHTY = ("Wide shot of a field of racehorses galloping down the straight on lush "
+STRAIGHTY = ("Wide shot of four racehorses galloping down the straight on lush "
              "green turf, the whole field on ONE side of a single white running rail, "
              "open green turf infield beyond it, jockeys in silks at different points of "
              "stride, anatomically correct, horizon level and sky at the top, warm "
@@ -614,18 +616,21 @@ for _d in sorted(PP.glob("PP-EP*")):
         _new, _applied, _unfix = R.apply_rules(_p)
         if _applied:
             injected += 1
-        _after = {g["key"] for g in R.check_prompt(_new)}
+        _after = {g["key"] for g in R.check_prompt(_new, shot=_p)}   # §10: classify the ORIGINAL
         if "lighting" in _after:
             unlit.append(f"EP{_n} {_b.get('target', '?')}")
         if "unbroken line" in _new and "unbroken line" not in _p \
                 and not R.shows_a_rail(_p):
             wrong_rail.append(f"EP{_n} {_b.get('target', '?')}: a rail written in")
         # The older assertion, kept, but now only for the shots the older rules grade.
-        if (R.has_horses(_p) or R.CROWD_WORDS.search(_p)) and _after:
-            leftovers.append(f"EP{_n}: {sorted(_after)} still missing after auto-apply")
+        _missing = _after - R.CONTRADICTION_KEYS
+        if (R.has_horses(_p) or R.CROWD_WORDS.search(_p)) and _missing:
+            leftovers.append(f"EP{_n}: {sorted(_missing)} still missing after auto-apply")
         # A CONTRADICTION is allowed to survive as unfixable — that is the decision.
         # A merely ABSENT line is not.
-        if _unfix and not R._BEYOND_NON_TURF.search(_p):
+        # (5 Oct 2026) the 20 Sep contradictions are named once in R.CONTRADICTION_KEYS.
+        _contra = {g["key"] for g in R.check_prompt(_new, shot=_p)} & R.CONTRADICTION_KEYS
+        if _unfix and not R._BEYOND_NON_TURF.search(_p) and not _contra:
             leftovers.append(f"EP{_n}: halted a human over {_unfix}")
 
 if graded or covers:
