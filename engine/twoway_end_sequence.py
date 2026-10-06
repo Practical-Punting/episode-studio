@@ -191,6 +191,18 @@ def _card_columns(page: pathlib.Path) -> list[dict]:
     return p.cols
 
 
+def clip_seconds(path: pathlib.Path) -> float:
+    """A standing clip's own length, asked of the file."""
+    import subprocess
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                        "-of", "default=nw=1:nk=1", str(path)],
+                       capture_output=True, text=True, timeout=120)
+    try:
+        return float((r.stdout or "").strip())
+    except ValueError:
+        raise Unplaceable(f"could not read the length of {path.name}")
+
+
 def _spoken_at(tl, phrase: str, what: str, where: str) -> float:
     at = dct.find_phrase(tl, phrase)
     if at is None:
@@ -336,6 +348,15 @@ def place(d: pathlib.Path, epj: dict, cues, furniture: list[dict],
         # thirty-four words of EP48's L8. Deriving it from the ask's own end means a
         # shorter pool line cannot leave the chip hanging over the return to content.
         end = round(a1 + MIDROLL_ASK_TAIL_S + head_s, 3)
+        # 🔴 …BUT NEVER SHORTER THAN THE CHIP'S OWN ANIMATION (Jodie, 6 Oct 2026). EP55's
+        # L5 ask is 6.56s, which sized the chip to 6.76s — under §4E's 6s of full
+        # visibility AND cutting `midroll-lowerthird.mp4` (7.70s) off before it finished.
+        # Ruling: "the chip's on-screen time is at least its own animation length, never
+        # cut short by a short ask" — the same as single-presenter. The beat check below
+        # still applies, so a long hold can never run over the return to the reading.
+        clip_p = clips / str(mid.get("clip") or STANDING["midroll"]["clip"])
+        own = clip_seconds(clip_p)
+        end = round(max(end, at + own), 3)
         dur = round(max(end - at, 0.0), 3)
         full = round(dur - 2 * fade, 3)
         if full < dct.MIDROLL_MIN_FULL:
@@ -356,6 +377,7 @@ def place(d: pathlib.Path, epj: dict, cues, furniture: list[dict],
             "at_s": at, "dur_s": dur, "fade_s": fade, "ask": list(ask[:2]),
             "spoken_at_s": round(a0 + head_s, 3),
             "ask_ends_at_s": round(a1 + head_s, 3),
+            "clip_own_s": round(own, 3),
             "beat": [round(lo, 3), round(hi, 3)],
             "chromakey": True, "full_frame": False,
         }
