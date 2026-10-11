@@ -17,7 +17,9 @@ import urllib.request
 from pathlib import Path
 
 job = Path(sys.argv[1]).resolve()
-NAME = json.loads((job / "overlay" / "fbx-week.json").read_text(encoding="utf-8"))["heygen_name"]
+# --name "<exact HeyGen title>" for a video with no week file (the evergreen promo)
+NAME = sys.argv[sys.argv.index("--name") + 1] if "--name" in sys.argv else \
+    json.loads((job / "overlay" / "fbx-week.json").read_text(encoding="utf-8"))["heygen_name"]
 ENV = job.parents[1] / ".env"
 key = next((ln.split("=", 1)[1].strip().strip('"').strip("'") for ln in ENV.read_text(encoding="utf-8").splitlines()
             if ln.strip().startswith("HEYGEN_API_KEY=")), None)

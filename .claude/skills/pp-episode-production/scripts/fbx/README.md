@@ -37,6 +37,26 @@ PP-FBX-Wnn\
 - Guess a cue time — a phrase not found in the words halts, naming it.
 - Print "THE N BIGGEST GAPS ALL WON." in a week where they did not — that headline needs a human.
 
+## The evergreen promo "What is FBX?" (11 Oct 2026) — `fbx_promo.py`
+Folder `Promotional Videos\PP-FBX-PROMO\`. Data: `overlay\fbx-promo.json` (every on-screen word + cue phrase).
+Same tools: `fbx_fetch.py J --name "FBX-PROMO What is FBX"` → `fbx_align.py J` → `fbx_promo.py J cues` (dry run: every
+phrase found, the plan printed) → `fbx_locked.py … fbx_promo.py J cards` → `… fbx_promo.py J assemble` →
+`fbx_promo_qc.py J <scripts doc> <visual brief>`. B-roll comes from the LIBRARY first (`broll\broll-sources.json`
+records each clip's source, line and the alternatives rejected). Reuses W01's card helpers, chips, closing card, JOIN
+lower third, audio recipe and makeup gain. Evergreen: the Saturday Report's dated header line is blurred before use.
+**Title card (Jodie, 11 Oct):** the approved thumbnail opens the promo for `title_head` (7.0 s) with the standard sting —
+`fbx_promo.py J title` renders it at 1920×1080. The head is added ONCE, in `cue_sheet`; every reader uses that clock.
+**Thumbnails:** `fbx_thumbnail.py weekly|evergreen …` (ISNet cut-out, run locally; the model file needs a stable home).
+
+## Facts learned on the promo
+- **A push must FINISH before its panel appears.** Starting both together put a half-faded panel over Gordon's
+  still-moving shoulder for ~0.2 s (QC: −102 px). Pushes now start 0.6 s ahead.
+- **Measure panel text from once the panel is fully up**, and lower thirds from once the previous card has gone — a
+  "before" taken during the panel's own fade reported −0.60 s for text that was on time.
+- **Ask the page where its elements are** (`fbx_promo_qc.element_rects`) instead of typing boxes in by hand.
+- The jacket detector needs a jacket-sized blob (40 px wide AND 41 px tall): the window's dark bottom rail read as
+  Gordon on the wide shot. A chestnut horse in B-roll is in the orange hue band — footage is graded separately.
+
 ## Facts learned on W01 (do not re-learn)
 - **`align_to_script.py` mis-times digit-heavy speech.** It aligns the TRANSCRIPT, which writes "$2.90" as digits that
   wav2vec2 cannot place; the whole results paragraph collapsed into 6–14 s (real: 6–22 s) while it reported 93.8%

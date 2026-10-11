@@ -105,6 +105,31 @@ def render_all(out_dir: Path, jobs):
     return results
 
 
+def still(html: Path, out: Path, W: int, H: int, scale: float = 1.0):
+    """One PNG of a static page, with the SAME Chromium flags as the clips. render_still.py has no
+    --disable-lcd-text, and Chrome's LCD smoothing puts orange/blue fringes on small grey text —
+    10 'orange' pixels inside "BROUGHT TO YOU BY" on the first evergreen thumbnail."""
+    from playwright.sync_api import sync_playwright
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(_Quiet, directory=str(html.parent)))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    p = sync_playwright().start()
+    browser = p.chromium.launch(headless=True, args=[
+        "--force-color-profile=srgb", "--disable-lcd-text", "--hide-scrollbars", "--force-device-scale-factor=1"])
+    # scale > 1 renders the SAME layout at higher density (the 1280x720 thumbnail page as a crisp 1920x1080 title card)
+    page = browser.new_page(viewport={"width": W, "height": H}, device_scale_factor=scale)
+    page.goto(f"http://127.0.0.1:{httpd.server_address[1]}/{quote(html.name)}", wait_until="load")
+    page.wait_for_function("document.fonts.status === 'loaded'", timeout=60_000)
+    page.wait_for_function("Array.from(document.images).every(i => i.complete && i.naturalWidth > 0)", timeout=60_000)
+    bad = page.evaluate("(() => { const ok = new Set(), all = new Set();"
+                        " for (const f of document.fonts) { all.add(f.family); if (f.status === 'loaded') ok.add(f.family); }"
+                        " return [...all].filter(x => !ok.has(x)); })()")
+    if bad:
+        sys.exit(f"HALT {html.name}: fonts not loaded: {bad}")
+    page.screenshot(path=str(out), clip={"x": 0, "y": 0, "width": W, "height": H})
+    log(f"{html.name}: still {round(W * scale)}x{round(H * scale)} -> {out}")
+    # caller ends the process with os._exit(0) — closing the browser hangs on this machine
+
+
 def parse(spec):
     parts = spec.split(":")
     # Windows drive letters contain ':' — rebuild the path from the right

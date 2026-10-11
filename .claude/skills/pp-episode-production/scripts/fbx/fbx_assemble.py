@@ -99,10 +99,17 @@ def measure_mix(job, P, master, music, gain_db=0.0):
 
 def audio_graph(P, pres_in, music_in, gain_db=0.0):
     tot, se = P["total"], P["speech_end"]
+    head = P.get("head", 0.0)    # a title card in front (the promo, Jodie 11 Oct); W01 has none
     sw0, sw1, blm, soft = round(se - 5.3, 2), round(se - 1.3, 2), P["warranty_in"], round(tot - 0.5, 2)
-    env = (f"if(lt(t,0.5),0.04*t/0.5,if(lt(t,{sw0}),0.04,if(lt(t,{sw1}),0.04+(t-{sw0})/{round(sw1 - sw0, 2)}*0.51,"
-           f"if(lt(t,{blm}),0.55,if(lt(t,{soft}),0.42,max(0,0.42*(1-(t-{soft})/0.5)))))))")
-    return (f"[{pres_in}:a]apad=whole_dur={tot},atrim=duration={tot},asetpts=PTS-STARTPTS,"
+    tail = (f"if(lt(t,{sw1}),0.04+(t-{sw0})/{round(sw1 - sw0, 2)}*0.51,"
+            f"if(lt(t,{blm}),0.55,if(lt(t,{soft}),0.42,max(0,0.42*(1-(t-{soft})/0.5)))))")
+    if head:
+        # the STANDARD PP title-head sting (assemble_episode.py): full 0.5–5.0 s, down to the 0.04 bed by 6.5 s
+        env = f"if(lt(t,0.5),t/0.5,if(lt(t,5.0),1,if(lt(t,6.5),1-(t-5.0)/1.5*0.96,if(lt(t,{sw0}),0.04,{tail}))))"
+    else:
+        env = f"if(lt(t,0.5),0.04*t/0.5,if(lt(t,{sw0}),0.04,{tail}))"
+    delay = f"adelay={int(head * 1000)}|{int(head * 1000)}," if head else ""
+    return (f"[{pres_in}:a]{delay}apad=whole_dur={tot},atrim=duration={tot},asetpts=PTS-STARTPTS,"
             f"loudnorm=I={TARGET_LUFS:g}:TP=-1.5:LRA=11,"
             f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asplit=2[sp][spkey];\n"
             f"[{music_in}:a]aloop=loop=-1:size=6000000,atrim=duration={tot},asetpts=PTS-STARTPTS,"

@@ -127,6 +127,111 @@ def verdict(delta, lo=-0.40, hi=0.30):
     return "PASS" if delta is not None and lo <= delta <= hi else "FAIL"
 
 
+# ------------------------------------------------------------------ shared measurements (W01 + the promo)
+def panel_box(last_png):
+    """A panel's real extent, read from its rendered clip's alpha."""
+    from PIL import Image
+    al = np.array(Image.open(last_png).convert("RGBA"))[:, :, 3]
+    ys, xs = np.where(al > 8)
+    return int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())
+
+
+def gordon_edge(master, z, x, y, tot, a, b, py0, py1, px0, head=0.0):
+    """Per frame, the left-most x of Gordon's jacket inside rows py0..py1, in a presenter-only render of the
+    SAME zoompan framing between a and b seconds. His jacket is dark CHARCOAL (R≈G≈B); the racecourse
+    trees are dark GREEN and the first version took them for Gordon (-267 px, a false FAIL on W01)."""
+    # EVEN crop only (the odd-crop trap, again: a 395-px-tall promo panel crashed the reshape on 11 Oct;
+    # W01's panels happened to be even). Widen by a pixel rather than shrink, so the panel stays covered.
+    py0 = py0 // 2 * 2
+    H = (py1 - py0 + 2) // 2 * 2
+    # head: the title card's lead, padded exactly as the assembler pads it — the SAME clock as the finished file
+    lead = f"tpad=start_duration={head}:start_mode=clone," if head else ""
+    vf = (f"{lead}tpad=stop_mode=clone:stop_duration=60,trim=duration={tot},setpts=PTS-STARTPTS,fps=25,"
+          f"zoompan=z={z}:x={x}:y={y}:d=1:s=1920x1080:fps=25,"
+          f"trim=start={a}:end={b},setpts=PTS-STARTPTS,crop=1920:{H}:0:{py0}")
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(master), "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                       capture_output=True)
+    fr = np.frombuffer(p.stdout, np.uint8).reshape(-1, H, 1920, 3).astype(np.int16)
+    lum = fr.mean(axis=3)
+    neutral = (fr.max(axis=3) - fr.min(axis=3)) < 14
+    notgreen = fr[..., 1] <= np.maximum(fr[..., 0], fr[..., 2]) + 3
+    dark = (lum < 85) & neutral & notgreen
+    edge = []
+    for f in dark:
+        best = 1920
+        for ri in range(0, f.shape[0], 4):
+            xs_ = np.flatnonzero(f[ri])
+            if xs_.size == 0:
+                continue
+            for r_ in np.split(xs_, np.flatnonzero(np.diff(xs_) > 1) + 1):
+                # >= 40 px wide: a 30-px dark tree fragment at x 502 passed a 24-px rule on W01
+                # (painted and looked at: PP-FBX-W01/output/qc/clearance-hook-panel-detector.png).
+                # AND >= 41 px TALL at its start: the window's dark bottom rail (a ~30-px band running in
+                # from the left edge) read as his jacket on the promo's wide shot (-99 px, then -75 px with a
+                # 9-px test: false FAILs, both painted and looked at, 11 Oct). His arm/shoulder is 100+ px tall.
+                if r_.size >= 40 and r_[0] > px0:
+                    c = int(r_[0]) + 4
+                    col = f[max(0, ri - 20):ri + 21, c]
+                    if col.size >= 25 and col.mean() >= 0.75:
+                        best = min(best, int(r_[0]))
+                        break
+        edge.append(best)
+    return edge
+
+
+def orange_frames(src, total, W, H, footage=()):
+    """Frames (every 12th, half size) holding an orange 16-px cell NOT within two cells of the PP logo's red
+    square found in the same frame. Orange = hue 8–28°, sat > 0.6, value > 0.5 (#DA532C is 13°; FBX gold 39°;
+    the PP logo red #F44336 is 4°).
+    `footage` = (a, b) windows of B-ROLL: a sunlit chestnut horse is in that hue band (promo S1, 11 Oct) and is
+    not branding, so hits there are returned SEPARATELY — listed in the report, never silently dropped."""
+    fr = gray(src, 0, total, scale=(W, H), rgb=True)[::12].astype(np.float32) / 255
+    bad, in_footage = [], []
+    for k, f in enumerate(fr):
+        r, g_, b = f[..., 0], f[..., 1], f[..., 2]
+        mx, mn = f.max(axis=2), f.min(axis=2)
+        s = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
+        d = np.maximum(mx - mn, 1e-6)
+        h = np.where(mx == r, ((g_ - b) / d) % 6, np.where(mx == g_, (b - r) / d + 2, (r - g_) / d + 4)) * 60
+        orange = (h >= 8) & (h <= 28) & (s > 0.6) & (mx > 0.5)
+        red = ((h < 8) | (h > 345)) & (s > 0.6) & (mx > 0.4)
+        C = 16
+        oc = orange[: H // C * C, : W // C * C].reshape(H // C, C, W // C, C).sum(axis=(1, 3)) > 3
+        rc = red[: H // C * C, : W // C * C].reshape(H // C, C, W // C, C).sum(axis=(1, 3)) > 12
+        if not oc.any():
+            continue
+        near = np.zeros_like(rc)
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                near |= np.roll(np.roll(rc, dy, 0), dx, 1)
+        stray = oc & ~near
+        if stray.any():
+            yy, xx = np.argwhere(stray)[0]
+            t = round(k * 12 / FPS, 1)
+            hit = (t, int(xx * C * 2), int(yy * C * 2), int(stray.sum()))
+            (in_footage if any(a <= t <= b for a, b in footage) else bad).append(hit)
+    return len(fr), bad, in_footage
+
+
+def flutter(master, t_end):
+    fr = gray(master, 0, t_end, scale=(480, 270)).astype(np.int16)
+    dif = np.abs(np.diff(fr, axis=0))
+    cols = np.flatnonzero((dif > 18).mean(axis=0).max(axis=0) > 0.02)
+    band = dif[:, 150:250, :].mean(axis=(1, 2))
+    return int(cols.min() * 4), int(cols.max() * 4), band
+
+
+def loudness(src):
+    e = run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-af", "ebur128=peak=true", "-f", "null", "-"]).stderr
+    return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", e)[-1]), float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", e)[-1])
+
+
+def mean_volume(src, a, b):
+    e = run(["ffmpeg", "-hide_banner", "-v", "info", "-ss", f"{a}", "-t", f"{b - a}", "-i", str(src),
+             "-af", "volumedetect", "-f", "null", "-"]).stderr
+    return float(re.search(r"mean_volume: (-?[\d.]+) dB", e).group(1))
+
+
 # ------------------------------------------------------------------ main
 def main():
     job = Path(sys.argv[1]).resolve()
@@ -283,45 +388,14 @@ def main():
         "mullions and the trees are excluded — the detector was painted onto a frame and looked at, "
         "`output/qc/clearance-hook-panel-detector.png`) in a presenter-only render of the SAME framing, every frame of each window, "
         "against the panel's real edge read from the rendered clip's alpha.")
-    from PIL import Image
     for name, (a, b), ztxt in (("fbx-16x9-hook-panel", (0.0, T["report_in"]), "push 136%"),
                                ("fbx-16x9-lower-third", (T["lower_third_on"], T["rg_in"]), "MCU 126%")):
-        al = np.array(Image.open(job / "overlay" / "clips" / f"{name}.last.png").convert("RGBA"))[:, :, 3]
-        ys, xs = np.where(al > 8)
-        px0, px1, py0, py1 = xs.min(), xs.max(), ys.min(), ys.max()
-        tot = P["total"]
+        px0, px1, py0, py1 = panel_box(job / "overlay" / "clips" / f"{name}.last.png")
         a1, b1 = P["push"]; a2, b2 = P["mcu"]
         Mx, Px = fa.act(a2, b2, 0.4), fa.act(a1, b1, 0.5)
         z = f"'(1+{fa.MCU_ZOOM - 1}*{Mx})*(1-{Px})+{fa.PUSH_ZOOM}*{Px}'"
-        vf = (f"tpad=stop_mode=clone:stop_duration=60,trim=duration={tot},setpts=PTS-STARTPTS,fps=25,"
-              f"zoompan=z={z}:x='(iw-iw/zoom)/2*(1-{Px})':y='(ih-ih/zoom)/2-55*max({Mx},{Px})':d=1:s=1920x1080:fps=25,"
-              f"trim=start={a}:end={b},setpts=PTS-STARTPTS,crop=1920:{py1 - py0 + 1}:0:{py0}")
-        p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(job / "renders" / "presenter-master.mp4"), "-vf", vf,
-                            "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True)
-        H = py1 - py0 + 1
-        fr = np.frombuffer(p.stdout, np.uint8).reshape(-1, H, 1920, 3).astype(np.int16)
-        lum = fr.mean(axis=3)
-        # his jacket is dark CHARCOAL (R≈G≈B); the racecourse trees behind are dark GREEN and the
-        # first version of this check took them for Gordon (-267 px, a false FAIL)
-        neutral = (fr.max(axis=3) - fr.min(axis=3)) < 14
-        notgreen = fr[..., 1] <= np.maximum(fr[..., 0], fr[..., 2]) + 3
-        dark = (lum < 85) & neutral & notgreen
-        edge = []
-        for f in dark:
-            best = 1920
-            for row in f[::4]:
-                xs_ = np.flatnonzero(row)
-                if xs_.size == 0:
-                    continue
-                runs = np.split(xs_, np.flatnonzero(np.diff(xs_) > 1) + 1)
-                for r_ in runs:
-                    # >= 40 px: a 30-px dark tree fragment at x 502 passed a 24-px rule on W01
-                    # (painted and looked at: output/qc/clearance-hook-panel-detector.png);
-                    # the jacket's own runs at its edge are 72-212 px
-                    if r_.size >= 40 and r_[0] > px0:
-                        best = min(best, int(r_[0]))
-                        break
-            edge.append(best)
+        edge = gordon_edge(job / "renders" / "presenter-master.mp4", z, f"'(iw-iw/zoom)/2*(1-{Px})'",
+                           f"'(ih-ih/zoom)/2-55*max({Mx},{Px})'", P["total"], a, b, py0, py1, px0)
         gap = min(edge) - px1
         say(f"- `{name}` ({ztxt}): panel x {px0}–{px1}, y {py0}–{py1}; Gordon's nearest edge over {len(edge)} frames "
             f"x = {min(edge)} → clearance **{gap} px** — **{chk(gap > 0, name + ' clearance ' + str(gap))}**")
@@ -340,63 +414,30 @@ def main():
         "(PP burnt orange #DA532C is 13°; FBX gold #D9A441 is 39°; the PP logo's red square #F44336 is 4°). "
         "An orange 16-px cell is allowed only within two cells of the PP logo's red square, found in the same frame.")
     for fmt, src, W, H in (("16:9", out16, 960, 540), ("9:16", out9, 540, 960)):
-        fr = gray(src, 0, P["total"], scale=(W, H), rgb=True)[::12].astype(np.float32) / 255
-        bad = []
-        for k, f in enumerate(fr):
-            r, g_, b = f[..., 0], f[..., 1], f[..., 2]
-            mx, mn = f.max(axis=2), f.min(axis=2)
-            s = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
-            h = np.zeros_like(mx)
-            d = np.maximum(mx - mn, 1e-6)
-            h = np.where(mx == r, ((g_ - b) / d) % 6, h)
-            h = np.where(mx == g_, (b - r) / d + 2, h)
-            h = np.where(mx == b, (r - g_) / d + 4, h)
-            h = h * 60
-            orange = (h >= 8) & (h <= 28) & (s > 0.6) & (mx > 0.5)
-            red = ((h < 8) | (h > 345)) & (s > 0.6) & (mx > 0.4)
-            C = 16
-            oc = orange[: H // C * C, : W // C * C].reshape(H // C, C, W // C, C).sum(axis=(1, 3)) > 3
-            rc = red[: H // C * C, : W // C * C].reshape(H // C, C, W // C, C).sum(axis=(1, 3)) > 12
-            if not oc.any():
-                continue
-            near = np.zeros_like(rc)
-            for dy in range(-2, 3):
-                for dx in range(-2, 3):
-                    near |= np.roll(np.roll(rc, dy, 0), dx, 1)
-            stray = oc & ~near
-            if stray.any():
-                yy, xx = np.argwhere(stray)[0]
-                bad.append((round(k * 12 / FPS, 1), int(xx * C * 2), int(yy * C * 2), int(stray.sum())))
-        say(f"- {fmt}: {len(fr)} frames scanned; orange outside the PP logo in "
+        n, bad, _ = orange_frames(src, P["total"], W, H)
+        say(f"- {fmt}: {n} frames scanned; orange outside the PP logo in "
             f"{len(bad)} frame(s){': ' + str(bad[:6]) if bad else ''} — **{chk(not bad, fmt + ' orange ' + str(bad[:6]))}**")
     say("")
 
     # ---------------------------------------------------------------- 7. avatar edge flutter
     say("## 7. Avatar edge flutter")
-    m_ = job / "renders" / "presenter-master.mp4"
-    fr = gray(m_, 0, T["speech_end"], scale=(480, 270)).astype(np.int16)
-    dif = np.abs(np.diff(fr, axis=0))
-    moving = (dif > 18).mean(axis=0)
-    cols = np.flatnonzero(moving.max(axis=0) > 0.02)
-    band = dif[:, 150:250, :].mean(axis=(1, 2))
+    c0, c1, band = flutter(job / "renders" / "presenter-master.mp4", T["speech_end"])
     worst = np.argsort(band)[-3:][::-1]
     say(f"- Movement in the master (pixels changing > 18 levels between frames, >2% of frames): columns "
-        f"x {cols.min() * 4}–{cols.max() * 4} of 1920 (Gordon spans ≈ x 580–1470 standing still, plus his hands). "
-        f"{'Nothing moves at the frame edges — the background is still.' if cols.min() * 4 > 300 and cols.max() * 4 < 1650 else 'MOVEMENT REACHES THE FRAME EDGES — look.'}")
+        f"x {c0}–{c1} of 1920 (Gordon spans ≈ x 580–1470 standing still, plus his hands). "
+        f"{'Nothing moves at the frame edges — the background is still.' if c0 > 300 and c1 < 1650 else 'MOVEMENT REACHES THE FRAME EDGES — look.'}")
     say(f"- Jacket/desk band (y 600–1000) frame-difference energy: mean {band.mean():.2f}, worst at "
         + ", ".join(f"{(i + 1) / FPS:.1f} s ({band[i]:.2f})" for i in worst)
         + ". Gordon is on screen only 0–" + f"{T['report_in']:.1f} s and {T['gap_out']:.1f}–{P['closing_in']:.1f} s; "
         "every other second is covered by a full-screen card.")
-    edge_ok = cols.min() * 4 > 300 and cols.max() * 4 < 1650
+    edge_ok = c0 > 300 and c1 < 1650
     say(f"- Verdict on the measurement: **{chk(edge_ok, 'flutter extent')}** (a judgement of how it LOOKS is Jodie's).")
     say("")
 
     # ---------------------------------------------------------------- 8. audio
     say("## 8. Audio")
     for f in (out16, out9):
-        e = run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(f), "-af", "ebur128=peak=true", "-f", "null", "-"]).stderr
-        I = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", e)[-1])
-        TP = float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", e)[-1])
+        I, TP = loudness(f)
         ok = abs(I - TARGET_LUFS) <= TOLERANCE_LU and TP <= TARGET_TP
         say(f"- `{f.name}`: integrated {I:.1f} LUFS, true peak {TP:.1f} dBTP (PP standard {TARGET_LUFS:g} ±{TOLERANCE_LU:g}, "
             f"≤ {TARGET_TP:g}) — **{chk(ok, f.name + ' loudness')}**")
@@ -404,9 +445,7 @@ def main():
             ("closing card (music only)", P["closing_in"] + 0.5, P["warranty_in"] - 0.2),
             ("warranty (music only)", P["warranty_in"] + 0.5, P["total"] - 0.7)]
     for lab, a, b in wins:
-        e = run(["ffmpeg", "-hide_banner", "-v", "info", "-ss", f"{a}", "-t", f"{b - a}", "-i", str(out16),
-                 "-af", "volumedetect", "-f", "null", "-"]).stderr
-        mv = float(re.search(r"mean_volume: (-?[\d.]+) dB", e).group(1))
+        mv = mean_volume(out16, a, b)
         ok = mv > -45
         say(f"- {lab} {a:.1f}–{b:.1f} s: mean {mv:.1f} dB — {'not silent' if ok else 'SILENT'} — **{chk(ok, lab + ' silent')}**")
     say(f"- Speech: {T['speech_start']:.2f}–{T['speech_end']:.2f} s, from the HeyGen master (189 kbps AAC, "
@@ -463,8 +502,10 @@ def main():
     say("## Result")
     say(f"**{'ALL CHECKS PASS' if not fails else str(len(fails)) + ' CHECK(S) FAILED'}**" +
         ("" if not fails else ":\n" + "\n".join(f"- {f}" for f in fails)))
-    (job / "output" / "qc" / "QC-REPORT.md").write_text("\n".join(R) + "\n", encoding="utf-8")
-    print(f"\nwrote {job / 'output' / 'qc' / 'QC-REPORT.md'}; fails={len(fails)}")
+    # optional 4th argument: write the report elsewhere (a regression run must not touch an approved folder)
+    rep = Path(sys.argv[4]) if len(sys.argv) > 4 else job / "output" / "qc" / "QC-REPORT.md"
+    rep.write_text("\n".join(R) + "\n", encoding="utf-8")
+    print(f"\nwrote {rep}; fails={len(fails)}")
     sys.exit(1 if fails else 0)
 
 
