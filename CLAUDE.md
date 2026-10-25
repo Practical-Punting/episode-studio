@@ -27,6 +27,11 @@ truth; Google Drive holds artifacts; THIS repo stays local (Drive corrupts
 - **`docs/` — THE HOME OF THE GOVERNING STANDARDS.** Read `docs/PP-STANDARDS.md`
   first for any episode work.
 
+## Promotional / sales videos (PPD, FBX, any product promo) — USE THE SKILL
+**Read `.claude/skills/pp-promo-video/SKILL.md` before building ANY promo** (Jodie, 25 Oct 2026). It holds the
+runbook, the questions to ask her BEFORE building, every standing ruling, Gordon's measured geometry and the traps.
+The worked example is `scripts/ppd/` (its README); `scripts/promo/card_lint.py` runs before every card render.
+
 ## Where the rules live — ONE HOME (Jodie, 27 Jul 2026)
 - **`docs/` in THIS repo is the single home for the governing standards.** Read
   them here. Write them here. Never anywhere else.

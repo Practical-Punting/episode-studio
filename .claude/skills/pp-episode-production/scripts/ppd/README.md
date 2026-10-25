@@ -23,7 +23,11 @@ PP-PPD-PROMO\
 3. `PY S\ppd_data.py J` — proves the proof day (every total recomputed from the rows) and finds every cue IN ORDER.
    `PY S\test_ppd_data.py J` — the guard's controls (each tampered copy must halt).
 4. `PY S\ppd_promo.py J stage` → `PY S\ppd_thumbnail.py J <isnet.onnx>` (the thumbnail FIRST) → `PY S\ppd_promo.py J title`.
-5. `PY S\ppd_promo.py J plan` (dry run) → `PY F\fbx_locked.py "PPD cards" S\ppd_promo.py J cards`. **LOOK at every `.last.png`.**
+5. `PY S\ppd_promo.py J plan` (dry run) → `PY F\fbx_locked.py "PPD cards" S\ppd_promo.py J cards` — the card lint
+   (`scripts/promo/card_lint.py`) runs first and halts on the known traps. **LOOK at every `.last.png`.**
+
+**The general method for ANY promo is the `pp-promo-video` skill** (`.claude/skills/pp-promo-video/SKILL.md`); this
+folder is its worked example.
 6. `PY F\fbx_locked.py "PPD assembly" S\ppd_promo.py J assemble` → `... J captions` → `PY S\ppd_promo.py J viewing`.
 7. `PY S\ppd_qc.py J` → `output\qc\QC-REPORT.md`.
 8. **Human:** Jodie watches. Then Hugh's legal review. Nothing is uploaded, published or sent by the build.

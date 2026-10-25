@@ -27,6 +27,7 @@ HERE = Path(__file__).resolve().parent
 FBX = HERE.parent / "fbx"
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(FBX))
+sys.path.insert(0, str(HERE.parent / "promo"))       # the shared promo toolkit (card_lint, so far)
 sys.path.insert(0, str(HERE.parent))
 import ppd_data as pdd  # noqa: E402
 import ppd_cards as pc  # noqa: E402
@@ -189,6 +190,12 @@ def build_cards(job, only=()):
             jobs.append((p, 1920, 1080, alpha))
     (job / "overlay" / "ppd-cues.json").write_text(json.dumps(T, indent=1), encoding="utf-8")
     (job / "overlay" / "ppd-card-meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
+    # the card lint BEFORE any render: the traps that cost re-renders on this promo stop the build here, in plain words
+    import card_lint
+    faults = card_lint.lint(cards, [p.name for p, *_ in jobs if "warranty" not in p.name])
+    print(card_lint.report(faults), flush=True)
+    if faults:
+        raise pdd.Halt("card lint failed — nothing rendered")
     print(f"wrote {len(builds)} card pages; rendering {len(jobs)}", flush=True)
     import fbx_render
     fbx_render.render_all(job / "overlay" / "clips", jobs)
