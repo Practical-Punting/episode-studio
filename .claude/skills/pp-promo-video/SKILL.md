@@ -100,6 +100,19 @@ rejection in `broll\broll-sources.json`. Verdicts so far (do not re-watch):
   side) · EP38 bunched at the turn (rail in front) · EP31 full lawn, EP15 cup-day grandstand, EP24 glamour crowd (each
   cuts mid-clip) · EP33 fight-for-third, EP40 strung-at-the-line (rail across/in front).
 
+## 7b. The YouTube words — part of EVERY promo build (the PPD build forgot them until Jodie asked)
+Write them as soon as the cut is approved (or alongside it), following `docs/youtube-metadata-kit.md`:
+- `output\<NAME>-youtube.txt` in the HOUSE LAYOUT (`docs/youtube-copy-form.json` banners): ONE decided title
+  ("<specific part> | How to Win at Horse Racing", ~50-70 chars, timeless, saying something DIFFERENT from the
+  thumbnail); the description (first sentence carries "horse racing" + the search term without a promise; the
+  product's links; chapters at 0:00 + the section starts from the cue sheet; the brief's small print, "Practical
+  Punting is not a bookmaker." and the Gamble Responsibly line; no dividends or prices; exactly five hashtags at the
+  end); the NOTES with the source of every figure.
+- `output\<NAME>-youtube-tags.txt`: comma-separated, ≤ 500 characters as YouTube counts them (+2 per tag with a
+  space), nothing from the kit's never-use list. Tags are unseen, so an event name may go there.
+- Check both mechanically (layout, lengths, required lines word for word, banned words) and read them back from
+  the Drive. PPD's approved set is the worked example (`PP-PPD-PROMO\output\`).
+
 ## 8. Report to Jodie
 Facts only: where the files are, QC in three lines, every judgement call as a list, anything broken said straight
 away. No verdict of your own. Then ONE question: "What do you think?" — her own words first, the checklist after.
