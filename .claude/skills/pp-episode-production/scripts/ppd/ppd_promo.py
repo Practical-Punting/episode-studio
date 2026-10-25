@@ -451,7 +451,8 @@ def main():
             import fbx_render
             out = job / "overlay" / "clips" / "ppd-title.png"
             out.parent.mkdir(parents=True, exist_ok=True)
-            fbx_render.still(job / "overlay" / "thumbnail" / "thumbnail.html", out, 1280, 720, scale=1.5)
+            # the thumbnail's design + the brief §6 small print (Jodie, 25 Oct: small print on the title card only)
+            fbx_render.still(job / "overlay" / "thumbnail" / "title.html", out, 1280, 720, scale=1.5)
             sys.stdout.flush()
             import os
             os._exit(0)

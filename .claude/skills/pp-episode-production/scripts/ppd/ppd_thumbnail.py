@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""ppd_thumbnail.py — the PPD promo thumbnail (brief §10.3), 1280x720, under 2 MB. It is ALSO the title card:
-`ppd_promo.py <job> title` renders this same page at 1.5x = 1920x1080 (Jodie's FBX ruling: promos open on a title
-card "like the normal videos").
+"""ppd_thumbnail.py — the PPD promo thumbnail AND title card (one design, two pages), 1280x720 layout.
 
-    python ppd_thumbnail.py <job_dir> <isnet.onnx> [--t SECONDS]
+    python ppd_thumbnail.py <job_dir>
 
-Charcoal, Gordon cut out on the right, "$25 -> $106.50" with the $106.50 big in PPD red, the red tick, the PPD
-logo; small "Brought to you by [PP logo]". Gordon is a REAL frame of the HeyGen render (ppd-promo.json ->
-thumbnail_frame, picked by looking: warm, lips together, eyes to camera), cut out locally with ISNet (Apache-2.0,
-fbx_thumbnail.isnet_matte) — nothing generated, nothing uploaded. Placed by measuring his head, like the FBX ones.
+Jodie's design, 25 Oct 2026 (asked one question at a time, after she saw the first cut):
+  · TIMELESS — no "Cox Plate Day", no date;
+  · the PPD Club logo BIG and CENTRAL (the PPD lockup: the red tick, PPD, Practical Punting Daily);
+  · "+326% PROFIT" is the big part — much bigger than "$25 -> $106.50", which stays, small, underneath;
+    ("profit", the brief's word: "326% return" can be read as 3.26x back);
+  · Gordon DROPPED — all graphic;
+  · the brief §6 hypothetical small print on the TITLE CARD ONLY, not the thumbnail.
+
+Writes overlay/thumbnail/thumbnail.html -> output/PPD-PROMO-thumbnail.png (1280x720, < 2 MB, with a small-size
+legibility sheet), and overlay/thumbnail/title.html (the same page + the small print), which
+`ppd_promo.py <job> title` renders at 1.5x = 1920x1080 for the 7.0 s title head.
 """
-import argparse
-import json
+import html as _h
 import shutil
 import sys
 from pathlib import Path
-
-import numpy as np
-from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -26,70 +27,51 @@ import ppd_data as pdd  # noqa: E402
 import fbx_thumbnail as ft  # noqa: E402
 
 FONT_CSS = """@font-face{font-family:Raleway;src:url(assets/fonts/raleway-900.woff2) format('woff2');font-weight:900}
+@font-face{font-family:Roboto;src:url(assets/fonts/roboto-400.woff2) format('woff2');font-weight:400}
 @font-face{font-family:Roboto;src:url(assets/fonts/roboto-700.woff2) format('woff2');font-weight:700}
 html,body{margin:0;padding:0;overflow:hidden}
 body{width:1280px;height:720px;background:#1E1F22;position:relative;font-family:Roboto,sans-serif;color:#fff}
 .a{position:absolute}
+.c{left:0;width:1280px;display:flex;justify-content:center;align-items:center}
 .r9{font-family:Raleway;font-weight:900;line-height:1;letter-spacing:-.015em;white-space:nowrap;font-variant-numeric:lining-nums}"""
 
 
+def page(day, lockup_w, with_small_print):
+    c = day["calc"]["win"]
+    st, bk = pdd.money(c["staked"], 0), pdd.money(c["back"])
+    pct = c["roi"][:-3] + "%"                      # "+326.0%" -> "+326%"
+    arrow = ('<svg viewBox="0 0 120 60" style="width:58px;height:29px;margin:0 22px">'
+             '<path d="M4 30H96" stroke="#C9CACC" stroke-width="12" stroke-linecap="round"/>'
+             '<path d="M76 8L104 30L76 52" stroke="#C9CACC" stroke-width="12" fill="none" stroke-linecap="round" '
+             'stroke-linejoin="round"/></svg>')
+    top = 40 if with_small_print else 52           # the thumbnail has no small print, so it sits a touch lower
+    # every declared face is used once, off screen, so the renderer's "all fonts loaded" guard is satisfied honestly
+    body = ('<div class="a" style="left:-9999px"><span style="font-weight:400">Aa</span><span style="font-weight:700">Aa</span></div>'
+            f'<div class="a c" style="top:{top}px"><img src="assets/ppd-lockup.png" alt="PPD Club" style="width:{lockup_w}px"></div>'
+            f'<div class="a c r9" style="top:{top + 188}px;font-size:236px;color:#F44336">{pct}</div>'
+            f'<div class="a c r9" style="top:{top + 418}px;font-size:66px;letter-spacing:.14em">PROFIT</div>'
+            f'<div class="a c r9" style="top:{top + 512}px;font-size:44px;color:#C9CACC">{st}{arrow}{bk}</div>')
+    if with_small_print:
+        body += (f'<div class="a c" style="bottom:22px"><div style="width:1040px;text-align:center;font-size:12.5px;'
+                 f'line-height:1.34;color:#8A8B8F">{_h.escape(day["small_print"])}</div></div>')
+    return (f'<!doctype html><html><head><meta charset="utf-8"><title>PPD promo {"title card" if with_small_print else "thumbnail"}'
+            f'</title><style>{FONT_CSS}</style></head><body>{body}</body></html>')
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("job")
-    ap.add_argument("model")
-    ap.add_argument("--t", type=float, default=None)
-    ap.add_argument("--x", type=int, default=1010, help="thumbnail x of the centre of his head")
-    ap.add_argument("--head-top", type=int, default=70)
-    ap.add_argument("--head-w", type=int, default=214)
-    a = ap.parse_args()
-    job = Path(a.job).resolve()
+    job = Path(sys.argv[1]).resolve()
     promo, day = pdd.load(job)
-    t = a.t if a.t is not None else promo["thumbnail_frame"]
     work = job / "overlay" / "thumbnail"
     (work / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     cards = job / "overlay" / "cards" / "assets"
-    for n in ("raleway-900.woff2", "roboto-700.woff2"):
+    for n in ("raleway-900.woff2", "roboto-400.woff2", "roboto-700.woff2"):
         shutil.copyfile(cards / "fonts" / n, work / "assets" / "fonts" / n)
-    for n in ("ppd-wordmark.png", "pp-logo-on-dark.svg"):
-        shutil.copyfile(cards / n, work / "assets" / n)
-
-    # the master is Gordon on his own (no chip, no zoom); fbx_thumbnail.cut_out crops round him and mattes him
-    cut_w, hair_top, face_x = ft.cut_out(job / "renders" / "presenter-master.mp4", t, Path(a.model), work)
-    head = np.asarray(Image.open(work / "gordon-cutout.png"))[:, :, 3][hair_top:hair_top + 220] > 128
-    cols = np.flatnonzero(head.sum(axis=0) > 3)
-    head_px = (cols[-1] - cols[0]) if cols.size else 300
-    scale = a.head_w / head_px
-    W = round(cut_w * scale)
-    left = round(a.x - face_x * scale)
-    top = round(a.head_top - hair_top * scale)
-
-    c = day["calc"]["win"]
-    st, bk = pdd.money(c["staked"], 0), pdd.money(c["back"])
-    tick = ('<svg class="a" viewBox="0 0 100 100" style="left:{l}px;top:{t}px;width:{s}px;height:{s}px">'
-            '<circle cx="50" cy="50" r="50" fill="#F44336"/><polyline points="27,52 43,68 74,33" fill="none" stroke="#fff" '
-            'stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></svg>')
-    arrow = ('<svg class="a" viewBox="0 0 120 60" style="left:{l}px;top:{t}px;width:120px;height:60px">'
-             '<path d="M4 30H96" stroke="#F44336" stroke-width="12" stroke-linecap="round"/>'
-             '<path d="M76 8L104 30L76 52" stroke="#F44336" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>')
-    body = (f'<img id="g" src="gordon-cutout.png" alt="" class="a" style="left:{left}px;top:{top}px;width:{W}px">'
-            f'<img src="assets/ppd-wordmark.png" alt="Practical Punting Daily" class="a" style="left:46px;top:40px;height:58px">'
-            f'<div class="a" style="left:58px;top:150px;display:flex;align-items:center;gap:16px;color:#F44336;font-weight:700;'
-            f'letter-spacing:.22em;font-size:22px;white-space:nowrap"><span style="width:44px;height:5px;background:#F44336"></span>'
-            f'{day["label"].upper()}</div>'
-            f'<div class="r9 a" style="left:54px;top:196px;font-size:132px">{st}</div>'
-            + arrow.format(l=318, t=232)
-            + f'<div class="r9 a" style="left:50px;top:350px;font-size:172px;color:#F44336">{bk}</div>'
-            + tick.format(l=60, t=560, s=96)
-            + f'<div class="r9 a" style="left:176px;top:572px;font-size:72px">{c["roi"][:-3]}%</div>'
-            f'<div class="a" style="left:180px;top:652px;font-weight:700;letter-spacing:.2em;font-size:16px;color:#8A8B8F;white-space:nowrap">'
-            f'PROFIT · $5 A BET</div>')
-    page = work / "thumbnail.html"
-    page.write_text(f'<!doctype html><html><head><meta charset="utf-8"><title>PPD promo thumbnail</title>'
-                    f'<style>{FONT_CSS}</style></head><body>{body}</body></html>', encoding="utf-8")
+    shutil.copyfile(job / promo["pack_dir"] / "logos" / "PPD-lockup-onDark-transparent@2x.png", work / "assets" / "ppd-lockup.png")
+    (work / "thumbnail.html").write_text(page(day, 560, False), encoding="utf-8")
+    (work / "title.html").write_text(page(day, 560, True), encoding="utf-8")
     (job / "output").mkdir(exist_ok=True)
-    ft.render(page, job / "output" / "PPD-PROMO-thumbnail.png", job / "output" / "qc" / "PPD-PROMO-thumbnail-small-sizes.png")
-    print(f"frame {t:.2f}s of presenter-master.mp4; head {head_px}px -> {a.head_w}px (scale {scale:.3f})")
-    (work / "frame.json").write_text(json.dumps({"t": t, "head_px": int(head_px), "scale": scale}), encoding="utf-8")
+    ft.render(work / "thumbnail.html", job / "output" / "PPD-PROMO-thumbnail.png",
+              job / "output" / "qc" / "PPD-PROMO-thumbnail-small-sizes.png")
 
 
 if __name__ == "__main__":
