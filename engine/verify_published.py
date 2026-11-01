@@ -65,6 +65,7 @@ except Exception:                                                      # noqa: B
 PUBLISHED = {
     "ebook_url":     "output/{f}-ebook.pdf",
     "thumbnail_url": "output/{f}-thumbnail.png",
+    "cover_lowres_url": "output/{f}-cover-lowres.jpg",     # 008, 1 Nov 2026
 }
 
 

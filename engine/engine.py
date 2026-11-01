@@ -124,6 +124,7 @@ import script_fidelity                         # the drafting pass's own gate
 import render_lock                             # noqa: E402
 from providers import (EngineFlag, MockProvider, RealProvider, ep_folder,
                        assert_standing_assets, pasteable_description,
+                       youtube_title_line,
                        assert_capture_for_script, find_capture, SKILL_DIR,
                        answer_pending_gates, ask_once, parse_cover_pick)
 
@@ -1658,8 +1659,25 @@ def step_web_copies(ctx):
     additive: two new names in output/, nothing existing touched.
     """
     got = _alongside_result(ctx, "web_copies")
-    return {"report": got["report"] if got else ctx.provider.build_web_copies(ctx.ep),
-            "alongside": bool(got)}
+    report = got["report"] if got else ctx.provider.build_web_copies(ctx.ep)
+    # THE COVER GOES ON THE WEB AND ITS ADDRESS ON THE RAIL (Jodie, 1 Nov 2026), so the
+    # publishing workflow — a browser that cannot open a laptop file — has the cover
+    # without rebuilding it from the PDF. HERE and not in `_work_web_copies`: the side
+    # thread may not write to the rail (test_alongside_assembly).
+    # ⚠️ AND IT NEVER STOPS THE BUILD, the same promise build_web_copies makes: no file,
+    # or a failed upload, is a line in the run log and an empty column — her ruling.
+    url = None
+    try:
+        url = ctx.provider.publish_cover_lowres(ctx.ep)
+        if url is None:
+            log("   web_copies: no cover-lowres.jpg in output/ — cover_lowres_url not "
+                "written (skipped, as ruled 1 Nov 2026; the episode is unaffected)")
+    except Exception as e:                                       # noqa: BLE001
+        log(f"   web_copies: cover NOT put on the web ({type(e).__name__}: "
+            f"{str(e)[:300]}) — cover_lowres_url left as it was; the episode is unaffected")
+    if url:
+        ctx.ep_set({"cover_lowres_url": url})
+    return {"report": report, "cover_lowres_url": url, "alongside": bool(got)}
 
 
 def step_youtube_copy(ctx):
@@ -1693,8 +1711,18 @@ def step_youtube_copy(ctx):
         for b in f.blockers:
             log(f"   youtube_copy: {b}")
         raise
-    ctx.ep_set({"youtube_copy": copy})
-    return {"file": out}
+    # THE TITLE TOO (Jodie, 1 Nov 2026): line 1 of the same file, trimmed, exactly as
+    # written — never re-cased. youtube_copy is the description only, so the publishing
+    # workflow had to open the laptop file for the title. Written in the SAME update as
+    # the description, so the two can never come from different versions of the file.
+    fields = {"youtube_copy": copy}
+    title = youtube_title_line(text)
+    if title:
+        fields["youtube_title"] = title
+    else:
+        log("   youtube_copy: line 1 of the YouTube file is blank — youtube_title not written")
+    ctx.ep_set(fields)
+    return {"file": out, "youtube_title": title}
 
 
 STEP_FNS = {name: fn for name, fn in [

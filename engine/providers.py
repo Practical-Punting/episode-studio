@@ -414,6 +414,46 @@ def build_web_copies(ep, ep_dir: Path) -> str:
     return out or "web copies: nothing reported"
 
 
+def cover_lowres_file(ep_dir: Path) -> Path:
+    """Where web_copies.py writes the e-book cover's low-res copy — ASKED OF web_copies.py.
+
+    `targets()` is the one definition of that name (the folder name + "-cover-lowres.jpg",
+    whatever the folder is called on the day). Imported, not re-typed, so the uploader can
+    never look for a name the writer has stopped using (fault #2). Pillow is imported with
+    it, which the engine's interpreter already has — web_copies.py runs on it.
+    """
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+    import web_copies as _wc
+    covers = [dst for src, dst in _wc.targets(Path(ep_dir)) if src.name == "cover.png"]
+    if len(covers) != 1:
+        raise EngineFlag(
+            "The engine could not work out which file is the e-book cover's web copy, so "
+            "it was not put on the web. The episode itself is unaffected. Tell whoever looks "
+            "after the engine: web_copies.targets() no longer names exactly one cover.")
+    return covers[0]
+
+
+def cover_lowres_object(ep) -> str:
+    """The cover's place in the episode-assets bucket: ONE fixed name per episode,
+    `PP-EPnn/PP-EPnn-cover-lowres.jpg`, whatever the local folder is called — so the
+    publishing workflow can find it without knowing the episode's long folder name,
+    and a backfill from a renamed folder lands in the same place a build would."""
+    f = ep_folder(ep)
+    return f"{f}/{f}-cover-lowres.jpg"
+
+
+def youtube_title_line(text: str) -> str:
+    """Line 1 of a -youtube.txt file — the YouTube title — trimmed and NOTHING else.
+
+    Never re-cased, never re-punctuated: the title Jodie approved is the title. A
+    byte-order mark is dropped (it is an encoding artefact, not a character of the
+    title). Empty string when line 1 is blank; the caller decides what that means.
+    `youtube_title.check_text` reads line 1 the same way (split on newline, first line).
+    """
+    first = text.replace("\r\n", "\n").split("\n")[0]
+    return first.lstrip("﻿").strip()
+
+
 # ── C3: a flag-once human gate, where ASKING and BEING ANSWERED are different ──
 #
 # 🔴 A REBOOT WALKED A HUMAN GATE THROUGH. EP23, 13 Aug 2026.
@@ -2060,6 +2100,14 @@ class MockProvider:
         self._work()
         return (f"https://mock.invalid/episode-assets/{ep_folder(ep)}/"
                 f"{Path(local).name}")
+
+    def publish_cover_lowres(self, ep):
+        """Mock: same lookup as the real one (the file IS made for real by
+        build_web_copies), a plausible https URL, nothing uploaded. None if no file."""
+        if not cover_lowres_file(self.dir(ep)).is_file():
+            return None
+        self._work()
+        return f"https://mock.invalid/episode-assets/{cover_lowres_object(ep)}"
 
     def make_covers_ab(self, ep):
         self.maybe_fail("covers_ab")
@@ -3765,6 +3813,20 @@ class RealProvider:
         """
         local = Path(local)
         return self._publish_asset(local, f"{ep_folder(ep)}/{local.name}")
+
+    def publish_cover_lowres(self, ep):
+        """Put the e-book cover's low-res copy on the web; its https URL, or None if
+        the file is not there (Jodie, 1 Nov 2026: skip with a log note, never stop the
+        build — it is a convenience for the publishing workflow, like the copy itself).
+
+        Uploaded to the FIXED name `cover_lowres_object()`, not the local file's name,
+        because a renamed folder carries the long name and the bucket must not.
+        `_publish_asset` still verifies it is reachable and served as image/jpeg.
+        """
+        local = cover_lowres_file(self.dir(ep))
+        if not local.is_file():
+            return None
+        return self._publish_asset(local, cover_lowres_object(ep))
 
 
 
