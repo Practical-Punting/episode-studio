@@ -11,6 +11,8 @@ Changing any one of them is a **new batch approval**, not an edit.
 
 ## THE RULE
 
+0. 🔴 **EXCEPTION, RULED BY JODIE 9 Nov 2026: PP-EP56 TAKES `L7`, NOT L6.** PP-GH01 (PP Greyhounds)
+   holds L6 and sits inside EP56's window. See "PP GREYHOUNDS SHARES THIS POOL" below.
 1. **Ten lines, `L0` … `L9`. Used STRICTLY IN ORDER: episode N takes `L[N mod 10]`.**
    EP13 → `L3`. EP14 → `L4`. EP20 → `L0`. The pool **wraps forever** — it never exhausts,
    so the build never halts for want of a line.
@@ -43,9 +45,10 @@ window.
   With no PP-GH folders, nothing about PP-EP changes. Test: `engine/test_midroll_window_gh.py`.
 - **PP-GH01 took `L6`** — Jodie's rule for it: *the line that has gone longest without being
   used* (L6, last used EP46). `L[N mod 10]` is still the written rule for PP-EP.
-- ⚠️ **CONSEQUENCE, NOT YET RULED:** EP56 by `L[N mod 10]` is `L6`, and PP-GH01 sits inside
-  EP56's window — so EP56 on L6 now **hard-fails** the check (proved on the real folders,
-  9 Nov). The line free for EP56 is `L7`. Which rule picks EP56's line is Jodie's call.
+- ✅ **RULED (Jodie, 9 Nov 2026): EP56 takes `L7`** — the line unused longest, the same rule
+  as PP-GH01. **PP-GH01 keeps `L6`.** *(Why it needed a ruling: EP56 by `L[N mod 10]` is L6,
+  and PP-GH01 sits inside EP56's window, so EP56 on L6 hard-fails the check — proved on the
+  real folders, 9 Nov. L7 passes.)*
 
 ---
 
