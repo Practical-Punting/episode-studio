@@ -3,6 +3,11 @@
     python engine/hf_guard.py <ep> <label> [--wait] -- <model> <hf create args…>
     python engine/hf_guard.py <ep> --status
 
+<ep> is a horse episode number (`77`, `EP77`, `PP-EP77`) or a PP Greyhounds episode (`GH01`,
+`PP-GH01`). Jodie, 9 Nov 2026: PP-GH episodes keep a spend ledger here too, under the SAME
+110-credit ceiling per episode. A bare number always means PP-EP, so the engine's own calls
+(which pass an int) are unchanged.
+
 Jodie's ruling, 5 Oct 2026: **Claude Code may generate Higgsfield b-roll and cover heroes for
 PP WITHOUT ASKING, up to 110 CREDITS PER EPISODE, every episode. Over that, stop and ask
 her.** Enforced HERE, in code, not by anybody remembering it.
@@ -33,6 +38,7 @@ import datetime as dt
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -75,19 +81,48 @@ def estimate(create_args: list[str]) -> float:
     return float(_run(["generate", "cost", *create_args])["credits"])
 
 
+# ── which episode ───────────────────────────────────────────────────────────────
+def episode_key(ep) -> tuple[str, int]:
+    """('EP', n) or ('GH', n). An int — the engine's own calls — is always PP-EP."""
+    if isinstance(ep, int):
+        return "EP", ep
+    m = re.fullmatch(r"(?:PP-)?(EP|GH)?0*(\d+)", str(ep).strip().upper())
+    if not m:
+        raise GuardError(f"{ep!r} is not an episode — give a PP-EP number (77, EP77, PP-EP77) or "
+                         f"a PP Greyhounds id (GH01, PP-GH01). Nothing was created.")
+    return (m.group(1) or "EP"), int(m.group(2))
+
+
+def ep_label(ep) -> str:
+    series, n = episode_key(ep)
+    return f"{series}{n:02d}"
+
+
+def episode_folder(ep, pp: pathlib.Path = PP) -> pathlib.Path | None:
+    """The episode's folder, or None. PP-GH matches the id EXACTLY (`PP-GH01` or
+    `PP-GH01-<title>`), so PP-GH01 can never pick up PP-GH10 — the E18 fault, not repeated."""
+    series, n = episode_key(ep)
+    if series == "EP":
+        import ep_paths                                         # noqa: PLC0415
+        d = ep_paths.episode_dir(n, pp)
+        return pathlib.Path(d) if d is not None and pathlib.Path(d).is_dir() else None
+    hits = sorted(p for p in pathlib.Path(pp).glob(f"PP-GH{n:02d}*")
+                  if p.is_dir() and re.fullmatch(rf"PP-GH{n:02d}(-.*)?", p.name))
+    return hits[0] if hits else None
+
+
 # ── the ledger ──────────────────────────────────────────────────────────────────
-def ledger_path(ep_number: int, pp: pathlib.Path = PP) -> pathlib.Path:
-    import ep_paths                                             # noqa: PLC0415
-    d = ep_paths.episode_dir(int(ep_number), pp)
-    if d is None or not pathlib.Path(d).is_dir():
-        raise GuardError(f"there is no PP-EP{int(ep_number):02d} folder under {pp}, so there "
+def ledger_path(ep_number, pp: pathlib.Path = PP) -> pathlib.Path:
+    d = episode_folder(ep_number, pp)
+    if d is None:
+        raise GuardError(f"there is no PP-{ep_label(ep_number)} folder under {pp}, so there "
                          f"is nowhere to keep its spend ledger. Nothing was created.")
-    return pathlib.Path(d) / "docs" / LEDGER_NAME
+    return d / "docs" / LEDGER_NAME
 
 
-def load(path: pathlib.Path, ep_number: int) -> dict:
+def load(path: pathlib.Path, ep_number) -> dict:
     if not path.is_file():
-        return {"episode": f"EP{int(ep_number):02d}", "ceiling": CEILING, "jobs": []}
+        return {"episode": ep_label(ep_number), "ceiling": CEILING, "jobs": []}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -133,7 +168,7 @@ class _Lock:
 
 
 # ── the guarded job ─────────────────────────────────────────────────────────────
-def guarded_create(ep_number: int, label: str, create_args: list[str], *,
+def guarded_create(ep_number, label: str, create_args: list[str], *,
                    pp: pathlib.Path = PP, wait: bool = False) -> dict:
     """Create ONE Higgsfield job for a PP episode if it fits under the ceiling.
 
@@ -148,7 +183,7 @@ def guarded_create(ep_number: int, label: str, create_args: list[str], *,
         so_far = counted(led)
         if so_far + est > CEILING + 1e-9:
             raise Refused(
-                f"EP{int(ep_number):02d} has used {so_far:g} of its {CEILING:g} Higgsfield "
+                f"{ep_label(ep_number)} has used {so_far:g} of its {CEILING:g} Higgsfield "
                 f"credits, and '{label}' is estimated at {est:g} more ({so_far + est:g} in "
                 f"all). That is over the ceiling Jodie set, so nothing was created. "
                 f"Ask Jodie before going on.")
@@ -193,11 +228,11 @@ def guarded_create(ep_number: int, label: str, create_args: list[str], *,
     return entry
 
 
-def status(ep_number: int, pp: pathlib.Path = PP) -> str:
+def status(ep_number, pp: pathlib.Path = PP) -> str:
     path = ledger_path(ep_number, pp)
     led = load(path, ep_number)
     used = counted(led)
-    return (f"EP{int(ep_number):02d}: {used:g} of {CEILING:g} Higgsfield credits counted, "
+    return (f"{ep_label(ep_number)}: {used:g} of {CEILING:g} Higgsfield credits counted, "
             f"{max(0.0, CEILING - used):g} left, {len(led.get('jobs', []))} job(s). "
             f"Ledger: {path}")
 
@@ -209,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         i = argv.index("--")
         argv, create_args = argv[:i], argv[i + 1:]
     ap = argparse.ArgumentParser(description="PP Higgsfield spend guard (110 credits/episode).")
-    ap.add_argument("ep_number", type=int)
+    ap.add_argument("ep_number", help="77 / EP77 / PP-EP77, or GH01 / PP-GH01")
     ap.add_argument("label", nargs="?")
     ap.add_argument("--wait", action="store_true")
     ap.add_argument("--status", action="store_true")

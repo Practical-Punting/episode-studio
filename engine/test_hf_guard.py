@@ -141,5 +141,71 @@ guarded = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
            and isinstance(n.func, ast.Attribute) and n.func.attr == "guarded_create"]
 check("  and it calls hf_guard.guarded_create", bool(guarded))
 
+print("\n-- 6. PP Greyhounds: its own ledger, the SAME 110 ceiling (Jodie, 9 Nov 2026) --")
+tmp3 = pathlib.Path(tempfile.mkdtemp(prefix="hfguard3_"))
+(tmp3 / "PP-GH01" / "docs").mkdir(parents=True)
+(tmp3 / "PP-GH10-Decoy" / "docs").mkdir(parents=True)          # must never be picked for GH01
+(tmp3 / "PP-EP01-Horse" / "docs").mkdir(parents=True)          # nor the horse EP01
+GH_LEDGER = tmp3 / "PP-GH01" / "docs" / G.LEDGER_NAME
+f3 = FakeHF(price=7.5)
+G._run = f3
+try:
+    e3 = G.guarded_create("GH01", "broll:gh-a", ARGS, pp=tmp3)
+    ok_create = e3.get("job_id") == "job-1"
+except Exception as ex:                                        # the pre-change guard dies here
+    ok_create, e3 = False, {"error": repr(ex)}
+check("a PP-GH01 job that fits is allowed", ok_create, e3)
+check("  its ledger is in PP-GH01's own docs", GH_LEDGER.is_file())
+check("  NOT in the PP-GH10 decoy, NOT in the horse EP01",
+      not (tmp3 / "PP-GH10-Decoy" / "docs" / G.LEDGER_NAME).exists()
+      and not (tmp3 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME).exists())
+check("  and the ledger names the episode GH01",
+      GH_LEDGER.is_file() and json.loads(GH_LEDGER.read_text(encoding="utf-8")).get("episode") == "GH01")
+gh_ok = ok_create
+for i in range(2, 15):                                         # 14 x 7.5 = 105
+    try:
+        G.guarded_create("PP-GH01", f"broll:gh-{i}", ARGS, pp=tmp3)
+    except Exception:
+        gh_ok = False
+check("'PP-GH01' and 'GH01' are the same episode: 14 jobs of 7.5 counted (105)",
+      gh_ok and GH_LEDGER.is_file() and G.counted(G.load(GH_LEDGER, "GH01")) == 105.0)
+n_before = len(f3.created)
+try:
+    G.guarded_create("GH01", "broll:gh-over", ARGS, pp=tmp3)
+    gh_refused, gh_msg = False, ""
+except G.Refused as r:
+    gh_refused, gh_msg = True, str(r)
+except Exception as ex:
+    gh_refused, gh_msg = False, repr(ex)
+check("the job that would take GH01 to 112.5 is REFUSED — the same 110 ceiling", gh_refused, gh_msg)
+check("  nothing was created", len(f3.created) == n_before)
+check("  and the message names GH01", "GH01" in gh_msg, gh_msg)
+f3.price = 5.0
+try:
+    G.guarded_create("GH01", "cover:hero_a", ARGS, pp=tmp3)
+    exact = G.counted(G.load(GH_LEDGER, "GH01")) == 110.0
+except Exception:
+    exact = False
+check("landing EXACTLY on 110 is allowed for GH01 too", exact)
+try:
+    G.guarded_create(1, "broll:horse", ARGS, pp=tmp3)
+    horse_ok = (tmp3 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME).is_file()
+except Exception:
+    horse_ok = False
+check("a full GH01 does not block the horse EP01 (separate ledgers)", horse_ok)
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["PP-GH01", "--status", "--pp", str(tmp3)])
+check("--status works for PP-GH01", code == 0 and "GH01: 110 of 110" in buf.getvalue(), buf.getvalue())
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["GH02", "broll:x", "--pp", str(tmp3), "--", *ARGS])
+check("a PP-GH episode with no folder is not created (exit 3)", code == 3, buf.getvalue())
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["XYZ", "broll:x", "--pp", str(tmp3), "--", *ARGS])
+check("a nonsense id is not created (exit 3)", code == 3, buf.getvalue())
+check("the ceiling is still the one constant, 110", G.CEILING == 110.0)
+
 print(f"\nhf guard: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
