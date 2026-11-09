@@ -34,6 +34,19 @@ The check orders episodes by the number parsed from `PP-EP(\d+)`, **numerically,
 file mtime** — `PP-EP98/` exists on disk and mtime ordering would drag it into every
 window.
 
+### 🐕 PP GREYHOUNDS SHARES THIS POOL (Jodie, 9 Nov 2026)
+- **PP-EP and PP-GH draw from ONE pool and are checked as ONE sequence.** Both copies of
+  `midroll_window()` (render_ready.py, qc_episode.py) now see `PP-GH*` folders.
+- **Where a PP-GH episode sits:** just after the PP-EP folder that was **created** most
+  recently before its own folder — derived from the folders, no list to maintain. The window
+  is still the NINE slots before an episode; a PP-GH episode in between takes one of them.
+  With no PP-GH folders, nothing about PP-EP changes. Test: `engine/test_midroll_window_gh.py`.
+- **PP-GH01 took `L6`** — Jodie's rule for it: *the line that has gone longest without being
+  used* (L6, last used EP46). `L[N mod 10]` is still the written rule for PP-EP.
+- ⚠️ **CONSEQUENCE, NOT YET RULED:** EP56 by `L[N mod 10]` is `L6`, and PP-GH01 sits inside
+  EP56's window — so EP56 on L6 now **hard-fails** the check (proved on the real folders,
+  9 Nov). The line free for EP56 is `L7`. Which rule picks EP56's line is Jodie's call.
+
 ---
 
 ## THE FIXED SHAPE (PP-STANDARDS §Mid-video)

@@ -60,29 +60,87 @@ def _ep_num(folder_path):
     return int(m.group(1)) if m else None
 
 
+def _series_num(folder_path):
+    """('EP', n) or ('GH', n) from a PP-EPnn / PP-GHnn folder path, or None."""
+    m = re.match(r"PP-(EP|GH)(\d+)", os.path.basename(os.path.normpath(folder_path)))
+    return (m.group(1), int(m.group(2))) if m else None
+
+
+def _born(path):
+    """When the folder was CREATED (Windows birth time; ctime elsewhere)."""
+    st = os.stat(path)
+    return getattr(st, "st_birthtime", st.st_ctime)
+
+
+def _midroll_sequence(root):
+    """The ONE shared midroll sequence, oldest first: [(position, folder-or-None)].
+
+    PP-EP AND PP-GH SHARE ONE POOL (Jodie, 9 Nov 2026), so they share one sequence.
+    - PP-EP n sits at position n, and EVERY number 1..highest gets a slot whether or
+      not its folder exists — so a missing episode still occupies its place and can
+      never widen the reach (the EP50 rule below).
+    - PP-GH g has no number in the horse sequence, so it sits just AFTER the PP-EP
+      folder that was CREATED most recently before its own folder (+0.5, then by GH
+      number). DERIVED from the folders themselves — no list anybody maintains.
+      Measured 9 Nov 2026: folder creation times on the Drive run in step with the
+      EP numbers EP05..EP55, and PP-GH01 lands after PP-EP55.
+      ⚠️ PP-EP98 (a test folder, created 24 Jul) would become a GH episode's anchor
+      only if it were the newest PP-EP folder when that GH folder was made."""
+    eps, ghs = {}, []
+    for d in glob.glob(os.path.join(root, "PP-EP*")) + glob.glob(os.path.join(root, "PP-GH*")):
+        k = _series_num(d)
+        if k is None or not os.path.isdir(d):
+            continue
+        if k[0] == "EP":
+            eps[k[1]] = d
+        else:
+            ghs.append((k[1], d))
+    born_eps = sorted((_born(d), n) for n, d in eps.items())
+    slots = [(n, eps.get(n)) for n in range(1, max(eps, default=0) + 1)]
+    for g, d in ghs:
+        t = _born(d)
+        before = [n for b, n in born_eps if b < t]
+        slots.append(((before[-1] if before else 0) + 0.5 + g / 10000.0, d))
+    slots.sort(key=lambda s: s[0])
+    return slots
+
+
 def midroll_window(ep_dir, window=MIDROLL_WINDOW):
-    """The spoken-words files of the `window` episodes immediately BEFORE this one.
+    """The spoken-words files of the `window` episodes immediately BEFORE this one,
+    across PP-EP AND PP-GH (one pool, one sequence — see _midroll_sequence).
 
-    Ordered by EPISODE NUMBER, never by file mtime. PP-EP98 is a test folder that
-    lives beside the real episodes; mtime ordering would drag it into every real
-    episode's window, numeric ordering keeps it out.
+    Ordered by EPISODE NUMBER (and a GH episode's derived place), never by file
+    mtime. PP-EP98 is a test folder that lives beside the real episodes; mtime
+    ordering would drag it into every real episode's window, numeric ordering keeps
+    it out.
 
-    🔴 THE WINDOW IS A RANGE OF NUMBERS — N-9 … N-1 — NOT "THE NINE NEAREST FILES"
+    🔴 THE WINDOW IS THE NINE SLOTS BEFORE THIS ONE — NOT "THE NINE NEAREST FILES"
     (fixed 27 Sep 2026, EP50). It used to take the nine highest-numbered earlier
     folders that HAD a spoken-words.txt. The two-way EP49 has none (its words are in
     two furniture/turn files), so for EP50 the window silently slid back to EP40 —
     exactly ten back, the pool's own legitimate repeat of L0 — and hard-failed a
     correct script. A missing episode must shrink the count compared, never widen
-    the reach."""
-    mine = _ep_num(ep_dir)
-    if mine is None:
+    the reach. With no PP-GH episodes the nine slots are exactly N-9 … N-1, as
+    before; a PP-GH episode in between takes one of the nine."""
+    k = _series_num(ep_dir)
+    if k is None:
         return []
     root = os.path.dirname(os.path.abspath(os.path.normpath(ep_dir)))
+    slots = _midroll_sequence(root)
+    if k[0] == "EP":
+        mine = k[1]
+    else:
+        me = os.path.normcase(os.path.abspath(os.path.normpath(ep_dir)))
+        hit = [p for p, d in slots if d and os.path.normcase(os.path.abspath(d)) == me]
+        if not hit:
+            return []
+        mine = hit[0]
+    prior = [s for s in slots if s[0] < mine][-window:]
     found = []
-    for other in glob.glob(os.path.join(root, "PP-EP*", "docs", "spoken-words.txt")):
-        n = _ep_num(os.path.dirname(os.path.dirname(other)))
-        if n is not None and mine - window <= n < mine:
-            found.append((n, other))
+    for pos, d in prior:
+        sw = os.path.join(d, "docs", "spoken-words.txt") if d else None
+        if sw and os.path.exists(sw):
+            found.append((pos, sw))
     found.sort(key=lambda t: t[0], reverse=True)
     return found
 
