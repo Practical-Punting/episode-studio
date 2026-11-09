@@ -207,5 +207,45 @@ with redirect_stdout(buf):
 check("a nonsense id is not created (exit 3)", code == 3, buf.getvalue())
 check("the ceiling is still the one constant, 110", G.CEILING == 110.0)
 
+print("\n-- 7. an extra Jodie APPROVED for one episode, recorded in its ledger (9 Nov 2026) --")
+led = json.loads(GH_LEDGER.read_text(encoding="utf-8"))           # GH01 sits at exactly 110 here
+f3.price = 7.5
+try:
+    G.guarded_create("GH01", "broll:before-approval", ARGS, pp=tmp3)
+    pre = False
+except G.Refused:
+    pre = True
+check("at 110 with no approval, the next GH01 job is REFUSED", pre)
+led["approved_extra"] = [{"credits": 100, "approved_by": "Jodie", "date": "2026-11-09",
+                          "words": "Yes approve another 100 credits."}]
+GH_LEDGER.write_text(json.dumps(led, indent=2), encoding="utf-8")
+try:
+    G.guarded_create("GH01", "broll:after-approval", ARGS, pp=tmp3)
+    post = True
+except Exception:
+    post = False
+check("with Jodie's recorded approval of 100, the same job is ALLOWED", post)
+check("  and the episode's ceiling reads 210", G.ceiling_for(G.load(GH_LEDGER, "GH01")) == 210.0)
+buf = io.StringIO()
+with redirect_stdout(buf):
+    G.main(["GH01", "--status", "--pp", str(tmp3)])
+check("  --status says 110 + 100 approved extra", "of 210 (110 + 100 approved extra)" in buf.getvalue(), buf.getvalue())
+check("the approval does NOT reach another episode (EP01 still 110)",
+      G.ceiling_for(G.load(tmp3 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME, 1)) == 110.0)
+led = json.loads(GH_LEDGER.read_text(encoding="utf-8"))
+led["approved_extra"].append({"credits": 500, "approved_by": "", "date": "2026-11-09", "words": ""})
+GH_LEDGER.write_text(json.dumps(led, indent=2), encoding="utf-8")
+n0 = len(f3.created)
+try:
+    G.guarded_create("GH01", "broll:untraceable", ARGS, pp=tmp3)
+    bad_ok = False
+except G.GuardError:
+    bad_ok = True
+except Exception:
+    bad_ok = False
+check("CONTROL: an extra with no approver or words is NOT honoured — nothing created",
+      bad_ok and len(f3.created) == n0)
+check("the base constant is untouched, 110", G.CEILING == 110.0)
+
 print(f"\nhf guard: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

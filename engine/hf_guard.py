@@ -126,6 +126,24 @@ def load(path: pathlib.Path, ep_number) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def ceiling_for(ledger: dict) -> float:
+    """110, plus any extra credits JODIE approved for THIS episode, written in its own ledger.
+
+    Jodie, 9 Nov 2026 (PP-GH01 hit 110 exactly): "Yes approve another 100 credits." The ceiling
+    stays a constant with no override flag; an approval is a RECORD, not a setting. Each entry
+    in `approved_extra` must say how many credits, who approved, when, and her words — an entry
+    missing any of them is refused, because an extension nobody can trace to a person is just
+    a higher number."""
+    extra = 0.0
+    for i, a in enumerate(ledger.get("approved_extra") or [], 1):
+        missing = [k for k in ("credits", "approved_by", "date", "words") if not str(a.get(k, "")).strip()]
+        if missing:
+            raise GuardError(f"approved_extra entry {i} in the spend ledger is missing {', '.join(missing)}, "
+                             f"so it is not honoured and nothing was created.")
+        extra += float(a["credits"])
+    return CEILING + extra
+
+
 def counted(ledger: dict) -> float:
     return round(sum(float(j.get("counted", 0)) for j in ledger.get("jobs", [])), 2)
 
@@ -181,9 +199,10 @@ def guarded_create(ep_number, label: str, create_args: list[str], *,
         led = load(path, ep_number)
         est = estimate(create_args)
         so_far = counted(led)
-        if so_far + est > CEILING + 1e-9:
+        ceiling = ceiling_for(led)
+        if so_far + est > ceiling + 1e-9:
             raise Refused(
-                f"{ep_label(ep_number)} has used {so_far:g} of its {CEILING:g} Higgsfield "
+                f"{ep_label(ep_number)} has used {so_far:g} of its {ceiling:g} Higgsfield "
                 f"credits, and '{label}' is estimated at {est:g} more ({so_far + est:g} in "
                 f"all). That is over the ceiling Jodie set, so nothing was created. "
                 f"Ask Jodie before going on.")
@@ -232,8 +251,10 @@ def status(ep_number, pp: pathlib.Path = PP) -> str:
     path = ledger_path(ep_number, pp)
     led = load(path, ep_number)
     used = counted(led)
-    return (f"{ep_label(ep_number)}: {used:g} of {CEILING:g} Higgsfield credits counted, "
-            f"{max(0.0, CEILING - used):g} left, {len(led.get('jobs', []))} job(s). "
+    ceiling = ceiling_for(led)
+    extra = f" (110 + {ceiling - CEILING:g} approved extra)" if ceiling > CEILING else ""
+    return (f"{ep_label(ep_number)}: {used:g} of {ceiling:g}{extra} Higgsfield credits counted, "
+            f"{max(0.0, ceiling - used):g} left, {len(led.get('jobs', []))} job(s). "
             f"Ledger: {path}")
 
 
