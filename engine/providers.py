@@ -4537,6 +4537,20 @@ class RealProvider:
         # resolves against the episode folder, which has its own docs/.
         skills = REPO_DIR / ".claude/skills"
         docs = REPO_DIR / "docs"
+        # THE MIDROLL LINE IS WORKED OUT HERE, NOT BY THE WRITER (Jodie, 9 Nov 2026):
+        # every episode, horse and greyhound, takes the pool line UNUSED LONGEST. That
+        # needs every earlier episode's files, which the writer cannot see — so the one
+        # definition (render_ready.pool_line_unused_longest) answers and the prompt
+        # names the line. If it cannot answer, the writer is told to use the pool's rule.
+        try:
+            sys.path.insert(0, str(SKILL_DIR / "scripts"))
+            from render_ready import pool_line_unused_longest    # noqa: PLC0415
+            _lid, _, _last = pool_line_unused_longest(str(d))
+            midroll_note = (f"This episode's midroll line is {_lid} — the pool line unused "
+                            "longest, worked out for you. Copy exactly that one.\n\n")
+        except Exception:                                  # noqa: BLE001
+            midroll_note = ("This episode's midroll line is the pool line unused longest "
+                            "— see the pool file's rule.\n\n")
         prompt = (
             "You are writing the SPOKEN SCRIPT for a Practical Punting episode — "
             "the words Gordon says to camera, and nothing else. You are running "
@@ -4556,6 +4570,7 @@ class RealProvider:
             "TAKEN from this pool, verbatim. You do not write it.\n"
             f"  - {docs / 'PP-operator-box-rule.md'} — how to word what_i_saw.\n\n"
             f"This is episode {nn}.\n\n"
+            f"{midroll_note}"
             f"WRITE the spoken track to docs/spoken-words.txt\n\n"
             # ── THE RULE ABOVE ALL ────────────────────────────────────────────
             "======== THE RULE ABOVE ALL, AND IT OVERRIDES YOUR INSTINCTS ========\n"

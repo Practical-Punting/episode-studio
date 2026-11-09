@@ -32,8 +32,9 @@ where the spoken clock says it is. Typing "after turn six" would be a second hom
 something the script already states, and the first two-way with a different shape would
 inherit EP49's answer.
 
-🔴 AND THE MIDROLL LINE ITSELF IS DRAWN BY THE POOL'S RULE — episode N takes
-`L[N mod 10]` — and lifted VERBATIM by the pool's own documented parser. Never retyped.
+🔴 AND THE MIDROLL LINE ITSELF IS DRAWN BY THE POOL'S RULE — since 9 Nov 2026, THE LINE
+UNUSED LONGEST across PP-EP and PP-GH (it replaced `L[N mod 10]`) — and lifted VERBATIM
+by the pool's own documented parser. Never retyped.
 
 ── THE BREAKS ARE WHAT MAKE THE SEGMENTS CUTTABLE ────────────────────────────────────
 Every Gordon-as-Gordon piece is its own paragraph with a six-second SSML break on BOTH
@@ -158,7 +159,14 @@ def pool_line(ep_number: int) -> tuple[str, str]:
             f"the midroll pool parsed {len(lines)} lines, not ten: {sorted(lines)}. "
             "The pool is a batch Jodie approved; a pool that has lost a line is not "
             "that batch and the draw is meaningless.")
-    lid = f"L{ep_number % 10}"
+    # THE RULE IS "THE LINE UNUSED LONGEST" (Jodie, 9 Nov 2026), across PP-EP AND
+    # PP-GH — it replaced `L[N mod 10]`. One definition, in render_ready, used by the
+    # solo commission too. The path need not exist: a PP-EP number is its position.
+    scripts = REPO / ".claude/skills/pp-episode-production/scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    from render_ready import pool_line_unused_longest    # noqa: PLC0415
+    lid, _text, _last = pool_line_unused_longest(str(PP / f"PP-EP{ep_number:02d}"))
     return lid, lines[lid]
 
 
@@ -177,7 +185,7 @@ def pieces(ep_number: int) -> list[dict]:
          "provenance": "per-episode wording inside the approved shape"},
         {"id": "midroll", "name": f"midroll invitation {lid}", "text": midroll,
          "where": "midpoint-handover-into-host",
-         "provenance": "VERBATIM from the pool of ten, drawn by N mod ten"},
+         "provenance": "VERBATIM from the pool of ten, the line unused longest"},
         {"id": "close", "name": "the close", "text": CLOSE, "where": "after-dialogue",
          "provenance": f"NEW WORDS — approved by {APPROVAL}"},
         {"id": "outro", "name": "outro: wind-down and the e-book pointer",

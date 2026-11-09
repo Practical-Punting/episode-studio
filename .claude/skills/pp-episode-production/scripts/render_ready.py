@@ -14,8 +14,10 @@ Checks:
      (Needs --episode for the midroll beat number; skipped without it.)
 
      NINE, NOT TEN — DO NOT "CORRECT" THIS (Jodie, 28 Jul 2026). The spoken
-     midroll now comes from a fixed pool of TEN pre-approved lines used strictly
-     in order (docs/midroll-line-pool.md): episode N takes L[N mod 10]. That
+     midroll now comes from a fixed pool of TEN pre-approved lines
+     (docs/midroll-line-pool.md); since 9 Nov 2026 every episode, PP-EP and
+     PP-GH, takes THE LINE UNUSED LONGEST (pool_line_unused_longest), which
+     replaced L[N mod 10]. Either way the
      cycle recurs at EXACTLY ten-episode intervals — L3 runs at EP13 and again
      at EP23. A ten-episode window would contain EP13 when EP23 is checked and
      would hard-fail every episode from EP23 onward, forever. At nine, the
@@ -145,6 +147,75 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
     return found
 
 
+POOL_MD = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       "..", "..", "..", "..", "docs", "midroll-line-pool.md"))
+
+
+def midroll_pool(pool_md=POOL_MD):
+    """{'L0': text, …} parsed with the pool file's own documented contract:
+    `^### (L\\d)\\n> (.+?)$` — the heading, then the line IMMEDIATELY under it."""
+    md = open(pool_md, encoding="utf-8").read().replace("\r\n", "\n")
+    return {m.group(1): m.group(2).strip() for m in re.finditer(r"^### (L\d)\n> (.+?)$", md, re.M)}
+
+
+def lines_in_folder(folder, pool):
+    """Pool line ids found VERBATIM (any whitespace between words) in any .txt under
+    the episode's docs/ — not only spoken-words.txt, because a two-way episode keeps
+    its midroll in furniture/turn files (EP49, EP55)."""
+    found = set()
+    texts = []
+    for t in glob.glob(os.path.join(folder, "docs", "**", "*.txt"), recursive=True):
+        try:
+            texts.append(" ".join(open(t, encoding="utf-8", errors="replace").read().split()))
+        except OSError:
+            continue
+    for lid, line in pool.items():
+        flat = " ".join(line.split())
+        if any(flat in t for t in texts):
+            found.add(lid)
+    return found
+
+
+def pool_line_unused_longest(ep_dir, pool_md=POOL_MD):
+    """THE MIDROLL RULE (Jodie, 9 Nov 2026): every episode, horse AND greyhound,
+    takes THE POOL LINE UNUSED LONGEST. Replaces `L[N mod 10]`, which broke the
+    moment PP Greyhounds joined the pool (PP-GH01 took L6, so EP56 by N mod 10
+    would have repeated it inside its own window, and every episode after it the same).
+
+    Returns (line_id, text, last_used_by) — `last_used_by` is the folder name of the
+    most recent EARLIER episode that used it, or None if no earlier episode ever has.
+
+    Looks only at episodes BEFORE this one in the shared sequence
+    (`_midroll_sequence`), so the answer for an episode never changes once later
+    episodes are made, and an episode's own script never counts against itself.
+    A line never used comes first; ties go to the lower id. Over a full pool this is
+    a strict rotation again — each line recurs exactly ten episodes later, which is
+    why the nine-episode window stays right."""
+    pool = midroll_pool(pool_md)
+    k = _series_num(ep_dir)
+    if k is None:
+        raise ValueError(f"not an episode folder: {ep_dir}")
+    root = os.path.dirname(os.path.abspath(os.path.normpath(ep_dir)))
+    slots = _midroll_sequence(root)
+    if k[0] == "EP":
+        mine = k[1]
+    else:
+        me = os.path.normcase(os.path.abspath(os.path.normpath(ep_dir)))
+        hit = [p for p, d in slots if d and os.path.normcase(os.path.abspath(d)) == me]
+        if not hit:
+            raise ValueError(f"PP-GH folder not found on disk: {ep_dir}")
+        mine = hit[0]
+    last = {lid: (float("-inf"), None) for lid in pool}
+    for pos, d in slots:
+        if pos >= mine or not d:
+            continue
+        for lid in lines_in_folder(d, pool):
+            if pos > last[lid][0]:
+                last[lid] = (pos, os.path.basename(d))
+    lid = min(pool, key=lambda i: (last[i][0], i))
+    return lid, pool[lid], last[lid][1]
+
+
 def midroll_clash(mine_text, ep_dir, window=MIDROLL_WINDOW):
     """(episode folder name, count compared) — the first episode inside the window
     that already carries this exact wording, or (None, count)."""
@@ -221,11 +292,15 @@ def main():
                 ep_dir = os.path.dirname(os.path.dirname(os.path.abspath(a.episode)))
                 which, compared = midroll_clash(mine, ep_dir)
                 if which:
+                    try:
+                        want = pool_line_unused_longest(ep_dir)[0]
+                    except Exception:                      # noqa: BLE001
+                        want = "the line unused longest"
                     hard.append(
                         f"midroll wording reused VERBATIM from {which}, which is inside "
                         f"the {MIDROLL_WINDOW}-episode window — HeyGen corrupts repeats. "
-                        "Take this episode's pool line (L[N mod 10] from "
-                        "docs/midroll-line-pool.md). Do NOT reword it.")
+                        f"Take this episode's pool line, {want} (the line unused longest, "
+                        "from docs/midroll-line-pool.md). Do NOT reword it.")
                 else:
                     print(f"ok: midroll wording is fresh "
                           f"({compared} prior episode(s) compared, window "

@@ -451,8 +451,11 @@ listener's benefit and to helping *others* find it, not to "help me grow".
 - 🔒 **DO NOT WRITE THIS LINE. TAKE IT FROM THE POOL (Jodie, 28 Jul 2026).**
   **SUPERSEDES the old rule** — *"VARY the wording every episode… never reuse verbatim… also vary
   the 'noise out there' line"* — **which is retired. Do not restore it.**
-  Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. **Episode N takes
-  `L[N mod 10]`, strictly in order**; the pool wraps and never exhausts. Copy the line verbatim,
+  Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. **Every episode, horse
+  (PP-EP) and greyhound (PP-GH), takes THE LINE UNUSED LONGEST** (Jodie, 9 Nov 2026 — it
+  replaced `L[N mod 10]`). **Do not work it out yourself:** the engine tells you the line id in
+  the commission prompt (from `render_ready.pool_line_unused_longest()`), and by hand you run that
+  function. The pool wraps and never exhausts. Copy the line verbatim,
   record `build.midroll.line_id` in `episode.json`, add the registry row. **Never paraphrase, never
   "improve", never write an eleventh.** QC hard-fails a verbatim repeat within the previous NINE
   episodes (nine, not ten — see `PP-STANDARDS.md` §END SEQUENCE item 4).
@@ -723,7 +726,7 @@ word, e.g. *"the body says 'first-up?' where the article says 'firstup?'"*.
 **Seams**
 - [ ] Opening hooks + opens a loop; transitions bridge beats; re-hook near 60–70% (fresh tension,
       controversy or evidence payoff all count — no literal teaser required).
-- [ ] Midroll: fixed shape, **line copied verbatim from the pool (`L[N mod 10]`) — never written**,
+- [ ] Midroll: fixed shape, **line copied verbatim from the pool (the line unused longest) — never written**,
       `build.midroll.line_id` recorded, registry row added, "this video" not a bare "this",
       cadence line current, ~45–55%, icons specified with ≥6s full visibility.
 - [ ] Outro: standing structure verbatim (only wind-down changes); responsible-gambling line present;

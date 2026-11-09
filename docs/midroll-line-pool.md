@@ -11,11 +11,22 @@ Changing any one of them is a **new batch approval**, not an edit.
 
 ## THE RULE
 
-0. 🔴 **EXCEPTION, RULED BY JODIE 9 Nov 2026: PP-EP56 TAKES `L7`, NOT L6.** PP-GH01 (PP Greyhounds)
-   holds L6 and sits inside EP56's window. See "PP GREYHOUNDS SHARES THIS POOL" below.
-1. **Ten lines, `L0` … `L9`. Used STRICTLY IN ORDER: episode N takes `L[N mod 10]`.**
-   EP13 → `L3`. EP14 → `L4`. EP20 → `L0`. The pool **wraps forever** — it never exhausts,
-   so the build never halts for want of a line.
+1. 🔴 **EVERY EPISODE — HORSE (PP-EP) AND GREYHOUND (PP-GH) — TAKES THE POOL LINE UNUSED
+   LONGEST** (Jodie, 9 Nov 2026). *"From now on every episode, horse and greyhound, takes the
+   line unused longest."* **This REPLACES `L[N mod 10]`**, which broke the moment PP-GH01 took a
+   line out of turn: every horse episode after it would have repeated the episode before.
+   - **Worked out by code, not by hand or by the writer:** `render_ready.pool_line_unused_longest()`
+     looks at every EARLIER episode in the shared sequence (any `.txt` in its `docs/`, so the
+     two-way furniture files count too) and returns the line whose last use is oldest. A line
+     never used comes first. The script commission is TOLD the line; the two-way builder asks
+     the same function. One definition.
+   - First uses of the rule: **PP-GH01 → `L6`** (last used EP46), **EP56 → `L7`** (last used EP47).
+   - Over a full pool this is a strict ten-step rotation again — each line recurs exactly ten
+     episodes later — so the NINE-episode window below stays right. The pool **wraps forever**,
+     so the build never halts for want of a line.
+   - *History:* EP13–EP55 were drawn by `L[N mod 10]` (EP13 → `L3`, EP20 → `L0`). Measured on
+     the real folders 9 Nov 2026: from EP24 to EP55 both rules give the same line. (EP23 is the
+     one exception — EP14's folder holds no pool line, so at EP23 L4 reads as never used.)
 2. **The build never invents, paraphrases or rewrites.** It substitutes one paragraph.
    If the pool cannot supply a line, that is a bug, not a licence to write one.
 3. **`episode.json` records the choice:** `build.midroll.line_id: "L3"`.
@@ -43,12 +54,11 @@ window.
   recently before its own folder — derived from the folders, no list to maintain. The window
   is still the NINE slots before an episode; a PP-GH episode in between takes one of them.
   With no PP-GH folders, nothing about PP-EP changes. Test: `engine/test_midroll_window_gh.py`.
-- **PP-GH01 took `L6`** — Jodie's rule for it: *the line that has gone longest without being
-  used* (L6, last used EP46). `L[N mod 10]` is still the written rule for PP-EP.
+- **PP-GH01 took `L6`** — the line that had gone longest without being used (last used EP46).
 - ✅ **RULED (Jodie, 9 Nov 2026): EP56 takes `L7`** — the line unused longest, the same rule
   as PP-GH01. **PP-GH01 keeps `L6`.** *(Why it needed a ruling: EP56 by `L[N mod 10]` is L6,
   and PP-GH01 sits inside EP56's window, so EP56 on L6 hard-fails the check — proved on the
-  real folders, 9 Nov. L7 passes.)*
+  real folders, 9 Nov. L7 passes.)* Then generalised the same day: rule 1 above.
 
 ---
 
@@ -205,6 +215,8 @@ build.midroll.line_id`.
 `EP14 → L4` · `EP15 → L5` · `EP16 → L6` · `EP17 → L7` · `EP18 → L8` · `EP19 → L9` ·
 `EP20 → L0` · `EP21 → L1` · `EP22 → L2` · `EP23 → L3` (the first legitimate repeat, ten
 back, which is exactly why the window is nine).
+*(That list is the old `L[N mod 10]` history. Since 9 Nov 2026 the line is the one unused
+longest — rule 1: `PP-GH01 → L6`, `EP56 → L7`, then ask `pool_line_unused_longest()`.)*
 
 ---
 

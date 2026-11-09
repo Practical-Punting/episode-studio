@@ -368,7 +368,9 @@ def stage_rms(qc, final):
 # midroll wording window (Jodie, 28 Jul 2026)
 #
 # The spoken midroll now comes from a FIXED POOL OF TEN pre-approved lines used
-# strictly in order (docs/midroll-line-pool.md): episode N takes L[N mod 10].
+# (docs/midroll-line-pool.md). Since 9 Nov 2026 every episode, PP-EP and PP-GH,
+# takes THE LINE UNUSED LONGEST (render_ready.pool_line_unused_longest), which
+# replaced L[N mod 10]; over a full pool it is still a strict ten-step rotation.
 #
 # NINE, NOT TEN - DO NOT "CORRECT" THIS. That cycle recurs at EXACTLY
 # ten-episode intervals: L3 runs at EP13 and again at EP23. A ten-episode window
@@ -673,8 +675,8 @@ def stage_end_sequence(qc, final, beats, head, episode_path, out_dir):
                     qc.fail(f"midroll wording reused VERBATIM from {which}, which is "
                             f"inside the {MIDROLL_WINDOW}-episode window - HeyGen "
                             "corrupts repeats. Take this episode's pool line "
-                            "(L[N mod 10] from docs/midroll-line-pool.md); do NOT "
-                            "reword it")
+                            "(the line unused longest, from docs/midroll-line-pool.md); "
+                            "do NOT reword it")
                 else:
                     qc.note(f"midroll wording is fresh within the last "
                             f"{MIDROLL_WINDOW} episodes ({compared} compared)")

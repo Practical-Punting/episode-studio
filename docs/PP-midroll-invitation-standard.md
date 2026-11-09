@@ -16,7 +16,7 @@ Gordon gives **ONE** gentle, authentic invitation to like & subscribe, placed in
 
 It asked for fresh prose every episode, which meant the build was writing the ask — and a build that writes its own copy can write anything.
 
-- **Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. Episode N takes `L[N mod 10]`, strictly in order.** The pool **wraps** rather than exhausting, so the build never halts for want of a line.
+- **Ten pre-approved lines, `L0`…`L9`, in `docs/midroll-line-pool.md`. Every episode, horse (PP-EP) and greyhound (PP-GH), takes THE LINE UNUSED LONGEST (Jodie, 9 Nov 2026; it replaced `L[N mod 10]`), worked out by `render_ready.pool_line_unused_longest()`.** The pool **wraps** rather than exhausting, so the build never halts for want of a line.
 - **They are never rewritten.** Changing one is a new batch approval, not an edit.
 - **HARD FAIL if the midroll paragraph is byte-identical to any of the NINE immediately preceding episodes** — nine, not ten, because a ten-line cycle recurs at exactly ten-episode intervals. Full reasoning in `PP-STANDARDS.md` §END SEQUENCE item 4.
 - **The on-screen chip is separate and does NOT rotate** — fixed standing furniture, identical every episode.
