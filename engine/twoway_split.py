@@ -303,6 +303,125 @@ def split_turns(capture_text: str) -> tuple[list[dict], dict[str, str], list[dic
     return turns, speakers, narr
 
 
+# ─────────────────────────────────────────────── sanctioned, per-episode cuts ──
+
+SUBSTITUTIONS = "sanctioned-substitutions.json"
+"""🔒 THE ONLY WAY A READER'S WORDS MAY DIFFER FROM THE ARTICLE (11 Nov 2026).
+
+`turns.json` is the article of record and is NEVER edited. When Jodie rules that a
+reader must not say something the article says — EP56's first case: "NAME THE SITE,
+DROP THE ADDRESS", because bloodhorsereview.com.au is now an unrelated blog — the cut
+is written ONCE, in the episode's own `docs/sanctioned-substitutions.json`, as exact
+text: the turn, the speaker, the words found, their replacement, and the whole
+sentence before and after (what she actually approved, readable on its own).
+
+Every script built from the turns goes through `reading_turns()`: this step's two
+spoken-words files AND `twoway_furniture`'s composed host script, so the furniture step
+cannot quietly put a cut back. It applies EXACTLY the declared substitutions and then
+PROVES nothing else moved; anything off halts.
+
+⚠️ IT IS NOT AN EXEMPTION FROM THE WEB-ADDRESS GUARD. `assert_no_furniture` runs on the
+result unchanged: a substitution removes words, it never licenses one. An address
+nobody ruled on still halts the step, as it should.
+📌 These are NEW WORDS in Hugh's sense (Jodie): they go to him with the open and the
+furniture. And the e-book must apply the same cuts — see the file's own `applies_to`."""
+
+_SUB_KEYS = ("id", "turn", "speaker", "find", "replace", "before", "after")
+
+
+def load_substitutions(docs: pathlib.Path) -> list[dict]:
+    """The episode's sanctioned substitutions, or [] when it has none (the usual case)."""
+    f = docs / SUBSTITUTIONS
+    if not f.is_file():
+        return []
+    try:
+        subs = json.loads(f.read_text(encoding="utf-8"))["substitutions"]
+    except (ValueError, KeyError) as e:
+        raise Unsplittable(f"{f.name} cannot be read as a list of substitutions ({e}). "
+                           "Nothing is written.")
+    for s in subs:
+        missing = [k for k in _SUB_KEYS if k not in s]
+        if missing:
+            raise Unsplittable(f"{f.name}: substitution {s.get('id', '?')} lacks "
+                               f"{missing}. Nothing is written.")
+    ids = [s["id"] for s in subs]
+    if len(set(ids)) != len(ids):
+        raise Unsplittable(f"{f.name}: duplicate ids {ids}. Nothing is written.")
+    return subs
+
+
+def reading_turns(turns: list[dict], subs: list[dict]) -> list[dict]:
+    """Copies of the turns with EXACTLY the sanctioned substitutions applied.
+
+    The turns themselves are not touched. Raises on anything that is not exactly what
+    was declared: a turn that does not exist, is NARR or belongs to the other reader;
+    a `find` that is not in its turn exactly once; a `before` sentence not in the turn,
+    or one that the substitution does not turn into the declared `after`. Then, by a
+    SEPARATE route, it proves that nothing outside the declared sentences differs — see
+    `reading_differences`.
+    """
+    by_n = {t["n"]: t for t in turns}
+    out = [dict(t) for t in turns]
+    out_by_n = {t["n"]: t for t in out}
+    for s in subs:
+        t = by_n.get(s["turn"])
+        where = f"substitution {s['id']} (turn {s['turn']})"
+        if t is None or t["speaker"] == "NARR":
+            raise Unsplittable(f"{where}: there is no spoken turn {s['turn']}.")
+        if t["speaker"] != s["speaker"]:
+            raise Unsplittable(f"{where} is declared for {s['speaker']} but turn "
+                               f"{s['turn']} is {t['speaker']}'s. Nothing is written.")
+        if not s["find"] or t["text"].count(s["find"]) != 1:
+            raise Unsplittable(f"{where}: {s['find']!r} occurs "
+                               f"{t['text'].count(s['find']) if s['find'] else 0} time(s) "
+                               "in the turn, not exactly once. Nothing is written.")
+        if t["text"].count(s["before"]) != 1 or s["find"] not in s["before"]:
+            raise Unsplittable(f"{where}: its 'before' sentence is not the turn's own "
+                               "sentence around the words found. Nothing is written.")
+        if s["before"].replace(s["find"], s["replace"]) != s["after"]:
+            raise Unsplittable(f"{where}: applying it to 'before' does not give the "
+                               "declared 'after'. Nothing is written.")
+        cur = out_by_n[s["turn"]]
+        cur["text"] = cur["text"].replace(s["find"], s["replace"], 1)
+        cur["words"] = len(cur["text"].split())
+    bad = reading_differences(turns, out, subs)
+    if bad:
+        raise Unsplittable("the reading differs from the article beyond the sanctioned "
+                           "substitutions: " + "; ".join(bad) + ". Nothing is written.")
+    return out
+
+
+def reading_differences(turns: list[dict], reading: list[dict], subs: list[dict]) -> list[str]:
+    """Every way `reading` differs from `turns` OTHER than the declared substitutions.
+
+    🔒 A SEPARATE ROUTE FROM THE ONE THAT APPLIED THEM, on purpose (a check sharing its
+    source with the thing it checks is not a check). It never re-applies `find` →
+    `replace`: it masks each declared `before` sentence in the article and each declared
+    `after` sentence in the reading with the same marker, and then demands the two be
+    IDENTICAL, character for character, turn by turn. So the only text allowed to
+    differ is inside sentences Jodie saw whole, and each must read exactly as approved.
+    """
+    out = []
+    if [t["n"] for t in turns] != [t["n"] for t in reading]:
+        return ["the turns themselves changed (count or order)"]
+    for a, b in zip(turns, reading):
+        if a["speaker"] != b["speaker"]:
+            out.append(f"turn {a['n']} changed speaker")
+            continue
+        x, y = a["text"], b["text"]
+        for s in subs:
+            if s["turn"] != a["n"]:
+                continue
+            mark = f"\x00{s['id']}\x00"
+            if x.count(s["before"]) != 1 or y.count(s["after"]) != 1:
+                out.append(f"{s['id']}: its sentence is not exactly once in turn {a['n']}")
+                continue
+            x, y = x.replace(s["before"], mark), y.replace(s["after"], mark)
+        if x != y:
+            out.append(f"turn {a['n']} differs outside its sanctioned sentence(s)")
+    return out
+
+
 # ───────────────────────────────────────────────────────────── the two scripts ──
 
 def spoken(text: str) -> str:
@@ -388,12 +507,15 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
     text = capture.read_text(encoding="utf-8")
 
     turns, speakers, narr = split_turns(text)
-    scripts = {code: script_for(code, turns) for code in speakers}
-    for code, s in scripts.items():
-        assert_no_furniture(s, speakers[code])
-
     ep_dir = ep_paths.episode_dir(ep_number, pp)
     docs = ep_dir / "docs"
+    # turns.json stays the article; the SCRIPTS are built from the reading, which
+    # differs from it only by the episode's sanctioned substitutions (usually none).
+    subs = load_substitutions(docs)
+    reading = reading_turns(turns, subs)
+    scripts = {code: script_for(code, reading) for code in speakers}
+    for code, s in scripts.items():
+        assert_no_furniture(s, speakers[code])
 
     print(f"capture    : {capture.name}")
     print(f"episode    : {ep_dir.name}")
@@ -410,6 +532,10 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
     for t in narr:
         one = re.sub(r"\s+", " ", t["text"])
         print(f"   n={t['n']:<3} {one[:96]}{'…' if len(one) > 96 else ''}")
+    print(f"SANCTIONED : {len(subs)} substitution(s) from {SUBSTITUTIONS}"
+          + (" (none: the reading IS the article)" if not subs else ":"))
+    for s in subs:
+        print(f"   {s['id']} turn {s['turn']} {s['speaker']}: {s['find']!r} -> {s['replace']!r}")
 
     short = [t for t in turns if t["speaker"] in speakers and t["words"] < 20]
     print(f"\nunder 20 words ({len(short)}) — the two-box candidates "
@@ -422,7 +548,7 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
     out = {"turns.json": json.dumps({"turns": turns}, indent=2, ensure_ascii=False) + "\n"}
     for code in speakers:
         out[f"spoken-words-{code}.txt"] = scripts[code]
-        pair = script_for(code, turns, limit=PAIR_TEST_TURNS)
+        pair = script_for(code, reading, limit=PAIR_TEST_TURNS)
         assert_no_furniture(pair, speakers[code])
         out[f"pairtest-{code}.txt"] = pair
 

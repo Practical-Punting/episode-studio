@@ -375,6 +375,11 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
         raise NotComposable(f"no {tj} — run twoway_split.py first; this step composes "
                             "the dialogue it wrote and never re-derives it.")
     turns = json.loads(tj.read_text(encoding="utf-8"))["turns"]
+    # 🔒 The host reads the READING, not the raw turns: exactly the episode's sanctioned
+    # substitutions applied and proved (EP56's dropped web addresses, 11 Nov 2026). One
+    # definition, in twoway_split — without this line the composed script would put the
+    # cuts straight back. turns.json itself stays the article.
+    turns = ts.reading_turns(turns, ts.load_substitutions(docs))
 
     epj_path = docs / "episode.json"
     epj = json.loads(epj_path.read_text(encoding="utf-8")) if epj_path.is_file() else {}
@@ -451,7 +456,7 @@ def main() -> int:
     a = ap.parse_args()
     try:
         build(a.ep_number, pathlib.Path(a.pp), write=a.write)
-    except NotComposable as e:
+    except (NotComposable, ts.Unsplittable) as e:   # Unsplittable: a bad substitution
         print(f"\nHALT: {e}", file=sys.stderr)
         return 1
     return 0

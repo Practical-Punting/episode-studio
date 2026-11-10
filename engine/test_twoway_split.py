@@ -29,6 +29,7 @@ more that guard the ways this step can be wrong expensively:
 """
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -261,6 +262,99 @@ def main() -> int:
               f"{[x['text'][:20] for x in n7]}")
     else:
         print("  (EP56's capture is not on this machine — its real-article half is SKIPPED)")
+
+    print("\n-- (h) SANCTIONED SUBSTITUTIONS: EXACTLY THE DECLARED CUTS, AND NOTHING ELSE --")
+    art8 = fake_capture("By Ann Archer and Bob Bowman — PRACTICAL PUNTING - MARCH 1999",
+                        "AA: See the Review at www.review.invalid. Then bet.\n\n"
+                        "BB: Try the site (www.site.invalid) daily.")
+    t8, s8, _ = tw.split_turns(art8)
+    ok_sub = [{"id": "S1", "turn": 2, "speaker": "AA", "find": " at www.review.invalid",
+               "replace": "", "before": "See the Review at www.review.invalid.",
+               "after": "See the Review."},
+              {"id": "S2", "turn": 3, "speaker": "BB", "find": " (www.site.invalid)",
+               "replace": "", "before": "Try the site (www.site.invalid) daily.",
+               "after": "Try the site daily."}]
+    snapshot = [dict(x) for x in t8]
+    r8 = tw.reading_turns(t8, ok_sub)
+    check("  the declared cuts are applied, and only to the reading",
+          [x["text"] for x in r8][1:] == ["See the Review. Then bet.", "Try the site daily."]
+          and t8 == snapshot, f"{[x['text'] for x in r8]}")
+    halted = None
+    try:
+        for c in s8:
+            tw.assert_no_furniture(tw.script_for(c, r8), c)
+    except tw.Unsplittable as e:
+        halted = str(e)
+    check("  the web-address guard passes the reading once the cuts are made", halted is None,
+          halted)
+    halted = None
+    try:
+        tw.assert_no_furniture(tw.script_for("BB", tw.reading_turns(t8, ok_sub[:1])), "BB")
+    except tw.Unsplittable as e:
+        halted = str(e)
+    check("  and the guard is NOT relaxed: an address nobody ruled on still halts",
+          halted is not None and "www.site.invalid" in halted, f"{halted!r}")
+    check("  no substitutions -> the reading IS the article",
+          tw.reading_turns(t8, []) == t8)
+
+    def refuses(subs, why):
+        try:
+            tw.reading_turns(t8, subs)
+            check(f"  refuses: {why}", False, "it did not raise")
+        except tw.Unsplittable:
+            check(f"  refuses: {why}", True)
+    refuses([{**ok_sub[0], "speaker": "BB"}], "a cut declared for the other reader")
+    refuses([{**ok_sub[0], "turn": 1}], "a cut on a NARR row")
+    refuses([{**ok_sub[0], "find": " at www.nowhere.invalid"}], "words not in the turn")
+    refuses([{**ok_sub[0], "find": "e"}], "words found more than once")
+    refuses([{**ok_sub[0], "after": "See the Review!"}], "an 'after' the cut does not produce")
+    refuses([{**ok_sub[0], "before": "Then bet."}], "a 'before' that does not hold the cut")
+    sneaky = [dict(x) for x in r8]
+    sneaky[2]["text"] = sneaky[2]["text"].replace("daily", "weekly")
+    check("  the separate route catches a change outside the sanctioned sentences",
+          bool(tw.reading_differences(t8, sneaky, ok_sub)))
+    inside = [dict(x) for x in r8]
+    inside[1]["text"] = inside[1]["text"].replace("See the Review.", "See the Revue.")
+    check("  and a change INSIDE a sanctioned sentence that is not the approved 'after'",
+          bool(tw.reading_differences(t8, inside, ok_sub)))
+
+    # Both scripts are built from the reading: twoway_split's own build, and the furniture
+    # step's composed host script. An AST walk of the CALLS, not a grep (CLAUDE.md 1a).
+    import ast
+    import twoway_furniture as tf
+    for mod, fn in ((tw, "build"), (tf, "build")):
+        tree = ast.parse(pathlib.Path(mod.__file__).read_text(encoding="utf-8"))
+        node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == fn)
+        calls = {(c.func.attr if isinstance(c.func, ast.Attribute) else getattr(c.func, "id", ""))
+                 for c in ast.walk(node) if isinstance(c, ast.Call)}
+        check(f"  {mod.__name__}.{fn}() calls reading_turns and load_substitutions",
+              {"reading_turns", "load_substitutions"} <= calls, f"{sorted(calls)[:12]}")
+
+    d56 = PP / "PP-EP56-Class-Improvement-and-Bias-Blues-Part-3" / "docs"
+    if hit56 and (d56 / tw.SUBSTITUTIONS).is_file():
+        subs56 = tw.load_substitutions(d56)
+        tj56 = json.loads((d56 / "turns.json").read_text(encoding="utf-8"))["turns"]
+        r56 = tw.reading_turns(tj56, subs56)
+        changed = [a["n"] for a, b in zip(tj56, r56) if a["text"] != b["text"]]
+        check("  EP56 (real): three substitutions, on turns 3, 4 and 10 only",
+              len(subs56) == 3 and changed == [3, 4, 10], f"{changed}")
+        lost = sum(a["words"] - b["words"] for a, b in zip(tj56, r56))
+        check("  EP56 (real): four words come out (the three addresses and one 'at')",
+              lost == 4, lost)
+        halted = None
+        try:
+            for c in ("BB", "BM"):
+                tw.assert_no_furniture(tw.script_for(c, r56), c)
+        except tw.Unsplittable as e:
+            halted = str(e)
+        check("  EP56 (real): the web-address guard passes both scripts", halted is None,
+              halted)
+        check("  EP56 (real): the fidelity gate passes both scripts",
+              all(not sf.check(tw.script_for(c, r56), cap56) for c in ("BB", "BM")))
+        check("  EP56 (real): turns.json still equals a fresh split of the capture",
+              tj56 == tw.split_turns(cap56)[0])
+    else:
+        print("  (EP56's substitutions are not on this machine — the real half is SKIPPED)")
 
     print(f"\ntwo-way split: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0
