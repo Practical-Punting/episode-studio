@@ -1824,10 +1824,12 @@ def ep_stem(out_dir) -> str:
     full folder name; the `PP-EP(\\d+)` part is the bit that survives.
     """
     folder = os.path.basename(os.path.dirname(os.path.abspath(out_dir)))
-    m = re.match(r"(PP-EP\d+)", folder)
+    # PP Greyhounds (PP-GHNN) books are named the same way (Jodie, 9 Nov 2026: PP-GH01's e-book),
+    # and so are PP Harness (PP-HRNN) books (Jodie, 11 Nov 2026: PP-HR01, an e-book only).
+    m = re.match(r"(PP-(?:EP|GH|HR)\d+)", folder)
     if not m:
-        raise Halt(f"the e-book directory is not inside a PP-EPNN episode folder "
-                   f"(found {folder!r}), so there is no name to give the book.")
+        raise Halt(f"the e-book directory is not inside a PP-EPNN, PP-GHNN or PP-HRNN episode "
+                   f"folder (found {folder!r}), so there is no name to give the book.")
     return m.group(1)
 
 
