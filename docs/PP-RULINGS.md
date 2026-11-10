@@ -185,6 +185,8 @@ The target the whole studio is built against.
 **DOES NOT COVER:** cadence. Publishing is currently **daily**, moving to weekly later — a
 separate live setting recorded in `PP-midroll-invitation-standard.md`, and the whole midroll
 pool is written against it.
+**⚠️ SUPERSEDED (11 Nov 2026: no cadence).** Jodie ruled that the midroll pool, the chip and the
+description carry no upload cadence at all — see `docs/midroll-line-pool.md` §NO CADENCE.
 
 ## A7 · 3 Aug 2026 — THE BANG STAYS
 > ### "It is Roger Dedman's article and his title."
@@ -408,6 +410,8 @@ this amendment is sourced.*
 > 📋 **OWED, AFTER EP17 IS MOVING: read the other nine in place** — does every sentence
 > PARSE, and does each still describe reality (all ten carry the **DAILY** cadence, one
 > live setting that will be wrong in **ten places at once**). **Not to re-open them.**
+> **⚠️ SUPERSEDED (11 Nov 2026: no cadence)** — the cadence came out of all ten lines; see
+> `docs/midroll-line-pool.md` §NO CADENCE.
 > ⚖️ **Nothing published is touched** — *found retrospectively does not mean fixed
 > retrospectively* (Jodie, 4 Aug). Fix for future use, log it, move on.
 

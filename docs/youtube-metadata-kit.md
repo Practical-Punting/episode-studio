@@ -125,7 +125,7 @@ What you'll learn:
 
 📘 FREE e-book — "[E-BOOK TITLE]": download it free and keep the full method beside you every race day 👉 [PASTE E-BOOK LINK HERE]
 
-Follow Practical Punting for steady, sensible form study [CADENCE] — no hype, no promises, just disciplined form study applied for you.
+Follow Practical Punting for steady, sensible form study — no hype, no promises, just disciplined form study applied for you.
 
 🔗 More: https://practicalpunting.com.au
 
@@ -229,14 +229,18 @@ gambling-operator tags that read as advertising a bookmaker, `#guaranteedwin` wh
 promise the brand does not make, and the activist tags which attach the channel to a fight it
 is not in.
 
-## Cadence — a LIVE VARIABLE, not a fixed word (Jodie, 27 Jul 2026)
-`[CADENCE]` in the template above is filled from the current upload cadence, which is
-**DAILY now, moving to weekly further down the road**. Today write **"every day"**; when the
-cadence changes, write "every week" — and change it **here**, once. It is deliberately a
-placeholder rather than a hard-coded word so the template survives the change instead of going
-stale, which is exactly how this file came to say "every week" while three other documents said
-DAILY. The same live variable drives the midroll cadence line (`docs/PP-midroll-invitation-standard.md`)
-and the sign-off's closing marker — one change, three places, all sourced from here.
+## Cadence — NONE (Jodie, 11 Nov 2026)
+**The description carries no upload cadence.** Jodie, 11 Nov 2026: *"we are not putting out a
+video each day at the moment, just about every few days or once a week - when I get around to
+it."* So the `[CADENCE]` slot is gone from the template's "Follow Practical Punting…" line, and
+**no description may say "every day", "every week" or any other schedule.** The same ruling took
+the cadence out of the midroll pool and the on-screen chip — see `docs/midroll-line-pool.md`.
+
+*Retired 11 Nov 2026 (kept so it is not restored): this section was "Cadence — a LIVE VARIABLE,
+not a fixed word (Jodie, 27 Jul 2026)". It said `[CADENCE]` was filled from the current upload
+cadence — "every day" while publishing was daily, "every week" later — and that the same setting
+drove the midroll cadence line and the sign-off's closing marker. Why it went: a schedule written
+into standing copy is a promise, and the promise had already gone stale.*
 
 ## Brand rules for the copy
 - **No hype, no promises, no guarantees, no inducements.** Steady, sensible, disciplined. This matches the on-screen warranty and the brand voice.

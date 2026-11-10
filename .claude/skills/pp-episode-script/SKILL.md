@@ -440,14 +440,12 @@ once only. It is the outro voice — warm, plain, wry, Australian. **No hype.** 
 listener's benefit and to helping *others* find it, not to "help me grow".
 
 - **Fixed shape:** soft value hook (**naming the video**) → the ask (a like helps others find it;
-  subscribe) → the **cadence line** → a light wry nod → return to content ("Right — where were we.").
+  subscribe) → a light wry nod → return to content ("Right — where were we.").
 - 🔒 **NAME THE VIDEO AT EVERY ASK (Jodie, 28 Jul 2026).** Wherever Gordon asks something of the
   viewer — like, subscribe, get the e-book — say **"this video"**, never a bare "this". Clarity
   drives action. **Narration is exempt**: the opening framing line stays as written, because
   "this time" against "last time" is doing different work there. Binds §4E here and §4F item 2.
-- **Cadence line — LIVE VARIABLE:** currently **DAILY** ("a fresh one every day at the moment,
-  weekly down the track"). Update when it changes. ⚠️ **It is baked into all ten pool lines**, so
-  when cadence moves to weekly the whole pool needs a fresh batch approval — not a line-by-line fix.
+- 🔒 **No cadence in the midroll or the chip (Jodie, 11 Nov 2026)** — see `docs/midroll-line-pool.md`.
 - 🔒 **DO NOT WRITE THIS LINE. TAKE IT FROM THE POOL (Jodie, 28 Jul 2026).**
   **SUPERSEDES the old rule** — *"VARY the wording every episode… never reuse verbatim… also vary
   the 'noise out there' line"* — **which is retired. Do not restore it.**
@@ -728,7 +726,7 @@ word, e.g. *"the body says 'first-up?' where the article says 'firstup?'"*.
       controversy or evidence payoff all count — no literal teaser required).
 - [ ] Midroll: fixed shape, **line copied verbatim from the pool (the line unused longest) — never written**,
       `build.midroll.line_id` recorded, registry row added, "this video" not a bare "this",
-      cadence line current, ~45–55%, icons specified with ≥6s full visibility.
+      ~45–55%, icons specified with ≥6s full visibility.
 - [ ] Outro: standing structure verbatim (only wind-down changes); responsible-gambling line present;
       "see you soon" sign-off.
 
