@@ -313,6 +313,10 @@ const RESERVED_EPS = [
   { ep_number: 55, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
     "form-analysis/range-of-form-analysis-techniques/is-the-trainer-so-important-part-2-20031210.html",
     why: "the second two-way episode (no rail row by design)" },
+  // EP56 is the third two-way, "The Fundamentals of Handicapping" Part 3 (Jodie, 11 Nov 2026).
+  { ep_number: 56, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
+    "form-analysis/range-of-form-analysis-techniques/class-improvement-and-bias-blues-part-3-20040108",
+    why: "the third two-way episode (no rail row by design)" },
 ];
 
 function nextEpNumber(maxOnRail) {
@@ -321,12 +325,15 @@ function nextEpNumber(maxOnRail) {
   return n;
 }
 
+/* A trailing ".html" is dropped too (11 Nov 2026): the site serves the same article
+ * with and without it — EP55 was reserved as ".html" and the site now answers the bare
+ * spelling with 200 and redirects ".html" to it — so both spellings are one article. */
 function normUrl(u) {
   try {
     const p = new URL(u);
     return p.host.toLowerCase().replace(/^www\./, "") +
-           p.pathname.replace(/\/+$/, "").toLowerCase();
-  } catch (e) { return String(u || "").trim().toLowerCase(); }
+           p.pathname.replace(/\/+$/, "").replace(/\.html$/i, "").toLowerCase();
+  } catch (e) { return String(u || "").trim().toLowerCase().replace(/\/+$/, "").replace(/\.html$/i, ""); }
 }
 
 function articleUrlProblem(url) {
