@@ -72,6 +72,8 @@ The worked example is `scripts/ppd/` (its README); `scripts/promo/card_lint.py` 
   by, and refuses (exit 2) the job that would cross 110. Calling `hf.exe generate` directly and
   the Higgsfield MCP generate tools are denied in `.claude/settings.local.json`. The guard
   does not replace the engine's own pre-batch estimate ceilings in `engine.py`.
+  **PP Greyhounds (`PP-GHnn`) take the same 110. PP Harness (`PP-HRnn`, e-book only) take 20
+  (Jodie, 11 Nov 2026)** — `SERIES_CEILING` in the guard is the one home of those numbers.
 - **SCRIPT GATE** (Jodie, 26 Jul 2026): the script lives as a Google Doc in the
   episode's Drive folder — its ONE home. The gate passes only when the words are
   approved AND "I've read the script" is ticked. The engine re-reads the Doc on

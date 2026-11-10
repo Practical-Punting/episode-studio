@@ -3,10 +3,12 @@
     python engine/hf_guard.py <ep> <label> [--wait] -- <model> <hf create args…>
     python engine/hf_guard.py <ep> --status
 
-<ep> is a horse episode number (`77`, `EP77`, `PP-EP77`) or a PP Greyhounds episode (`GH01`,
-`PP-GH01`). Jodie, 9 Nov 2026: PP-GH episodes keep a spend ledger here too, under the SAME
-110-credit ceiling per episode. A bare number always means PP-EP, so the engine's own calls
-(which pass an int) are unchanged.
+<ep> is a horse episode number (`77`, `EP77`, `PP-EP77`), a PP Greyhounds episode (`GH01`,
+`PP-GH01`) or a PP Harness episode (`HR01`, `PP-HR01`). Jodie, 9 Nov 2026: PP-GH episodes keep a
+spend ledger here too, under the SAME 110-credit ceiling per episode. Jodie, 11 Nov 2026: PP-HR
+episodes keep one as well, with a ceiling of 20 — PP Harness is e-book only (two cover heroes
+at 2 credits each). A bare number always means PP-EP, so the engine's own calls (which pass an
+int) are unchanged.
 
 Jodie's ruling, 5 Oct 2026: **Claude Code may generate Higgsfield b-roll and cover heroes for
 PP WITHOUT ASKING, up to 110 CREDITS PER EPISODE, every episode. Over that, stop and ask
@@ -49,6 +51,10 @@ sys.path.insert(0, str(HERE))
 CEILING = 110.0
 """Credits per PP episode, b-roll AND cover heroes together (Jodie, 5 Oct 2026). Changing it
 is a ruling, not a setting — so it is a constant, and there is no override flag."""
+SERIES_CEILING = {"EP": CEILING, "GH": CEILING, "HR": 20.0}
+"""The base ceiling for each sub-series, each one a ruling. EP: 5 Oct 2026. GH: 9 Nov 2026,
+"the same 110". HR: 11 Nov 2026, 20 — an e-book-only series needs two 2-credit heroes. A
+series missing from here cannot be parsed by `episode_key`, so it can never default to 110."""
 LEDGER_NAME = "higgsfield-spend.json"
 HF = pathlib.Path(os.environ.get("HF_CLI", r"C:\Users\jlral\tools\hf\hf.exe"))
 PP = pathlib.Path(os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos"))
@@ -83,13 +89,17 @@ def estimate(create_args: list[str]) -> float:
 
 # ── which episode ───────────────────────────────────────────────────────────────
 def episode_key(ep) -> tuple[str, int]:
-    """('EP', n) or ('GH', n). An int — the engine's own calls — is always PP-EP."""
+    """('EP', n), ('GH', n) or ('HR', n). An int — the engine's own calls — is always PP-EP.
+    The series letters are DERIVED from SERIES_CEILING, so a series cannot be parsed without
+    having a ceiling of its own."""
     if isinstance(ep, int):
         return "EP", ep
-    m = re.fullmatch(r"(?:PP-)?(EP|GH)?0*(\d+)", str(ep).strip().upper())
+    series = "|".join(SERIES_CEILING)
+    m = re.fullmatch(rf"(?:PP-)?({series})?0*(\d+)", str(ep).strip().upper())
     if not m:
-        raise GuardError(f"{ep!r} is not an episode — give a PP-EP number (77, EP77, PP-EP77) or "
-                         f"a PP Greyhounds id (GH01, PP-GH01). Nothing was created.")
+        raise GuardError(f"{ep!r} is not an episode — give a PP-EP number (77, EP77, PP-EP77), "
+                         f"a PP Greyhounds id (GH01, PP-GH01) or a PP Harness id (HR01, "
+                         f"PP-HR01). Nothing was created.")
     return (m.group(1) or "EP"), int(m.group(2))
 
 
@@ -98,16 +108,21 @@ def ep_label(ep) -> str:
     return f"{series}{n:02d}"
 
 
+def base_ceiling(ep) -> float:
+    """The ruled ceiling for this episode's sub-series, before any recorded extra."""
+    return SERIES_CEILING[episode_key(ep)[0]]
+
+
 def episode_folder(ep, pp: pathlib.Path = PP) -> pathlib.Path | None:
-    """The episode's folder, or None. PP-GH matches the id EXACTLY (`PP-GH01` or
+    """The episode's folder, or None. PP-GH / PP-HR match the id EXACTLY (`PP-GH01` or
     `PP-GH01-<title>`), so PP-GH01 can never pick up PP-GH10 — the E18 fault, not repeated."""
     series, n = episode_key(ep)
     if series == "EP":
         import ep_paths                                         # noqa: PLC0415
         d = ep_paths.episode_dir(n, pp)
         return pathlib.Path(d) if d is not None and pathlib.Path(d).is_dir() else None
-    hits = sorted(p for p in pathlib.Path(pp).glob(f"PP-GH{n:02d}*")
-                  if p.is_dir() and re.fullmatch(rf"PP-GH{n:02d}(-.*)?", p.name))
+    hits = sorted(p for p in pathlib.Path(pp).glob(f"PP-{series}{n:02d}*")
+                  if p.is_dir() and re.fullmatch(rf"PP-{series}{n:02d}(-.*)?", p.name))
     return hits[0] if hits else None
 
 
@@ -122,12 +137,14 @@ def ledger_path(ep_number, pp: pathlib.Path = PP) -> pathlib.Path:
 
 def load(path: pathlib.Path, ep_number) -> dict:
     if not path.is_file():
-        return {"episode": ep_label(ep_number), "ceiling": CEILING, "jobs": []}
+        return {"episode": ep_label(ep_number), "ceiling": base_ceiling(ep_number), "jobs": []}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def ceiling_for(ledger: dict) -> float:
-    """110, plus any extra credits JODIE approved for THIS episode, written in its own ledger.
+def ceiling_for(ledger: dict, ep) -> float:
+    """The series ceiling (110, or 20 for PP-HR), plus any extra credits JODIE approved for THIS
+    episode, written in its own ledger. `ep` is required: the ceiling comes from the episode
+    id, never from a number written in the ledger.
 
     Jodie, 9 Nov 2026 (PP-GH01 hit 110 exactly): "Yes approve another 100 credits." The ceiling
     stays a constant with no override flag; an approval is a RECORD, not a setting. Each entry
@@ -141,7 +158,7 @@ def ceiling_for(ledger: dict) -> float:
             raise GuardError(f"approved_extra entry {i} in the spend ledger is missing {', '.join(missing)}, "
                              f"so it is not honoured and nothing was created.")
         extra += float(a["credits"])
-    return CEILING + extra
+    return base_ceiling(ep) + extra
 
 
 def counted(ledger: dict) -> float:
@@ -199,7 +216,7 @@ def guarded_create(ep_number, label: str, create_args: list[str], *,
         led = load(path, ep_number)
         est = estimate(create_args)
         so_far = counted(led)
-        ceiling = ceiling_for(led)
+        ceiling = ceiling_for(led, ep_number)
         if so_far + est > ceiling + 1e-9:
             raise Refused(
                 f"{ep_label(ep_number)} has used {so_far:g} of its {ceiling:g} Higgsfield "
@@ -223,7 +240,7 @@ def guarded_create(ep_number, label: str, create_args: list[str], *,
                              f"another job may have run at the same moment; the larger figure "
                              f"is counted against the ceiling.")
         led.setdefault("jobs", []).append(entry)
-        led["ceiling"] = CEILING
+        led["ceiling"] = base_ceiling(ep_number)
         led["counted_total"] = counted(led)
         _save(path, led)
     if wait and job_id:
@@ -251,8 +268,9 @@ def status(ep_number, pp: pathlib.Path = PP) -> str:
     path = ledger_path(ep_number, pp)
     led = load(path, ep_number)
     used = counted(led)
-    ceiling = ceiling_for(led)
-    extra = f" (110 + {ceiling - CEILING:g} approved extra)" if ceiling > CEILING else ""
+    ceiling = ceiling_for(led, ep_number)
+    base = base_ceiling(ep_number)
+    extra = f" ({base:g} + {ceiling - base:g} approved extra)" if ceiling > base else ""
     return (f"{ep_label(ep_number)}: {used:g} of {ceiling:g}{extra} Higgsfield credits counted, "
             f"{max(0.0, ceiling - used):g} left, {len(led.get('jobs', []))} job(s). "
             f"Ledger: {path}")
@@ -264,8 +282,9 @@ def main(argv: list[str] | None = None) -> int:
     if "--" in argv:
         i = argv.index("--")
         argv, create_args = argv[:i], argv[i + 1:]
-    ap = argparse.ArgumentParser(description="PP Higgsfield spend guard (110 credits/episode).")
-    ap.add_argument("ep_number", help="77 / EP77 / PP-EP77, or GH01 / PP-GH01")
+    ap = argparse.ArgumentParser(description="PP Higgsfield spend guard (110 credits/episode; "
+                                             "PP-HR 20).")
+    ap.add_argument("ep_number", help="77 / EP77 / PP-EP77, GH01 / PP-GH01, or HR01 / PP-HR01")
     ap.add_argument("label", nargs="?")
     ap.add_argument("--wait", action="store_true")
     ap.add_argument("--status", action="store_true")

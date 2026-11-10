@@ -225,13 +225,13 @@ try:
 except Exception:
     post = False
 check("with Jodie's recorded approval of 100, the same job is ALLOWED", post)
-check("  and the episode's ceiling reads 210", G.ceiling_for(G.load(GH_LEDGER, "GH01")) == 210.0)
+check("  and the episode's ceiling reads 210", G.ceiling_for(G.load(GH_LEDGER, "GH01"), "GH01") == 210.0)
 buf = io.StringIO()
 with redirect_stdout(buf):
     G.main(["GH01", "--status", "--pp", str(tmp3)])
 check("  --status says 110 + 100 approved extra", "of 210 (110 + 100 approved extra)" in buf.getvalue(), buf.getvalue())
 check("the approval does NOT reach another episode (EP01 still 110)",
-      G.ceiling_for(G.load(tmp3 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME, 1)) == 110.0)
+      G.ceiling_for(G.load(tmp3 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME, 1), 1) == 110.0)
 led = json.loads(GH_LEDGER.read_text(encoding="utf-8"))
 led["approved_extra"].append({"credits": 500, "approved_by": "", "date": "2026-11-09", "words": ""})
 GH_LEDGER.write_text(json.dumps(led, indent=2), encoding="utf-8")
@@ -246,6 +246,83 @@ except Exception:
 check("CONTROL: an extra with no approver or words is NOT honoured — nothing created",
       bad_ok and len(f3.created) == n0)
 check("the base constant is untouched, 110", G.CEILING == 110.0)
+
+print("\n-- 8. PP Harness: its own ledger, a 20-credit ceiling (Jodie, 11 Nov 2026) --")
+tmp4 = pathlib.Path(tempfile.mkdtemp(prefix="hfguard4_"))
+(tmp4 / "PP-HR01" / "docs").mkdir(parents=True)
+(tmp4 / "PP-HR10-Decoy" / "docs").mkdir(parents=True)           # must never be picked for HR01
+(tmp4 / "PP-GH01" / "docs").mkdir(parents=True)                 # nor the greyhound GH01
+(tmp4 / "PP-EP01-Horse" / "docs").mkdir(parents=True)           # nor the horse EP01
+HR_LEDGER = tmp4 / "PP-HR01" / "docs" / G.LEDGER_NAME
+f4 = FakeHF(price=2.0)
+G._run = f4
+hr_ok = True
+for i in range(1, 11):                                          # 10 x 2 = 20
+    try:
+        G.guarded_create("HR01" if i % 2 else "PP-HR01", f"cover:hero_{i}", ARGS, pp=tmp4)
+    except Exception as ex:                                     # the pre-change guard dies here
+        hr_ok, hr_err = False, repr(ex)
+check("ten 2-credit PP-HR01 jobs are allowed, landing EXACTLY on 20",
+      hr_ok and HR_LEDGER.is_file() and G.counted(G.load(HR_LEDGER, "HR01")) == 20.0,
+      hr_err if not hr_ok else "")
+check("  its ledger is in PP-HR01's own docs, not the HR10 decoy, GH01 or EP01",
+      HR_LEDGER.is_file() and not any((tmp4 / d / "docs" / G.LEDGER_NAME).exists()
+                                      for d in ("PP-HR10-Decoy", "PP-GH01", "PP-EP01-Horse")))
+check("  and the ledger names the episode HR01 with a ceiling of 20",
+      HR_LEDGER.is_file() and json.loads(HR_LEDGER.read_text(encoding="utf-8")).get("episode") == "HR01"
+      and json.loads(HR_LEDGER.read_text(encoding="utf-8")).get("ceiling") == 20.0)
+n_before = len(f4.created)
+try:
+    G.guarded_create("HR01", "cover:hero_over", ARGS, pp=tmp4)
+    hr_refused, hr_msg = False, ""
+except G.Refused as r:
+    hr_refused, hr_msg = True, str(r)
+except Exception as ex:
+    hr_refused, hr_msg = False, repr(ex)
+check("the job that would take HR01 to 22 is REFUSED — 20, NOT 110", hr_refused, hr_msg)
+check("  nothing was created", len(f4.created) == n_before)
+check("  and the message names HR01 and 20", "HR01" in hr_msg and "of its 20 " in hr_msg, hr_msg)
+try:
+    G.guarded_create("GH01", "broll:gh", ARGS, pp=tmp4)
+    G.guarded_create(1, "broll:horse", ARGS, pp=tmp4)
+    others_ok = (G.ceiling_for(G.load(tmp4 / "PP-GH01" / "docs" / G.LEDGER_NAME, "GH01"), "GH01") == 110.0
+                 and G.ceiling_for(G.load(tmp4 / "PP-EP01-Horse" / "docs" / G.LEDGER_NAME, 1), 1) == 110.0)
+except Exception:
+    others_ok = False
+check("a full HR01 does not block GH01 or EP01, and both keep 110", others_ok)
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["PP-HR01", "--status", "--pp", str(tmp4)])
+check("--status works for PP-HR01", code == 0 and "HR01: 20 of 20" in buf.getvalue(), buf.getvalue())
+led = json.loads(HR_LEDGER.read_text(encoding="utf-8"))
+led["ceiling"] = 110.0                                          # a ledger that CLAIMS a bigger ceiling
+HR_LEDGER.write_text(json.dumps(led, indent=2), encoding="utf-8")
+try:
+    G.guarded_create("HR01", "cover:tampered", ARGS, pp=tmp4)
+    tamper_ok = False
+except G.Refused:
+    tamper_ok = True
+except Exception:
+    tamper_ok = False
+check("CONTROL: a ledger that writes ceiling 110 does NOT raise HR01's ceiling — still refused",
+      tamper_ok)
+led = json.loads(HR_LEDGER.read_text(encoding="utf-8"))
+led["approved_extra"] = [{"credits": 10, "approved_by": "Jodie", "date": "2026-11-11",
+                          "words": "test approval"}]
+HR_LEDGER.write_text(json.dumps(led, indent=2), encoding="utf-8")
+buf = io.StringIO()
+with redirect_stdout(buf):
+    G.main(["HR01", "--status", "--pp", str(tmp4)])
+check("  a recorded extra works for HR too: 20 + 10", "of 30 (20 + 10 approved extra)" in buf.getvalue(),
+      buf.getvalue())
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["HR02", "broll:x", "--pp", str(tmp4), "--", *ARGS])
+check("a PP-HR episode with no folder is not created (exit 3)", code == 3, buf.getvalue())
+buf = io.StringIO()
+with redirect_stdout(buf):
+    code = G.main(["ZZ01", "broll:x", "--pp", str(tmp4), "--", *ARGS])
+check("an unknown series (ZZ01) is not created (exit 3) — no default ceiling", code == 3, buf.getvalue())
 
 print(f"\nhf guard: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
