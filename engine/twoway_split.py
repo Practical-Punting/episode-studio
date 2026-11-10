@@ -163,18 +163,40 @@ def speakers_from_byline(capture_text: str) -> dict[str, str]:
 
 
 def label_re(speakers: dict[str, str]) -> re.Pattern:
-    """A paragraph-opening speaker label — the initials OR the name in full.
+    """A paragraph-opening speaker label — the initials, the name in full, OR a name
+    followed by that speaker's OWN initials in brackets.
 
-    Both, because EP49's article uses both: it opens `Barry Meadow:` and `Brian
-    Blackwell:` and only settles into `BM:` / `BB:` from the third turn on.
+    All three, because the articles use all three. EP49's opens `Barry Meadow:` and
+    `Brian Blackwell:` and only settles into `BM:` / `BB:` from the third turn on.
+    🔴 EP56's (11 Nov 2026) opens `Barry (BM):` and `Brian (BB):` — and the splitter,
+    which knew only the first two forms, folded both opening turns into NARR without
+    a word: 147 of Barry's words and 81 of Brian's, gone from the reading. The bracketed
+    initials must be the SAME speaker's (`Brian (BM):` is not a label), so a typo on the
+    page cannot hand a turn to the wrong reader.
     """
     alts = []
     for code, name in speakers.items():
         alts.append(re.escape(code))
         alts.append(re.escape(name))
+        first = name.split()[0]
+        for who in dict.fromkeys((name, first)):
+            alts.append(re.escape(who) + r"\s*\(" + re.escape(code) + r"\)")
     # Longest first so `Brian Blackwell` is tried before anything that prefixes it.
     alts.sort(key=len, reverse=True)
     return re.compile(r"^\s*(" + "|".join(alts) + r")\s*:\s*")
+
+
+def code_for(token: str, speakers: dict[str, str]) -> str:
+    """The speaker code a matched label names: `BM`, `Barry Meadow` or `Barry (BM)`."""
+    if token in speakers:
+        return token
+    by_name = {name: code for code, name in speakers.items()}
+    if token in by_name:
+        return by_name[token]
+    m = re.search(r"\((\w+)\)$", token)
+    if m and m.group(1) in speakers:
+        return m.group(1)
+    raise Unsplittable(f"the label {token!r} names no speaker in {list(speakers)}.")
 
 
 # ─────────────────────────────────────────────────────────────── the article ──
@@ -194,17 +216,41 @@ def article_paragraphs(capture_text: str) -> list[str]:
     return [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
 
 
-def tail_starts_at(paras: list[str]) -> int | None:
+def author_note_re(speakers: dict[str, str]) -> re.Pattern:
+    """The magazine's note ABOUT one of the authors: his full name, then `is`.
+
+    🔴 EP49's note was asterisked (`* Barry Meadow is regarded as one of America's
+    leading writers…`) and `TAIL_MARKERS` caught it by the asterisk. EP56's is the same
+    note WITHOUT the asterisk (`Barry Meadow is one of America's greatest racing
+    experts…`), so it ran on as the end of BRIAN's last turn — Gordon would have read
+    a third-person biography of Steve's character, URL and all. Derived from the
+    byline, so it knows the next pair of authors without being told. The two men
+    address each other by first name inside the dialogue, which is why a paragraph
+    opening on a FULL name and `is` is the note and not a turn.
+    """
+    names = "|".join(re.escape(n) for n in sorted(speakers.values(), key=len, reverse=True))
+    return re.compile(r"^\s*(?:\*\s*)?(?:" + names + r")\s+is\b")
+
+
+def tail_starts_at(paras: list[str], speakers: dict[str, str] | None = None) -> int | None:
     """Index of the first end-of-article furniture paragraph, or None.
 
     From there to the end is furniture — see the header. Cutting at the FIRST marker
     rather than testing each paragraph is what carries the unrecognised ones out with
-    the recognised ones.
+    the recognised ones. Given the speakers, the note about an author counts too.
     """
+    markers = TAIL_MARKERS + ((author_note_re(speakers),) if speakers else ())
     for i, p in enumerate(paras):
-        if any(m.search(p) for m in TAIL_MARKERS):
+        if any(m.search(p) for m in markers):
             return i
     return None
+
+
+SOFT_HYPHEN = "­"
+"""U+00AD — an invisible line-break hint the page carries inside two of EP56's words
+("improve­ment", "circum­stances"). Typography, not a word: it comes off the TURN text
+(Cowork's ruling, 11 Nov 2026), as the `**bold**` markers come off the spoken text. The
+capture keeps it — the capture is the page of record and is never edited."""
 
 
 def split_turns(capture_text: str) -> tuple[list[dict], dict[str, str], list[dict]]:
@@ -217,18 +263,16 @@ def split_turns(capture_text: str) -> tuple[list[dict], dict[str, str], list[dic
     """
     speakers = speakers_from_byline(capture_text)
     lab = label_re(speakers)
-    by_name = {name: code for code, name in speakers.items()}
 
-    paras = article_paragraphs(capture_text)
-    cut = tail_starts_at(paras)
+    paras = [p.replace(SOFT_HYPHEN, "") for p in article_paragraphs(capture_text)]
+    cut = tail_starts_at(paras, speakers)
     head, tail = (paras[:cut], paras[cut:]) if cut is not None else (paras, [])
 
     rows: list[dict] = []
     for p in head:
         m = lab.match(p)
         if m:
-            token = m.group(1)
-            code = token if token in speakers else by_name[token]
+            code = code_for(m.group(1), speakers)
             rows.append({"speaker": code, "paras": [p[m.end():].strip()]})
         elif rows and rows[-1]["speaker"] != "NARR":
             rows[-1]["paras"].append(p)       # a continuation of the turn in progress

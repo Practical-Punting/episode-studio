@@ -66,6 +66,7 @@ def main() -> int:
     capture = hits[0].read_text(encoding="utf-8")
     turns, speakers, narr = tw.split_turns(capture)
     body = capture.split(sf.MARKER_BEGIN, 1)[1].split(tw.MARKER_END, 1)[0]
+    body = body.replace(tw.SOFT_HYPHEN, "")   # typography; the turns carry none (11 Nov)
     dialogue = [t for t in turns if t["speaker"] != "NARR"]
     scripts = {c: tw.script_for(c, turns) for c in speakers}
 
@@ -92,10 +93,10 @@ def main() -> int:
 
     # Nothing lost: what sits BETWEEN the turns is whitespace or a speaker label, full
     # stop. This is the half that catches a dropped paragraph.
+    # ONE definition of a label: the splitter's own (it widened on 11 Nov to `Barry (BM):`;
+    # a second, hand-built list here would have gone stale the same day).
     lab = tw.label_re(speakers)
-    leftovers = [g for g in gaps if g.strip() and not re.fullmatch(
-        r"\s*(?:" + "|".join(re.escape(x) for x in
-                             list(speakers) + list(speakers.values())) + r")\s*:\s*", g)]
+    leftovers = [g for g in gaps if g.strip() and not lab.fullmatch(g)]
     check("  and nothing sits between them but whitespace and a speaker label",
           not leftovers, f"{[g[:60] for g in leftovers[:3]]}")
 
@@ -203,6 +204,63 @@ def main() -> int:
             check(f"  refuses: {why}", False, "it did not raise")
         except tw.Unsplittable:
             check(f"  refuses: {why}", True)
+
+    print("\n-- (g) EP56's PAGE, 11 Nov 2026: `Barry (BM):`, AN UNASTERISKED NOTE, SOFT HYPHENS --")
+    # Each of these split WRONG, silently, before the fix: the bracketed labels folded the
+    # first two turns into NARR, and the note ran on as the last speaker's words.
+    art = fake_capture("By Ann Archer and Bob Bowman — PRACTICAL PUNTING - MARCH 1999",
+                       "Ann (AA): First thing.\n\nMore of the first.\n\n"
+                       "Bob (BB): Second thing.\n\nAA: Third improve­ment.\n\n"
+                       "BB: Fourth.\n\nAnn Archer is one of the best writers, www.example.invalid.\n\n"
+                       "Click here to read Part 2.")
+    t4, s4, n4 = tw.split_turns(art)
+    said = [(x["speaker"], x["text"]) for x in t4 if x["speaker"] != "NARR"]
+    check("  `Ann (AA):` and `Bob (BB):` are read as labels",
+          said[:2] == [("AA", "First thing.\n\nMore of the first."), ("BB", "Second thing.")],
+          f"{said[:2]}")
+    check("  four turns, alternating, nothing folded into NARR",
+          [c for c, _ in said] == ["AA", "BB", "AA", "BB"], f"{[c for c, _ in said]}")
+    check("  the unasterisked note about an author is NARR, not the last speaker's words",
+          said[-1] == ("BB", "Fourth.") and any(x["text"].startswith("Ann Archer is")
+                                                 for x in n4), f"{said[-1]}")
+    try:
+        for c in s4:
+            tw.assert_no_furniture(tw.script_for(c, t4), c)
+        halted = None
+    except tw.Unsplittable as e:
+        halted = str(e)
+    check("  so the furniture guard passes both scripts (the note's URL never reaches one)",
+          halted is None, halted)
+    check("  the soft hyphen is gone from the turn text",
+          said[2] == ("AA", "Third improvement.") and
+          not any(tw.SOFT_HYPHEN in x["text"] for x in t4), f"{said[2]!r}")
+    wrong = fake_capture("By Ann Archer and Bob Bowman — PRACTICAL PUNTING - MARCH 1999",
+                         "AA: One.\n\nBob (AA): Not a label.\n\nBB: Two.")
+    t5, _, _ = tw.split_turns(wrong)
+    check("  a name with the OTHER speaker's initials (`Bob (AA):`) is not a label",
+          [(x["speaker"], x["text"]) for x in t5][1:3]
+          == [("AA", "One.\n\nBob (AA): Not a label."), ("BB", "Two.")],
+          f"{[(x['speaker'], x['text']) for x in t5]}")
+    mid = fake_capture("By Ann Archer and Bob Bowman — PRACTICAL PUNTING - MARCH 1999",
+                       "AA: Ann is right, said Bob.\n\nBB: Ann Archer's view is sound.")
+    t6, _, _ = tw.split_turns(mid)
+    check("  a turn that merely MENTIONS an author is not cut as a note",
+          [x["speaker"] for x in t6][1:] == ["AA", "BB"], f"{[x['speaker'] for x in t6]}")
+
+    hit56 = sorted((PP / "docs").glob("EP56-source-article-*.md"))
+    if hit56:
+        cap56 = hit56[0].read_text(encoding="utf-8")
+        t7, sp7, n7 = tw.split_turns(cap56)
+        d7 = [x["speaker"] for x in t7 if x["speaker"] != "NARR"]
+        check("  EP56 (real): ten turns, strictly alternating, Barry first",
+              d7 == ["BM", "BB"] * 5, f"{d7}")
+        check("  EP56 (real): four NARR rows — headline, standfirst, the note, the links",
+              [x["text"][:20] for x in n7] == [
+                  "CLASS, IMPROVEMENT A", "In the third article",
+                  "Barry Meadow is one ", "Click here to read P"],
+              f"{[x['text'][:20] for x in n7]}")
+    else:
+        print("  (EP56's capture is not on this machine — its real-article half is SKIPPED)")
 
     print(f"\ntwo-way split: {len(PASS)} passed, {len(FAIL)} failed")
     return 1 if FAIL else 0
