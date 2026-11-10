@@ -46,6 +46,13 @@ SMOKE = ENGINE_DIR / "smoke_capture.py"
 RUNNER = ENGINE_DIR / "run_smoke.cmd"
 TASK = "PP Episode Studio capture smoke test"
 PYTHON = Path(sys.executable)
+CONHOST = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "conhost.exe"
+"""🔇 RUN WITH NO WINDOW (Jodie, 11 Nov 2026: the task "pops up a visible cmd window on my
+screen"). An InteractiveToken task that execs a .cmd opens a console on her desktop at
+03:30 or whenever StartWhenAvailable catches up. `conhost.exe --headless` gives the .cmd a
+console that is never shown, so the runner and its two `set` lines stay exactly as they
+were — the env is still set explicitly, which is the supervisor's own rule — and nothing
+appears. Same schedule, same log, same exit code."""
 
 # A tiny .cmd so the dated log file is named by the SHELL at run time. Putting a
 # redirect in the task's Arguments does not work — Task Scheduler execs the binary
@@ -107,7 +114,8 @@ its whole output is engine/logs/smoke-YYYY-MM-DD.log and an exit code.</Descript
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>{runner}</Command>
+      <Command>{conhost}</Command>
+      <Arguments>--headless "{runner}"</Arguments>
       <WorkingDirectory>{cwd}</WorkingDirectory>
     </Exec>
   </Actions>
@@ -126,7 +134,9 @@ def install() -> int:
     logs = ENGINE_DIR / "logs"
     RUNNER.write_text(RUNNER_BODY.format(python=PYTHON, smoke=SMOKE, logs=logs),
                       encoding="utf-8")
-    xml = XML.format(task=TASK, user=whoami(), runner=RUNNER, cwd=ENGINE_DIR)
+    if not CONHOST.is_file():
+        raise SystemExit(f"no {CONHOST} — cannot run the task without a window")
+    xml = XML.format(task=TASK, user=whoami(), runner=RUNNER, cwd=ENGINE_DIR, conhost=CONHOST)
     tmp = Path(tempfile.gettempdir()) / "pp-smoke-task.xml"
     tmp.write_text(xml, encoding="utf-16")          # schtasks wants UTF-16
     r = subprocess.run(["schtasks", "/Create", "/TN", TASK, "/XML", str(tmp), "/F"],
@@ -135,7 +145,7 @@ def install() -> int:
     if r.returncode:
         raise SystemExit(f"schtasks exited {r.returncode}")
     print(f"\nregistered  {TASK}")
-    print(f"  runs      {RUNNER.name} -> smoke_capture.py, daily at 03:30")
+    print(f"  runs      {RUNNER.name} -> smoke_capture.py, daily at 03:30, with NO window")
     print(f"  log       {logs / 'smoke-YYYY-MM-DD.log'}")
     print("  wakes the machine: NO. A missed run happens at the next opportunity.")
     print("\nTry it now without waiting for 03:30:")
