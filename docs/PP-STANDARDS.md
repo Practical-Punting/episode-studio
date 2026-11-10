@@ -976,7 +976,7 @@ sign-off) change per episode; lines 2 and 3 hold.
 Gordon gives ONE gentle, authentic like-&-subscribe invitation in the MIDDLE of the video (there's a lot of competing content out there; we want the sensible stuff to reach the right people).
 - **Placement:** at a natural breath/transition, roughly the middle (~45–55% through), on a beat boundary with Gordon on camera (MCU) — never over a card, never mid-concept, never near the outro. ONCE per episode.
 - **Tone:** the outro voice — warm, plain, wry, Australian. NO hype, NO "smash that like button", NO promises. A quiet, honest ask tied to value, then straight back to the content.
-- **Shape (fixed):** soft value hook ("if this video is helping you") → the ask (a like helps others find it; subscribe) → the cadence line (below) → a light, wry nod to the noise out there → return to content ("right — where were we").
+- **Shape (fixed):** soft value hook ("if this video is helping you") → the ask (a like helps others find it; subscribe) → a light, wry nod to the noise out there → return to content ("right — where were we"). No cadence line (below).
 - 🔒 **NAME THE VIDEO AT EVERY ASK (Jodie, 28 Jul 2026 — standing rule).**
   **Wherever Gordon ASKS something of the viewer — like, subscribe, get the e-book — name it
   "this video", never a bare "this".** Clarity drives action, and an ask is the one place
@@ -1010,7 +1010,7 @@ Gordon gives ONE gentle, authentic like-&-subscribe invitation in the MIDDLE of 
   identical every episode, copied byte-identical like the end card and the warranty slide.
   Wording, background opacity and icon treatment are locked in the standing asset with
   their reasons recorded beside them — see `docs/midroll-line-pool.md` §The on-screen chip.
-- **Cadence line — LIVE VARIABLE:** current upload cadence is **DAILY** (as of Jul 2026), moving to **weekly** later — the line must reflect this ("a fresh one every day at the moment, weekly down the track"). **Update this when the cadence changes.**
+- 🔒 **NO CADENCE IN THE MIDROLL OR THE CHIP (Jodie, 11 Nov 2026).** *"we are not putting out a video each day at the moment, just about every few days or once a week - when I get around to it."* The pool of ten was re-approved as a new batch with the cadence sentence removed from every line, and the chip's second line now reads "steady, sensible form study · Practical Punting". A cadence frozen into standing wording goes stale everywhere at once, so **none is carried — do not add one back.** *(Retired: "Cadence line — LIVE VARIABLE", DAILY as of Jul 2026, "a fresh one every day at the moment, weekly down the track".)*
 - **In the build:** it's its own `episode.json` beat (`cta-midroll`), part of the spoken script Jodie renders in HeyGen (same avatar/voice/background); timing + assembly place it like any other beat.
 
 **THE TEN APPROVED LINES LIVE IN `docs/midroll-line-pool.md`.** They are not duplicated

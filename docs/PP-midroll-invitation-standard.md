@@ -8,7 +8,7 @@ Gordon gives **ONE** gentle, authentic invitation to like & subscribe, placed in
 
 - **Placement:** a natural breath/transition, roughly the middle of the episode (~45–55% through), on a beat boundary with Gordon on camera (MCU). Never over a motion card, never mid-concept, never bunched near the outro. Once per episode, once only.
 - **Tone:** the same voice as the standing outro — warm, plain, wry, Australian. **No hype, no "smash that like button", no promises.** A quiet, honest ask tied to value, then straight back to the content.
-- **Shape (fixed):** soft value hook ("if **this video** is helping you") → the ask (a like helps others find it; subscribe) → the cadence line → a light, wry nod to the noise out there → return to content ("right — where were we").
+- **Shape (fixed):** soft value hook ("if **this video** is helping you") → the ask (a like helps others find it; subscribe) → a light, wry nod to the noise out there → return to content ("right — where were we"). **No cadence line** (Jodie, 11 Nov 2026 — see below).
 - **Name the video at every ask (Jodie, 28 Jul 2026):** "this video", never a bare "this". Narration is exempt — see `PP-STANDARDS.md` §Mid-video for the principle and its origin.
 
 ## 🔒 THE WORDING COMES FROM A FIXED POOL OF TEN (Jodie, 28 Jul 2026)
@@ -21,8 +21,10 @@ It asked for fresh prose every episode, which meant the build was writing the as
 - **HARD FAIL if the midroll paragraph is byte-identical to any of the NINE immediately preceding episodes** — nine, not ten, because a ten-line cycle recurs at exactly ten-episode intervals. Full reasoning in `PP-STANDARDS.md` §END SEQUENCE item 4.
 - **The on-screen chip is separate and does NOT rotate** — fixed standing furniture, identical every episode.
 
-## Cadence line — LIVE VARIABLE
-Current upload cadence is **DAILY** (as of Jul 2026), moving to **weekly** later. The line must reflect the current cadence — e.g. *"a fresh one every day at the moment, weekly down the track."* **Update this note when the cadence actually changes to weekly.**
+## Cadence — NONE, IN THE MIDROLL OR THE CHIP (Jodie, 11 Nov 2026)
+**The midroll line and the on-screen chip carry NO upload cadence at all.** Jodie, 11 Nov 2026: *"we are not putting out a video each day at the moment, just about every few days or once a week - when I get around to it."* A cadence frozen into ten pooled lines and a standing chip goes stale everywhere at once, so it was removed from all of them rather than updated: the pool was re-approved as a new batch, and the chip's second line now reads *"steady, sensible form study · Practical Punting"*. **Do not add a cadence back.**
+
+*Retired 11 Nov 2026 (kept so it is not restored): this section was "Cadence line — LIVE VARIABLE", and said the cadence was DAILY (as of Jul 2026), moving to weekly later, and that the line must reflect it — e.g. "a fresh one every day at the moment, weekly down the track."*
 
 ## The ten lines
 **They live in `docs/midroll-line-pool.md`, and only there** — one home, per `PP-STANDARDS.md` §WHERE RULES LIVE. That file also carries the `ep → line id` registry and the chip's locked values.
@@ -36,9 +38,9 @@ Current upload cadence is **DAILY** (as of Jul 2026), moving to **weekly** later
 - Whoever writes the script — Cowork **or** Claude Code — includes it, because it lives in the shared standards (`pp-standards.md`) both follow.
 
 ## Status
-Locked into the standards. Style approved by Jodie 23 Jul 2026. **Wording locked to the pool of ten, approved as a batch 28 Jul 2026 — never rewritten** (was: "phrasing varies per episode"). Cadence line currently DAILY; when it moves to weekly the WHOLE POOL needs a fresh batch approval, because the cadence is baked into all ten lines.
+Locked into the standards. Style approved by Jodie 23 Jul 2026. **Wording locked to the pool of ten, approved as a batch 28 Jul 2026 — never rewritten** (was: "phrasing varies per episode"). **Re-approved as a new batch 11 Nov 2026 with the cadence removed from all ten lines and from the chip** (it had been DAILY, baked into every line).
 
 ---
 ## EP11 CHECK (26 Jul 2026)
 EP11's midroll reads: *"Quick pause before the second one. If you're getting something out of this, a like genuinely helps it find the people it's meant for, and there's a fresh one going up every day just now, weekly a bit further down the road, so subscribe and they'll come to you. Plenty of racing talk out there promising you the world. I'd sooner the careful stuff reached the folk who actually want it. Right — where were we."*
-**Assessed against the standard AS IT STOOD THEN: COMPLIANT.** (EP01–EP12 are pre-pool and are NOT retro-fitted.) It follows the fixed shape, it was freshly reworded rather than reused verbatim, and **the cadence line matches the DAILY setting recorded above.** The wry nod to the noise is the standard's own item four. **The only thing to confirm is real-world: is the cadence still daily?**
+**Assessed against the standard AS IT STOOD THEN: COMPLIANT.** (EP01–EP12 are pre-pool and are NOT retro-fitted.) It follows the fixed shape, it was freshly reworded rather than reused verbatim, and **the cadence line matches the DAILY setting recorded above.** The wry nod to the noise is the standard's own item four. **The only thing to confirm is real-world: is the cadence still daily?** *(Answered 11 Nov 2026: no. The cadence was taken out of the midroll and the chip altogether.)*

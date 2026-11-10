@@ -47,7 +47,7 @@ for _s in (sys.stdout, sys.stderr):
 
 import script_fidelity as F                                            # noqa: E402
 
-DRAFT = (HERE / "testdata/ep46-draft-REJECTED-on-L6-2026-09-04.spoken-words.txt").read_text(encoding="utf-8")
+DRAFT_FROZEN = (HERE / "testdata/ep46-draft-REJECTED-on-L6-2026-09-04.spoken-words.txt").read_text(encoding="utf-8")
 CAP = (HERE / "testdata/ep46-capture-2026-09-04.md").read_text(encoding="utf-8")
 
 # The pool, parsed here INDEPENDENTLY of the module under test, with the contract the pool
@@ -57,6 +57,17 @@ POOL_MD = (REPO / "docs/midroll-line-pool.md").read_text(encoding="utf-8").repla
 POOL = {m.group(1): m.group(2).strip()
         for m in re.finditer(r"^### (L\d)\n> (.+?)$", POOL_MD, re.M)}
 L6, L8 = POOL["L6"], POOL["L8"]
+
+# 🔴 11 Nov 2026: the pool was re-approved with the cadence sentence taken out of all ten
+# lines. The frozen EP46 draft (left byte-for-byte as it was written) carries the RETIRED
+# L6, which is no longer an approved line. So the real draft is the vehicle still, with its
+# one retired sentence swapped for today's — both read from the pool file's own record of
+# the change, parsed here independently of the module under test.
+_ROW = re.search(r'^> \| `L6` \| \*"(.+?)"\* \| \*"(.+?)"\* \|$', POOL_MD, re.M)
+L6_OLD_SENTENCE, L6_NEW_SENTENCE = _ROW.group(1), _ROW.group(2)
+L6_RETIRED = L6.replace(L6_NEW_SENTENCE, L6_OLD_SENTENCE)
+assert DRAFT_FROZEN.count(L6_OLD_SENTENCE) == 1, "the frozen EP46 draft lost its retired L6"
+DRAFT = DRAFT_FROZEN.replace(L6_OLD_SENTENCE, L6_NEW_SENTENCE)
 
 # EP46's packaging AS THE BUILD FEEDS IT: the rail row's hook, byline and number, through
 # the engine's own function (CLAUDE.md §1 sibling: pass exactly what the call site passes).
@@ -93,7 +104,15 @@ def figs(problems):
 def main():                                                            # noqa: C901
     assert L6.startswith("Pause there a second."), L6
     assert L8.startswith("Two seconds,"), L8
-    assert L6 in DRAFT, "the frozen EP46 draft no longer carries L6 verbatim"
+    assert L6 in DRAFT, "the EP46 draft (today's L6 swapped in) does not carry L6 verbatim"
+    assert L6_RETIRED in DRAFT_FROZEN, "the frozen EP46 draft no longer carries the retired L6"
+
+    print("\n-- (0) THE RETIRED WORDING IS NOT AN APPROVED LINE (11 Nov 2026) --")
+    rest, cut = F.without_pool_lines(DRAFT_FROZEN)
+    check("the frozen draft's RETIRED L6 is not cut out as a pool line", "L6" not in cut,
+          str(cut))
+    check("  so its 'second' is checked like any writer's words",
+          "second" in figs(run(DRAFT_FROZEN)), str(figs(run(DRAFT_FROZEN))))
 
     print("\n-- (a) CONTROL: the real EP46 draft, L6 verbatim, must PASS --")
     waved = []
@@ -160,7 +179,8 @@ def main():                                                            # noqa: C
     wrapped_ws = PLAIN + "\n\n" + L6.replace(" a like tells the thing", "\na like tells the thing")
     check("L6 re-wrapped across a line break is still L6 -> passes", run(wrapped_ws) == [],
           str(figs(run(wrapped_ws))))
-    crlf = (PLAIN + "\r\n\r\n" + L6).replace(" so subscribe", "\r\nso subscribe")
+    assert " Subscribe," in L6, "the CRLF case wraps L6 at ' Subscribe,'"
+    crlf = (PLAIN + "\r\n\r\n" + L6).replace(" Subscribe,", "\r\nSubscribe,")
     check("  and with CRLF wraps", run(crlf) == [], str(figs(run(crlf))))
     wrap_plus_word = wrapped_ws.replace("the thing to show it", "the thing to show it to it")
     check("  but a wrap PLUS an added word is not L6 -> 'second' caught",

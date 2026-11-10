@@ -70,6 +70,29 @@ if pick is None:
     print(f"\npool pick: {len(fails)} failed")
     sys.exit(1)
 
+print("\n── a RETIRED wording still counts as a use of its line (11 Nov 2026) ──")
+# The pool was re-approved with the cadence sentence taken out of all ten lines. Every
+# episode before that carries the OLD wording; if it stopped counting, every line would read
+# as never used and every episode would get L0 (it did, before pool_wordings existed).
+w = rr.pool_wordings(POOL_MD) if hasattr(rr, "pool_wordings") else {}
+check(sorted(w) == sorted(POOL) and all(len(v) >= 2 and v[0] == POOL[k] for k, v in w.items()),
+      "every line keeps its current wording first, plus its retired one",
+      str({k: len(v) for k, v in w.items()}))
+r0 = tempfile.mkdtemp(prefix="midroll_retired_")
+try:
+    for n in range(46, 56):
+        d = os.path.join(r0, f"PP-EP{n}-Some-Title", "docs")
+        os.makedirs(d)
+        old = w.get(f"L{n % 10}", ["", ""])[-1]
+        open(os.path.join(d, "spoken-words.txt"), "w", encoding="utf-8").write(
+            f"{FILLER}\n\n{old}\n\n{FILLER}\n")
+    lid0, _t0, last0 = pick(os.path.join(r0, "PP-EP56-Some-Title"))
+    check(lid0 == "L6" and (last0 or "").startswith("PP-EP46"),
+          "ten episodes all on RETIRED wordings: EP56 still gets L6, last used EP46",
+          f"{lid0}, {last0}")
+finally:
+    shutil.rmtree(r0, ignore_errors=True)
+
 print("\n── synthetic ──")
 root = tempfile.mkdtemp(prefix="midroll_pick_")
 try:

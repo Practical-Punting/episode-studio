@@ -158,10 +158,49 @@ def midroll_pool(pool_md=POOL_MD):
     return {m.group(1): m.group(2).strip() for m in re.finditer(r"^### (L\d)\n> (.+?)$", md, re.M)}
 
 
+# A retired sentence and the one that replaced it, as the pool file's §NO CADENCE table
+# records them: `> | `L0` | *"old"* | *"new"* |`.
+_RETIRED_ROW = re.compile(r'^> \| `(L\d)` \| \*"(.+?)"\* \| \*"(.+?)"\* \|$', re.M)
+
+
+def pool_wordings(pool_md=POOL_MD):
+    """{'L0': [current text, every retired text], …} — EVERY wording each line has had.
+
+    🔴 WHY (11 Nov 2026): the pool was re-approved with the cadence sentence taken out of
+    all ten lines. `pool_line_unused_longest` finds which line an earlier episode used by
+    matching its WORDS, so the moment the words changed every past episode stopped
+    matching and every line read as never used: every episode would have got L0, and
+    the rotation's whole history was gone. An earlier episode used L5 whether it said
+    the old L5 or the new one.
+
+    The retired wordings are DERIVED from the pool file's own record of what changed
+    (each retired sentence beside its replacement), never kept as a second copy of the
+    lines. Raises if a recorded replacement is not in its line exactly once, so a later
+    edit to a line cannot quietly break the derivation.
+
+    ⚠️ FOR RECOGNISING PAST USE ONLY. What an episode SAYS is the current line
+    (`midroll_pool`); the number check's exemption is the current lines only
+    (`script_fidelity.without_pool_lines`). A retired wording in a NEW script is not an
+    approved line and is checked in full.
+    """
+    pool = midroll_pool(pool_md)
+    md = open(pool_md, encoding="utf-8").read().replace("\r\n", "\n")
+    out = {lid: [text] for lid, text in pool.items()}
+    for m in _RETIRED_ROW.finditer(md):
+        lid, old, new = m.groups()
+        cur = pool.get(lid)
+        if cur is None or cur.count(new) != 1:
+            raise ValueError(f"midroll pool: the retired-wording row for {lid} names a "
+                             f"replacement that is not in the current {lid} exactly once")
+        out[lid].append(cur.replace(new, old))
+    return out
+
+
 def lines_in_folder(folder, pool):
     """Pool line ids found VERBATIM (any whitespace between words) in any .txt under
     the episode's docs/ — not only spoken-words.txt, because a two-way episode keeps
-    its midroll in furniture/turn files (EP49, EP55)."""
+    its midroll in furniture/turn files (EP49, EP55). `pool` maps each id to its text,
+    or to a LIST of every wording it has had (`pool_wordings`); any of them is a use."""
     found = set()
     texts = []
     for t in glob.glob(os.path.join(folder, "docs", "**", "*.txt"), recursive=True):
@@ -169,10 +208,12 @@ def lines_in_folder(folder, pool):
             texts.append(" ".join(open(t, encoding="utf-8", errors="replace").read().split()))
         except OSError:
             continue
-    for lid, line in pool.items():
-        flat = " ".join(line.split())
-        if any(flat in t for t in texts):
-            found.add(lid)
+    for lid, lines in pool.items():
+        for line in ([lines] if isinstance(lines, str) else lines):
+            flat = " ".join(line.split())
+            if any(flat in t for t in texts):
+                found.add(lid)
+                break
     return found
 
 
@@ -192,6 +233,7 @@ def pool_line_unused_longest(ep_dir, pool_md=POOL_MD):
     a strict rotation again — each line recurs exactly ten episodes later, which is
     why the nine-episode window stays right."""
     pool = midroll_pool(pool_md)
+    wordings = pool_wordings(pool_md)      # past episodes may carry a retired wording
     k = _series_num(ep_dir)
     if k is None:
         raise ValueError(f"not an episode folder: {ep_dir}")
@@ -209,7 +251,7 @@ def pool_line_unused_longest(ep_dir, pool_md=POOL_MD):
     for pos, d in slots:
         if pos >= mine or not d:
             continue
-        for lid in lines_in_folder(d, pool):
+        for lid in lines_in_folder(d, wordings):
             if pos > last[lid][0]:
                 last[lid] = (pos, os.path.basename(d))
     lid = min(pool, key=lambda i: (last[i][0], i))
