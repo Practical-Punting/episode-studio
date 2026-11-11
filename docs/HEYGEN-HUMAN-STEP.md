@@ -423,3 +423,25 @@ transcribed as "66-1" (6:33), so whether "to" was said is for the ear. Robotic-v
 (15s/5s): whole-file median 6.53 against v1's 5.55; v1's flagged segments 8–10 read 6.37–7.21 in v2
 (v1: 4.75–4.89). Detail: `output\qc\render-qc-BB-v2.json`, `robot15-BB-v2.*`.
 Which take goes in the episode waits on Jodie's listen.
+
+### EP56 — both renders pulled 11 November 2026 (NOT listened to; NOT accepted)
+
+Jodie's paste and click, plan credits. Found by EXACT title (one hit each; Steve's title carries a
+trailing space in HeyGen), downloaded BY ID from the API `video_url`, each = HeyGen's stated bytes.
+No caption file offered (captions off). Files: `PP-EP56-…\renders\<title>.mp4`; ids also in
+`renders\heygen-renders.json`.
+
+| title | who | video id | bytes | length |
+|---|---|---|---|---|
+| `PP-EP56-BM-full` | Steve | **`b39f6ef5faf14cc0b471c10e5eea03b2`** | 90,130,581 | 595.7s (9:56) |
+| `PP-EP56-BB-full` | Gordon | **`230edd1e2e274397a00ffe35f6e90b15`** | 60,317,646 | 365.7s (6:06) |
+
+🔴 **Steve: his script is whole at 0:00–4:02.8 (4 of 4 breaks, 5.08–6.50s), then he reads aloud the
+render sheet's Gordon block ("2. Gordon. Template Gordon, two-way-small, voice Patrick, titled
+PP-EP56-BB-full, folder two-person episodes, Captions Off.") and then Gordon's WHOLE script, to 9:50.**
+🔴 **Gordon: 11 of 11 breaks (5.69–7.73s), but 0:56.6–1:20.8 is ~24s of speech that is in no script**
+("…the race that stops the nation… the old diehards…"), between "others cannot do it" and "Phil
+Purser's". Source not established. Audio 189 kbps both. `twoway_render_qc.py` called break 2 missing
+on both; it is not — the tool matches breaks by predicted TIME, and extra speech shifts the times
+(word-anchored check: all breaks present). Detail: `output\qc\render-qc-EP56-summary.md`.
+What happens next waits on Jodie's listen.

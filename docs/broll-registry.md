@@ -632,3 +632,15 @@ The corrector's own stride line ends *"…across the field"*, so a led yearling,
 - ✅ **VERDICT: all six approved, first time, NO re-rolls.** That is six of six on the first run of the new rules: the **shot-aware checker** (5 Oct), **the four 20 Sep rules** (four at most, plain saddlecloths, a walking horse riderless and led, the rail behind the horses), and **the skull-cap wording** (Jodie's headgear ruling). On slots 3 and 5 she checked that the skull cap has a short peak, not a baseball cap. It passed.
 - Spend: 79.5 credits for six clips, the guard's quote matching the real spend on every job.
 - ⚠️ One run is evidence, not a rate. Earlier episodes measured about 1 fault in 18 clips, so six clean clips cannot tell a better rate from luck. Keep logging in `docs/broll-fault-tally.md`.
+
+### EP56 (2026-11-11) — "Class, Improvement and Bias Blues (Part 3)", two-way. **JODIE REVIEWED EVERY CLIP IN HIGGSFIELD.**
+✅ **VERDICT: all six approved, first time, no re-rolls** (Jodie, 11 Nov 2026: *"Clips are good."*). `kling3_0_turbo` 16:9 720p through `hf_guard`; 82.5 credits for the six, each charge = its quote. Downloaded by job id into `broll\`, byte-exact.
+
+| File | Subject/line | length |
+|---|---|---|
+| broll-two-runners-gallop-on-a-rain-soaked-track | Some sires manage to produce terrific wet-weather gallopers | 9.0s |
+| broll-two-runners-turn-for-home | Who will lead, who’s going to get a nice run, and so on. | 9.0s |
+| broll-a-lone-front-runner-leads-by-lengths | This might be the time he can show what he can do. | 9.0s |
+| broll-an-empty-country-racecourse | our tracks come in all shapes and sizes | 10.0s |
+| broll-a-racegoer-watches-through-binoculars | those punters who like to dissect the clock | 8.0s |
+| broll-notes-beside-a-form-guide | I then go back and look at the form of all the other contend | 10.0s |
