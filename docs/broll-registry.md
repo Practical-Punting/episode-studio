@@ -655,3 +655,17 @@ Found at FULL SIZE in cut 1, after the 11 Nov approval at review size. Reason: n
 📌 **The library search for their replacements: of 18 ridden library clips checked at full size, 14 show numbers, letters
 or logos** (the other 4 failed on cuts or field size first, cloths not clearly visible) — including EP55's `broll-three-runners-jump-from-the-barriers` ("6", "1"), whose prompt said *"plain
 saddlecloths with no numbers"*. The prompt wording is not stopping it. Detail: `PP-EP56-…\docs\EP56-broll-review.md`.
+
+#### 🚫 EP56 REMAKES FAILED THE FULL-SIZE CHECK (12 Nov 2026) — both rejected, numerals again despite the wording below.
+- ✅ VERDICT (Jodie, 12 Nov): "Yes that is fine." — to going over the 110 for ONE 8s try at each slot, ending at 110.5.
+  Recorded in `docs/higgsfield-spend.json` → `approved_extra` (0.5, with her words). Credits now **110.5 of 110.5, 0 left.**
+- Prompts: her phrase *"plain saddlecloths with no numbers or lettering"* verbatim, plus PP-GH01's flat-colour wording
+  (*"each saddlecloth a single flat colour matching its rider's silks, with no marks, shapes or letters on it anywhere"*),
+  *"clean and unbranded, plain surfaces everywhere"*, *"one continuous unbroken take"*. House prompt check: nothing missing.
+  Full prompts: `output/qc/ep56-stage4/remake_prompts.json`.
+- 🚫 `broll-two-runners-turn-for-home-remake` — job `17ed1152-5eb9-46ca-a53c-aba53196e034`, 8.04s, 12 credits.
+  A "3" and a "0" on the two saddlecloths, the whole clip. Otherwise: turf, rail curving behind, two horses, no jump.
+- 🚫 `broll-a-lone-front-runner-leads-by-lengths-remake` — job `353484fc-327f-41ed-ba92-5b53c5b9c87d`, 8.04s, 12 credits.
+  An "8"/"18" on the leader's saddlecloth; the second horse sits half out of frame at the right edge, not "well back".
+- Both kept for the record in `output/qc/broll-fullsize/remakes/` (NOT in `broll/`), byte-exact to the server, with sheets.
+- ⏳ OPEN — Jodie: what fills the turn-for-home and front-runner slots. Nothing more can be generated without a new approval.
