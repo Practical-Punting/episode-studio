@@ -74,7 +74,11 @@ EP55 = pathlib.Path(glob.glob(str(PP / "PP-EP55-*"))[0])
 print("\n-- EP56: THE THREE CUTS, AND ONLY THOSE --")
 code, out = gate(sandbox(EP56))
 check(code == 0 and "FIDELITY GATE: PASS" in out, "EP56 as built passes the fidelity gate", f"exit {code}")
-check("sanctioned cuts applied to the article side (3)" in out, "and its pass line names the three cuts")
+n_subs = len(json.loads((EP56 / "docs/sanctioned-substitutions.json").read_text(encoding="utf-8"))["substitutions"])
+check(f"sanctioned cuts applied to the article side ({n_subs})" in out,
+      f"and its pass line names all {n_subs} cuts (incl. the e-book-only one)")
+check("www." not in (EP56 / "ebook/body.html").read_text(encoding="utf-8"),
+      "and the built body prints no web address at all")
 
 put_back = lambda b: b.replace("Phil Purser’s Just Racing website has",
                                "Phil Purser’s Just Racing website (www.justracing.com.au) has", 1)
@@ -83,6 +87,18 @@ check(code != 0 and "HALTED" in out, "CONTROL: a body that still prints an addre
 
 code, out = gate(sandbox(EP56, with_subs=False))
 check(code != 0 and "HALTED" in out, "CONTROL: withhold the cuts file and the cut body HALTS", f"exit {code}")
+
+print("\n-- EP56's SPEAKER LABEL FORM `Barry (BM):` IS STYLED LIKE `BM:` --")
+import importlib.util  # noqa: E402
+_spec = importlib.util.spec_from_file_location("ae_under_test", AE)
+ae = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ae)
+marked = ae.mark_speakers("<p>Barry (BM): The intrinsic class.</p>\n<p>BB: Yes.</p>\n"
+                          "<p>Brian Blackwell: Last issue.</p>\n<p>Note (this is not a label): x</p>")
+check('class="speaks spk-BM">Barry (BM):' in marked, "`Barry (BM):` is a speaker turn, coded BM")
+check('class="speaks spk-BB">BB:' in marked and 'class="speaks spk-BB">Brian Blackwell:' in marked,
+      "and the two older forms are unchanged")
+check("<p>Note (this is not a label)" in marked, "CONTROL: a bracket that is not two initials is not a label")
 
 print("\n-- AN EPISODE WITH NO CUTS FILE IS UNCHANGED --")
 code, out = gate(sandbox(EP55))

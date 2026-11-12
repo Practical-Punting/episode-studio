@@ -137,6 +137,7 @@ def _est_said(epj: dict, segs: list[dict], card: dict, which: int, end: bool) ->
     turn = b0["turn"]
     t = min(s["from_s"] for s in segs if s["turn"] == turn)
     target = norm_words(points(card)[which][1])
+    import twoway_beats as tb
     seen_card_beat = False
     for b in [x for x in beats if x["turn"] == turn]:
         words = norm_words(b["line"])
@@ -146,6 +147,21 @@ def _est_said(epj: dict, segs: list[dict], card: dict, which: int, end: bool) ->
             for i in range(len(words) - len(target) + 1):
                 if words[i:i + len(target)] == target:
                     upto = i + (len(target) if end else 0)
+                    # 🔴 MEASURED SENTENCES WHEN THEY EXIST. Spreading a whole PARAGRAPH's
+                    # time evenly over its words put EP56's C10 last point ~3s late and
+                    # asked for a 15.6s hold that crowded a paid clip out of the turn; the
+                    # sentence it is in, and its share of THAT sentence, is the honest model.
+                    ss = tb.sentences(b["line"]) or [b["line"]]
+                    meas = b.get("est_sentence_s")
+                    if isinstance(meas, list) and len(meas) == len(ss):
+                        k = 0
+                        for s_txt, s_dur in zip(ss, meas):
+                            n = len(norm_words(s_txt))
+                            if upto <= k + n:
+                                return round(t + s_dur * (upto - k) / max(1, n), 2)
+                            k += n
+                            t += s_dur
+                        return round(t, 2)
                     return round(t + b["est_s"] * upto / max(1, len(words)), 2)
         t += b["est_s"]
     raise A17Fault(f"{card['id']}: point {which + 1} {points(card)[which][1]!r} is not in "
@@ -189,10 +205,16 @@ def plan(epj: dict, max_rounds: int = 8) -> dict:
                 continue
             enter = cs[0]["from_s"]
             first = _est_said(epj, segs, c, 0, end=False)
-            last = _est_said(epj, segs, c, len(points(c)) - 1, end=True)
+            # the SAME definition the check uses (violations): a point LANDS as its phrase
+            # starts, then gets its reading time + the settle. Timing it to the phrase's END
+            # here asked for more than the check does, and that difference cost turn 12 a clip.
+            last = _est_said(epj, segs, c, len(points(c)) - 1, end=False)
             read = len(point_text(c, points(c)[-1][0]).split()) / ch.WORDS_PER_S_READ
             need = round((last - enter) + read + ch.SETTLE_S, 2)
-            want = round(max(base[c["id"]], need), 1)
+            # build.a17_hold_floor: what the MEASURED clock showed this card needs (written
+            # by close_on_measured), so the estimate cannot talk the hold back down.
+            extra = float((build.get("a17_hold_floor") or {}).get(c["id"], 0.0))
+            want = round(max(base[c["id"]], need, extra), 1)
             report[c["id"]] = {"enter_s": enter, "first_point_s": first,
                                "last_point_said_s": last, "need_s": need, "hold_s": want}
             if abs(want - holds[c["id"]]) > 0.05:
@@ -247,7 +269,12 @@ def measure(segments: list[dict], cues: list[dict], timeline: list[dict], epj: d
             continue
         cs = [s for s in segments if s.get("card") == c["id"]]
         if not cs:
-            out[c["id"]] = {"problem": "not in the assembled plan"}
+            dropped = any(str(x).startswith(f"DROPPED {c['id']} ")
+                          for x in (epj.get("build") or {}).get("_layout_placement") or [])
+            # A card the PLANNER dropped, and said so, is a reported drop with nothing to
+            # time; a card that vanished between the plan and the mapping is a fault.
+            out[c["id"]] = ({"dropped": "dropped by the planner (see build._layout_placement)"}
+                            if dropped else {"problem": "not in the assembled plan"})
             continue
         enter, leave = min(s["from_s"] for s in cs), max(s["to_s"] for s in cs)
         turn = beats[c["beat"]]["turn"]
@@ -267,13 +294,13 @@ def measure(segments: list[dict], cues: list[dict], timeline: list[dict], epj: d
                 continue
             after = t
             said = round(t + head_s, 3)
-            # the SENTENCE it is said in: merged.srt's cues are sentences, and a picture
-            # may only change on a sentence end (A10 4a) — so this is the latest a card
-            # could legally have entered and still be up for this point.
-            cue = max((q for q in cues if q["start"] <= t + 1e-6), key=lambda q: q["start"],
-                      default=None)
-            if cue is not None:
-                row["sentence_from_s"] = round(cue["start"] + head_s, 3)
+            # the SENTENCE it is said in: a picture may only change on a sentence END (A10
+            # 4a), so the latest a card could legally have entered and still be up for this
+            # point is the last sentence end before it. NOT a cue start: one long sentence
+            # can be split across several cues, and a cue start is not a legal entry.
+            import twoway_interleave as ti
+            prior = [e for e in ti.sentence_ends(cues) if e <= t + 1e-6]
+            row["sentence_from_s"] = round((max(prior) if prior else lo) + head_s, 3)
             want = max(int(floors[i] if i < len(floors) else 0),
                        int(round((said - enter) * 1000)))
             if prev is not None:
@@ -293,6 +320,8 @@ def violations(a17: dict, epj: dict) -> list[str]:
     cards = {c["id"]: c for c in epj.get("cards", [])}
     out = []
     for cid, r in a17.items():
+        if r.get("dropped"):
+            continue                      # reported by notes(); the planner's own drop log
         if r.get("problem"):
             out.append(f"A17 {cid}: {r['problem']}.")
             continue
@@ -326,12 +355,54 @@ def violations(a17: dict, epj: dict) -> list[str]:
     return out
 
 
+def shortfalls(a17: dict, epj: dict) -> dict[str, float]:
+    """{card: seconds} by which a card leaves before its last point has been read + settled
+    on the MEASURED clock — the same arithmetic as `violations`, as a number."""
+    import card_hold as ch
+    cards = {c["id"]: c for c in epj.get("cards", [])}
+    out = {}
+    for cid, r in a17.items():
+        said = [p for p in r.get("points") or [] if "delay_ms" in p]
+        if r.get("problem") or not said:
+            continue
+        read = len(point_text(cards[cid], said[-1]["key"]).split()) / ch.WORDS_PER_S_READ
+        short = r["enter_s"] + said[-1]["delay_ms"] / 1000.0 + read + ch.SETTLE_S - r["exit_s"]
+        if short > 0.05:
+            out[cid] = round(short, 2)
+    return out
+
+
+def close_on_measured(d, epj: dict, tl: list[dict], cues: list[dict], head_s: float,
+                      floors: dict, rounds: int = 4) -> dict:
+    """Plan → the render's own mapped segments → measure, until no card leaves before its
+    last point is read. A shortfall raises that card's hold floor by exactly the shortfall
+    (+0.1s) in `build.a17_hold_floor` and the plan is derived again. Returns the measure."""
+    import twoway_assemble as ta
+    res = {}
+    for _ in range(rounds):
+        plan(epj)
+        segs = ta.mapped_segments(d, epj, tl, cues)["mapped"]
+        res = measure(segs, cues, tl, epj, head_s, floors)
+        short = shortfalls(res, epj)
+        if not short:
+            break
+        fl = epj["build"].setdefault("a17_hold_floor", {})
+        for cid, s in short.items():
+            fl[cid] = round(max(float(fl.get(cid, 0.0)),
+                                float(epj["build"]["holds"].get(cid, 0.0))) + s + 0.1, 1)
+            print(f"  measured: {cid} short by {s:.2f}s -> hold floor {fl[cid]}s, re-planning")
+    return res
+
+
 def notes(a17: dict) -> list[str]:
     """Facts for a human, not faults: a card that enters ON its first point's sentence and
     still waits longer than the limit, because that sentence is long. Picture changes land
     on sentence ends (A10 4a), so the plan cannot do better; only the words could."""
     out = []
     for cid, r in a17.items():
+        if r.get("dropped"):
+            out.append(f"REPORTED A17 {cid}: {r['dropped']} — not on screen in this cut.")
+            continue
         said = [p for p in r.get("points") or [] if "said_at_s" in p]
         if not said:
             continue
@@ -365,9 +436,12 @@ def main() -> int:
     epj = json.loads(epj_p.read_text(encoding="utf-8"))
     tlj = json.loads((d / "renders/master-timeline.json").read_text(encoding="utf-8"))
     cues = ti.read_srt((d / "renders/merged.srt").read_text(encoding="utf-8"))
+    import author_cards as ac
+    floors = {c["id"]: ac.a17_floors(c, ac.load_block(c["block"]))
+              for c in epj.get("cards", []) if is_a17(c)}
     if a.replan:
         epj["beats"] = tb.measured_beats(epj["beats"], cues, tlj["timeline"])
-        plan(epj)
+        close_on_measured(d, epj, tlj["timeline"], cues, ta.TITLE_HEAD_S, floors)
         t = tb.tally(epj["layout_plan"])
         print(f"RE-PLANNED ON THE MEASURED CLOCK: dialogue {t['total_s']:.1f}s, two-box "
               f"{100 * t['two-box_s'] / t['total_s']:.1f}%, single "
@@ -379,13 +453,10 @@ def main() -> int:
             print("  plan: " + v[:220])
     # The SAME segments the render will use (b-roll clamps included) — never a second copy.
     segs = ta.mapped_segments(d, epj, tlj["timeline"], cues)["mapped"]
-    import author_cards as ac
-    floors = {c["id"]: ac.a17_floors(c, ac.load_block(c["block"]))
-              for c in epj.get("cards", []) if is_a17(c)}
     res = measure(segs, cues, tlj["timeline"], epj, ta.TITLE_HEAD_S, floors)
     for cid, r in res.items():
-        if r.get("problem"):
-            print(f"{cid}: {r['problem']}")
+        if r.get("problem") or r.get("dropped"):
+            print(f"{cid}: {r.get('problem') or r.get('dropped')}")
             continue
         print(f"{cid}: up {r['enter_s']:.1f}-{r['exit_s']:.1f}s ({r['exit_s'] - r['enter_s']:.1f}s)")
         for p in r["points"]:

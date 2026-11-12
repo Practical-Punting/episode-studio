@@ -722,9 +722,14 @@ def mark_headings(body):
 # Surname:` opening a paragraph is a speaker turn, which is what makes this work on the
 # first two turns of EP49's article — they are labelled `Barry Meadow:` and `Brian
 # Blackwell:` in full and only settle into initials from the third.
+#
+# EP56's article (12 Nov 2026) opens with a THIRD form, `Barry (BM):` / `Brian (BB):` — a
+# first name with the speaker's own initials in brackets (the form twoway_split learned on
+# 11 Nov). Unrecognised, the book printed those two turns without the speaker rule the
+# other eight have. The code is read from the bracket.
 SPEAKER_LEAD = re.compile(
     r'(<p)((?![^>]*\bclass=)[^>]*)(>)(\s*)'
-    r'((?:[A-Z]{2}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}):\s)')
+    r'((?:[A-Z]{2}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}|[A-Z][a-z]+\s+\([A-Z]{2}\)):\s)')
 
 
 def mark_speakers(body):
@@ -740,8 +745,9 @@ def mark_speakers(body):
     def add(m):
         n[0] += 1
         label = m.group(5).rstrip()[:-1]
-        code = label if len(label) <= 3 else "".join(
-            w[0] for w in label.split() if w)[:2]
+        bracket = re.search(r"\(([A-Z]{2})\)", label)
+        code = bracket.group(1) if bracket else (label if len(label) <= 3 else "".join(
+            w[0] for w in label.split() if w)[:2])
         return (f'{m.group(1)}{m.group(2)} class="speaks spk-{code.upper()}"'
                 f'{m.group(3)}{m.group(4)}{m.group(5)}')
 

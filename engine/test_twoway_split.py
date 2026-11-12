@@ -336,8 +336,22 @@ def main() -> int:
         tj56 = json.loads((d56 / "turns.json").read_text(encoding="utf-8"))["turns"]
         r56 = tw.reading_turns(tj56, subs56)
         changed = [a["n"] for a, b in zip(tj56, r56) if a["text"] != b["text"]]
-        check("  EP56 (real): three substitutions, on turns 3, 4 and 10 only",
-              len(subs56) == 3 and changed == [3, 4, 10], f"{changed}")
+        check("  EP56 (real): three READING substitutions, on turns 3, 4 and 10 only",
+              len(tw.for_reading(subs56)) == 3 and changed == [3, 4, 10], f"{changed}")
+        ebook_only = [s for s in subs56 if s.get("scope") == "ebook"]
+        check("  EP56 (real): the e-book-only cut (Jodie, 12 Nov) never touches the reading",
+              len(ebook_only) == 1 and tw.reading_turns(tj56, subs56) == tw.reading_turns(
+                  tj56, tw.for_reading(subs56)), f"{[s['id'] for s in ebook_only]}")
+        import tempfile
+        tdir = pathlib.Path(tempfile.mkdtemp())
+        (tdir / tw.SUBSTITUTIONS).write_text(json.dumps(
+            {"substitutions": [dict(subs56[0], id="SX", scope="video")]}), encoding="utf-8")
+        try:
+            tw.load_substitutions(tdir)
+            sx = None
+        except tw.Unsplittable:
+            sx = "refused"
+        check("  CONTROL: a scope that is not 'all' or 'ebook' is refused", sx == "refused")
         lost = sum(a["words"] - b["words"] for a, b in zip(tj56, r56))
         check("  EP56 (real): four words come out (the three addresses and one 'at')",
               lost == 4, lost)

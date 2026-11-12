@@ -836,22 +836,80 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     # 📌 NO `scale` ON THE LOGO. The asset IS the size — that is what `corner_logo`
     # derives and what `assemble_episode`'s pass A does (it overlays the chip with no
     # scale filter at all). A scale here would be a fifth description of one mark.
+    # 🔴 THE AUDIO IS MIXED IN ITS OWN PASS, THEN MUXED AS A PLAIN STREAM (EP56, 12 Nov 2026).
+    # Run inside this one big command — beside the picture, the chips and the graphics —
+    # the identical audio graph produced an AAC track 6.85s LONGER than the film with the
+    # speech 4.1s LATE inside it (24,675 frames for a 519.5s film; the words trailed the
+    # mouths for the whole of EP56 cut 1). The SAME graph run on its own was exact (+7.005s,
+    # 519.46s, in WAV and in AAC/mp4). Which ffmpeg scheduling detail did it is NOT
+    # established; the two-pass build removes the shape that produced it, and
+    # `assert_audio_in_step` below measures the finished file, so a recurrence by any route
+    # refuses instead of shipping. EP55 (6 Oct) did not show it — measured: its decoded
+    # audio equals its film.
+    mix = work / f"_mix-{hashlib.md5((aud.name + mus_env + str(total)).encode()).hexdigest()[:10]}.wav"
+    run([ff, "-y", "-hide_banner", "-loglevel", "error", "-i", str(aud), "-i", str(MUSIC),
+         "-filter_complex", audio_graph(total, mus_env, "[0:a]", "[1:a]"),
+         "-map", "[a]", "-t", f"{total:.3f}", "-c:a", "pcm_s16le", str(mix)], timeout=3600)
     fc = ("[1:v]format=rgba[lg];\n" + chips_fc +
-          "".join(x[3] for x in gfx) + vfc + audio_graph(total, mus_env))
+          "".join(x[3] for x in gfx) + vfc.rstrip().rstrip(";"))
     # 📌 THE INPUT ORDER IS THE GRAPH'S CONTRACT AND THE TWO ARE READ TOGETHER:
-    # [0] picture · [1] logo · [2] speech · [3] music · [4] chips (only if there are
-    # chips) · then the standing graphics in `gin` order, which is the order `gfx` was
-    # built in. `assemble_episode` carries the same warning for the same reason: an
-    # off-by-one here silently draws the wrong clip and every check still passes.
+    # [0] picture · [1] logo · [2] the finished MIX · [3] music (unused here — kept so no
+    # graphic's index moves) · [4] chips (only if there are chips) · then the standing
+    # graphics in `gin` order, which is the order `gfx` was built in. `assemble_episode`
+    # carries the same warning: an off-by-one here silently draws the wrong clip.
     run([ff, "-y", "-hide_banner", "-loglevel", "error",
-         "-i", str(whole), "-i", str(logo), "-i", str(aud), "-i", str(MUSIC),
+         "-i", str(whole), "-i", str(logo), "-i", str(mix), "-i", str(MUSIC),
          *(["-loop", "1", "-t", f"{total:.3f}", "-i", str(chips_png)] if ch else []),
          *sum((["-i", p] for p in gin), []),
-         "-filter_complex", fc, "-map", "[v]", "-map", "[a]",
+         "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
          "-t", f"{total:.3f}",
          "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p",
          "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out)],
         timeout=7200)
+    print("  " + assert_audio_in_step(out, aud, ta.TITLE_HEAD_S, total), flush=True)
+
+
+def assert_audio_in_step(out: pathlib.Path, speech: pathlib.Path, head_s: float,
+                         total_s: float) -> str:
+    """The finished file's SOUND is where the picture is. Raises Unrenderable if not.
+
+    Two facts, measured on the file a viewer gets (decoded from its first sample, no
+    seeking — seeking reads an mp4's audio through its edit list and gave a DIFFERENT
+    answer on EP56's broken cut, which is how a broken file can look fine):
+      1. the decoded audio is as long as the film (within 0.1s);
+      2. the speech track is found at +head_s (within 0.05s) at three points, by sample
+         correlation against the assembled speech track itself.
+    """
+    import numpy as np
+    sr = 8000
+
+    def load(p):
+        raw = subprocess.run([_ff(), "-v", "error", "-i", str(p), "-vn", "-ac", "1", "-ar", str(sr),
+                              "-f", "f32le", "-"], capture_output=True, timeout=1800).stdout
+        return np.frombuffer(raw, np.float32)
+
+    got, sp = load(out), load(speech)
+    if abs(got.size / sr - total_s) > 0.1:
+        raise Unrenderable(f"the finished file's audio decodes to {got.size / sr:.2f}s and the film "
+                           f"is {total_s:.2f}s. Sound and picture are on different clocks.")
+    lags = []
+    for frac in (0.15, 0.5, 0.85):
+        t = round(frac * (sp.size / sr - 10), 1)
+        a = sp[int(t * sr): int((t + 6) * sr)]
+        a = a - a.mean()
+        lo = int((t + head_s - 2.0) * sr)
+        b = got[lo: lo + int(10 * sr)]
+        best, lag = -1.0, 0
+        for k in range(0, max(0, b.size - a.size), 2):
+            s = b[k:k + a.size]
+            c = float(np.dot(a, s) / ((np.linalg.norm(a) * np.linalg.norm(s)) or 1e-9))
+            if c > best:
+                best, lag = c, k
+        lags.append(round((lo + lag) / sr - (t + head_s), 3))
+    if any(abs(x) > 0.05 for x in lags):
+        raise Unrenderable(f"the speech in the finished file is not where the picture is: "
+                           f"offsets {lags}s at three points (limit 0.05s).")
+    return f"sound in step: decoded {got.size / sr:.2f}s of {total_s:.2f}s, speech offsets {lags}s"
 
 
 def assert_picture_reaches(whole: pathlib.Path, total_s: float,
@@ -1055,7 +1113,7 @@ def card_logo_geometry(d: pathlib.Path, plan: dict) -> dict:
             "pages": len(next(iter(found.values())))}
 
 
-def audio_graph(total: float, mus_env: str) -> str:
+def audio_graph(total: float, mus_env: str, sp: str = "[2:a]", mu: str = "[3:a]") -> str:
     """The finish's audio: [2:a] speech, [3:a] music -> [a]. Publish loudness (6 Oct 2026).
 
     🔴 THIS WAS A SECOND, OLDER RECIPE. `assemble_episode` moved to -14 LUFS / -1.0 dBTP
@@ -1068,13 +1126,13 @@ def audio_graph(total: float, mus_env: str) -> str:
     against the same numbers through `qc_episode.loudness_verdict`.
     """
     hd = int(ta.TITLE_HEAD_S * 1000)
-    return (f"[2:a]apad=whole_dur={total},atrim=duration={total},asetpts=PTS-STARTPTS,"
+    return (f"{sp}apad=whole_dur={total},atrim=duration={total},asetpts=PTS-STARTPTS,"
             f"adelay={hd}|{hd},"
             f"apad=whole_dur={total},atrim=duration={total},"
             f"loudnorm=I={pl.TARGET_LUFS:g}:TP=-1.5:LRA=11,"
             f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
             f"asplit=2[sp][spkey];\n"
-            f"[3:a]aloop=loop=-1:size=6000000,atrim=duration={total},"
+            f"{mu}aloop=loop=-1:size=6000000,atrim=duration={total},"
             f"asetpts=PTS-STARTPTS,volume='{pl.LIFT:.6f}*({mus_env})':eval=frame,"
             f"aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo"
             f"[musraw];\n"

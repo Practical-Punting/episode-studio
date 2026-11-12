@@ -573,7 +573,9 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
                     delays: dict[str, int] | None = None,
                     dropped: set | None = None,
                     reasons: dict | None = None,
-                    a17_first: dict[str, str] | None = None) -> tuple[list[dict], list[str]]:
+                    a17_first: dict[str, str] | None = None,
+                    tight: dict | None = None,
+                    want_over: dict[str, float] | None = None) -> tuple[list[dict], list[str]]:
     """Move each turn's graphics to the earliest sentence the dwell law allows.
 
     A graphic is authored against a BEAT — the paragraph whose sentence it illustrates —
@@ -633,6 +635,16 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
         for u in tu:
             u["card"] = u["broll"] = None
         floor = TURN_OPEN_MIN_S
+        # ⚖️ A PER-EPISODE OVERRIDE, NEVER A STANDING RULE (EP56, Jodie 12 Nov 2026): in the
+        # turns `tight["turns"]` names, a graphic may BUTT straight onto the one before it
+        # instead of waiting the 5s gap. Every other rule stands — and the dwell floor is WHY
+        # it is a butt join and not a short gap: a 2s shot between two graphics would itself
+        # be a picture under the floor. So if the next graphic's sentence lands inside the 5s
+        # window, the previous graphic is LENGTHENED to meet it: a card always may (it may run
+        # past its sentence); a clip only up to its real length (`tight["clip_s"]`), never a
+        # frozen frame. If neither can meet it, that entry is not legal.
+        ov = bool(tight) and turn in set(tight.get("turns") or [])
+        prev = None                      # (key, ident, first unit index, hold) of the last placed
         for key, ident in order:
             if ident in dropped:
                 continue
@@ -644,9 +656,32 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
             # b-roll eighty-nine seconds earlier than its own line — which is not moving
             # a graphic, it is re-commissioning it. Ties go to the later sentence: a
             # graphic that arrives a beat late is still about the thing just said.
+            def _meets(j, prev=prev):
+                """Can the previous graphic be lengthened to end exactly at sentence j?"""
+                if not (ov and prev):
+                    return False
+                pk, pid, pj, pw = prev
+                need = prefix[j] - prefix[pj]
+                if need < pw - 0.001:
+                    return False
+                if pk == "card":
+                    return True
+                return need <= float((tight.get("clip_s") or {}).get(pid, pw)) + 0.001
+
+            def _room(j):
+                # 0.05s short of the handover floor: a clip ending EXACTLY on it put its last
+                # sentence on the wrong side of the walk's `left_after < HANDOVER_FLOOR_S`
+                # by float error, and the walk folded the clip into the closing two-box
+                # (found by test_twoway_tight_turns (d): a 9.5s clip came out 10.77s).
+                return total - prefix[j] - HANDOVER_FLOOR_S - 0.05
+
+            # In a tight turn a CLIP may also be used shorter to fit the room left before
+            # the handover — inside the format's own 8-10s, never under BROLL_DUR_MIN_S.
+            shrink = ov and key == "broll"
             cands = [j for j in range(len(tu))
-                     if prefix[j] >= floor - 0.001
-                     and total - prefix[j] >= w + HANDOVER_FLOOR_S - 0.001]
+                     if (prefix[j] >= floor - 0.001 or _meets(j))
+                     and (_room(j) >= w - 0.001
+                          or (shrink and _room(j) >= BROLL_DUR_MIN_S - 0.001))]
             # 🔴 A CARD STARTS ON ITS OWN WORDS OR IT IS DROPPED. (Jodie, 20 Sep 2026,
             # closing v5's second breach.) v5 placed C3 and C4 at the nearest LEGAL
             # sentence, which was in the next paragraph, and both came out at 0.0%
@@ -720,12 +755,30 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
                     f"the passage, or let it go."))
                 continue
             j = cands[n]
+            if shrink and _room(j) < w - 0.001:
+                log.append(f"TIGHT (EP56-only override, turn {turn}): {ident} used at "
+                           f"{_room(j):.1f}s of its {w:.1f}s to fit before the handover "
+                           f"(the format's floor is {BROLL_DUR_MIN_S:.0f}s).")
+                w = round(_room(j), 2)
+                if want_over is not None:
+                    want_over[ident] = w
+            if ov and prev and prefix[j] < floor - 0.001:
+                # the butt join: lengthen the previous graphic to end where this one enters
+                pk, pid, pj, pw = prev
+                for kk in range(pj, j):
+                    tu[kk][pk] = pid
+                if want_over is not None:
+                    want_over[pid] = round(prefix[j] - prefix[pj], 3)
+                log.append(f"TIGHT (EP56-only override, turn {turn}): {pid} lengthened "
+                           f"{pw:.1f}s -> {prefix[j] - prefix[pj]:.1f}s so {ident} follows "
+                           f"it directly, with no shot between them.")
             got = 0.0
             k = j
             while k < len(tu) and got < w - 0.001:
                 tu[k][key] = ident
                 got += tu[k]["est_s"]
                 k += 1
+            prev = (key, ident, j, w)
             if abs(prefix[j] - first_at[ident]) > 0.05:
                 log.append(
                     f"MOVED {ident} in turn {turn}: {first_at[ident]:.1f}s -> "
@@ -819,7 +872,8 @@ def derive_plan(beats: list[dict], broll_durs: dict[str, float] | None = None,
                 dropped: set | None = None,
                 place_log: list | None = None,
                 reasons: dict | None = None,
-                a17_first: dict[str, str] | None = None) -> list[dict]:
+                a17_first: dict[str, str] | None = None,
+                tight: dict | None = None) -> list[dict]:
     """The layout timeline: an ordered list of segments over the whole episode.
 
     Each segment is what a viewer sees without a change of picture. `to_s` is a TARGET;
@@ -832,10 +886,14 @@ def derive_plan(beats: list[dict], broll_durs: dict[str, float] | None = None,
     # one to the earliest sentence the dwell law allows; `_split_forced` then gives it
     # exactly its hold and returns the rest of the beat to the walk. In that order a
     # card that has moved is split at its NEW position, which is the whole point.
+    want_over: dict[str, float] = {}
     placed, _plog = _place_graphics(_split_turn_open(_units(beats)), durs, holds,
-                                    delays, dropped, reasons, a17_first)
+                                    delays, dropped, reasons, a17_first, tight, want_over)
     if place_log is not None:
         place_log.extend(_plog)
+    # a graphic lengthened for a tight-turn butt join takes its NEW length (never shorter)
+    durs = {**durs, **{k: v for k, v in want_over.items() if k in durs}}
+    holds = {**holds, **{k: v for k, v in want_over.items() if k not in durs}}
     units = _split_forced(placed, durs, holds)
     segs: list[dict] = []
     clock = 0.0
@@ -1348,7 +1406,8 @@ def _blame(segs: list[dict], st: dict) -> str | None:
 def plan_with_dwell(beats: list[dict], broll_durs: dict[str, float] | None = None,
                     card_holds: dict[str, float] | None = None,
                     max_rounds: int = 80,
-                    a17_first: dict[str, str] | None = None) -> tuple[list[dict], list[str]]:
+                    a17_first: dict[str, str] | None = None,
+                    tight: dict | None = None) -> tuple[list[dict], list[str]]:
     """`derive_plan` under the MINIMUM DWELL LAW. Returns (segments, what it did).
 
     🔴 A FIXED POINT, NOT A PREDICTION — and that is the design, not an implementation
@@ -1373,7 +1432,7 @@ def plan_with_dwell(beats: list[dict], broll_durs: dict[str, float] | None = Non
         log = []
         segs = derive_plan(beats, broll_durs, card_holds, delays=delays,
                            dropped=dropped, place_log=log, reasons=reasons,
-                           a17_first=a17_first)
+                           a17_first=a17_first, tight=tight)
         short = short_states(segs)
         if not short:
             return segs, list(reasons.values()) + log
@@ -1608,8 +1667,12 @@ def apply(epj: dict) -> dict:
     # 5s floor, moving a graphic rather than shortening a shot.
     # A17: each card that builds on its words aims at its first point's sentence.
     import twoway_a17 as ta17
+    # ⚖️ build.tight_turns — a PER-EPISODE override Jodie rules case by case (EP56, 12 Nov
+    # 2026: turns 8, 11, 12). Absent on every other episode, so their plans are unchanged.
+    tight = (epj.get("build") or {}).get("tight_turns") or None
     segs, place_log = plan_with_dwell(beats, durs, card_holds=holds,
-                                      a17_first=ta17.first_anchors(epj.get("cards", [])))
+                                      a17_first=ta17.first_anchors(epj.get("cards", [])),
+                                      tight=tight)
     epj.setdefault("build", {})["_layout_placement"] = place_log
     derive_reactions(segs, speakers, signals)
 

@@ -347,7 +347,23 @@ def load_substitutions(docs: pathlib.Path) -> list[dict]:
     ids = [s["id"] for s in subs]
     if len(set(ids)) != len(ids):
         raise Unsplittable(f"{f.name}: duplicate ids {ids}. Nothing is written.")
+    bad = [s["id"] for s in subs if s.get("scope", "all") not in SUB_SCOPES]
+    if bad:
+        raise Unsplittable(f"{f.name}: substitution(s) {bad} have a scope that is not one of "
+                           f"{SUB_SCOPES}. Nothing is written.")
     return subs
+
+
+SUB_SCOPES = ("all", "ebook")
+"""Where a sanctioned cut applies. "all" (the default): the spoken reading AND the e-book.
+"ebook": the book only — for words that are printed but never read aloud. EP56, Jodie 12 Nov
+2026: the author note's "www.trpublishing.com" (a NARR row nobody speaks) is cut from the
+book by the same standing rule, name the site, drop the address."""
+
+
+def for_reading(subs: list[dict]) -> list[dict]:
+    """The cuts that apply to the SPOKEN reading (every scope but "ebook")."""
+    return [s for s in subs if s.get("scope", "all") != "ebook"]
 
 
 def reading_turns(turns: list[dict], subs: list[dict]) -> list[dict]:
@@ -360,6 +376,7 @@ def reading_turns(turns: list[dict], subs: list[dict]) -> list[dict]:
     SEPARATE route, it proves that nothing outside the declared sentences differs — see
     `reading_differences`.
     """
+    subs = for_reading(subs)          # an e-book-only cut never touches the spoken scripts
     by_n = {t["n"]: t for t in turns}
     out = [dict(t) for t in turns]
     out_by_n = {t["n"]: t for t in out}
@@ -401,6 +418,7 @@ def reading_differences(turns: list[dict], reading: list[dict], subs: list[dict]
     IDENTICAL, character for character, turn by turn. So the only text allowed to
     differ is inside sentences Jodie saw whole, and each must read exactly as approved.
     """
+    subs = for_reading(subs)
     out = []
     if [t["n"] for t in turns] != [t["n"] for t in reading]:
         return ["the turns themselves changed (count or order)"]
@@ -532,8 +550,9 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
     for t in narr:
         one = re.sub(r"\s+", " ", t["text"])
         print(f"   n={t['n']:<3} {one[:96]}{'…' if len(one) > 96 else ''}")
-    print(f"SANCTIONED : {len(subs)} substitution(s) from {SUBSTITUTIONS}"
-          + (" (none: the reading IS the article)" if not subs else ":"))
+    print(f"SANCTIONED : {len(for_reading(subs))} substitution(s) on the reading from {SUBSTITUTIONS}"
+          + (f" (+{len(subs) - len(for_reading(subs))} e-book-only)" if len(subs) != len(for_reading(subs)) else "")
+          + (" (none: the reading IS the article)" if not for_reading(subs) else ":"))
     for s in subs:
         print(f"   {s['id']} turn {s['turn']} {s['speaker']}: {s['find']!r} -> {s['replace']!r}")
 

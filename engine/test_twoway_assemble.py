@@ -144,6 +144,12 @@ for i, s in enumerate(segs):
     prev = segs[i - 1] if i else None
     if prev is not None and prev.get("held") and not s.get("held"):
         continue                      # this boundary IS a graphic's end
+    # ⚖️ A TURN-OPEN CARD IS NOT FREE EITHER (Jodie, 20 Sep 2026: "an opening-sentence card
+    # may land from the two-box 5s after the handover while its sentence still runs"). Its
+    # place is the turn's start + 5s by ruling; `turn_open_entry` (12 Nov 2026) stopped the
+    # mapping snapping it to the sentence's END, which had thrown the ruling away.
+    if s.get("card") and abs(s["from_s"] - (s["turn_span"][0] + tb.TURN_OPEN_MIN_S)) <= 0.05:  # 1 frame
+        continue
     free.append(s)
 # A free boundary that did NOT snap must have had nowhere to go. That is the
 # rule as `twoway_interleave.snap_plan` states it — *"a boundary with no

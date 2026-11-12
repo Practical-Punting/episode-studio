@@ -189,6 +189,24 @@ def planned_entry(mine: list[dict], s: dict, cues: list[dict], lo: float,
     return None
 
 
+def turn_open_entry(mine: list[dict], s: dict, lo: float) -> float | None:
+    """Jodie, 20 Sep 2026: *"an opening-sentence card may land from the two-box 5s after the
+    handover while its sentence still runs."* The plan honours that (`_split_turn_open`: a
+    5.0s opening two-box, then the card mid-sentence) — and the measured mapping used to
+    throw it away by snapping the card to the END of that sentence (EP56's C5 came up after
+    its first point had been said). So when the plan has exactly that shape — this CARD is
+    the turn's second segment, straight after a TURN_OPEN_MIN_S opening two-box — its legal
+    entry is the turn's start + 5s on the measured clock too. Anything else: None."""
+    i = mine.index(s)
+    if i != 1 or not s.get("card"):
+        return None
+    head = mine[0]
+    if head.get("layout") != "two-box" or \
+            abs((head["to_s"] - head["from_s"]) - tb.TURN_OPEN_MIN_S) > 0.05:
+        return None
+    return lo + tb.TURN_OPEN_MIN_S
+
+
 def map_layout(plan: list[dict], tl: list[dict], cues: list[dict],
                head_s: float) -> list[dict]:
     """The dialogue layout, stretched onto the measured timeline, turn by turn.
@@ -274,12 +292,14 @@ def map_layout(plan: list[dict], tl: list[dict], cues: list[dict],
                 # floor for that shot is what bounds it — never the running clock.
                 floor = (prev + tb.MIN_DWELL_S) if out and out[-1]["turn"] == turn \
                     and not out[-1]["held"] else clock
-                cands = [e for e in ends
+                tos = turn_open_entry(mine, s, lo)
+                pool = list(ends) + ([tos] if tos is not None else [])
+                cands = [e for e in pool
                          if e >= floor - 0.001 and e + want <= hi - 0.001]
                 if cands:
-                    # Aim at the sentence the PLAN put this graphic after; the
-                    # arithmetic position is only the fallback (see planned_entry).
-                    ref = planned_entry(mine, s, cues, lo, hi)
+                    # Aim at the sentence the PLAN put this graphic after (or the
+                    # turn-open entry); the arithmetic position is only the fallback.
+                    ref = tos if tos is not None else planned_entry(mine, s, cues, lo, hi)
                     ref = t0 if ref is None else ref
                     cand = min(cands, key=lambda e: abs(e - ref))
                     t0 = cand
@@ -355,6 +375,14 @@ def map_layout(plan: list[dict], tl: list[dict], cues: list[dict],
         if abs(a["to_s"] - b["from_s"]) > 0.001 and not a["held"]:
             a["to_s"] = b["from_s"]
             a["dur_s"] = round(a["to_s"] - a["from_s"], 3)
+        # ⚖️ A TIGHT-TURN BUTT JOIN (build.tight_turns): two graphics with no shot between
+        # them. A CARD may run past its sentence, so it is held on to meet the next graphic;
+        # a gap under the dwell floor is never left as a hole or a sliver of a shot.
+        elif (a["held"] and a.get("card") and b["held"]
+              and 0.001 < b["from_s"] - a["to_s"] < tb.MIN_DWELL_S):
+            a["to_s"] = b["from_s"]
+            a["dur_s"] = round(a["to_s"] - a["from_s"], 3)
+            a["butt_join"] = True
     all_ends = [round(e + head_s, 3) for e in ti.sentence_ends(cues)]
     return repair_short_states(out, all_ends)
 
@@ -882,6 +910,18 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
 
 # ────────────────────────────────────────────────────────────── the checks ──
 
+def holes(segs: list[dict]) -> list[str]:
+    """Every gap > one frame between consecutive segments of ONE turn: a hole in the picture."""
+    out = []
+    for a, b in zip(segs, segs[1:]):
+        if a.get("turn") is not None and a.get("turn") == b.get("turn") \
+                and b["from_s"] - a["to_s"] > 0.04:
+            out.append(f"HOLE IN THE PICTURE at {a['to_s']:.1f}s: {b['from_s'] - a['to_s']:.2f}s "
+                       f"between {a.get('card') or a.get('broll') or a['layout']} and "
+                       f"{b.get('card') or b.get('broll') or b['layout']} in turn {a['turn']}.")
+    return out
+
+
 def violations(plan: dict) -> list[str]:
     """The five faults that have actually bitten this build before. Reported, not fixed."""
     out = []
@@ -1003,6 +1043,11 @@ def violations(plan: dict) -> list[str]:
     out.extend(tes.violations(plan))
     # 4d — A17: every point said while its card is up, and the card authored from it.
     out.extend(plan.get("a17_violations") or [])
+
+    # 4e — NO HOLE IN THE PICTURE inside a turn. Asserted because the tight-turn butt join
+    # (EP56) is the first shape that can put two HELD graphics next to each other, and
+    # nothing closes a gap between two held segments (a clip cannot be stretched).
+    out.extend(holes(segs))
 
     # 5 — THE MINIMUM DWELL LAW, on the MAPPED plan and not the estimate
     for st in tb.short_states(segs):
