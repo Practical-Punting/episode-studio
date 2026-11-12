@@ -949,8 +949,11 @@ def apply_rail(page, card):
     return page[:m.start()] + body + page[m.end():]
 
 
-def render_card(card, blk, frame):
-    content = card["content"]
+def block_anim(card, blk):
+    """The card's animation spec as the block's own stagger draws it (ppInit entries).
+
+    One function for the page AND for A17's floors, so the earliest a point may land is
+    read off exactly the timing the page would otherwise have used."""
     # The reflow rung this card lands on, keyed by the list it governs — so the
     # stagger override reaches expand_each in the same shape the block's own
     # `anim` section already has, rather than in a second shape it has to learn.
@@ -958,9 +961,138 @@ def render_card(card, blk, frame):
     rspec = (blk.get("schema") or {}).get("reflow") or {}
     anim_over = ({rspec["list"]: step["anim"]}
                  if step.get("anim") and rspec.get("list") else None)
+    return expand_each(blk["anim"], card["content"], blk, anim=True, anim_over=anim_over)
+
+
+# ── A17: POINTS BUILD ON THE READER'S WORDS (Jodie, 6 Oct 2026; two-way, EP56 on) ──────
+# A card's `_a17_points` names, in speaking order, what lands and on which of the
+# reader's words. `engine/twoway_a17.py` measures WHEN each is said on the finished clock
+# and writes the delays to episode.json -> build.a17; here they replace the block's own
+# stagger. WHICH ELEMENT a point is comes off the block's OWN TEMPLATE — the selector its
+# `@each` region draws for that item, or the element whose whole body is `{{key}}` — so a
+# block added tomorrow answers for itself and there is no selector table to go stale.
+A17_LIST_KEY = re.compile(r"^(\w+)\[(\d+)\]$")
+
+
+def _anim_entries(anim):
+    body = anim.strip().rstrip(",")
+    try:
+        return json.loads("[" + body + "]") if body else []
+    except json.JSONDecodeError as e:
+        raise Halt(f"the card's animation spec is not plain JSON, so its points cannot be "
+                   f"timed to the reader's words: {e}")
+
+
+def a17_selector(card, blk, key):
+    m = A17_LIST_KEY.match(key)
+    if m:
+        name, i = m.group(1), int(m.group(2))
+        rest = blk["anim"]
+        while True:
+            found = _first_each(rest)
+            if not found:
+                break
+            _pre, region, body, rest = found
+            if region == name:
+                sm = re.search(r'"sel":"([^"]*\{\{I\}\}[^"]*)"', body)
+                if sm:
+                    return sm.group(1).replace("{{I}}", str(i))
+        raise Halt(f"card {card['id']}: A17 point {key!r} — block {card['block']!r} has no "
+                   f"animated `{name}` list, so there is nothing for that point to land as.")
+    sm = re.search(r'id="([^"]+)"[^>]*>\s*\{\{' + re.escape(key) + r'\}\}\s*<', blk["markup"])
+    if sm:
+        return "#" + sm.group(1)
+    raise Halt(f"card {card['id']}: A17 point {key!r} — block {card['block']!r} draws no "
+               f"element whose whole body is {{{{{key}}}}}, so the point has no element.")
+
+
+def a17_floors(card, blk):
+    """The delay (ms) the block's own stagger gives each A17 point: the earliest it may
+    land, so the card's frame and headline always arrive first."""
+    by_sel = {e.get("sel"): e for e in _anim_entries(block_anim(card, blk))}
+    out = []
+    for key, _anchor in card.get("_a17_points") or []:
+        sel = a17_selector(card, blk, key)
+        if sel not in by_sel:
+            raise Halt(f"card {card['id']}: A17 point {key!r} draws {sel} and the card's "
+                       f"animation has no entry for it.")
+        out.append(int(by_sel[sel]["opts"].get("delay", 0)))
+    return out
+
+
+def apply_a17(anim, card, blk):
+    """Retime a card's points to `card["_a17_delays"]`. Returns (anim, applied).
+
+    Points land at their own delays. Anything the block draws AFTER the first point
+    (a note, a warning line, a rule under a question) keeps its place relative to the
+    latest point it followed; anything before the first point — the card's frame — is
+    untouched. Every retimed entry is marked `a17`, which is how pp-anim.js leaves it out
+    of the BUILD time and card_check out of the row cadence: A17 spaces points by the
+    reader's seconds on purpose, and the 2.5s / 240-320ms rules are about the frame."""
+    pts = card.get("_a17_points") or []
+    if not pts:
+        return anim, False
+    delays = card.get("_a17_delays")
+    # 🔴 AT THE COMMISSION THERE IS NOTHING TO MEASURE YET, AND THAT IS NOT A FAULT. The
+    # pre-flight rehearses every card through render_card long before the renders exist
+    # (CLAUDE.md 4a: test a check against its inputs AS THEY ARE WHEN IT RUNS). So with no
+    # delays the block's own stagger stands; the refusal to AUTHOR a card on a guessed time
+    # is `a17_attach`, which runs only when a page is actually written.
+    if delays is None:
+        return anim, False
+    if len(delays) != len(pts):
+        raise Halt(f"card {card['id']} has {len(pts)} A17 point(s) and {len(delays)} measured "
+                   f"delay(s); each point needs exactly one.")
+    entries = _anim_entries(anim)
+    idx = {e.get("sel"): k for k, e in enumerate(entries)}
+    psel = [a17_selector(card, blk, key) for key, _ in pts]
+    lost = [s for s in psel if s not in idx]
+    if lost:
+        raise Halt(f"card {card['id']}: A17 point element(s) {lost} have no animation entry.")
+    orig = [int(entries[idx[s]]["opts"].get("delay", 0)) for s in psel]
+    new = [int(d) for d in delays]
+    if any(b < a for a, b in zip(new, new[1:])):
+        raise Halt(f"card {card['id']}: A17 delays {new} go backwards; points are said in order.")
+    for s, d in zip(psel, new):
+        entries[idx[s]]["opts"]["delay"] = d
+        entries[idx[s]]["a17"] = "point"
+    first = min(orig)
+    for e in entries:
+        if e.get("sel") in psel:
+            continue
+        od = int((e.get("opts") or {}).get("delay", 0))
+        if od < first:
+            continue
+        lead = max((i for i in range(len(psel)) if orig[i] <= od), key=lambda i: orig[i])
+        e["opts"]["delay"] = od + (new[lead] - orig[lead])
+        e["a17"] = "follows"
+    return ",\n".join(" " + json.dumps(e, ensure_ascii=False, separators=(",", ":"))
+                      for e in entries), True
+
+
+def a17_attach(card, ep):
+    """The card with its MEASURED point delays from episode.json -> build.a17, for authoring.
+
+    Halts when an A17 card has no measurement for exactly its points: a delay is about one
+    anchor, and a missing or stale one would land a point on somebody else's words. Runs at
+    AUTHORING only — after interleave, when the delays can exist (engine/twoway_a17.py)."""
+    if not card.get("_a17_points"):
+        return card
+    r = ((ep.get("build") or {}).get("a17") or {}).get(card["id"]) or {}
+    got = [(p.get("key"), p.get("anchor")) for p in r.get("points") or []]
+    want = [(str(k), str(s)) for k, s in card["_a17_points"]]
+    if got != want or any("delay_ms" not in p for p in r.get("points") or []):
+        raise Halt(f"card {card['id']} builds on the reader's words (A17) and build.a17 has no "
+                   f"measured delay for exactly its points {want}. Run engine/twoway_a17.py "
+                   f"<ep> --write after interleave; a point is never placed on a guessed time.")
+    return dict(card, _a17_delays=[int(p["delay_ms"]) for p in r["points"]])
+
+
+def render_card(card, blk, frame):
+    content = card["content"]
     markup = expand_each(blk["markup"], content, blk)
     markup = fill(markup, content)
-    anim = expand_each(blk["anim"], content, blk, anim=True, anim_over=anim_over)
+    anim = block_anim(card, blk)
 
     # ── A RUNNING TOTAL IS COMPUTED FROM ITS OWN ROWS, NEVER HAND-SET ──────────
     # Same rule, and the same reason, as the bar length in `bars`: a ledger whose
@@ -977,13 +1109,15 @@ def render_card(card, blk, frame):
             stops.append(int(running) if running == int(running) else round(running, 2))
         anim = anim.replace("%%" + cum["token"] + "%%", json.dumps(stops))
 
+    anim, a17_on = apply_a17(anim, card, blk)
     last = max([int(d) for d in re.findall(r'"delay":(\d+)', anim)] or [500])
     page = frame
     page = page.replace("%%GENMARK%%", MARKER)
     # THE BLOCK, ON THE PAGE, so a gate can tell a CARD from standing furniture
     # without keeping a list of filenames. card_check scopes the pacing budget
     # by this and nothing else.
-    page = page.replace("<body", f'<body data-pp-block="{card["block"]}"', 1)
+    page = page.replace("<body", f'<body data-pp-block="{card["block"]}"'
+                        + (' data-pp-a17="1"' if a17_on else ""), 1)
     page = page.replace("%%TITLE%%", esc(card.get("title_tag", f"PP {card['id']}")))
     page = page.replace("%%EYEBROW%%", esc(card.get("eyebrow")))
     page = page.replace("%%HEADLINE%%", esc(card.get("headline_display", card.get("headline"))))
@@ -1287,6 +1421,11 @@ def main():
         for p in problems:
             print(f"  ✗ {p}", file=sys.stderr)
         sys.exit(2)
+
+    # A17 — the MEASURED delay of each point, from build.a17 (engine/twoway_a17.py). Halts
+    # if a card's points were measured for a different list of points than it now carries:
+    # a delay is about one anchor, and a stale one lands a point on somebody else's words.
+    plan = [(a17_attach(c, ep), blk) for c, blk in plan]
 
     os.makedirs(a.out_dir, exist_ok=True)
     wrote, redone, skipped = [], [], []

@@ -368,6 +368,62 @@ def beats_from_turns(turns: list[dict]) -> list[dict]:
     return out
 
 
+def measured_beats(beats: list[dict], cues: list[dict], timeline: list[dict]) -> list[dict]:
+    """The beats with `est_s` replaced by each paragraph's MEASURED length.
+
+    🔴 EP56, 12 Nov 2026: THE PLAN WAS MADE ON THE ESTIMATE CLOCK, AND ONE TURN DID NOT
+    FIT IN REALITY. Gordon read turn 8 in 59.2s against an estimate of 76.2s (words /
+    2.6). Its graphics are FIXED lengths — two b-roll clips and a card, 37.5s — so on the
+    real clock the conversational shots between them fell under the dwell floor, every
+    graphic was pushed later, and the card ran 11s past the end of the turn. Stretching an
+    estimate onto measured audio cannot repair a plan whose graphics do not fit the real
+    seconds; only planning on the real seconds can.
+
+    So once both renders exist and `interleave` has written `merged.srt`, the plan is
+    derived again from the SAME rules on the MEASURED clock: each paragraph's start is
+    the time its first word is said (found by spoken-word index inside its own turn, the
+    split's own figures-to-words fold, so the article text and the spoken script line up),
+    its length runs to the next paragraph's start, and the last runs to the turn's end.
+    The turn's paragraphs then sum to exactly the turn's measured span. Nothing about the
+    rules changes; only the pace they plan against is now true.
+
+    The estimate is kept on each beat as `est_s_words` for the record."""
+    import derive_card_timings as dct
+    import twoway_a17 as ta17
+    words = dct.word_timeline(ta17.untagged(cues))   # the [BB]/[BM] tag would skew times
+    spans: dict[int, tuple[float, float]] = {}
+    for s in timeline:
+        if s.get("turn") is not None and s.get("kind") != "latency":
+            lo, hi = spans.get(s["turn"], (s["from_s"], s["to_s"]))
+            spans[s["turn"]] = (min(lo, s["from_s"]), max(hi, s["to_s"]))
+    out = [dict(b) for b in beats]
+    for turn in sorted({b["turn"] for b in out}):
+        mine = [b for b in out if b["turn"] == turn]
+        lo, hi = spans[turn]
+        w = [(x, t) for x, t in words if lo - 0.05 <= t <= hi + 0.05]
+        # EVERY SENTENCE, not only every paragraph: the planner moves in sentences, and a
+        # turn-open card may land mid-sentence only if that sentence really runs past 5s.
+        sents = [(b, sentences(b["line"]) or [b["line"]]) for b in mine]
+        counts = [len(ta17.spoken_words(s)) for _b, ss in sents for s in ss]
+        total = sum(counts) or 1
+        starts, k = [], 0
+        for n in counts:
+            # scaled, so a fold that differs by a word cannot slide every later sentence
+            idx = min(len(w) - 1, round(k * len(w) / total)) if w else 0
+            starts.append(lo if not starts else (w[idx][1] if w else lo))
+            k += n
+        starts.append(hi)
+        durs = [round(max(0.05, z - a), 2) for a, z in zip(starts, starts[1:])]
+        i = 0
+        for b, ss in sents:
+            mine_d = durs[i:i + len(ss)]
+            i += len(ss)
+            b.setdefault("est_s_words", b["est_s"])
+            b["est_s"] = round(sum(mine_d), 2)
+            b["est_sentence_s"] = mine_d
+    return out
+
+
 def _units(beats: list[dict]) -> list[dict]:
     """Every sentence in the episode, with its own estimated duration.
 
@@ -380,9 +436,14 @@ def _units(beats: list[dict]) -> list[dict]:
         ss = sentences(b["line"]) or [b["line"]]
         words = [max(1, len(s.split())) for s in ss]
         total = sum(words)
-        for s, w in zip(ss, words):
+        # MEASURED sentences when `measured_beats` has given them; otherwise word share.
+        meas = b.get("est_sentence_s")
+        if not (isinstance(meas, list) and len(meas) == len(ss)):
+            meas = None
+        for i, (s, w) in enumerate(zip(ss, words)):
             out.append({"beat": b["n"], "turn": b["turn"], "speaker": b["speaker"],
-                        "text": s, "est_s": round(b["est_s"] * w / total, 2),
+                        "text": s, "est_s": (meas[i] if meas else
+                                             round(b["est_s"] * w / total, 2)),
                         "card": b["card"], "broll": b["broll"],
                         "para_in_turn": b["para_in_turn"],
                         "paras_in_turn": b["paras_in_turn"]})
@@ -486,11 +547,33 @@ def _next_target(cycle_pos: int, last_actual: float | None, tu=None, i=0,
     return (best[1], best[2]) if best else (SINGLE_TARGETS_S[0], cycle_pos + 1)
 
 
+def _a17_unit(tu: list[dict], beat: int, anchor: str) -> int | None:
+    """Index in `tu` of the sentence, in paragraph `beat`, where `anchor` STARTS.
+
+    A turn-open HEAD is skipped: that unit is the two-box's first five seconds of the
+    same sentence, so the words belong to its tail — the part a card may land on."""
+    import twoway_a17 as ta17
+    target = ta17.norm_words(anchor)
+    seq: list[str] = []
+    owner: list[int] = []
+    for j, u in enumerate(tu):
+        if u["beat"] != beat or u.get("_turn_open_head"):
+            continue
+        for w in ta17.norm_words(u["text"]):
+            seq.append(w)
+            owner.append(j)
+    for i in range(len(seq) - len(target) + 1):
+        if seq[i:i + len(target)] == target:
+            return owner[i]
+    return None
+
+
 def _place_graphics(units: list[dict], durs: dict[str, float],
                     holds: dict[str, float],
                     delays: dict[str, int] | None = None,
                     dropped: set | None = None,
-                    reasons: dict | None = None) -> tuple[list[dict], list[str]]:
+                    reasons: dict | None = None,
+                    a17_first: dict[str, str] | None = None) -> tuple[list[dict], list[str]]:
     """Move each turn's graphics to the earliest sentence the dwell law allows.
 
     A graphic is authored against a BEAT — the paragraph whose sentence it illustrates —
@@ -534,6 +617,19 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
                                    else holds.get(ident, CARD_HOLD_DEFAULT_S))
         if not order:
             continue
+        # 🔴 A17 (Jodie, 6 Oct 2026): AN A17 CARD AIMS AT THE SENTENCE OF ITS FIRST POINT,
+        # NOT AT ITS PARAGRAPH'S FIRST SENTENCE. Its points build on the reader's words, so
+        # entering at the paragraph start put EP56's C1/C2/C10 on screen 8, 12 and 15
+        # seconds before anything on them was said — a headline and an empty card. The
+        # paragraph rule below still binds: it may only enter on a sentence of its own
+        # paragraph. A card with no `_a17_points` keeps exactly the old target, so every
+        # episode before EP56 plans byte-identically.
+        a17 = a17_first or {}
+        for key, ident in order:
+            if key == "card" and ident in a17:
+                j1 = _a17_unit(tu, own_beat[ident], a17[ident])
+                if j1 is not None:
+                    first_at[ident] = prefix[j1]
         for u in tu:
             u["card"] = u["broll"] = None
         floor = TURN_OPEN_MIN_S
@@ -571,7 +667,13 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
             # it to one paragraph would drop clips that are already paid for.
             if key == "card":
                 cands = [j for j in cands if tu[j]["beat"] == own_beat[ident]]
-            cands.sort(key=lambda j: (abs(prefix[j] - first_at[ident]), -prefix[j]))
+            if key == "card" and ident in a17:
+                # An A17 card would rather land a sentence EARLY than late: entering after
+                # its first point is said means that point arrives after its own words.
+                cands.sort(key=lambda j: (prefix[j] > first_at[ident] + 0.05,
+                                          abs(prefix[j] - first_at[ident]), -prefix[j]))
+            else:
+                cands.sort(key=lambda j: (abs(prefix[j] - first_at[ident]), -prefix[j]))
             n = delays.get(ident, 0)
             if n >= len(cands):
                 dropped.add(ident)
@@ -716,7 +818,8 @@ def derive_plan(beats: list[dict], broll_durs: dict[str, float] | None = None,
                 delays: dict[str, int] | None = None,
                 dropped: set | None = None,
                 place_log: list | None = None,
-                reasons: dict | None = None) -> list[dict]:
+                reasons: dict | None = None,
+                a17_first: dict[str, str] | None = None) -> list[dict]:
     """The layout timeline: an ordered list of segments over the whole episode.
 
     Each segment is what a viewer sees without a change of picture. `to_s` is a TARGET;
@@ -730,7 +833,7 @@ def derive_plan(beats: list[dict], broll_durs: dict[str, float] | None = None,
     # exactly its hold and returns the rest of the beat to the walk. In that order a
     # card that has moved is split at its NEW position, which is the whole point.
     placed, _plog = _place_graphics(_split_turn_open(_units(beats)), durs, holds,
-                                    delays, dropped, reasons)
+                                    delays, dropped, reasons, a17_first)
     if place_log is not None:
         place_log.extend(_plog)
     units = _split_forced(placed, durs, holds)
@@ -1244,7 +1347,8 @@ def _blame(segs: list[dict], st: dict) -> str | None:
 
 def plan_with_dwell(beats: list[dict], broll_durs: dict[str, float] | None = None,
                     card_holds: dict[str, float] | None = None,
-                    max_rounds: int = 80) -> tuple[list[dict], list[str]]:
+                    max_rounds: int = 80,
+                    a17_first: dict[str, str] | None = None) -> tuple[list[dict], list[str]]:
     """`derive_plan` under the MINIMUM DWELL LAW. Returns (segments, what it did).
 
     🔴 A FIXED POINT, NOT A PREDICTION — and that is the design, not an implementation
@@ -1268,7 +1372,8 @@ def plan_with_dwell(beats: list[dict], broll_durs: dict[str, float] | None = Non
     for _ in range(max_rounds):
         log = []
         segs = derive_plan(beats, broll_durs, card_holds, delays=delays,
-                           dropped=dropped, place_log=log, reasons=reasons)
+                           dropped=dropped, place_log=log, reasons=reasons,
+                           a17_first=a17_first)
         short = short_states(segs)
         if not short:
             return segs, list(reasons.values()) + log
@@ -1501,7 +1606,10 @@ def apply(epj: dict) -> dict:
     # 🔴 THE PLAN COMES THROUGH THE DWELL LAW, NOT ROUND IT. `derive_plan` is still the
     # derivation; `plan_with_dwell` is that derivation run to a fixed point under the
     # 5s floor, moving a graphic rather than shortening a shot.
-    segs, place_log = plan_with_dwell(beats, durs, card_holds=holds)
+    # A17: each card that builds on its words aims at its first point's sentence.
+    import twoway_a17 as ta17
+    segs, place_log = plan_with_dwell(beats, durs, card_holds=holds,
+                                      a17_first=ta17.first_anchors(epj.get("cards", [])))
     epj.setdefault("build", {})["_layout_placement"] = place_log
     derive_reactions(segs, speakers, signals)
 

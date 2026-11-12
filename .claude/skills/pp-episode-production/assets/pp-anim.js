@@ -107,9 +107,16 @@
       // ppDuration includes the LOGO, which lands after the card is made, so it
       // is not the build time and card_check must not use it as one.
       window.ppSpec = spec;
+      // A17 (two-way, EP56 on): an entry marked `a17` lands on the READER'S WORDS, seconds
+      // apart by design, so it is not part of the card's BUILD — the frame still must
+      // assemble inside the budget, the points arrive as they are said. Unmarked pages
+      // (every card before EP56) measure exactly as they always did.
       window.ppBuildMs = spec.reduce(function(m,s){
         if ((s.sel||'').indexOf('#logo') >= 0) return m;
+        if (s.a17) return m;
         return Math.max(m,(s.opts.delay||0)+s.opts.duration); },0);
+      window.ppA17EndMs = spec.reduce(function(m,s){
+        return s.a17 ? Math.max(m,(s.opts.delay||0)+s.opts.duration) : m; },0);
       // Paint once at boot so a driven value is never blank before the first seek.
       paint();
       if (new URLSearchParams(location.search).has('paused')) window.ppSeek(0);

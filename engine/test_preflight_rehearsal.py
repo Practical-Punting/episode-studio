@@ -238,7 +238,16 @@ def main():
     # source names no capture, or the file is not on disk — and BOTH are covered at
     # the commission by capture_reference_faults, which blocks on exactly that.
     CAPTURE = {"source_article_text", "source_article_raw"}   # capture_reference_faults
-    reached = NAMED | LISTY | REH | CAPTURE
+    # A17 (12 Nov 2026): rehearsal_faults calls a17_floors and apply_a17 for every card
+    # with `_a17_points`, so a point keyed to an element the block does not draw halts
+    # at the commission.
+    A17 = {"_anim_entries", "a17_selector", "a17_floors", "apply_a17"}
+    # ⚖️ AUTHORING-ONLY, WITH ITS REASON: `a17_attach` refuses to write a card whose
+    # points have not been MEASURED on the finished clock. Those delays come from the
+    # merged SRT, which exists only after both renders and interleave, so no commission
+    # route to it can exist — its halt IS the rule "never a guessed time".
+    AUTHORING_ONLY = {"a17_attach"}
+    reached = NAMED | LISTY | REH | CAPTURE | A17 | AUTHORING_ONLY
     import re as _re
     fn, orphans, sites = None, [], 0
     for line in src.splitlines():

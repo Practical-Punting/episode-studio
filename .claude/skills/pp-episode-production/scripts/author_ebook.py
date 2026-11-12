@@ -233,6 +233,45 @@ DEPARTURES = {
 # slipped". The guards bound the MECHANISM; nothing bounds the JUDGEMENT about when to
 # invoke it. The protection is that every use is a named per-episode decision carrying a
 # note the reader can see.
+# ══ SANCTIONED SUBSTITUTIONS — a two-way episode's own, ruled per episode (EP56 on) ═════
+#
+# Jodie, 11 Nov 2026, on EP56: NAME THE SITE, DROP THE ADDRESS. bloodhorsereview.com.au is
+# now an unrelated blog, so the book must not send a reader there; the other two addresses
+# follow the same rule. The cuts are declared ONCE, in the episode's
+# docs/sanctioned-substitutions.json, and read by `twoway_split.load_substitutions` — the
+# same file and the same parser that made the spoken scripts, so the film and the book
+# cannot drop different words.
+#
+# Applied to the ARTICLE side of the comparison, like a correction, so the body must still
+# equal the article-with-exactly-these-cuts character for character: an undeclared change
+# halts as it always did, and a cut the body forgets to make halts too (the article side no
+# longer has the address, so a body that still prints it matches nothing).
+def apply_sanctioned(article: list[str], docs_dir: str) -> tuple[list[str], list[str]]:
+    import pathlib
+    engine = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..",
+                          "engine")
+    if engine not in sys.path:
+        sys.path.insert(0, engine)
+    import twoway_split as ts
+    subs = ts.load_substitutions(pathlib.Path(docs_dir))
+    out, done = list(article), []
+    for s in subs:
+        before = re.sub(r"\s+", " ", s["before"]).strip()
+        after = re.sub(r"\s+", " ", s["after"]).strip()
+        where = f"sanctioned substitution {s['id']}"
+        if before.replace(s["find"], s["replace"]) != after or s["find"] not in before:
+            raise Halt(f"{where}: applying it to its 'before' sentence does not give its "
+                       f"'after'. Nothing is checked against a cut that does not add up.")
+        hits = [i for i, p in enumerate(out) if before in p]
+        if len(hits) != 1:
+            raise Halt(f"{where}: its sentence occurs in {len(hits)} paragraph(s) of the "
+                       f"source article, not exactly one: {before[:90]!r}")
+        out[hits[0]] = out[hits[0]].replace(before, after, 1)
+        done.append(f"{s['id']}: {s['find'].strip()!r} cut ({s.get('speaker', '?')}, turn "
+                    f"{s.get('turn', '?')})")
+    return out, done
+
+
 _FIGURE = re.compile(r"[0-9.,%]+")
 _PER_CENT = re.compile(r"per\s+cent", re.I)
 
@@ -1876,6 +1915,11 @@ def main():
 
     blocks = article_blocks(source_article_path(ep, ep_dir))
     article = [re.sub(r"\s+", " ", b) for b in blocks]
+    # The episode's SANCTIONED cuts (two-way; none on almost every episode) — see
+    # apply_sanctioned. Applied before the body is compared, to the article side only.
+    article, sanctioned = apply_sanctioned(article, ep_dir)
+    for line in sanctioned:
+        print(f"    sanctioned: {line}", file=sys.stderr)
 
     # THE CHART SLOTS ARE FILLED BEFORE ANYTHING LOOKS AT THE BODY, so every check
     # downstream sees the page as it will print. `body.html` on disk is untouched —
@@ -1918,6 +1962,9 @@ def main():
     fidelity, pos = check_fidelity(prose, quoted, ep, article, headings, figures, tables,
                                    notes)
     report += [fidelity, check_figures(figures, ep)]
+    if sanctioned:
+        report.append(f"sanctioned cuts applied to the article side ({len(sanctioned)}): "
+                      + "; ".join(sanctioned))
     report += [r for r in (check_figure_placement(ep, article, items, figures),) if r]
     # WHERE THE CHART SITS. Asked after the words are proved, because "this chart is in
     # the wrong place" is only worth saying about a chart that is the right chart.

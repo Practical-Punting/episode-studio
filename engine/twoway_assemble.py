@@ -155,6 +155,40 @@ def sentence_ends_in(cues: list[dict], lo: float, hi: float) -> list[float]:
     return [e for e in ti.sentence_ends(cues) if lo + 0.01 < e < hi - 0.01]
 
 
+def planned_entry(mine: list[dict], s: dict, cues: list[dict], lo: float,
+                  hi: float) -> float | None:
+    """The MEASURED end of the sentence the plan put immediately before graphic `s`.
+
+    🔴 EP56, 12 Nov 2026: the plan places a graphic on a SENTENCE — the segment before it
+    names, in `snap_to_sentence`, the sentence its end is. `map_layout` used to ignore that
+    and snap the graphic to whichever sentence end was nearest its ARITHMETIC position
+    (fraction of the turn), and the arithmetic drifts wherever the reader's pace inside a
+    turn differs from words / 2.6: on EP56 card C7 ("why drawn wide?") came out 13.9s after
+    its own words had been said. That went unseen while every point appeared on entry;
+    A17, which lands each point ON its words, made it visible.
+
+    Matched on the sentence's last six words in their SPOKEN form (the split's own fold,
+    so "$1000." finds "one thousand dollars."), inside this turn's span. None if the plan
+    names no sentence or the words are not found — the caller then keeps the old snap."""
+    i = mine.index(s)
+    if i == 0:
+        return None
+    snap = mine[i - 1].get("snap_to_sentence")
+    if not snap:
+        return None
+    import twoway_a17 as ta17
+    tail = ta17.spoken_words(snap)[-6:]
+    if not tail:
+        return None
+    for c in cues:
+        if c["end"] < lo - 0.01 or c["start"] > hi + 0.01:
+            continue
+        w = ta17.norm_words(c["text"])
+        if w[-len(tail):] == tail:
+            return c["end"]
+    return None
+
+
 def map_layout(plan: list[dict], tl: list[dict], cues: list[dict],
                head_s: float) -> list[dict]:
     """The dialogue layout, stretched onto the measured timeline, turn by turn.
@@ -243,7 +277,11 @@ def map_layout(plan: list[dict], tl: list[dict], cues: list[dict],
                 cands = [e for e in ends
                          if e >= floor - 0.001 and e + want <= hi - 0.001]
                 if cands:
-                    cand = min(cands, key=lambda e: abs(e - t0))
+                    # Aim at the sentence the PLAN put this graphic after; the
+                    # arithmetic position is only the fallback (see planned_entry).
+                    ref = planned_entry(mine, s, cues, lo, hi)
+                    ref = t0 if ref is None else ref
+                    cand = min(cands, key=lambda e: abs(e - ref))
                     t0 = cand
                     if cand < clock - 0.001 and out and out[-1]["turn"] == turn:
                         out[-1]["to_s"] = round(cand + head_s, 3)
@@ -625,13 +663,15 @@ def mark_dissolves(mapped: list[dict], tl: list[dict], head_s: float,
     return out
 
 
-def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
-    d = ep_paths.episode_dir(ep_number, pp)
-    epj = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
-    tlj = json.loads((d / "renders/master-timeline.json").read_text(encoding="utf-8"))
-    cues = ti.read_srt((d / "renders/merged.srt").read_text(encoding="utf-8"))
-    tl = tlj["timeline"]
+def mapped_segments(d: pathlib.Path, epj: dict, tl: list[dict], cues: list[dict]) -> dict:
+    """The picture timeline on the FINISHED clock: the layout mapped onto measured audio,
+    the furniture in, latency beats absorbed, b-roll reverted or clamped to what is on disk.
 
+    Its own function because TWO callers must see the identical segments: `build_plan`,
+    and `twoway_a17`, which measures each card's points on this clock BEFORE the cards
+    exist (their clips are authored from what it measures). A b-roll clamp moves the
+    segment after it; measuring on any other copy of this would time points to a card
+    entry the render never uses."""
     mapped = map_layout(epj["layout_plan"], tl, cues, TITLE_HEAD_S)
 
     # 🔴 THE FURNITURE IS PART OF THE PICTURE TIMELINE, NOT A NOTE BESIDE IT. Gordon
@@ -728,6 +768,19 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
                     mapped[i + 1]["to_s"] - mapped[i + 1]["from_s"], 3)
             clamped.append({"slot": s["broll"], "at_s": s["from_s"],
                             "gave_back_s": gave, "clip_s": round(have, 3)})
+    return {"mapped": mapped, "have_broll": have_broll, "missing_broll": missing_broll,
+            "cards": cards, "reverted": reverted, "clamped": clamped}
+
+
+def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
+    d = ep_paths.episode_dir(ep_number, pp)
+    epj = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+    tlj = json.loads((d / "renders/master-timeline.json").read_text(encoding="utf-8"))
+    cues = ti.read_srt((d / "renders/merged.srt").read_text(encoding="utf-8"))
+    tl = tlj["timeline"]
+    m = mapped_segments(d, epj, tl, cues)
+    mapped, have_broll, missing_broll = m["mapped"], m["have_broll"], m["missing_broll"]
+    cards, reverted, clamped = m["cards"], m["reverted"], m["clamped"]
 
     dropped_cards = [s["card"] for s in mapped
                      if s.get("card") and s["card"] not in cards]
@@ -736,6 +789,28 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
             f"card(s) {sorted(set(dropped_cards))} are in the plan and have no rendered "
             f"clip in overlay/clips. A card in the plan and not on disk is a hole in "
             f"the picture; render them or take them out of the plan.")
+
+    # 🔴 A17 (Jodie, 6 Oct 2026): every point is measured HERE, on this plan's own mapped
+    # clock, and compared with the delays the cards were authored from (build.a17). A card
+    # rendered from yesterday's timing would land its points on somebody else's words, and
+    # nothing on screen would say so. Episodes with no `_a17_points` skip this entirely.
+    import twoway_a17 as ta17
+    a17, a17_faults = {}, []
+    if any(ta17.is_a17(c) for c in epj.get("cards", [])):
+        import author_cards as ac
+        floors = {c["id"]: ac.a17_floors(c, ac.load_block(c["block"]))
+                  for c in epj.get("cards", []) if ta17.is_a17(c)}
+        a17 = ta17.measure(mapped, cues, tl, epj, TITLE_HEAD_S, floors)
+        a17_faults = ta17.violations(a17, epj)
+        stored = (epj.get("build") or {}).get("a17") or {}
+        for cid, r in a17.items():
+            now = [p.get("delay_ms") for p in r.get("points") or []]
+            was = [p.get("delay_ms") for p in (stored.get(cid) or {}).get("points") or []]
+            if now != was:
+                a17_faults.append(
+                    f"A17 {cid}: its card was authored from delays {was} and this plan "
+                    f"measures {now}. Run engine/twoway_a17.py --write, re-author and "
+                    f"re-render the card.")
 
     cover = d / "ebook/cover.png"
     have_cover = cover.is_file()
@@ -788,6 +863,9 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
         "end_card": end_card,
         "graphics": graphics,
         "joins": joins,
+        "a17": a17,
+        "a17_violations": a17_faults,
+        "a17_notes": ta17.notes(a17) if a17 else [],
         # ASKED OF THE DISK, not of a table. §7: derive the coverage from the thing
         # itself, because a list somebody maintains is already broken.
         "clip_durations": {n: round(_dur(str(d / "overlay/clips" / n)), 3)
@@ -923,6 +1001,8 @@ def violations(plan: dict) -> list[str]:
                 f"It gets {DISSOLVE_FRAMES} frames.")
 
     out.extend(tes.violations(plan))
+    # 4d — A17: every point said while its card is up, and the card authored from it.
+    out.extend(plan.get("a17_violations") or [])
 
     # 5 — THE MINIMUM DWELL LAW, on the MAPPED plan and not the estimate
     for st in tb.short_states(segs):

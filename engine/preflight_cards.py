@@ -255,6 +255,13 @@ def rehearsal_faults(ac, card, blk) -> list[str]:
         page = ac.render_card(card, blk, frame)
         ac.assert_no_invented_text(page, card, frame, blk)
         ac.assert_measured_items_show_a_figure(card, blk)
+        # A17 (two-way): every point must name an element this block draws. WHEN each is
+        # said cannot be known until the renders exist, but WHAT lands can — so a point
+        # keyed to a list item the card does not have is caught here, at the commission.
+        if card.get("_a17_points"):
+            ac.a17_floors(card, blk)
+            ac.apply_a17(ac.block_anim(card, blk),
+                         dict(card, _a17_delays=[0] * len(card["_a17_points"])), blk)
     except Exception as e:
         return [_readable(card.get("id", "?"), e)]
     return []

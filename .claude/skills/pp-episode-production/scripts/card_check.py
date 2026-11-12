@@ -386,6 +386,7 @@ def build_ms(page):
       let end = 0;
       for (const a of s) {
         if ((a.sel || '').indexOf('#logo') >= 0) continue;
+        if (a.a17) continue;          // A17: lands on the reader's words, not the build
         const o = a.opts || {};
         end = Math.max(end, (o.delay || 0) + (o.duration || 0));
       }
@@ -432,6 +433,9 @@ def check_page(page, url):
         // A block may DECLARE a series structural — `ratio`'s marks are a
         // picture of a proportion, not twelve values anybody reads one by one.
         if (a.pace === 'structural') continue;
+        // A17 (Jodie, 6 Oct 2026): points land as the reader SAYS them, seconds apart
+        // by design. The 240-320ms cadence is about rows arriving on their own.
+        if (a.a17) continue;
         const m = (a.sel || '').match(/^([#.][A-Za-z_.-]*?)(\\d+)(\\D.*)?$/);
         if (!m) continue;
         (by[m[1] + (m[3] || '')] = by[m[1] + (m[3] || '')] || [])
@@ -454,6 +458,10 @@ def check_page(page, url):
                 f"want {DATA_STEP_MIN_MS}-{DATA_STEP_MAX_MS}ms; anything quicker is "
                 f"structural pace on material that has to be read.")
     hold_ms = HOLD_MS[0] if is_card else 0
+    # A17: the composition the viewer takes away is complete only when the LAST POINT has
+    # landed, so the settle is measured from there, not from the frame's build.
+    a17_end = page.evaluate("() => window.ppA17EndMs || 0") if is_card else 0
+    built = max(built, a17_end)
     if hold_ms and hold_ms - built < SETTLE_MIN_MS:
         problems.append(
             f"the finished card settles for only {hold_ms - built}ms before it "
