@@ -644,3 +644,14 @@ The corrector's own stride line ends *"…across the field"*, so a led yearling,
 | broll-an-empty-country-racecourse | our tracks come in all shapes and sizes | 10.0s |
 | broll-a-racegoer-watches-through-binoculars | those punters who like to dissect the clock | 8.0s |
 | broll-notes-beside-a-form-guide | I then go back and look at the form of all the other contend | 10.0s |
+
+#### 🚫 EP56 — REJECTED 12 NOV 2026 — SADDLECLOTH NUMBERS (Jodie, 12 Nov 2026). A rejected clip stays rejected for every use.
+Found at FULL SIZE in cut 1, after the 11 Nov approval at review size. Reason: numerals on the saddlecloths.
+- 🚫 `broll-two-runners-gallop-on-a-rain-soaked-track` (slot 0, job `e29ab178`) — a "1" on one saddlecloth, the whole clip.
+- 🚫 `broll-two-runners-turn-for-home` (slot 1, job `5cb3712d`) — a "3" on BOTH saddlecloths, the whole clip.
+- 🚫 `broll-a-lone-front-runner-leads-by-lengths` (slot 2, job `fa0018fe`) — "2" then "8", AND the shot jumps at ~5.1s
+  (the horses reverse direction). **OUT WHATEVER HAPPENS** (Jodie).
+
+📌 **The library search for their replacements: of 18 ridden library clips checked at full size, 14 show numbers, letters
+or logos** (the other 4 failed on cuts or field size first, cloths not clearly visible) — including EP55's `broll-three-runners-jump-from-the-barriers` ("6", "1"), whose prompt said *"plain
+saddlecloths with no numbers"*. The prompt wording is not stopping it. Detail: `PP-EP56-…\docs\EP56-broll-review.md`.
