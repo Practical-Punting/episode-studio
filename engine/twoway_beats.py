@@ -233,6 +233,26 @@ the Higgsfield call passes the duration EXPLICITLY rather than taking the 5s def
 it enters cleanly, and its OUT point is the duration, because a cutaway plays under a
 line that is still running. Only the two-box↔single boundaries snap at both ends."""
 
+
+def broll_floor_s(entry: dict) -> float:
+    """The shortest this b-roll clip may play. 8s — unless it is a LIBRARY RE-USE.
+
+    ⚖️ Jodie, 12 Nov 2026 (EP56): "The clips from the library can be 5s. That is ok." The
+    library is 5.04s clips almost to a man (267 of 278), so the 8s floor blocked re-use by
+    LENGTH before relevance got a say. A re-used clip says so with `library_from` (the
+    episode it came from) and its floor is its own real length, never more than 8s. A clip
+    generated for the episode keeps the 8s floor: that one is asked for at its length."""
+    if entry.get("library_from") and entry.get("dur_s"):
+        return min(BROLL_DUR_MIN_S, float(entry["dur_s"]))
+    return BROLL_DUR_MIN_S
+
+
+def broll_floors(epj: dict) -> dict[str, float]:
+    """`broll_floor_s` for every b-roll entry, by target — the ONE definition both the plan
+    check and the assembler's check read."""
+    return {b["target"]: broll_floor_s(b) for b in epj.get("broll", []) if b.get("target")}
+
+
 # ── THE REACTION LIBRARY (PP-TWO-WAY-REACTIONS.md §3) ─────────────────────────────
 BEDS = ("R1a", "R1b", "R11")
 PUNCT = ("R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R12")
@@ -709,6 +729,25 @@ def _place_graphics(units: list[dict], durs: dict[str, float],
                                           abs(prefix[j] - first_at[ident]), -prefix[j]))
             else:
                 cands.sort(key=lambda j: (abs(prefix[j] - first_at[ident]), -prefix[j]))
+            # 🔴 …AND LATE IS NOT AN OPTION AT ALL (EP56 cut 2, 12 Nov 2026). Entering after the
+            # sentence its first point is in means that point is SAID BEFORE THE CARD IS UP —
+            # the A17 fault `twoway_a17.violations` then reports and the render refuses. Placing
+            # it there anyway just moved the failure downstream (C7 at 40.5s, its point at 37s).
+            # So an A17 card with no entry at or before its first point's sentence is DROPPED
+            # here, and the reason says exactly that.
+            if key == "card" and ident in a17:
+                early = [j for j in cands if prefix[j] <= first_at[ident] + 0.05]
+                if delays.get(ident, 0) >= len(early) and len(cands) > len(early):
+                    dropped.add(ident)
+                    reasons.setdefault(ident, (
+                        f"DROPPED {ident} from turn {turn}: A17 — the only legal entries left "
+                        f"are AFTER the sentence its first point is in ({first_at[ident]:.1f}s "
+                        f"into the turn), so that point would be said before the card is up. "
+                        f"Every entry at or before that sentence breaks the {MIN_DWELL_S:.0f}s "
+                        f"dwell law or the turn's floors. ⚠️ The remedies are human — move or "
+                        f"drop the graphic before it, or let this card go."))
+                    continue
+                cands = early
             n = delays.get(ident, 0)
             if n >= len(cands):
                 dropped.add(ident)
@@ -1451,7 +1490,7 @@ def plan_with_dwell(beats: list[dict], broll_durs: dict[str, float] | None = Non
         f"not settle."]
 
 
-def violations(segs: list[dict]) -> list[str]:
+def violations(segs: list[dict], floors: dict[str, float] | None = None) -> list[str]:
     """Where the rules and this article do not fit. REPORTED, never silently smoothed."""
     out = []
     gaps, listening = punct_intervals(segs)
@@ -1483,10 +1522,11 @@ def violations(segs: list[dict]) -> list[str]:
             # remedy and a failure with no remedy is a failure nobody can act on.
             out.append(f"single of {s['dur_s']:.1f}s at {s['from_s']:.0f}s — over the "
                        f"{SINGLE_MAX_S:.0f}s HARD ceiling.")
-        if s["kind"] == "broll" and not (BROLL_DUR_MIN_S <= s["dur_s"]
-                                         <= BROLL_DUR_MAX_S):
+        # `floors` (broll_floors(epj)): a LIBRARY re-use may play at its own length.
+        lo = (floors or {}).get(s.get("broll"), BROLL_DUR_MIN_S)
+        if s["kind"] == "broll" and not (lo - 0.001 <= s["dur_s"] <= BROLL_DUR_MAX_S):
             out.append(f"b-roll {s['broll']} is {s['dur_s']:.1f}s — outside the "
-                       f"{BROLL_DUR_MIN_S:.0f}–{BROLL_DUR_MAX_S:.0f}s rule.")
+                       f"{lo:.1f}–{BROLL_DUR_MAX_S:.0f}s rule.")
     # 🔵 THE ADJACENT-LENGTH CHECK IS ABOUT CHOSEN LENGTHS. It guarded the cycle of
     # targets: two singles the walk SET to the same length read as a pattern. Under
     # RULE 1 nothing sets them — a single is the gap between two graphics — so a

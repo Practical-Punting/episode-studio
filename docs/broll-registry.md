@@ -669,3 +669,16 @@ saddlecloths with no numbers"*. The prompt wording is not stopping it. Detail: `
   An "8"/"18" on the leader's saddlecloth; the second horse sits half out of frame at the right edge, not "well back".
 - Both kept for the record in `output/qc/broll-fullsize/remakes/` (NOT in `broll/`), byte-exact to the server, with sheets.
 - ⏳ OPEN — Jodie: what fills the turn-for-home and front-runner slots. Nothing more can be generated without a new approval.
+
+#### ♻️ EP56 CUT 2 — B-ROLL AS BUILT (12 Nov 2026; Cowork's calls on Jodie's behalf: "Use the b roll that you think are the best ones.")
+| File | Subject/line | length | source |
+|---|---|---|---|
+| broll-rain-falling-on-an-empty-turf-track | Some sires manage to produce terrific wet-weather gallopers | 5.04s | **RE-USED from PP-EP37** (aired there under "is open to much debate"); byte-identical copy; checked at full size 12 Nov — no horses or people, no lettering, no jump |
+| broll-an-empty-country-racecourse | our tracks come in all shapes and sizes | 10.0s | EP56, generated 11 Nov |
+| broll-a-racegoer-watches-through-binoculars | those punters who like to dissect the clock | 8.0s | EP56, generated 11 Nov |
+| broll-notes-beside-a-form-guide | I then go back and look at the form of all the other contend | 10.0s | EP56, generated 11 Nov |
+
+- Turn for home (beat 12) and lone front-runner (beat 18): **NO B-ROLL** — the two-box and cards cover them.
+- The three rejected clips sit in `PP-EP56-…\broll\_rejected\` (moved, not deleted).
+- Engine: `twoway_beats.broll_floor_s` — a library re-use (`library_from`) may play at its own length (Jodie, 12 Nov:
+  "The clips from the library can be 5s.").

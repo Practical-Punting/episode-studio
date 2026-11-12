@@ -449,7 +449,7 @@ def main() -> int:
               f"b-roll {100 * t['broll_s'] / t['total_s']:.1f}%")
         for line in epj["build"].get("_layout_placement") or []:
             print("  · " + line[:200])
-        for v in tb.violations(epj["layout_plan"]):
+        for v in tb.violations(epj["layout_plan"], tb.broll_floors(epj)):
             print("  plan: " + v[:220])
     # The SAME segments the render will use (b-roll clamps included) — never a second copy.
     segs = ta.mapped_segments(d, epj, tlj["timeline"], cues)["mapped"]

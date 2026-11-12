@@ -882,6 +882,7 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
         "furniture": [s for s in tl if s.get("kind") == "furniture"],
         "timeline": tl,
         "broll_on_disk": have_broll,
+        "broll_floors": tb.broll_floors(epj),
         "broll_missing": missing_broll,
         "broll_reverted_to_speaker": reverted,
         "broll_clamped_to_clip": clamped,
@@ -976,11 +977,12 @@ def violations(plan: dict) -> list[str]:
                     f"It clears the {tb.MIN_DWELL_S:.0f}s dwell floor and still cannot "
                     f"be read — a card is never sped up to fit.")
         elif s.get("broll") and s["broll"] in plan["broll_on_disk"]:
-            if s["dur_s"] + 0.05 < tb.BROLL_DUR_MIN_S:
+            lo = (plan.get("broll_floors") or {}).get(s["broll"], tb.BROLL_DUR_MIN_S)
+            if s["dur_s"] + 0.05 < lo:
                 out.append(
                     f"B-ROLL TOO SHORT AFTER MAPPING: {s['broll']} is on screen "
                     f"{s['dur_s']:.1f}s at {s['from_s']:.0f}s, under the "
-                    f"{tb.BROLL_DUR_MIN_S:.0f}s the format asserts.")
+                    f"{lo:.1f}s the format asserts for it.")
     for s in segs:
         if s.get("squeezed"):
             out.append(f"NO ROOM: {s['squeezed']}. The remedy is editorial — move "
