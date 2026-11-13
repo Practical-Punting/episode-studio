@@ -685,6 +685,24 @@ def pages_done(ep: Ep) -> bool:
         and ep.p(f"overlay/export/ep{ep.n}-title.html").is_file()
 
 
+def timing_done(ep: Ep) -> bool:
+    f = ep.p("output/run/card-timing.json")
+    return f.is_file() and json.loads(f.read_text(encoding="utf-8")).get("episode_json_md5") \
+        == _md5(ep.p("docs/episode.json"))
+
+
+def do_card_timing(ep: Ep):
+    """A17 ON THE PAGES (found 13 Nov 2026 by the EP58 card helper, before it bit): the replan writes
+    the measured point times into episode.json (build.a17), but the card pages were authored before
+    there were any, so their points would build on the block's own stagger, not on the reader's words.
+    author_cards re-authors every generated page whose content changed — the same step EP56 ran by
+    hand — so this runs after the replan and before the graphics render."""
+    _run(ep, "card-timing", PY + [SCRIPTS / "author_cards.py", ep.p("docs/episode.json"),
+                                  ep.p("overlay/export")])
+    _write_json(ep.p("output/run/card-timing.json"), {"episode_json_md5": _md5(ep.p("docs/episode.json")),
+                                                      "at": _now()})
+
+
 def graphics_done(ep: Ep) -> bool:
     clips = ep.p("overlay/clips")
     want = [pathlib.Path(pg).stem for pg in _card_pages(ep)] + [f"ep{ep.n}-title"]
@@ -693,8 +711,14 @@ def graphics_done(ep: Ep) -> bool:
 
 def do_graphics(ep: Ep):
     pages = [pathlib.Path(pg).name for pg in _card_pages(ep)]
+    # Cards whose content would sit under the film's corner chip are rendered lifted clear
+    # (twoway_cards --keep-clear). The list lives in the episode's own data — build.keep_clear —
+    # found by the card check (13 Nov 2026: EP58 C3, EP59 C6/C13), never remembered.
+    clear = []
+    for pg in (ep.epj().get("build") or {}).get("keep_clear") or []:
+        clear += ["--keep-clear", pathlib.Path(pg).name]
     _run(ep, "cards", PY + [HERE / "twoway_cards.py", ep.n, *pages, "end-card-template.html",
-                            "--as", "end-card-template.html=end-card-template-nologo.mp4"],
+                            "--as", "end-card-template.html=end-card-template-nologo.mp4", *clear],
          lock="graphics")
     std = [f"ep{ep.n}-title.html", "warranty-slide.html", "end-card-template.html",
            "midroll-lowerthird.html"]
@@ -864,6 +888,7 @@ STEPS = [
               "one page per card in docs/episode.json (its `page`), with the standing pages "
               "(warranty-slide, end-card-template, midroll-lowerthird, pp-anim.js, assets) copied as "
               "PP-EP56 has them. Load the pp-motion-graphics skill first. Then run me again.")),
+    (4, "card_timing", "code", timing_done, do_card_timing),
     (4, "graphics", "code", graphics_done, do_graphics),
     (4, "chips", "code", _exists("overlay/export/twoway-chips-BB.png", "overlay/export/twoway-chips-BM.png"),
      do_chips),
