@@ -556,9 +556,13 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False,
                indent=2, ensure_ascii=False) + "\n"}
 
     if write:
-        # 🔴 A RENDER SCRIPT ALREADY ON DISK IS NEVER OVERWRITTEN SILENTLY: it may be
-        # the one Jodie pasted. Identical → left alone; different → halt unless --force.
-        changed = [n for n, b in out.items() if (docs / n).is_file()
+        # 🔴 A COMPOSED RENDER SCRIPT IS NEVER OVERWRITTEN SILENTLY: it may be the one
+        # Jodie pasted. "Composed" = the manifest is already beside it (the mark only this
+        # step writes). The splitter's dialogue-only scripts, written before this step
+        # ever ran, are not composed and were never pasted, so they are replaced freely.
+        # Identical → left alone; composed and different → halt unless --force.
+        composed = (docs / MANIFEST.format(code=host)).is_file()
+        changed = [n for n, b in out.items() if composed and (docs / n).is_file()
                    and (docs / n).read_text(encoding="utf-8") != b
                    and n.startswith("spoken-words-")]
         if changed and not force:

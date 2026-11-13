@@ -172,7 +172,13 @@ refused("CONTROL: L5 for EP56 → refused, EP55 used it inside the window",
 
 # ── 5. never silently overwrite a pasted script ──────────────────────────────────
 print("\n-- 5. writing --")
+# The splitter writes dialogue-only scripts BEFORE this step: not composed, never pasted,
+# so they are replaced without --force (no manifest beside them yet).
+(sdocs / "spoken-words-BB.txt").write_text("the splitter's dialogue only\n", encoding="utf-8")
 tf.build(56, sand, write=True)
+check("a dialogue-only script (no manifest yet) is replaced without --force",
+      (sdocs / "spoken-words-BB.txt").read_text(encoding="utf-8")
+      == (d56 / "spoken-words-BB.txt").read_text(encoding="utf-8"))
 check("first write lands in the sandbox, guest script included",
       (sdocs / "spoken-words-BM.txt").read_text(encoding="utf-8")
       == (d56 / "spoken-words-BM.txt").read_text(encoding="utf-8"))
