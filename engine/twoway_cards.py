@@ -46,12 +46,58 @@ CORNER = (1400, 850)          # the logo's corner: every PP card puts it bottom-
 MIN_DIFF_PX = 300             # a 214x65 mark is ~13,900 px; under 300 nothing was hidden
 MAX_OUTSIDE_MAD = 0.5         # grey levels: the rest of the card must not move at all
 
+# 🔴 THE CARD MUST LEAVE ROOM FOR THE FILM'S CORNER CHIP (EP56 cut 3, 13 Nov 2026). The chip
+# (428x140, bottom-right) now runs over every card; cards were laid out around their own
+# 214x65 mark. C8's "ruler" bottom row ran under the chip and lost the end of "At others".
+# Measured on every rendered no-logo card (`chip_content_px`), and a card with content there
+# HALTS — the coverage is the render itself, so a new card or block is checked by existing.
+# The remedy is `--keep-clear PAGE`: the card's bottom padding lifted clear of the chip, in
+# BOTH the control and the no-logo render, so `prove` still compares like with like.
+CHIP_MAX_PX = 50              # stray anti-aliasing allowed under the chip, nothing more
+CHIP_INK_GREY = 40            # a pixel this far from the card's own background is content
+CHIP_CLEAR_GAP = 20           # air between the lifted content and the chip's top edge
+
+
+def chip_box() -> tuple[int, int, int, int]:
+    """(x0, y0, x1, y1) of the film's corner chip — from `twoway_render.corner_logo`, not typed."""
+    import twoway_render as tr
+    g = tr.corner_logo({})
+    return g["x"], g["y"], g["x"] + g["w"], g["y"] + g["h"]
+
+
+def keep_clear_css() -> str:
+    pad = 1080 - chip_box()[1] + CHIP_CLEAR_GAP
+    return (f"<style data-twoway-chip-clear>.card{{padding-bottom:{pad}px!important}}"
+            f"</style>")
+
+
+FLAT_BG_SHARE = 0.35          # a card's own background covers at least this much of the frame
+
+
+def chip_content_px(clip: pathlib.Path) -> tuple[int | None, tuple | None]:
+    """How many pixels of CONTENT sit under the corner chip on the card's last (fully built)
+    frame, and their bounding box. Background = the frame's most common grey.
+    (None, None) for a PICTURE page — no flat background (the title card's hero photograph),
+    where "differs from the background" would call the photograph content."""
+    import numpy as np
+    a = last_frame(clip)
+    bg = int(np.bincount(a.ravel()).argmax())
+    if float((np.abs(a - bg) <= 6).mean()) < FLAT_BG_SHARE:
+        return None, None
+    x0, y0, x1, y1 = chip_box()
+    ink = np.abs(a[y0:y1, x0:x1] - bg) > CHIP_INK_GREY
+    n = int(ink.sum())
+    if not n:
+        return 0, None
+    ys, xs = np.nonzero(ink)
+    return n, (x0 + int(xs.min()), y0 + int(ys.min()), x0 + int(xs.max()), y0 + int(ys.max()))
+
 
 class Halt(Exception):
     pass
 
 
-def nologo_copy(page: pathlib.Path, tmpname: str) -> pathlib.Path:
+def nologo_copy(page: pathlib.Path, tmpname: str, extra: str = "") -> pathlib.Path:
     src = page.read_text(encoding="utf-8")
     if 'id="logo"' not in src and 'class="logo"' not in src:
         raise Halt(f"{page.name} has no #logo/.logo element, so there is nothing to hide "
@@ -59,7 +105,15 @@ def nologo_copy(page: pathlib.Path, tmpname: str) -> pathlib.Path:
     if "</head>" not in src:
         raise Halt(f"{page.name} has no </head>; the hide rule has nowhere to go.")
     out = page.with_name(tmpname)
-    out.write_text(src.replace("</head>", HIDE + "</head>", 1), encoding="utf-8")
+    out.write_text(src.replace("</head>", HIDE + extra + "</head>", 1), encoding="utf-8")
+    return out
+
+
+def clear_copy(page: pathlib.Path, tmpname: str) -> pathlib.Path:
+    """The with-logo CONTROL for a --keep-clear page: same lift, logo kept."""
+    src = page.read_text(encoding="utf-8")
+    out = page.with_name(tmpname)
+    out.write_text(src.replace("</head>", keep_clear_css() + "</head>", 1), encoding="utf-8")
     return out
 
 
@@ -113,31 +167,53 @@ def main() -> int:
     ap.add_argument("pages", nargs="+")
     ap.add_argument("--as", dest="rename", action="append", default=[],
                     help="PAGE=OUT.mp4 — name the no-logo clip for that page")
+    ap.add_argument("--keep-clear", dest="clear", action="append", default=[],
+                    help="PAGE — lift the card's bottom edge clear of the film's corner chip")
     a = ap.parse_args()
     d = ep_paths.episode_dir(a.ep_number)
     export, clips = d / "overlay/export", d / "overlay/clips"
     rename = dict(x.split("=", 1) for x in a.rename)
+    clear = set(a.clear)
     pages = [export / p for p in a.pages]
-    missing = [p.name for p in pages if not p.is_file()]
+    missing = [p.name for p in pages if not p.is_file()] + [c for c in clear if c not in a.pages]
     if missing:
-        raise Halt(f"no such page(s) in overlay/export: {missing}")
+        raise Halt(f"no such page(s) in overlay/export (or --keep-clear names a page not "
+                   f"being rendered): {missing}")
 
     tmps = []
     try:
+        ctrl = {}
         for p in pages:
-            tmps.append(nologo_copy(p, f"_nologo_{p.name}"))
+            tmps.append(nologo_copy(p, f"_nologo_{p.name}",
+                                    keep_clear_css() if p.name in clear else ""))
+            if p.name in clear:
+                ctrl[p.name] = clear_copy(p, f"_clear_{p.name}")
+                tmps.append(ctrl[p.name])
         with tempfile.TemporaryDirectory(dir=str(clips.parent)) as td:
             td = pathlib.Path(td)
             print(f"rendering {len(pages)} page(s) with their logo (the control) ...",
                   flush=True)
-            batch(export, td / "with", [p.name for p in pages])
+            batch(export, td / "with", [ctrl.get(p.name, p).name for p in pages])
             print(f"rendering {len(pages)} page(s) WITHOUT their logo ...", flush=True)
-            batch(export, td / "without", [t.name for t in tmps])
+            batch(export, td / "without", [t.name for t in tmps if t.name.startswith("_nologo_")])
             done = []
             for p in pages:
-                w = td / "with" / f"{p.stem}.mp4"
+                w = td / "with" / f"{ctrl.get(p.name, p).stem}.mp4"
                 n = td / "without" / f"_nologo_{p.stem}.mp4"
                 print("  " + prove(w, n), flush=True)
+                px, bb = chip_content_px(n)
+                if px is None:
+                    print(f"  {p.name}: a PICTURE page (no flat background) — a photograph "
+                          f"under the chip is fine, so the chip check does not apply", flush=True)
+                elif px > CHIP_MAX_PX:
+                    raise Halt(f"{p.name}: {px:,} px of the card's content sit under the film's "
+                               f"corner chip (box {chip_box()}), at {bb}"
+                               + (" EVEN WITH --keep-clear" if p.name in clear else "")
+                               + f". The chip runs over every card and would cover it. Re-run "
+                               f"with --keep-clear {p.name} to lift the card clear.")
+                else:
+                    print(f"  {p.name}: clear of the corner chip ({px} px under it)"
+                          + (" — lifted (--keep-clear)" if p.name in clear else ""), flush=True)
                 done.append((p, w, n))
             # promote only after EVERY clip has been proved
             (clips / "with-logo").mkdir(parents=True, exist_ok=True)

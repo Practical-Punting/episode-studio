@@ -52,12 +52,15 @@ def page_html(chips: dict, layout: dict) -> str:
     nm, rd, rule = ch["name"], ch["read"], ch["rule"]
     blocks = []
     for code, c in chips.items():
+        # A HOST PLATE (`reading` None) is the same chip with the name only — see `render_host`.
+        lines = "" if c.get("reading") is None else (
+            f"""
+    <div class="read">reading <b>{html.escape(c['reading'])}</b></div>
+    <div class="read role">{html.escape(c['role'])}</div>""")
         blocks.append(f"""
   <div class="chip" style="left:{c['x']}px;bottom:{H - c['bottom_y']}px">
     <div class="rule" style="background:{c['rule_colour']}"></div>
-    <div class="name">{html.escape(c['name'])}</div>
-    <div class="read">reading <b>{html.escape(c['reading'])}</b></div>
-    <div class="read role">{html.escape(c['role'])}</div>
+    <div class="name">{html.escape(c['name'])}</div>{lines}
   </div>""")
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <title>PP two-way chips</title>
@@ -114,6 +117,64 @@ def render(ep: int, speaker: str, pp: pathlib.Path = PP,
     # the speaker is IN THE NAME: a chip drawn for the other man is a different file,
     # so a re-plan that changes who is talking cannot be served the old PNG.
     png = out or (d / f"overlay/export/twoway-chips-{speaker}.png")
+    _shoot(page, png)
+    return {"png": png, "html": page, "chips": chips,
+            "visible_s": list(layout["chips"]["visible_s"])}
+
+
+def render_host(ep: int, host: str, pp: pathlib.Path = PP,
+                out: pathlib.Path | None = None) -> dict:
+    """The HOST PLATE: the host's name, as himself, over the open. Name only.
+
+    🔴 WHY (Jodie, 13 Nov 2026, watching EP56 cut 2): *"Gordon's nameplate should show when
+    he starts talking. So as the video opens on Gordon speaking, his nameplate should be
+    there."* The single-presenter episodes have no host lower-third to borrow, so this is
+    the two-way chip's own design with the name and nothing else.
+
+    🔴 IT NEVER SAYS "reading …". In the open Gordon is HIMSELF — he is introducing the
+    article, not reading Brian Blackwell — and "reading Brian Blackwell" there would be
+    untrue (the honesty rule, build spec A7). So the page is built with `reading=None`,
+    and the "reading" lines are not hidden: they are never written.
+
+    Placed by the SAME `layout.chips` numbers as the reading chips, measured from the
+    FRAME's edges because the open is full frame (there is no panel to sit inside). The
+    rule is the SPEAKER's colour: he is the one talking.
+    """
+    d = ep_paths.episode_dir(ep, pp)
+    epj = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+    layout = tc.load_layout()
+    ch = layout["chips"]
+    if host not in epj["speakers"]:
+        raise SystemExit(f"no speaker {host!r} in episode.json (have {sorted(epj['speakers'])})")
+    plate = {host: {"name": epj["speakers"][host]["reader"].upper(), "reading": None,
+                    "role": None, "x": int(ch["left"]), "bottom_y": H - int(ch["bottom"]),
+                    "rule_colour": ch["rule"]["colour"]}}
+    page = d / "overlay/export/twoway-host.html"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(page_html(plate, layout), encoding="utf-8")
+    png = out or (d / f"overlay/export/twoway-host-{host}.png")
+    _shoot(page, png)
+    # 🔴 AND AS A CLIP, BECAUSE THE FINISH CANNOT TAKE IT AS A PICTURE (EP56, 13 Nov 2026).
+    # Fed to the finish as an image it either STALLED the whole encode (looped: no output after
+    # 62 minutes, where cut 2's finish took 2.5) or was NEVER DRAWN (one frame — the same
+    # failure that hid the corner logo for two cuts). The stall is MEASURED: `-loop 1` re-opens
+    # the image file for every frame, and a freshly written file on the Google Drive mount
+    # blocks on that re-open — the same command on a local copy finishes at once. So the clip
+    # is made from ONE read of the PNG (`tpad` holds the frame; no `-loop`), and goes through
+    # the path the open card, the CTA and the end card already use. QuickTime RLE keeps the
+    # alpha; 1s is enough, the finish holds its last frame for as long as the plate is up.
+    mov = png.with_suffix(".mov")
+    r = subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-nostdin",
+                        "-framerate", "25", "-i", str(png), "-vf",
+                        "tpad=stop_mode=clone:stop_duration=1", "-frames:v", "25",
+                        "-c:v", "qtrle", "-pix_fmt", "argb", str(mov)],
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode or not mov.is_file():
+        raise SystemExit(f"host plate clip failed:\n{(r.stderr or '')[-800:]}")
+    return {"png": png, "mov": mov, "html": page, "plate": plate}
+
+
+def _shoot(page: pathlib.Path, png: pathlib.Path) -> None:
     shot = HERE / "_shot_chips.py"
     shot.write_text(
         "import sys\n"
@@ -133,8 +194,6 @@ def render(ep: int, speaker: str, pp: pathlib.Path = PP,
                        capture_output=True, text=True, timeout=600)
     if r.returncode or not png.is_file():
         raise SystemExit(f"chip render failed:\n{(r.stderr or '')[-1200:]}")
-    return {"png": png, "html": page, "chips": chips,
-            "visible_s": list(layout["chips"]["visible_s"])}
 
 
 def main() -> int:
@@ -143,7 +202,17 @@ def main() -> int:
     ap.add_argument("--pp", default=str(PP))
     ap.add_argument("speaker", help="the code of the man SPEAKING while they are up")
     ap.add_argument("--out")
+    ap.add_argument("--host", action="store_true",
+                    help="draw the HOST PLATE (name only, for the open) for this speaker")
     a = ap.parse_args()
+    if a.host:
+        res = render_host(a.ep_number, a.speaker, pathlib.Path(a.pp),
+                          pathlib.Path(a.out) if a.out else None)
+        c = res["plate"][a.speaker]
+        print(f"wrote {res['png']}  ({res['png'].stat().st_size:,} bytes)")
+        print(f"wrote {res['mov']}  ({res['mov'].stat().st_size:,} bytes) — what the finish draws")
+        print(f"  host plate: {c['name']} (name only) at ({c['x']}, bottom {c['bottom_y']})")
+        return 0
     res = render(a.ep_number, a.speaker, pathlib.Path(a.pp),
                  pathlib.Path(a.out) if a.out else None)
     png = res["png"]

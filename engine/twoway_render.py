@@ -331,8 +331,12 @@ def piece_path(seg: dict, work: pathlib.Path) -> pathlib.Path:
     it says nothing about what is drawn on it, and the grade fix changes exactly that
     and nothing else. See `PICTURE_RECIPE`."""
     rk = hashlib.md5(PICTURE_RECIPE.encode()).hexdigest()[:6]
+    # 🔴 AND SO IS THE CLIP A CARD OR B-ROLL PIECE IS MADE FROM — `source_key`, stamped by
+    # `twoway_assemble.build_plan` (EP56 cut 3: a re-made card at the same length was served
+    # the old card's piece). Segments without a clip keep their old names, so no cache moves.
+    sk = f"-{seg['source_key']}" if seg.get("source_key") else ""
     return (work / f"seg-{seg['n']:03d}-"
-                   f"{frames_between(seg['from_s'], seg['to_s'])}f-{rk}.mp4")
+                   f"{frames_between(seg['from_s'], seg['to_s'])}f-{rk}{sk}.mp4")
 
 
 def final_piece_path(seg: dict, work: pathlib.Path) -> pathlib.Path:
@@ -593,10 +597,18 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     # `frames_between`. And each one's NAME carries its count, so a piece rendered to
     # a different length can never be served from cache as if it were this one.
     hn = frames_between(0.0, ta.TITLE_HEAD_S)
-    head = work / f"_head-{hn}f.mp4"
+    # 🔴 THE TITLE CARD WITHOUT ITS OWN MARK (EP56, 13 Nov 2026). The corner chip now runs
+    # from the FIRST FRAME (see `logo_on_s`), and the title card's own 214x65 logo sits
+    # wholly inside the chip's box, under a 74%-opaque plate — it would ghost through as a
+    # second logo, the fault the cards were re-rendered for on 27 Sep. `twoway_cards`
+    # makes the no-logo copy and PROVES only the logo went.
+    # ⚠️ AND THE CACHE NAME CARRIES THE SOURCE. This was `_head-{hn}f.mp4` — keyed on the
+    # frame count alone, so switching the title clip would have been served the old one.
+    title_src = title_card_nologo(plan)
+    head = work / f"_head-{hn}f-{title_src.stem}.mp4"
     if not head.is_file():
         run([ff, "-y", "-hide_banner", "-loglevel", "error",
-             "-i", plan["head"]["title_card"],
+             "-i", str(title_src),
              "-vf", f"tpad=stop_mode=clone:stop_duration={ta.TITLE_HEAD_S + 0.2},"
                     f"setpts=PTS-STARTPTS,fps={FPS},scale={W}:{H}",
              "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
@@ -728,6 +740,14 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
             f"skip is exactly how they went missing from three cuts: build spec A7 "
             f"makes them the on-screen half of the honesty rule, and nothing noticed "
             f"they had never been drawn.")
+    # 🔴 A LOOPED PICTURE IS READ FROM LOCAL DISK, NEVER FROM THE DRIVE (EP56, 13 Nov 2026).
+    # `-loop 1` re-opens the file for EVERY frame, and on the Google Drive mount a freshly
+    # written file blocks on that re-open: cut 3's finish sat 62 minutes with no output on a
+    # looped host plate read from G:, and the same command on a local copy finished at once.
+    # The chips have been looped from G: since 20 Sep and worked — while the file was old and
+    # synced. The corner logo is in the repo on C: already.
+    if ch:
+        chips_png = _local_copy(chips_png)
     chips_fc = ""
     if ch:
         c0, c1 = ch
@@ -758,6 +778,35 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     g = plan.get("graphics") or {}
     gfx, gin = [], []
     nxt = 5 if ch else 4
+
+    # 🔴 THE HOST PLATE — Gordon's name, as himself, from his first word of the open
+    # (Jodie, 13 Nov 2026). Name only: it NEVER says "reading …" (`twoway_chips.render_host`).
+    # Its window is DERIVED from merged.srt and refuses to touch any other graphic —
+    # see `host_plate_window`. It goes in as the FIRST standing graphic, through exactly the
+    # path the open card uses (a clip, an `at`, a hold, alpha fades): as a looped picture it
+    # stalled the encode and as one frame it was never drawn (`twoway_chips.render_host`).
+    hp = host_plate_window(plan, d)
+    hp_mov = d / f"overlay/export/twoway-host-{hp['speaker']}.mov"
+    if not hp_mov.is_file():
+        raise Unrenderable(
+            f"the open needs the host plate and {hp_mov.name} is not there. Run "
+            f"`python engine/twoway_chips.py <ep> {hp['speaker']} --host` first. A HALT, not a "
+            f"skip: a silent skip is how the reading chips went missing from three cuts.")
+    hp_du = round(hp["off_s"] - hp["on_s"], 3)
+    gin.append(str(hp_mov))
+    gfx.append(("hp", hp["on_s"], hp["off_s"],
+                f"[{nxt}:v]fps={FPS},format=yuva420p,"
+                f"tpad=stop_mode=clone:stop_duration={hp_du:.3f},"
+                f"trim=duration={hp_du:.3f},setpts=PTS-STARTPTS,"
+                f"fade=t=in:st=0:d={hp['fade_s']:.2f}:alpha=1,"
+                f"fade=t=out:st={round(hp_du - hp['fade_s'], 3)}:d={hp['fade_s']:.2f}:alpha=1,"
+                f"setpts=PTS+{hp['on_s']:.3f}/TB[hp];\n"))
+    nxt += 1
+    print(f"  host plate ({hp['name']}, name only) on screen {hp['on_s']:.2f}-{hp['off_s']:.2f}s "
+          f"— first word {hp['first_word_s']:.2f}s, out after the sentence ending "
+          f"{hp['sentence_end_s']:.2f}s; next graphic {hp['next_graphic']} at "
+          f"{hp['next_graphic_s']:.2f}s", flush=True)
+
     for key, lbl in (("open_card", "opc"), ("early_cta", "cta"), ("midroll", "mrl")):
         spec = g.get(key)
         if not spec:
@@ -800,10 +849,12 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     # it a 428x140 chip would sit on top of the 214x65 one the card already carries, in
     # the same corner.
     cwins = card_windows(plan)
-    lg_enable = f"between(t,{ta.TITLE_HEAD_S},{body_end:.3f})" + "".join(
+    lg_on = logo_on_s()
+    lg_enable = f"between(t,{lg_on:.3f},{body_end:.3f})" + "".join(
         f"*(1-between(t,{a:.3f},{b:.3f}))" for a, b in cwins)
-    print(f"  corner logo on from {ta.TITLE_HEAD_S:.1f}s to {body_end:.2f}s — over "
-          f"everything, including cards ({len(cwins)} hold-off window(s))", flush=True)
+    print(f"  corner logo on from {lg_on:.1f}s (the first frame) to {body_end:.2f}s — over "
+          f"everything, including the title card and cards ({len(cwins)} hold-off "
+          f"window(s))", flush=True)
     print(f"    off for the tail: the chip's box overlaps the warranty slide's text "
           f"and its 1800 858 858 support line", flush=True)
 
@@ -824,7 +875,7 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     chain = []
     if ch:
         chain.append(("ch", f"between(t,{ch[0]:.3f},{ch[1]:.3f})", "0:0"))
-    chain += [(lbl, f"between(t,{a0:.3f},{a1:.3f})", "0:0") for lbl, a0, a1, _ in gfx]
+    chain +=[(lbl, f"between(t,{a0:.3f},{a1:.3f})", "0:0") for lbl, a0, a1, _ in gfx]
     chain.append(("lg", lg_enable, f"{lx}:{ly}"))
     vfc, cur = "", "[0:v]"
     for k, (lbl, en, pos) in enumerate(chain):
@@ -855,10 +906,21 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
     # 📌 THE INPUT ORDER IS THE GRAPH'S CONTRACT AND THE TWO ARE READ TOGETHER:
     # [0] picture · [1] logo · [2] the finished MIX · [3] music (unused here — kept so no
     # graphic's index moves) · [4] chips (only if there are chips) · then the standing
-    # graphics in `gin` order, which is the order `gfx` was built in. `assemble_episode`
-    # carries the same warning: an off-by-one here silently draws the wrong clip.
+    # graphics in `gin` order (host plate first), which is the order `gfx` was built in.
+    # `assemble_episode` carries the same warning: an off-by-one silently draws the wrong clip.
+    #
+    # 🔴 THE LOGO IS A LOOPED STREAM, NOT ONE FRAME (EP56, 13 Nov 2026). Fed as a single PNG
+    # frame it was NEVER DRAWN on EP56 cut 1 or cut 2 — not one frame of either film carries
+    # the chip, while this log line said "corner logo on from 7.0s". Measured on cut 2's own
+    # concatenated picture with ffmpeg 8.1.2: the same overlay with the PNG as one frame
+    # draws nothing, and with `-loop 1 -t` draws the chip; on a short re-encoded clip both
+    # forms draw it, which is how it hid. WHY ffmpeg drops it on the long concat is NOT
+    # established. The looped form is what the chips have always used, and
+    # `assert_logo_throughout` now looks at the FINISHED FILE, so a missing chip refuses
+    # instead of shipping — the log line describes the graph, never the picture.
     run([ff, "-y", "-hide_banner", "-loglevel", "error",
-         "-i", str(whole), "-i", str(logo), "-i", str(mix), "-i", str(MUSIC),
+         "-i", str(whole), "-loop", "1", "-t", f"{total:.3f}", "-i", str(logo),
+         "-i", str(mix), "-i", str(MUSIC),
          *(["-loop", "1", "-t", f"{total:.3f}", "-i", str(chips_png)] if ch else []),
          *sum((["-i", p] for p in gin), []),
          "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
@@ -867,6 +929,7 @@ def finish(plan: dict, d: pathlib.Path, work: pathlib.Path,
          "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out)],
         timeout=7200)
     print("  " + assert_audio_in_step(out, aud, ta.TITLE_HEAD_S, total), flush=True)
+    print("  " + assert_logo_throughout(out, lgeo, lg_on, body_end), flush=True)
 
 
 def assert_audio_in_step(out: pathlib.Path, speech: pathlib.Path, head_s: float,
@@ -910,6 +973,163 @@ def assert_audio_in_step(out: pathlib.Path, speech: pathlib.Path, head_s: float,
         raise Unrenderable(f"the speech in the finished file is not where the picture is: "
                            f"offsets {lags}s at three points (limit 0.05s).")
     return f"sound in step: decoded {got.size / sr:.2f}s of {total_s:.2f}s, speech offsets {lags}s"
+
+
+HOST_PLATE_MIN_S = 6.0
+"""The host plate stays up at least this long after his first word, then leaves on the next
+sentence end — so it never leaves mid-sentence and never flashes past (EP56: 7.28s -> ~15.6s)."""
+
+HOST_PLATE_CLEAR_S = 1.0
+"""Clear air between the plate fully gone and the next graphic (the WHO YOU'RE HEARING card)."""
+
+LOGO_STEP_S = 2.0
+LOGO_MAD_MAX = 30.0
+"""Grey levels. On the chip's SOLID pixels (alpha >= 250) the film must match the asset: the red
+icon and the white lettering, each on its own. The live chip scores ~1-6; nothing that is not
+the chip at its own place and size gets near 30 (test_twoway_logo_presence: no chip, a charcoal
+card, a ghost at half strength, the chip moved 12px, a field of the chip's own mean colour)."""
+
+
+def _local_copy(p: pathlib.Path) -> pathlib.Path:
+    """A copy of a small input on LOCAL disk, named by its content, for anything `-loop 1` reads."""
+    import shutil
+    import tempfile
+    b = p.read_bytes()
+    q = pathlib.Path(tempfile.gettempdir()) / "pp-twoway-finish" / \
+        f"{p.stem}-{hashlib.md5(b).hexdigest()[:10]}{p.suffix}"
+    q.parent.mkdir(parents=True, exist_ok=True)
+    if not q.is_file() or q.read_bytes() != b:
+        shutil.copyfile(p, q)
+    return q
+
+
+def title_card_nologo(plan: dict) -> pathlib.Path:
+    """The title card WITHOUT its own logo — the corner chip covers the head from frame 0."""
+    src = pathlib.Path(plan["head"]["title_card"])
+    p = src.with_name(f"{src.stem}-nologo.mp4")
+    if not p.is_file():
+        raise Unrenderable(
+            f"the title card without its own logo ({p.name}) is not in overlay/clips. The "
+            f"corner chip runs from the first frame, so the card's own mark would show through "
+            f"it as a second logo. Make it with `python engine/twoway_cards.py <ep> "
+            f"{src.stem}.html --as {src.stem}.html={p.name}` — that also proves only the "
+            f"logo went.")
+    return p
+
+
+def logo_on_s() -> float:
+    """🔴 THE CORNER CHIP RUNS FROM THE FIRST FRAME (Jodie, 13 Nov 2026, on EP56 cut 2):
+    *"in all the other videos, we've got the Practical Punting logo throughout the video in
+    the bottom right-hand corner of the whole video."* It used to come on at TITLE_HEAD_S
+    and leave the title card to its own small mark; now one mark runs the whole film and
+    the title card is rendered without its own (`title_card_nologo`)."""
+    return 0.0
+
+
+def host_plate_window(plan: dict, d: pathlib.Path) -> dict:
+    """When the HOST PLATE is up: his first word of the open -> the first sentence end at
+    least HOST_PLATE_MIN_S later. Derived from merged.srt, never typed; refuses if it would
+    come within HOST_PLATE_CLEAR_S of ANY other graphic or outlive the open."""
+    import twoway_interleave as ti
+    seg = plan["segments"][0]
+    if seg.get("furniture") != "open" or seg.get("layout") != "full":
+        raise Unrenderable(
+            f"the host plate belongs over the open, and the film's first segment is not the "
+            f"open in full frame (it is {seg.get('name') or seg.get('layout')}).")
+    host = seg["speaker"]
+    cues = ti.read_srt((d / "renders/merged.srt").read_text(encoding="utf-8"))
+    head = ta.TITLE_HEAD_S
+    if not cues or not (cues[0].get("text") or "").lstrip().startswith(f"[{host}]"):
+        raise Unrenderable(f"merged.srt does not open on {host} speaking, so there is no first "
+                           f"word to bring the host plate up on.")
+    fade = (layout_chips_move_ms(d) or 260) / 1000.0
+    word = round(cues[0]["start"] + head, 3)
+    on = round(max(seg["from_s"], word - fade), 3)
+    ends = [round(e + head, 3) for e in ti.sentence_ends(cues) if e + head >= word + HOST_PLATE_MIN_S]
+    if not ends:
+        raise Unrenderable("no sentence ends after the host's first word, so the host plate "
+                           "has nowhere to leave.")
+    se = ends[0]
+    off = round(se + fade, 3)
+    g = plan.get("graphics") or {}
+    others = [(k.replace("_", " "), float(g[k]["at_s"])) for k in ("open_card", "early_cta", "midroll")
+              if g.get(k)]
+    if plan.get("end_card"):
+        others.append(("end card", float(plan["end_card"]["from_s"])))
+    chw = twoway_chips_window(plan, d)
+    if chw:
+        others.append(("reading chips", float(chw[0])))
+    others.append(("the end of the open", float(seg["to_s"])))
+    nname, nt = min(others, key=lambda x: x[1])
+    if off > nt - HOST_PLATE_CLEAR_S:
+        raise Unrenderable(
+            f"the host plate would be up {on:.2f}-{off:.2f}s and the {nname} arrives at {nt:.2f}s "
+            f"— less than {HOST_PLATE_CLEAR_S:.1f}s clear. It must never overlap another graphic.")
+    epj = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+    return {"speaker": host, "name": epj["speakers"][host]["reader"].upper(),
+            "on_s": on, "off_s": off, "fade_s": round(fade, 3), "first_word_s": word,
+            "sentence_end_s": se, "next_graphic": nname, "next_graphic_s": round(nt, 3)}
+
+
+def logo_scores(patch, asset_rgba) -> tuple[float, float]:
+    """Mean |film - asset| on the asset's SOLID red icon pixels and SOLID white lettering
+    pixels, separately. Both must be small for the chip to be there, at its size and place."""
+    import numpy as np
+    a = asset_rgba[..., 3]
+    rgb = asset_rgba[..., :3].astype(float)
+    p = patch.astype(float)
+    solid = a >= 250
+    red = solid & (rgb[..., 0] > 180) & (rgb[..., 1] < 120)
+    white = solid & (rgb.min(axis=2) > 200)
+
+    def mad(m):
+        return float(np.abs(p[m] - rgb[m]).mean()) if m.any() else 999.0
+    return mad(red), mad(white)
+
+
+def logo_presence(film: pathlib.Path, geo: dict, t0: float, t1: float,
+                  step: float = LOGO_STEP_S) -> list[dict]:
+    """Sample the FINISHED film every `step` seconds from t0 while t < t1, and score the chip.
+
+    One decode, frames picked by FRAME NUMBER (never by seeking — CLAUDE.md 1b's measuring
+    trap), cropped to the chip's box."""
+    import numpy as np
+    from PIL import Image
+    asset = np.array(Image.open(geo["src"]).convert("RGBA"))
+    w, h, x, y = geo["w"], geo["h"], geo["x"], geo["y"]
+    n0, k = int(round(t0 * FPS)), int(round(step * FPS))
+    n1 = int(round(t1 * FPS))
+    raw = subprocess.run(
+        [_ff(), "-v", "error", "-i", str(film), "-an",
+         "-vf", f"select=gte(n\\,{n0})*lt(n\\,{n1})*not(mod(n-{n0}\\,{k})),crop={w}:{h}:{x}:{y}",
+         "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        capture_output=True, timeout=3600).stdout
+    fr = np.frombuffer(raw, np.uint8)
+    n = fr.size // (w * h * 3)
+    out = []
+    for i in range(n):
+        red, white = logo_scores(fr[i * w * h * 3:(i + 1) * w * h * 3].reshape(h, w, 3), asset)
+        out.append({"t": round((n0 + i * k) / FPS, 2), "red": round(red, 2), "white": round(white, 2),
+                    "present": red <= LOGO_MAD_MAX and white <= LOGO_MAD_MAX})
+    return out
+
+
+def assert_logo_throughout(film: pathlib.Path, geo: dict, t0: float, t1: float) -> str:
+    """The corner chip is IN THE FINISHED FILE at every 2s sample from t0 to the end card.
+    Raises Unrenderable with every gap's time. (EP56 cut 1 and cut 2 shipped to review with
+    NO chip at all while the render log said it was on.)"""
+    got = logo_presence(film, geo, t0, t1)
+    want = len([1 for _ in range(int(round(t0 * FPS)), int(round(t1 * FPS)),
+                                 int(round(LOGO_STEP_S * FPS)))])
+    gaps = [r["t"] for r in got if not r["present"]]
+    if len(got) != want or gaps:
+        raise Unrenderable(
+            f"the corner logo is missing from the finished file: {len(gaps)} of {len(got)} "
+            f"samples (every {LOGO_STEP_S:g}s, {t0:.1f}-{t1:.1f}s; {want} expected) have no chip"
+            + (f", at {gaps[:20]}s" if gaps else "") + ".")
+    return (f"logo in the finished file: present in {len(got)} of {len(got)} samples, every "
+            f"{LOGO_STEP_S:g}s from {t0:.1f}s to {t1:.1f}s (worst icon {max(r['red'] for r in got):.1f}, "
+            f"worst lettering {max(r['white'] for r in got):.1f}, limit {LOGO_MAD_MAX:g})")
 
 
 def assert_picture_reaches(whole: pathlib.Path, total_s: float,

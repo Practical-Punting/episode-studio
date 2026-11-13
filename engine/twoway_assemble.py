@@ -858,6 +858,17 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
     # so is `twoway_end_sequence.STANDING`, and it is the check.
     speech_end = max(s["to_s"] for s in mapped)
     joins = mark_dissolves(mapped, tl, TITLE_HEAD_S)
+    # 🔴 A PIECE IS KEYED ON THE CLIP IT IS MADE FROM (EP56 cut 3, 13 Nov 2026). The render's
+    # piece cache was keyed on segment number + frame count + recipe — never on the card or
+    # b-roll clip — so when cut 3 moved every time by exactly 3.00s, 43 of 44 pieces were served
+    # from cut 2's cache, including C5 and C10 whose clips had just been re-authored. A re-made
+    # card at the same length would NEVER reach the film. `source_key` is the clip's own content
+    # hash; `twoway_render.piece_path` puts it in the name, so a changed clip is a new piece.
+    for s in mapped:
+        src = (cards.get(s["card"]) if s.get("card") else
+               have_broll.get(s["broll"]) if s.get("broll") else None)
+        if src and pathlib.Path(src).is_file():
+            s["source_key"] = _content_key(pathlib.Path(src))
     furn = [s for s in tl if s.get("kind") == "furniture"]
     graphics = tes.place(d, epj, cues, furn, TITLE_HEAD_S)
     tail = tes.tail(speech_end,
@@ -1059,6 +1070,16 @@ def violations(plan: dict) -> list[str]:
             f"{tb.MIN_DWELL_S:.0f}s. Stretching the layout onto measured audio can "
             f"shorten a state the estimate had over the line.")
     return out
+
+
+def _content_key(p: pathlib.Path) -> str:
+    """The first 8 hex of a file's md5 — what a piece made FROM this file is keyed on."""
+    import hashlib
+    h = hashlib.md5()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()[:8]
 
 
 def _dur(path: str) -> float:
