@@ -529,7 +529,17 @@ def _cut_file(ep: Ep, k: int | None = None, ext: str = "mp4") -> pathlib.Path:
 
 
 def _card_pages(ep: Ep) -> list[str]:
-    return sorted({c["page"] for c in ep.epj().get("cards", []) if c.get("page")})
+    """Every card page the cut needs: the commission's cards AND the open card, which the end
+    sequence owes the open beat (build.open_card.clip) but which is not one of `cards`. Found on
+    EP57's first real build (14 Nov 2026): twoway_render halted, "the open beat owes the
+    who-you-are-hearing card and ep57-c00-…mp4 is not in overlay/clips" — EP56's hand script globbed
+    every page and so never met it."""
+    e = ep.epj()
+    pages = {c["page"] for c in e.get("cards", []) if c.get("page")}
+    clip = ((e.get("build") or {}).get("open_card") or {}).get("clip")
+    if clip:
+        pages.add(pathlib.Path(clip).stem + ".html")
+    return sorted(pages)
 
 
 def _session(text: str):
