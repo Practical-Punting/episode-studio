@@ -750,7 +750,16 @@ def do_card_timing(ep: Ep):
 def graphics_done(ep: Ep) -> bool:
     clips = ep.p("overlay/clips")
     want = [pathlib.Path(pg).stem for pg in _card_pages(ep)] + [f"ep{ep.n}-title"]
-    return clips.is_dir() and all((clips / f"{w}.mp4").is_file() for w in want)
+    if not (clips.is_dir() and all((clips / f"{w}.mp4").is_file() for w in want)):
+        return False
+    # The clips must come from the pages AS TIMED NOW: a re-run of card_timing rewrites the pages,
+    # and clips rendered before it are stale (EP57, 14 Nov 2026). graphics.json records which
+    # card-timing run the clips were made from.
+    t, g = ep.p("output/run/card-timing.json"), ep.p("output/run/graphics.json")
+    if not t.is_file():
+        return True
+    return g.is_file() and json.loads(g.read_text(encoding="utf-8")).get("card_timing") == \
+        json.loads(t.read_text(encoding="utf-8")).get("at")
 
 
 def do_graphics(ep: Ep):
@@ -768,6 +777,10 @@ def do_graphics(ep: Ep):
            "midroll-lowerthird.html"]
     _run(ep, "standing-cards", PY + [SCRIPTS / "render_cards_batch.py", ep.p("overlay/export"),
                                      ep.p("overlay/clips"), "0.5", *std], lock="graphics")
+    t = ep.p("output/run/card-timing.json")
+    _write_json(ep.p("output/run/graphics.json"),
+                {"at": _now(), "card_timing": json.loads(t.read_text(encoding="utf-8")).get("at")
+                 if t.is_file() else None})
 
 
 def do_chips(ep: Ep):
