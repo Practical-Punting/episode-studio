@@ -50,6 +50,10 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
   box-shadow:0 6px 16px rgba(218,83,44,.28);transition:background .15s;}
 .btn:hover{background:var(--orange-d);}
 .btn:disabled{opacity:.55;cursor:default;box-shadow:none;}
+.twoway-tick{display:flex;align-items:center;gap:8px;margin:12px 2px 0;font-size:14.5px;
+  font-weight:600;color:var(--ink);cursor:pointer;}
+.twoway-tick input{width:18px;height:18px;accent-color:var(--orange);}
+.twoway-tag{margin:2px 0 8px;font-size:13px;font-weight:700;color:var(--muted);}
 .hint{margin:13px 2px 0;font-size:13.5px;color:var(--muted);line-height:1.5;}
 .hint b{color:var(--ink);font-weight:700}
 .toast{margin-top:12px;font-size:14px;font-weight:700;padding:11px 14px;border-radius:10px;display:none;}

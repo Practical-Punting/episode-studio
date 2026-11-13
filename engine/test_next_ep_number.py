@@ -1,18 +1,21 @@
 """The next pasted article must not be given a number that is already taken.
 
 🔴 THE FAULT (found 27 Sep 2026, before it bit). The board numbers a paste
-max(ep_number) + 1, and the rail is all it can see. The two-way EP49 has a Drive folder
-and a capture but deliberately NO rail row, so with the rail at 48 the next paste would
-also have been PP-EP49 — and `ep_paths.episode_dir(49)` globs `PP-EP49*`, so the engine
-would have built a single-presenter episode straight into the two-way's folder, and
-`twoway_split` would then have found two EP49 captures and refused.
+max(ep_number) + 1, and the rail is all it can see. The two-way EP49 had a Drive folder
+and a capture but NO rail row, so the next paste would also have been PP-EP49 — and
+`ep_paths.episode_dir(49)` globs `PP-EP49*`, so the engine would have built a
+single-presenter episode straight into the two-way's folder.
 
-The fix is `RESERVED_EPS` + `nextEpNumber()` in app.js. This asserts the behaviour by
-running the real functions in node (the same slice test_board_paste_url uses), and then
-— when the rail is reachable — asks the question that actually matters: does the number
-the board would hand out RIGHT NOW already have a folder or a capture on the Drive?
-That half derives from the Drive itself, so the next unrailed folder makes it go red
-without anybody remembering to add a case.
+27 Sep – 13 Nov 2026 the fix was a hand-kept `RESERVED_EPS` list in app.js. 🔴 MIGRATION
+009 (13 Nov 2026) RETIRED IT: two-ways now have normal rail rows (EP49, EP55, EP56
+back-filled), so their numbers are on the rail and pasting their articles is refused by
+the ordinary duplicate check. This test now proves:
+  · `nextEpNumber` is plain max+1 and `RESERVED_EPS` is GONE (a list nobody maintains);
+  · with the rail as it really is (two-way rows included), each two-way's article is
+    refused as its own PP-EP number, in every spelling;
+  · CONTROL: with the two-way rows taken OUT of the rail, the same paste is allowed —
+    so it is the ROW doing the refusing, not a leftover list;
+  · LIVE: the number the board would hand out now has no folder and no capture yet.
 
 Run: python engine/test_next_ep_number.py
 """
@@ -41,70 +44,71 @@ def check(name, cond, why=""):
 SRC = APP.read_text(encoding="utf-8")
 form = SRC.split('$("start-form").addEventListener')[1].split("\n});")[0]
 check("the paste numbers through nextEpNumber()", "nextEpNumber(" in form,
-      "a bare max+1 in the form bypasses the reservations")
+      "a bare max+1 in the form would be a second definition")
+# Declared or USED, not merely named: the comment recording its retirement names it, and a
+# guard that fires on the comment describing the thing is CLAUDE.md fault 1a.
+import re  # noqa: E402
+check("RESERVED_EPS is retired (no hand-kept list of numbers declared or used)",
+      not re.search(r"(const|let|var)\s+RESERVED_EPS\b|RESERVED_EPS\s*\.", SRC))
+check("the paste form writes format 'two-way' when the two-person box is ticked",
+      'row.format = "two-way"' in form and "twowayin" in form)
 
 node = shutil.which("node")
 if not node:
     print("\n  (node not on PATH — the behaviour half is SKIPPED, not assumed)")
     sys.exit(1 if FAIL else 0)
 
+B = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
+     "range-of-form-analysis-techniques/")
+EP49_URL = B + "fighting-a-complex-game-part-1-20031112"
+EP55_URL = B + "is-the-trainer-so-important-part-2-20031210"
+EP56_URL = B + "class-improvement-and-bias-blues-part-3-20040108"
+TWOWAY_ROWS = [{"ep_number": 49, "source_url": EP49_URL, "status": "published", "format": "two-way"},
+               {"ep_number": 55, "source_url": EP55_URL, "status": "published", "format": "two-way"},
+               {"ep_number": 56, "source_url": EP56_URL, "status": "published", "format": "two-way"}]
+
 start, end = SRC.index("const PP_HOSTS"), SRC.index("/* messages.sender")
 harness = SRC[start:end] + """
 const a = JSON.parse(process.argv[1]);
-globalThis.EPISODES = [];
+globalThis.EPISODES = a.rows;
 console.log(JSON.stringify({
   next: a.maxes.map((m) => nextEpNumber(m)),
-  reserved: RESERVED_EPS.map((r) => r.ep_number),
   paste: a.urls.map((u) => articleUrlProblem(u)),
 }));
 """
-EP49_URL = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
-            "range-of-form-analysis-techniques/fighting-a-complex-game-part-1-20031112")
-EP55_URL = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
-            "range-of-form-analysis-techniques/is-the-trainer-so-important-part-2-20031210.html")
-EP56_URL = ("https://practicalpunting.com.au/pp-online/a-z-of-betting/form-analysis/"
-            "range-of-form-analysis-techniques/class-improvement-and-bias-blues-part-3-20040108")
-args = {"maxes": [48, 49, 50, 0, None, 54, 55, 56],
-        "urls": [EP49_URL, "https://www." + EP49_URL[8:] + "/",
-                 "https://practicalpunting.com.au/some-new-article/", EP55_URL,
-                 EP56_URL, EP56_URL + ".html", EP55_URL[:-len(".html")],
-                 "https://practicalpunting.com.au/some-new-article.html"]}
-r = subprocess.run([node, "-e", harness, json.dumps(args)],
-                   capture_output=True, text=True, timeout=60)
-got = json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else None
-if got is None:
-    check("the functions ran in node", False, r.stderr[-400:])
-    sys.exit(1)
 
-nxt = got["next"]
-check("rail at 48 -> the next paste is EP50, not EP49", nxt[0] == 50, nxt[0])
-check("rail at 49 -> 50 (a reservation never pushes the number backwards)", nxt[1] == 50,
-      nxt[1])
-check("rail at 50 -> 51", nxt[2] == 51, nxt[2])
+
+def run(rows, maxes, urls):
+    r = subprocess.run([node, "-e", harness, json.dumps({"rows": rows, "maxes": maxes, "urls": urls})],
+                       capture_output=True, text=True, timeout=60)
+    if not r.stdout.strip():
+        check("the functions ran in node", False, r.stderr[-400:])
+        sys.exit(1)
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+urls = [EP49_URL, "https://www." + EP49_URL[8:] + "/", EP55_URL + ".html", EP55_URL,
+        EP56_URL, EP56_URL + ".html", "https://practicalpunting.com.au/some-new-article/",
+        "https://practicalpunting.com.au/some-new-article.html"]
+got = run(TWOWAY_ROWS, [48, 54, 56, 0, None], urls)
+nxt, p = got["next"], got["paste"]
+check("rail at 56 (the two-ways on it) -> the next paste is EP57", nxt[2] == 57, nxt[2])
+check("max+1 everywhere else (54 -> 55, 48 -> 49: nothing is skipped any more)",
+      nxt[0] == 49 and nxt[1] == 55, nxt[:2])
 check("an empty rail still starts at 1", nxt[3] == 1 and nxt[4] == 1, nxt[3:])
-check("pasting the two-way's own article is REFUSED", bool(got["paste"][0]),
-      got["paste"][0])
-check("  and it says which episode it already is", "PP-EP49" in got["paste"][0],
-      got["paste"][0])
-check("  across www and a trailing slash", bool(got["paste"][1]), got["paste"][1])
-check("a new article is still allowed through", got["paste"][2] == "", got["paste"][2])
-# EP55, the second two-way (5 Oct 2026): reserved the same way as EP49.
-check("rail at 54 -> the next paste is EP57, not EP55 or EP56", nxt[5] == 57, nxt[5])
-check("rail at 55 -> 57", nxt[6] == 57, nxt[6])
-check("pasting the second two-way's article is REFUSED as PP-EP55",
-      "PP-EP55" in (got["paste"][3] or ""), got["paste"][3])
-# EP56, the third two-way (11 Nov 2026): Fundamentals of Handicapping Part 3.
-check("rail at 56 -> 57", nxt[7] == 57, nxt[7])
-check("pasting the third two-way's article is REFUSED as PP-EP56",
-      "PP-EP56" in (got["paste"][4] or ""), got["paste"][4])
-# The site serves these articles with AND without ".html" (it redirects .html to the
-# bare path), so normUrl must treat the two spellings as one article — both ways round.
-check("  and its .html spelling is REFUSED as PP-EP56 too",
-      "PP-EP56" in (got["paste"][5] or ""), got["paste"][5])
-check("EP55's bare spelling (reserved with .html) is REFUSED as PP-EP55",
-      "PP-EP55" in (got["paste"][6] or ""), got["paste"][6])
-check("a new article ending .html is still allowed through", got["paste"][7] == "",
-      got["paste"][7])
+check("pasting EP49's article is REFUSED as PP-EP49", "PP-EP49" in (p[0] or ""), p[0])
+check("  across www and a trailing slash", "PP-EP49" in (p[1] or ""), p[1])
+check("EP55's article, .html and bare, both REFUSED as PP-EP55",
+      "PP-EP55" in (p[2] or "") and "PP-EP55" in (p[3] or ""), p[2:4])
+check("EP56's article, bare and .html, both REFUSED as PP-EP56",
+      "PP-EP56" in (p[4] or "") and "PP-EP56" in (p[5] or ""), p[4:6])
+check("a new article (with or without .html) is still allowed through",
+      p[6] == "" and p[7] == "", p[6:])
+
+ctl = run([], [56], [EP56_URL])
+check("CONTROL: with the two-way rows taken off the rail, EP56's article is ALLOWED — "
+      "so the refusal above comes from the ROW, not a leftover list", ctl["paste"][0] == "",
+      ctl["paste"][0])
 
 # ── the live question: is the number the board would hand out NOW already taken? ──
 try:
@@ -117,16 +121,16 @@ except Exception as e:  # noqa: BLE001 — offline is a skip, said out loud
 
 if rows is not None:
     mx = max((x["ep_number"] for x in rows), default=0)
-    r = subprocess.run([node, "-e", harness, json.dumps({"maxes": [mx], "urls": []})],
-                       capture_output=True, text=True, timeout=60)
-    n = json.loads(r.stdout.strip().splitlines()[-1])["next"][0]
+    n = run([], [mx], [])["next"][0]
     folder = ep_paths.episode_dir(n)
     caps = sorted((ep_paths.PP / "docs").glob(f"EP{n:02d}-source-article-*.md"))
     print(f"\n  rail max {mx} -> the next paste would be PP-EP{n:02d}")
+    check("  every two-way folder on the Drive has a rail row (49, 55, 56)",
+          {49, 55, 56} <= {x["ep_number"] for x in rows if x.get("format") == "two-way"})
     check(f"  PP-EP{n:02d} has no folder on the Drive yet", not folder.exists(),
-          f"{folder} already exists — add it to RESERVED_EPS in app.js")
+          f"{folder} already exists — it needs a rail row")
     check(f"  PP-EP{n:02d} has no capture in docs\\ yet", not caps,
-          f"{[c.name for c in caps]} — add it to RESERVED_EPS in app.js")
+          f"{[c.name for c in caps]} — it needs a rail row")
 
 print(f"\nnext episode number: {len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

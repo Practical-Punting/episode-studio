@@ -67,6 +67,38 @@ const STALE_MS = 3 * 60 * 1000;   // the engine beats every 30s and renews a 3-m
 function gatePassed(ep) {
   return !!(ep.title_approved && ep.script_read);
 }
+
+/* ── TWO-WAY EPISODES (migration 009, 13 Nov 2026) ───────────────────────────
+ * A two-way (Gordon and Steve read the article together) has a normal rail row from
+ * the paste, but it is NOT built by the engine: Claude Code's runner
+ * (`/two-way EPnn`, engine/twoway_run.py) drives it and writes `twoway` —
+ * {stage, step, gate, gate_since, readers}. So none of the single-presenter machinery
+ * below applies to it: no words-entry panel, no script gate, no "engine stopped"
+ * alarm (nothing heartbeats a two-way). The board SHOWS the stage and which of
+ * Jodie's gates is waiting. It never ticks one — there are no buttons on the card. */
+function isTwoWay(ep) {
+  return (ep && ep.format) === "two-way";
+}
+const TWOWAY_GATES = {
+  words: "approve the new words",
+  render_paste: "paste the HeyGen scripts",
+  broll_cover: "pick the b-roll and the cover",
+  render_listen: "listen to the renders",
+  join_listen: "listen to the joins and the midroll",
+  cut_watch: "watch the cut",
+  title_thumbnail: "approve the title and thumbnail",
+  publish: "publish",
+};
+const TWOWAY_STAGES = ["", "the words", "planning", "renders and b-roll", "the build",
+                       "approve and ship"];
+
+function twoWayLane(ep) {
+  if (ep.status === "published") return "Done";
+  const tw = ep.twoway || {};
+  if (tw.gate) return "Your turn";
+  if (!tw.step || tw.step === "pasted") return "Waiting";
+  return "Engine working";
+}
 /* ── THE TITLE TRAP (3 Aug 2026) ──────────────────────────────────────────────
  *
  * Jodie's 2 Aug ruling made this gate LOAD-BEARING: the title approved here now goes
@@ -150,7 +182,7 @@ function hasWordsToRead(ep) {
   return !!((ep.script_snapshot || "").trim() || (ep.script_doc_url || "").trim());
 }
 function wordsGatePending(ep) {
-  return ep.status === "queued" && !gatePassed(ep) && hasWordsToRead(ep);
+  return !isTwoWay(ep) && ep.status === "queued" && !gatePassed(ep) && hasWordsToRead(ep);
 }
 /* Queued, ungated, and nothing written yet — the machine's turn, not hers.
  *
@@ -168,7 +200,7 @@ function studioIsWriting(ep) {
   // ...and NOT while it is waiting on her hook and byline. The engine's drafting pass
   // will not commission a wordless episode, so without this clause the card would say
   // "Writing the script…" about a pass that has already decided it cannot start.
-  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
+  return !isTwoWay(ep) && ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
          !packagingEntryPending(ep);
 }
 /* The words now live in their own columns so the board can EDIT them. Older rows
@@ -217,7 +249,7 @@ function wordMissing(ep, name) {
  * script and no byline, and without this clause the entry card replaced the editor
  * and the "edit script" button vanished from the board. */
 function packagingEntryPending(ep) {
-  return ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
+  return !isTwoWay(ep) && ep.status === "queued" && !gatePassed(ep) && !hasWordsToRead(ep) &&
          (wordMissing(ep, "hook") || wordMissing(ep, "byline"));
 }
 
@@ -296,33 +328,16 @@ function slugToTitle(url) {
  * are not the same string and are the same article. */
 const PP_HOSTS = ["practicalpunting.com.au"];
 
-/* EPISODE NUMBERS THAT ARE TAKEN BUT NOT ON THE RAIL (27 Sep 2026).
- * The paste numbers a new episode max(ep_number) + 1, and the rail is all it can see.
- * EP49 is the two-way "Fighting a Complex Game Part 1": it has a Drive folder and a
- * capture (docs\EP49-source-article-…) but deliberately NO rail row, so the next paste
- * would have been PP-EP49 too — and ep_paths.episode_dir(49) globs PP-EP49*, so the
- * engine would have built straight into the two-way's folder.
- *   Listing the URL as well means pasting the two-way's own article is refused like
- * any other duplicate, instead of queueing a second EP for it.
- *   An entry becomes dead weight, not a fault, once its number is on the rail. */
-const RESERVED_EPS = [
-  { ep_number: 49, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
-    "form-analysis/range-of-form-analysis-techniques/fighting-a-complex-game-part-1-20031112",
-    why: "the two-way episode (no rail row by design)" },
-  // EP55 is the second two-way, "The Fundamentals of Handicapping" Part 2 (Jodie, 5 Oct 2026).
-  { ep_number: 55, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
-    "form-analysis/range-of-form-analysis-techniques/is-the-trainer-so-important-part-2-20031210.html",
-    why: "the second two-way episode (no rail row by design)" },
-  // EP56 is the third two-way, "The Fundamentals of Handicapping" Part 3 (Jodie, 11 Nov 2026).
-  { ep_number: 56, source_url: "https://practicalpunting.com.au/pp-online/a-z-of-betting/" +
-    "form-analysis/range-of-form-analysis-techniques/class-improvement-and-bias-blues-part-3-20040108",
-    why: "the third two-way episode (no rail row by design)" },
-];
-
+/* THE NEXT EPISODE NUMBER IS max(ep_number) + 1 — the rail is the whole truth again.
+ * From 27 Sep to 13 Nov 2026 a hand-kept RESERVED_EPS list held the numbers of the
+ * two-way episodes (EP49, EP55, EP56), because a two-way had NO rail row and the next
+ * paste would otherwise have taken its number and built into its folder. Migration 009
+ * gave two-ways a normal row (back-filled for all three), so the list is retired: a
+ * two-way's number is on the rail like any other, and pasting its article is refused
+ * by the ordinary duplicate check below. engine/test_next_ep_number.py keeps asking the
+ * live question — does the number this would hand out already have a folder? */
 function nextEpNumber(maxOnRail) {
-  let n = (maxOnRail || 0) + 1;
-  while (RESERVED_EPS.some((r) => r.ep_number === n)) n++;
-  return n;
+  return (maxOnRail || 0) + 1;
 }
 
 /* A trailing ".html" is dropped too (11 Nov 2026): the site serves the same article
@@ -351,11 +366,6 @@ function articleUrlProblem(url) {
     return "That article is already on the rail as PP-EP" + (dupe.ep_number ?? "?") +
            " (" + (dupe.status || "queued") + "). Nothing has been added.";
   }
-  const held = RESERVED_EPS.find((r) => normUrl(r.source_url) === want);
-  if (held) {
-    return "That article is already PP-EP" + held.ep_number + " — " + held.why +
-           ". Nothing has been added.";
-  }
   return "";
 }
 
@@ -380,7 +390,9 @@ function senderFor(email) {
  * warning: it only means something to someone who already knows the rule, and Hugh
  * never will. So say it in words, in the chip, where the status normally goes. */
 function engineStopped(ep) {
-  if (!WORKING.has(ep.status)) return null;
+  // A two-way is driven by Claude Code, not the engine; nothing heartbeats it, so its
+  // silence is not a dead machine (migration 009).
+  if (isTwoWay(ep) || !WORKING.has(ep.status)) return null;
   const beat = ep.heartbeat_at || ep.updated_at;
   if (!beat) return null;
   const age = Date.now() - new Date(beat).getTime();
@@ -922,21 +934,33 @@ $("start-form").addEventListener("submit", async (e) => {
 
   btn.disabled = true; btn.textContent = "Adding…";
   try {
-    // ep_number = max + 1, skipping RESERVED_EPS
+    // ep_number = max + 1 (two-ways are on the rail now, so nothing is skipped)
     const { data: maxRows, error: maxErr } = await db.from("episodes")
       .select("ep_number").order("ep_number", { ascending: false, nullsFirst: false }).limit(1);
     if (maxErr) throw maxErr;
     const nextNum = nextEpNumber(maxRows && maxRows[0] && maxRows[0].ep_number);
     const title = slugToTitle(url);
+    /* THE TWO-PERSON TICK (migration 009). A two-way goes on the rail at `queued` with
+     * format 'two-way', which the engine never claims (rail.SINGLE_ONLY); its folder
+     * and capture are made by Claude Code's runner the first time it sees the row —
+     * a browser cannot reach the Drive or fetch the article. */
+    const twoWay = !!($("twowayin") && $("twowayin").checked);
+    const row = { title, source_url: url, status: "queued", ep_number: nextNum,
+                  created_by: SESSION?.user?.email || "studio" };
+    if (twoWay) {
+      row.format = "two-way";
+      row.twoway = { stage: 1, step: "pasted", gate: null,
+                     readers: { BB: "Gordon", BM: "Steve" } };
+    }
 
-    const { error } = await db.from("episodes").insert({
-      title, source_url: url, status: "queued", ep_number: nextNum,
-      created_by: SESSION?.user?.email || "studio",
-    });
+    const { error } = await db.from("episodes").insert(row);
     if (error) throw error;
 
     input.value = "";
-    toast("toast", 'Queued PP-EP' + nextNum + ' — "' + title + '".', true);
+    if ($("twowayin")) $("twowayin").checked = false;
+    toast("toast", 'Queued PP-EP' + nextNum + (twoWay ? " (two-person)" : "") + ' — "' +
+          title + '".' + (twoWay ? " Start it in Claude Code: /two-way EP" + nextNum : ""),
+          true);
     await loadAll();
   } catch (err) {
     toast("toast", "Could not add it: " + err.message, false);
@@ -1280,7 +1304,7 @@ function renderBoard(force) {
   for (const lane of LANES) {
     // Words-gate episodes are a HUMAN step, so they surface in "Your turn"
     // rather than sitting invisibly in Waiting.
-    const eps = EPISODES.filter((e) =>
+    const eps = EPISODES.filter((e) => isTwoWay(e) ? twoWayLane(e) === lane.title :
       lane.title === "Your turn"
         ? (lane.statuses.includes(e.status) || wordsGatePending(e) ||
            packagingEntryPending(e))
@@ -1295,7 +1319,7 @@ function renderBoard(force) {
   }
   // Any status outside the contract still has to be visible, not silently dropped.
   const known = LANES.flatMap((l) => l.statuses);
-  const orphans = EPISODES.filter((e) => !known.includes(e.status));
+  const orphans = EPISODES.filter((e) => !isTwoWay(e) && !known.includes(e.status));
   if (orphans.length) {
     out += '<section class="lane"><div class="lane-head"><h2>Unknown status</h2>' +
       '<span class="n">' + orphans.length + "</span></div>" +
@@ -1306,7 +1330,48 @@ function renderBoard(force) {
   tickTimers();
 }
 
+/* A two-way's card: its stage, and which of Jodie's gates is waiting — and nothing to
+ * click. The runner records her answers; the board only shows where things stand. */
+function twoWayCard(ep) {
+  const tw = ep.twoway || {};
+  const num = ep.ep_number != null ? "PP-EP" + ep.ep_number : "PP-EP?";
+  const lane = twoWayLane(ep);
+  const gate = tw.gate ? (TWOWAY_GATES[tw.gate] || tw.gate) : "";
+  const pill = lane === "Done" ? { label: "Published", cls: "ok" }
+    : gate ? { label: "Your turn — " + gate, cls: "need" }
+    : lane === "Waiting" ? { label: "Ready to start in Claude Code", cls: "wait" }
+    : { label: "Claude Code working", cls: "work" };
+  const stage = Number(tw.stage) || 1;
+  const pct = lane === "Done" ? 100 : Math.round((stage - 1) / 5 * 100) + 5;
+  let h = '<article data-card="' + esc(ep.id) + '" class="card twoway">';
+  h += '<div class="toprow"><h3><span class="epnum">' + esc(num) + "</span> " +
+       esc(ep.title || "Untitled") + '</h3><span class="pill ' + pill.cls + '">' +
+       esc(pill.label) + "</span></div>";
+  const readers = Object.values(tw.readers || {}).join(" and ");
+  h += '<p class="twoway-tag">Two-person episode' + (readers ? " · read by " +
+       esc(readers) : "") + "</p>";
+  h += '<div class="bar' + (lane === "Done" ? " ok" : "") + '"><i style="width:' + pct +
+       '%"></i></div>';
+  h += '<div class="stage">' + (lane === "Done" ? "Published" :
+       "Stage " + stage + " of 5 — " + esc(TWOWAY_STAGES[stage] || "") +
+       (tw.step && tw.step !== "pasted" ? " · " + esc(tw.step) : "")) + "</div>";
+  if (gate) {
+    h += '<div class="elapsed">Waiting on you' + (tw.gate_since ? " since " +
+         esc(ago(tw.gate_since)) + " ago" : "") + ". Answer in Claude Code, then type " +
+         "<b>/two-way EP" + esc(String(ep.ep_number)) + "</b> to carry on.</div>";
+  } else if (lane === "Waiting") {
+    h += '<div class="elapsed">In Claude Code, type <b>/two-way EP' +
+         esc(String(ep.ep_number)) + "</b> to start it.</div>";
+  }
+  const yt = safeUrl(ep.published_url || "");
+  if (yt) h += '<p class="meta"><a href="' + esc(yt) + '" target="_blank" rel="noopener">' +
+               "Watch on YouTube</a></p>";
+  h += "</article>";
+  return h;
+}
+
 function cardFor(ep) {
+  if (isTwoWay(ep)) return twoWayCard(ep);
   // THE CHIP MUST NOT SAY "Building…" WHEN NOTHING IS BUILDING. The status column
   // is the truth about the EPISODE; the heartbeat is the truth about the MACHINE,
   // and when they disagree the machine wins — an episode cannot be building if
@@ -2022,7 +2087,7 @@ function threadFor(ep) {
  * it is cleared deliberately once an episode is created, and re-filling it would
  * invite a duplicate. `email` is the sign-in box. Everything else is an operator's
  * work in progress and is protected. */
-const NEVER_HARVEST = new Set(["urlin", "email", "q", "search"]);
+const NEVER_HARVEST = new Set(["urlin", "twowayin", "email", "q", "search"]);
 
 /* Keep whatever the operator has typed across a realtime-triggered re-render. */
 function harvestDrafts() {
