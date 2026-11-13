@@ -688,9 +688,34 @@ def do_replan(ep: Ep):
     be up. By the standing engine rule (EP56, commit 2f9cda0) such a card is DROPPED, never placed late —
     so exit 1 is a REPORT, not a fault (EP57, 14 Nov 2026: C5/C6/C10 late, C3/C7 no fit). The lines are
     kept in replan.json for the cut page; any other non-zero exit is still a fault."""
-    rc = _run(ep, "replan", PY + [HERE / "twoway_a17.py", ep.n, "--replan", "--write", "--pp", ep.pp],
-              ok_codes=(0, 1))
-    log = (LOCAL_LOGS / f"{ep.tag}-replan.log").read_text(encoding="utf-8", errors="replace")
+    # 🔴 THE REPLAN REPORTS A LATE CARD BUT LEAVES IT PLACED, AND twoway_render THEN REFUSES THE WHOLE
+    # PLAN (EP57, 14 Nov 2026: C5/C6/C10 "said … BEFORE the card is up"). The standing rule (EP56) is
+    # that such a card is DROPPED, never placed late — on EP56 by taking it off its beat. So: every card
+    # the replan names as late comes off its beat (the card itself stays in `cards`, so the e-book and
+    # its page keep it), the drop is recorded in build.a17_late_dropped, and the replan runs again —
+    # until it names no late card (at most four rounds).
+    late_rx = re.compile(r"!\s*A17\s+(C\d+)\b.*BEFORE the card is up")
+    for _round in range(4):
+        rc = _run(ep, "replan", PY + [HERE / "twoway_a17.py", ep.n, "--replan", "--write", "--pp", ep.pp],
+                  ok_codes=(0, 1))
+        log = (LOCAL_LOGS / f"{ep.tag}-replan.log").read_text(encoding="utf-8", errors="replace")
+        late = sorted({m.group(1) for m in late_rx.finditer(log)})
+        if not late:
+            break
+        f = ep.p("docs/episode.json")
+        e = json.loads(f.read_text(encoding="utf-8"))
+        for b in e.get("beats", []):
+            if b.get("card") in late:
+                b["card"] = None
+        rec = e.setdefault("build", {}).setdefault("a17_late_dropped", [])
+        rec += [{"card": c, "at": _now(), "why": "a point would be said before the card can be up — "
+                 "dropped, never placed late (standing rule, EP56)"} for c in late if c not in
+                {r["card"] for r in rec}]
+        _write_json(f, e)
+        print(f"  · late A17 card(s) taken off their beats: {', '.join(late)} — replanning", flush=True)
+    else:
+        raise Stop("fault", "replan", "the replan still names late A17 cards after four rounds of dropping "
+                   "them. See output/run/" + f"{ep.tag}-replan.log.")
     _write_json(ep.p("output/run/replan.json"),
                 {"timeline_md5": _md5(ep.p("renders/master-timeline.json")), "at": _now(),
                  "episode_json_md5": _md5(ep.p("docs/episode.json")),

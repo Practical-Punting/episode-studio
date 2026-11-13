@@ -40,6 +40,12 @@ def halts(ep_):
 check("CONTROL: no build.a17 record at all still HALTS", halts({"build": {"a17": {}}}))
 check("CONTROL: a record whose points do not match still HALTS",
       halts({"build": {"a17": {"C3": {"points": [{"key": "q", "anchor": "something else", "delay_ms": 500}]}}}}))
+off = {"beats": [{"n": 1, "card": "C1"}], "build": {"a17": {"C3": {"problem": "not in the assembled plan"}}}}
+out = ac.a17_attach(card, off)
+check("a card on NO beat (taken off as late) is authored untimed, not a halt",
+      "_a17_delays" not in out and "not on any beat" in out.get("_a17_dropped", ""))
+check("CONTROL: the same card ON a beat with only a 'problem' record still HALTS",
+      halts({"beats": [{"n": 1, "card": "C3"}], "build": {"a17": {"C3": {"problem": "not in the assembled plan"}}}}))
 good = {"build": {"a17": {"C3": {"points": [{"key": "q", "anchor": "a chance of paying nothing", "delay_ms": 400},
                                             {"key": "a", "anchor": "the one advantage", "delay_ms": 2400}]}}}}
 check("a measured card still gets its delays", ac.a17_attach(card, good).get("_a17_delays") == [400, 2400])

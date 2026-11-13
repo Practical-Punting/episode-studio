@@ -1086,6 +1086,12 @@ def a17_attach(card, ep):
     # a mismatched one, still halts below — that is a missing measurement, not a drop.
     if r.get("dropped"):
         return dict(card, _a17_dropped=r["dropped"])
+    # A card on NO beat is not in this cut either: the two-way runner takes a card off its beat when
+    # its point would be said before it could be up (EP57, 14 Nov 2026: C5, C6, C10). twoway_a17 then
+    # records {"problem": "not in the assembled plan"} — true, and not a missing measurement.
+    beats = (ep.get("beats") or [])
+    if beats and not any(b.get("card") == card["id"] for b in beats):
+        return dict(card, _a17_dropped="not on any beat in this cut")
     got = [(p.get("key"), p.get("anchor")) for p in r.get("points") or []]
     want = [(str(k), str(s)) for k, s in card["_a17_points"]]
     if got != want or any("delay_ms" not in p for p in r.get("points") or []):
