@@ -1079,6 +1079,13 @@ def a17_attach(card, ep):
     if not card.get("_a17_points"):
         return card
     r = ((ep.get("build") or {}).get("a17") or {}).get(card["id"]) or {}
+    # A card the PLANNER DROPPED (engine/twoway_a17.py records {"dropped": "..."}, a REPORTED drop
+    # — the standing rule: an A17 card is dropped, never placed late) is not on screen in this cut,
+    # so it has no measured points to attach. It is authored untimed and named as dropped; it never
+    # halts the run. Found on EP57's first real run, 14 Nov 2026 (C3, C7). A card with NO record, or
+    # a mismatched one, still halts below — that is a missing measurement, not a drop.
+    if r.get("dropped"):
+        return dict(card, _a17_dropped=r["dropped"])
     got = [(p.get("key"), p.get("anchor")) for p in r.get("points") or []]
     want = [(str(k), str(s)) for k, s in card["_a17_points"]]
     if got != want or any("delay_ms" not in p for p in r.get("points") or []):
