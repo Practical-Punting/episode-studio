@@ -271,10 +271,18 @@ def measure(segments: list[dict], cues: list[dict], timeline: list[dict], epj: d
         if not cs:
             dropped = any(str(x).startswith(f"DROPPED {c['id']} ")
                           for x in (epj.get("build") or {}).get("_layout_placement") or [])
+            # A card taken off its beat as LATE (engine/twoway_run.do_replan, the standing rule:
+            # dropped, never placed late — EP57, 14 Nov 2026) is a reported drop too, recorded in
+            # build.a17_late_dropped by the step that made it.
+            late = any(r.get("card") == c["id"]
+                       for r in (epj.get("build") or {}).get("a17_late_dropped") or [])
             # A card the PLANNER dropped, and said so, is a reported drop with nothing to
             # time; a card that vanished between the plan and the mapping is a fault.
             out[c["id"]] = ({"dropped": "dropped by the planner (see build._layout_placement)"}
-                            if dropped else {"problem": "not in the assembled plan"})
+                            if dropped else
+                            {"dropped": "dropped as late — its point would be said before it "
+                                        "could be up (see build.a17_late_dropped)"}
+                            if late else {"problem": "not in the assembled plan"})
             continue
         enter, leave = min(s["from_s"] for s in cs), max(s["to_s"] for s in cs)
         turn = beats[c["beat"]]["turn"]
