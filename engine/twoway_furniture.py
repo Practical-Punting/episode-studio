@@ -152,6 +152,11 @@ def approved_words(docs: pathlib.Path, ep_number: int) -> dict:
         if "\n" in first:
             raise NotComposable(f"{f.name} section {k} ({SECTIONS[k]}): the words must be "
                                 "ONE paragraph — it runs over several lines.")
+        if k == 4 and re.fullmatch(r"(?i)\s*midroll\s*:\s*from the pool\.?\s*", first):
+            # A BATCH's words are approved before the episodes have numbers, so the line
+            # cannot be chosen yet (Cowork, 13 Nov 2026, Fundamentals Parts 4-6): "from the
+            # pool" means the pool's own draw — the line unused longest — made at compose.
+            first = ""
         out[SECTIONS[k]] = first
         if k == 4:
             m = re.search(r"\b(L\d)\b", h.group(2))

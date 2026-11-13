@@ -135,6 +135,18 @@ refused("CONTROL: a midroll re-voiced by one word → refused",
 refused("CONTROL: a different close → refused (it is Hugh's line)",
         with_words(appr.replace("read by Steve and me.", "read by the two of us.")),
         "standing close")
+import re as _re  # noqa: E402
+# Cowork's batch files (Parts 4-6) carry a bare "## 4. MIDROLL" heading and the line
+# "midroll: from the pool" — no line id anywhere, because the numbers did not exist yet.
+batch = _re.sub(r"## 4\. MIDROLL[^\n]*\n[^\n]+", "## 4. MIDROLL\nmidroll: from the pool", appr, count=1)
+(sdocs / "EP56-new-words-APPROVED.md").write_text(batch, encoding="utf-8")
+b = tf.build(56, sand, write=False)
+mid = next(s for s in b["manifest"] if s["id"] == "midroll")
+drawn, _t = tf.pool_line(56, sand)
+check("a batch's bare 'midroll: from the pool' composes with the pool's OWN draw (no id given)",
+      "## 4. MIDROLL\nmidroll: from the pool" in batch and "L7" not in batch.split("## 4.")[1].split("## 5.")[0]
+      and mid["provenance"].endswith("the pool's draw (the line unused longest)")
+      and mid["name"].endswith(drawn), f"{mid['name']} / {mid['provenance']}")
 (sdocs / "EP56-new-words-APPROVED.md").write_text(appr, encoding="utf-8")
 
 # the sign-off archive check now tests the PLACED line

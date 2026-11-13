@@ -389,6 +389,13 @@ def do_render_sheet(ep: Ep) -> None:
              "> `docs\\HEYGEN-HUMAN-STEP.md`. This sheet names the templates.", "",
              f"Type `python engine\\twoway_run.py {ep.n} --clip` (or ask Claude) to put each script "
              "on your clipboard — ONE script, nothing else.", ""]
+    man = ep.p("docs/script-manifest-BB.json")
+    if man.is_file():
+        import twoway_furniture as tf
+        lid = json.loads(man.read_text(encoding="utf-8")).get("midroll_line_id")
+        if lid:
+            lines += [f"**The midroll in Gordon's script is pool line {lid}** (drawn from the "
+                      f"approved pool):", f"> {tf.pool_lines().get(lid, '')}", ""]
     for code in ("BB", "BM"):
         sp = SPEAKERS[code]
         lines += [f"## {sp['reader']} — reading {sp['name']}", "",
