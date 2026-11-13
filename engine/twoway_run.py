@@ -674,9 +674,18 @@ def replan_done(ep: Ep) -> bool:
 
 
 def do_replan(ep: Ep):
-    _run(ep, "replan", PY + [HERE / "twoway_a17.py", ep.n, "--replan", "--write", "--pp", ep.pp])
+    """twoway_a17 exits 1 when, on the MEASURED clock, a card's point would be said before the card can
+    be up. By the standing engine rule (EP56, commit 2f9cda0) such a card is DROPPED, never placed late —
+    so exit 1 is a REPORT, not a fault (EP57, 14 Nov 2026: C5/C6/C10 late, C3/C7 no fit). The lines are
+    kept in replan.json for the cut page; any other non-zero exit is still a fault."""
+    rc = _run(ep, "replan", PY + [HERE / "twoway_a17.py", ep.n, "--replan", "--write", "--pp", ep.pp],
+              ok_codes=(0, 1))
+    log = (LOCAL_LOGS / f"{ep.tag}-replan.log").read_text(encoding="utf-8", errors="replace")
     _write_json(ep.p("output/run/replan.json"),
-                {"timeline_md5": _md5(ep.p("renders/master-timeline.json")), "at": _now()})
+                {"timeline_md5": _md5(ep.p("renders/master-timeline.json")), "at": _now(),
+                 "episode_json_md5": _md5(ep.p("docs/episode.json")),
+                 "dropped_or_late": [ln.strip() for ln in log.splitlines()
+                                     if "A17" in ln and ("REPORTED" in ln or ln.strip().startswith("!"))]})
 
 
 def pages_done(ep: Ep) -> bool:
