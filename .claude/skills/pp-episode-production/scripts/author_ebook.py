@@ -253,7 +253,10 @@ def apply_sanctioned(article: list[str], docs_dir: str) -> tuple[list[str], list
     if engine not in sys.path:
         sys.path.insert(0, engine)
     import twoway_split as ts
-    subs = ts.load_substitutions(pathlib.Path(docs_dir))
+    # A "reading" entry is how a passage is SAID (a table, race numbers, "the chart below");
+    # the book keeps printing the article there (EP59, Jodie 13 Nov 2026), so it is skipped.
+    subs = [s for s in ts.load_substitutions(pathlib.Path(docs_dir))
+            if s.get("scope", "all") != "reading"]
     out, done = list(article), []
     for s in subs:
         before = re.sub(r"\s+", " ", s["before"]).strip()

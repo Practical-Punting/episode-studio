@@ -354,11 +354,16 @@ def load_substitutions(docs: pathlib.Path) -> list[dict]:
     return subs
 
 
-SUB_SCOPES = ("all", "ebook")
+SUB_SCOPES = ("all", "ebook", "reading")
 """Where a sanctioned cut applies. "all" (the default): the spoken reading AND the e-book.
 "ebook": the book only — for words that are printed but never read aloud. EP56, Jodie 12 Nov
 2026: the author note's "www.trpublishing.com" (a NARR row nobody speaks) is cut from the
-book by the same standing rule, name the site, drop the address."""
+book by the same standing rule, name the site, drop the address.
+"reading": the SPOKEN scripts only — how a passage is SAID when the printed form cannot be
+read aloud (a table, a string of race numbers, "the chart below"). The e-book keeps printing
+the article. EP59, Jodie 13 Nov 2026 (Cowork's reading fixes, all 18 approved): "The e-book
+prints the ticket list, both charts and the full table." A typo fix that the book ALSO takes
+is a separate "ebook" (or "all") entry, so each side states exactly what it changes."""
 
 
 def for_reading(subs: list[dict]) -> list[dict]:
