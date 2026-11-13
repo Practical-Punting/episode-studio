@@ -184,6 +184,32 @@ def _ffmpeg() -> str:
     return pp_paths.ffmpeg() or "ffmpeg"
 
 
+BREAK_FLOOR_S = 3.0
+"""A kept turn break must be at least this long when natural pauses are being set aside."""
+
+
+def _keep_turn_breaks(internal: list, want: int) -> list:
+    """More silences than turn breaks: keep the `want` LONGEST — but only when they are CLEARLY the
+    breaks. EP59 (14 Nov 2026): Gordon paused 2.07 s at a paragraph inside his turn 11, just over
+    GAP_MIN_S; the real breaks (scripted 6 s) all measured 4.07 s or more. A natural pause that
+    long is rare but real, and `want` is known from the script.
+    🔒 Clear means: every kept silence is ≥ BREAK_FLOOR_S AND ≥ 1.5× the longest one set aside
+    (EP59's real numbers: 4.07 s against 2.07 s).
+    Anything closer is ambiguous, so the list is returned unchanged and the count check refuses,
+    as before — a misattributed turn cannot be recovered downstream."""
+    if len(internal) <= want or want <= 0:
+        return internal
+    by_len = sorted(internal, key=lambda se: se[1] - se[0], reverse=True)
+    kept, dropped = by_len[:want], by_len[want:]
+    shortest_kept = min(e - s for s, e in kept)
+    longest_dropped = max(e - s for s, e in dropped)
+    if shortest_kept < BREAK_FLOOR_S or shortest_kept < 1.5 * longest_dropped:
+        return internal
+    for s, e in sorted(dropped):
+        print(f"    natural pause inside a turn, not a break: {s:.2f}-{e:.2f}s ({e - s:.2f}s)", flush=True)
+    return sorted(kept)
+
+
 def silences(path, thresh_db: float = SILENCE_DB,
              min_d: float = GAP_MIN_S) -> list[tuple[float, float]]:
     """Every silence in the file, as (start, end). Measured, never assumed.
@@ -457,6 +483,7 @@ def turn_spans(path, n_turns: int) -> tuple[list, list, float]:
             tail = min(tail, s)
         else:
             internal.append((s, e))
+    internal = _keep_turn_breaks(internal, n_turns - 1)
     if len(internal) != n_turns - 1:
         raise Mismatch(
             f"{pathlib.Path(path).name}: this speaker has {n_turns} turns, so the "
