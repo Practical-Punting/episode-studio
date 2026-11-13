@@ -227,12 +227,21 @@ def list_all():
 TEST_EP_FLOOR = 9000
 NOT_A_TEST = f"&or=(ep_number.is.null,ep_number.lt.{TEST_EP_FLOOR})"
 
+# 🔴 TWO-WAYS ARE NOT THIS ENGINE'S (migration 009, 13 Nov 2026). A two-way episode has a
+# normal rail row from the paste, and it sits at `queued` like any other — but it is built
+# by `engine/twoway_run.py`, never by the single-presenter engine. Every engine reader of
+# queued rows comes through `list_queued()`, and `claim_next()` repeats the filter in its
+# own PATCH, so the guard holds even if a new reader of the rail appears.
+# `format` is NOT NULL with a default of 'single', so `eq.single` loses no real row.
+SINGLE_ONLY = "&format=eq.single"
+
 
 def list_queued():
     """Tickets waiting to be picked up (status 'queued'), oldest first.
 
-    Synthetic test tickets are excluded — see E29 above."""
-    return _request("GET", "?select=*&status=eq.queued" + NOT_A_TEST
+    Synthetic test tickets are excluded — see E29 above. Two-way episodes are excluded —
+    see SINGLE_ONLY above."""
+    return _request("GET", "?select=*&status=eq.queued" + NOT_A_TEST + SINGLE_ONLY
                     + "&order=created_at.asc")
 
 
@@ -249,7 +258,7 @@ def claim(id):
     queued, so two workers can't both claim it. Returns the ticket if we got it,
     or None if it was already taken / not queued.
     """
-    rows = _request("PATCH", f"?id=eq.{_q(id)}&status=eq.queued",
+    rows = _request("PATCH", f"?id=eq.{_q(id)}&status=eq.queued" + SINGLE_ONLY,
                     {"status": "building", "updated_at": _now()}, write=True)
     return rows[0] if rows else None
 
@@ -386,7 +395,7 @@ def claim_next(worker, lease_secs=180):
         rows = _request(
             "PATCH",
             f"?id=eq.{_q(ep['id'])}&status=eq.queued&title_approved=is.true"
-            f"&script_read=is.true"
+            f"&script_read=is.true" + SINGLE_ONLY +
             f"&or=(claimed_by.is.null,lease_until.lt.{_ts(_now())})",
             {"status": "building", "claimed_by": worker,
              "lease_until": _now_plus(lease_secs),
@@ -406,7 +415,7 @@ def resume_own(worker):
     """
     stat = ",".join(sorted(WORKING))
     rows = _request("GET", f"?select=*&claimed_by=eq.{_q(worker)}&status=in.({stat})"
-                           "&order=updated_at.asc")
+                           + SINGLE_ONLY + "&order=updated_at.asc")
     if not rows:
         return None
     ep = rows[0]
@@ -451,7 +460,7 @@ def reclaim_stale(worker, lease_secs=180):
         "PATCH",
         f"?status=in.({stat})&claimed_by=not.is.null&claimed_by=neq.{_q(worker)}"
         f"&title_approved=is.true&script_read=is.true"
-        f"&lease_until=lt.{_ts(_now())}{NOT_A_TEST}&limit=1",
+        f"&lease_until=lt.{_ts(_now())}{NOT_A_TEST}{SINGLE_ONLY}&limit=1",
         {"claimed_by": worker, "lease_until": _now_plus(lease_secs),
          "heartbeat_at": _now(), "updated_at": _now()},
         write=True)
