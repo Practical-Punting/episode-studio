@@ -111,13 +111,24 @@ for code in ("BB", "BM"):
     check(f"  the composed {code} script == EP56's pasted one, byte for byte",
           (d / f"docs/spoken-words-{code}.txt").read_text(encoding="utf-8")
           == (EP56 / f"docs/spoken-words-{code}.txt").read_text(encoding="utf-8"))
-check("  and it stops for the SESSION at the commission", s and s.kind == "session"
-      and s.step == "commission", f"{s.kind if s else None} {s.step if s else ''}")
+check("  and the RENDER GATE opens straight away, at the words (the locked order — Jodie, 13 Nov)",
+      s and s.kind == "gate" and s.gate == "render_paste", f"{s.kind if s else None} {s.step if s else ''}")
 check("a fresh Ep (a restart) resumes at the same step, from disk alone",
-      tr.where(tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True)) == (2, "commission", "session"))
+      tr.where(tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True)) == (3, "render_paste", "gate"))
+sheet = (d / "docs/HEYGEN-RENDER-EP57.md")
+txt = sheet.read_text(encoding="utf-8") if sheet.is_file() else ""
+check("  the render sheet names both templates, both titles, 'Clear the box first' and the midroll line",
+      "Gordon two-way small" in txt and "Barry test 2 small" in txt and "PP-EP57-BB-full" in txt
+      and "Clear the box first" in txt and "pool line" in txt)
+check("  and carries NO HeyGen id (no 32-hex string)", not re.search(r"\b[0-9a-f]{32}\b", txt))
+ep = tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True)
+tr.record_verdict(ep, "render_paste", "approved", "both are generating", [])
+s = tr.advance(ep)
+check("a recorded paste verdict moves it on to the commission (built BEHIND the renders)",
+      s and s.kind == "session" and s.step == "commission", f"{s.kind if s else None} {s.step if s else ''}")
 
-# ── 2. stage 2 → stage 3 ─────────────────────────────────────────────────────────
-print("\n-- 2. stage 2 and the render gate --")
+# ── 2. stage 2 behind the renders ────────────────────────────────────────────────
+print("\n-- 2. the plan, behind the renders --")
 e56 = json.loads((EP56 / "docs/episode.json").read_text(encoding="utf-8"))
 e57 = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
 for k in ("beats", "cards", "broll", "turn_signals", "shape", "packaging", "cover", "title_card", "ebook"):
@@ -133,21 +144,11 @@ check("REAL FINDING: EP56's final commission (4 b-roll slots) is sent back to th
 # The session would fix the commission; the test stands in for that and records the plan as done.
 tr._write_json(d / "output/run/plan-ok.json",
                {"episode_json_md5": tr._md5(d / "docs/episode.json"), "at": "test"})
-s = tr.advance(tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True))
-check("with the plan done, it STOPS at the render-paste gate",
-      s and s.kind == "gate" and s.gate == "render_paste", f"{s.kind if s else None} {s.step if s else ''}"
-      + (f": {s.message[:300]}" if s and s.kind == "fault" else ""))
-sheet = (d / "docs/HEYGEN-RENDER-EP57.md")
-txt = sheet.read_text(encoding="utf-8") if sheet.is_file() else ""
-check("  the render sheet names both templates, both titles, and 'Clear the box first'",
-      "Gordon two-way small" in txt and "Barry test 2 small" in txt and "PP-EP57-BB-full" in txt
-      and "Clear the box first" in txt)
-check("  and carries NO HeyGen id (no 32-hex string)", not re.search(r"\b[0-9a-f]{32}\b", txt))
 ep = tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True)
-tr.record_verdict(ep, "render_paste", "approved", "both are generating", [])
 s = tr.advance(ep)
-check("a recorded paste verdict moves it on, to the b-roll SESSION step",
-      s and s.kind == "session" and s.step == "broll_generate", f"{s.kind if s else None} {s.step if s else ''}")
+check("with the plan done, it moves on to the b-roll SESSION step",
+      s and s.kind == "session" and s.step == "broll_generate", f"{s.kind if s else None} {s.step if s else ''}"
+      + (f": {s.message[:300]}" if s and s.kind == "fault" else ""))
 
 # ── 3. verdicts: split, and a change keeps the gate shut ─────────────────────────
 print("\n-- 3. verdicts --")

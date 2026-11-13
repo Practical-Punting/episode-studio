@@ -813,7 +813,18 @@ STEPS = [
     (1, "words", "gate", lambda ep: words_file(ep).is_file(), do_words),
     (1, "compose", "code", _exists("docs/script-manifest-BB.json", "docs/spoken-words-BM.txt"),
      lambda ep: _run(ep, "compose", PY + [HERE / "twoway_furniture.py", ep.n, "--write", "--pp", ep.pp])),
-    # ── STAGE 2 — PLAN WHILE THE WORDS CAN STILL CHANGE ────────────────────────
+    # ── THE RENDER GATE OPENS AT THE WORDS (Jodie, 13 Nov 2026 — the LOCKED ORDER, the same as
+    # single episodes): the renders are the long pole and need only the approved scripts, so
+    # they start the moment the scripts are composed, and the commission, the plan, the cards
+    # and the b-roll are all built BEHIND them while HeyGen cooks. Jodie: "The graphics cards
+    # etc should be built while heygen generates the video." The plan used to come first here.
+    (3, "render_sheet", "code", lambda ep: ep.p(f"docs/HEYGEN-RENDER-EP{ep.n:02d}.md").is_file(),
+     do_render_sheet),
+    (3, "render_paste", "gate",
+     lambda ep: ep.passed("render_paste") or all(
+         ep.p(f"renders/{render_title(ep, c)}.mp4").is_file() for c in ("BB", "BM")),
+     G_RENDER_PASTE[1]),
+    # ── STAGE 2 — PLAN, BEHIND THE RENDERS ─────────────────────────────────────
     (2, "commission", "session",
      lambda ep: all(ep.epj().get(k) for k in ("beats", "cards", "broll", "turn_signals")),
      _session("Write {tag}'s two-way commission into docs/episode.json — beats, cards (A17 points, "
@@ -822,13 +833,7 @@ STEPS = [
               "following PP-EP56's episode.json and its output/qc/ep56-stage2/commission_ep56.py. "
               "A list too long for a card shows what fits; the e-book carries all. Then run me again.")),
     (2, "plan", "code", step_plan_ok, do_plan),
-    # ── STAGE 3 — THE SPEND (Jodie's pastes; Higgsfield inside 110) ───────────
-    (3, "render_sheet", "code", lambda ep: ep.p(f"docs/HEYGEN-RENDER-EP{ep.n:02d}.md").is_file(),
-     do_render_sheet),
-    (3, "render_paste", "gate",
-     lambda ep: ep.passed("render_paste") or all(
-         ep.p(f"renders/{render_title(ep, c)}.mp4").is_file() for c in ("BB", "BM")),
-     G_RENDER_PASTE[1]),
+    # ── STAGE 3 — HIGGSFIELD (inside 110), while the renders cook ──────────────
     (3, "broll_generate", "session", _exists("output/review/broll-candidates.json"),
      _session("Generate {tag}'s b-roll clips and two cover heroes through engine/hf_guard.py ONLY "
               "(110-credit ceiling), from the prompts in docs/episode.json. Then write "
