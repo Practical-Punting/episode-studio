@@ -20,7 +20,9 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 E = pathlib.Path(os.environ.get("ENGINE") or pathlib.Path(__file__).resolve().parent)
-KNOWN = {"twoway_furniture.py": "holds EP49's words as constants — OPEN, recorded"}
+# 13 Nov 2026: twoway_furniture.py no longer holds EP49's words (it reads the episode's
+# approved file), so it is no longer an exception. The list is empty on purpose.
+KNOWN: dict = {}
 hits = []
 for f in sorted(E.glob("twoway_*.py")):
     if f.name in KNOWN:

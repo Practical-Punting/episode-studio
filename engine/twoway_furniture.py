@@ -3,6 +3,15 @@
 
     python engine/twoway_furniture.py <ep_number> [--pp DIR] [--write]
 
+🔴 THE WORDS COME FROM THE EPISODE, NEVER FROM THIS FILE (13 Nov 2026). Until then the
+open, CTA, wind-down and sign-off were EP49's words as module constants, so `--write` for
+any later two-way would have put EP49's words in Gordon's mouth and claimed Hugh's
+approval for them (EP55 and EP56 were composed by scratch scripts that patched them in
+memory). Now every per-episode piece is lifted from `docs/EPnn-new-words-APPROVED.md`
+(sections 1-8, the layout EP55 and EP56 were approved in) and the step refuses to run
+without it. Only the two STANDING lines live here: the responsible-gambling line (locked)
+and the close (Hugh, 20 Sep 2026, reused on every two-way since).
+
 `twoway_split` writes the DIALOGUE. This step writes the pieces Gordon speaks AS
 GORDON — the open, the early e-book CTA, the midroll invitation, the close, the outro
 and the responsible-gambling line — and then composes the two into the single script
@@ -64,9 +73,6 @@ PP = pathlib.Path(os.environ.get("PP_VIDEOS_DIR", r"G:\My Drive\PP Videos"))
 REPO = HERE.parent
 BREAK = ts.BREAK
 
-MARKER = "# EP49 — STANDING FURNITURE"
-"""Not used for parsing — see `is_composed()`. Kept only so the file says what it is."""
-
 MANIFEST = "script-manifest-{code}.json"
 """🔴 THE SENTINEL LIVES BESIDE THE SCRIPT, NEVER INSIDE IT.
 
@@ -96,55 +102,75 @@ class NotComposable(Exception):
 RG_LINE = "And remember — never bet more than you can afford to lose."
 """WORD-FOR-WORD LOCKED by the outro standard. Never varied, never re-voiced."""
 
-OPEN = (
-    "Back in two thousand and three, Practical Punting's editor Brian Blackwell sat "
-    "down with the American handicapper Barry Meadow to work through the fundamentals "
-    "of handicapping — how you actually go about picking a race. It ran in the "
-    "magazine as a conversation, in six parts, and it's too good to summarise, so "
-    "you're getting it the way it was written. Now, I'm not Brian, and my colleague "
-    "Steve is not Barry. We're two readers. I'll read Brian's side of the "
-    "conversation, Steve will read Barry's, and every word you hear is theirs, exactly "
-    "as they wrote it. Right — Barry starts.")
-
 CLOSE = (
     "That was Barry Meadow and Brian Blackwell, from the pages of Practical Punting — "
     "read by Steve and me.")
+"""THE STANDING CLOSE — Hugh's one-time OK, 20 Sep 2026 (build spec A8), reused word for
+word on EP55 and EP56. A different close is a NEW KIND OF LINE and goes to Hugh, so the
+step refuses one rather than composing it."""
 
-APPROVAL = "Hugh, 20 September 2026 (build spec A8 — his one-time OK on the open and the close)"
-"""🔴 A8 IS SATISFIED AND THIS IS THE RECORD OF IT.
+WORDS_FILE = "EP{n}-new-words-APPROVED.md"
+"""The approved new words, in the episode's own docs/. Cowork writes it; Jodie approves
+it; the runner copies it in when the episode gets its number."""
 
-The open and the close are the only words in the episode that are neither the article's
-nor a standing studio line, so A8 gated them on Hugh's one-time approval. Jodie relayed
-that approval on 20 Sep 2026. It covers THESE TWO PIECES and nothing else — the CTA, the
-wind-down and the sign-off are studio furniture inside shapes already approved, and
-Gordon's script has no other gate.
-"""
-
-CTA = (
-    "One quick thing before we get into it. There's a free guide to go with this "
-    "video, with the whole conversation in it, Barry's five categories and all. The "
-    "link's in the description below. Grab it and you can follow along as we go.")
-
-WINDDOWN = (
-    "So that's the fundamentals, from two men who do not go about it the same way. "
-    "Barry wanting everything he can learn about a race before he forms an opinion, "
-    "Brian sticking up for instinct and a sensible system, and the pair of them "
-    "agreeing the game is far too complex to be reduced to one rule. I've put the "
-    "whole conversation in a free guide, Barry's five categories and Brian's own "
-    "routine included, so you've got it beside you on a Saturday. The link's just "
-    "below this video.")
-
-SIGNOFF = (
-    "That's me for this one. Look after yourself, give the guesswork the respect it "
-    "deserves, and I'll see you soon.")
-"""⚠️ THE FIRST DRAFT OF THIS LINE WAS AN EXACT MATCH OF THIRTEEN SHIPPED EPISODES.
-"That's me for now. Look after yourself, take your time over the form, and I'll see you
-soon." is the most-used sign-off on the channel and it was reached for without knowing
-that — which is the whole argument for the archive check below rather than for memory.
-The nod here is EP49's own subject and appears nowhere in the archive."""
+SECTIONS = {1: "open", 2: "handover", 3: "cta", 4: "midroll", 5: "close", 6: "outro",
+            7: "rg", 8: "signoff"}
+"""The section numbers of the approved-words file, as EP55's and EP56's are laid out."""
 
 
-def pool_line(ep_number: int) -> tuple[str, str]:
+def approved_words(docs: pathlib.Path, ep_number: int) -> dict:
+    """The eight pieces, lifted from the approved file — never retyped.
+
+    Each section's words are its FIRST paragraph; notes in brackets, lists and the
+    standfirst record follow it and are not words. The midroll section may name its
+    pool line in the heading and carry no text (EP55's shape) — then the pool's own
+    wording of that line is the text. Returns {piece: text, "approval": line,
+    "midroll_id": "Ln" or None, "source": path}.
+    """
+    f = docs / WORDS_FILE.format(n=ep_number)
+    if not f.is_file():
+        raise NotComposable(
+            f"no {f.name} in {docs} — the new words are not approved yet. Cowork writes "
+            "them; Jodie approves them; this step only lifts them.")
+    md = f.read_text(encoding="utf-8").replace("\r\n", "\n")
+    status = next((ln.strip() for ln in md.splitlines()
+                   if ln.lower().startswith("status:")), "")
+    if "APPROVED" not in status.upper():
+        raise NotComposable(f"{f.name} has no 'Status: APPROVED …' line — a draft is not "
+                            "an approval.")
+    heads = list(re.finditer(r"^## (\d+)\. (.+)$", md, re.M))
+    out: dict = {"approval": status, "source": str(f), "midroll_id": None}
+    for i, h in enumerate(heads):
+        k = int(h.group(1))
+        if k not in SECTIONS:
+            continue
+        body = md[h.end(): heads[i + 1].start() if i + 1 < len(heads) else len(md)]
+        paras = [p.strip() for p in body.strip().split("\n\n") if p.strip()]
+        first = paras[0] if paras else ""
+        if first.startswith(("(", "-", "#", ">")):
+            first = ""
+        if "\n" in first:
+            raise NotComposable(f"{f.name} section {k} ({SECTIONS[k]}): the words must be "
+                                "ONE paragraph — it runs over several lines.")
+        out[SECTIONS[k]] = first
+        if k == 4:
+            m = re.search(r"\b(L\d)\b", h.group(2))
+            out["midroll_id"] = m.group(1) if m else None
+    missing = [n for k, n in SECTIONS.items()
+               if not out.get(n) and n not in ("handover", "midroll")]
+    if missing:
+        raise NotComposable(f"{f.name} is missing words for: {', '.join(missing)}.")
+    if out["rg"] != RG_LINE:
+        raise NotComposable(f"{f.name} section 7: the responsible-gambling line is not the "
+                            f"locked line word for word. Locked: {RG_LINE!r}")
+    if out["close"] != CLOSE:
+        raise NotComposable(
+            f"{f.name} section 5: the close is not the standing close. A different close "
+            "is a new kind of line and goes to Hugh (A8) — not composed here.")
+    return out
+
+
+def pool_line(ep_number: int, pp: pathlib.Path = None) -> tuple[str, str]:
     """The midroll invitation, drawn by the pool's rule and lifted by its own parser.
 
     The pool file documents its contract as `^### (L\\d)\\n> (.+?)$` — the heading, then
@@ -166,37 +192,101 @@ def pool_line(ep_number: int) -> tuple[str, str]:
     if str(scripts) not in sys.path:
         sys.path.insert(0, str(scripts))
     from render_ready import pool_line_unused_longest    # noqa: PLC0415
-    lid, _text, _last = pool_line_unused_longest(str(PP / f"PP-EP{ep_number:02d}"))
+    lid, _text, _last = pool_line_unused_longest(str((pp or PP) / f"PP-EP{ep_number:02d}"))
     return lid, lines[lid]
 
 
-def pieces(ep_number: int) -> list[dict]:
+def pool_lines() -> dict:
+    """{'L0': text, …} — the pool's CURRENT wording, by its own documented parser."""
+    txt = (REPO / "docs/midroll-line-pool.md").read_text(encoding="utf-8")
+    return dict(re.findall(r"^### (L\d)\n> (.+?)$", txt.replace("\r\n", "\n"), re.M))
+
+
+def midroll_for(ep_number: int, words: dict,
+                pp: pathlib.Path = None) -> tuple[str, str, str]:
+    """(line id, text, how it was chosen) — the midroll Jodie APPROVED, checked.
+
+    🔴 THE APPROVED LINE WINS, BECAUSE SHE READ IT (she asked to see the midroll on
+    EP56). But it must be one of the ten, VERBATIM, and it must not repeat a line
+    inside the nine-episode window — the window, not the draw, is the rule's purpose.
+    If it differs from the pool's own draw ("unused longest") that is reported, not
+    refused: in a batch the words are approved before the numbers exist, so the draw
+    the writer saw can move. A section with no text but an `Ln` in its heading
+    (EP55's shape) means that line's pool wording. No line at all → the draw.
+    """
+    pool = pool_lines()
+    pp = pp or PP
+    drawn, drawn_text = pool_line(ep_number, pp)
+    text = words.get("midroll") or ""
+    if not text and words.get("midroll_id"):
+        lid = words["midroll_id"]
+        if lid not in pool:
+            raise NotComposable(f"the approved words name midroll line {lid}, which is "
+                                "not in the pool.")
+        text = pool[lid]
+    if not text:
+        return drawn, drawn_text, "the pool's draw (the line unused longest)"
+    flat = " ".join(text.split())
+    lid = next((k for k, v in pool.items() if " ".join(v.split()) == flat), None)
+    if lid is None:
+        raise NotComposable(
+            "the approved midroll is not one of the pool's ten lines word for word. "
+            "The midroll is lifted from the pool, never re-voiced.")
+    scripts = REPO / ".claude/skills/pp-episode-production/scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    # The window is checked BY LINE, not by exact wording: the pool was re-worded on
+    # 11 Nov 2026 (cadence out), so an earlier use of the same line carries the OLD
+    # words and an exact-text match cannot see it. `lines_in_folder` knows every
+    # wording a line has had — the same reading the pool's draw uses.
+    from render_ready import (midroll_window, lines_in_folder,    # noqa: PLC0415
+                              pool_wordings)
+    wordings = pool_wordings()
+    clash = None
+    for _pos, f in midroll_window(str(ep_paths.episode_dir(ep_number, pp))):
+        folder = os.path.dirname(os.path.dirname(f))
+        if lid in lines_in_folder(folder, wordings):
+            clash = os.path.basename(folder)
+            break
+    if clash:
+        raise NotComposable(
+            f"the approved midroll {lid} was already used by {clash}, inside the "
+            f"nine-episode window. The pool's draw for this episode is {drawn}.")
+    how = ("the approved line; it is the pool's draw" if lid == drawn else
+           f"the approved line; the pool's draw today would be {drawn} — {lid} is "
+           "still clear of the nine-episode window")
+    return lid, pool[lid], how
+
+
+def pieces(ep_number: int, words: dict, pp: pathlib.Path = None) -> list[dict]:
     """Every Gordon-as-Gordon piece, in spoken order, with where it goes and why.
 
     `where` is a PLACEMENT RULE, not a position. `place()` resolves it against the
-    dialogue; nothing here knows how many turns this episode has.
+    dialogue; nothing here knows how many turns this episode has. Every per-episode
+    word comes from `words` (see `approved_words`).
     """
-    lid, midroll = pool_line(ep_number)
+    lid, midroll, how = midroll_for(ep_number, words, pp)
+    appr = f"APPROVED — {words['approval']}"
     return [
-        {"id": "open", "name": "the open", "text": OPEN, "where": "before-dialogue",
-         "provenance": f"NEW WORDS — approved by {APPROVAL}"},
-        {"id": "cta", "name": "early e-book CTA", "text": CTA,
+        {"id": "open", "name": "the open", "text": words["open"],
+         "where": "before-dialogue", "provenance": appr},
+        {"id": "cta", "name": "early e-book CTA", "text": words["cta"],
          "where": "after-host-turn-1",
-         "provenance": "per-episode wording inside the approved shape"},
+         "provenance": f"{appr} — per-episode wording inside the approved shape"},
         {"id": "midroll", "name": f"midroll invitation {lid}", "text": midroll,
          "where": "midpoint-handover-into-host",
-         "provenance": "VERBATIM from the pool of ten, the line unused longest"},
+         "provenance": f"VERBATIM from the pool of ten ({lid}): {how}"},
         {"id": "close", "name": "the close", "text": CLOSE, "where": "after-dialogue",
-         "provenance": f"NEW WORDS — approved by {APPROVAL}"},
+         "provenance": "the standing close, approved by Hugh 20 Sep 2026 (A8), reused"},
         {"id": "outro", "name": "outro: wind-down and the e-book pointer",
-         "text": WINDDOWN, "where": "after-dialogue",
-         "provenance": "per-episode wind-down inside the approved shape"},
+         "text": words["outro"], "where": "after-dialogue",
+         "provenance": f"{appr} — per-episode wording inside the approved shape"},
         {"id": "rg", "name": "responsible gambling", "text": RG_LINE,
          "where": "after-dialogue",
          "provenance": "WORD-FOR-WORD LOCKED, never varied"},
-        {"id": "signoff", "name": "outro: sign-off", "text": SIGNOFF,
+        {"id": "signoff", "name": "outro: sign-off", "text": words["signoff"],
          "where": "after-dialogue",
-         "provenance": "a PATTERN re-voiced each episode, never a previous "
+         "provenance": f"{appr} — a PATTERN re-voiced each episode, never a previous "
                        "episode's words"},
     ]
 
@@ -231,12 +321,14 @@ def midpoint_handover(turns: list[dict], host: str) -> int:
     return min(mine[1:], key=lambda p: abs(p[1] - half))[0]
 
 
-def place(turns: list[dict], host: str, ep_number: int) -> list[dict]:
+def place(turns: list[dict], host: str, ep_number: int, words: dict,
+          pp: pathlib.Path = None) -> list[dict]:
     """The render's segments, in order: every furniture piece and every host turn.
 
     Returns the manifest — what segment 1, 2, 3 … of the BB render will contain. It is
     the thing `interleave` needs in order to know which silence it is looking at, and
-    it is written out beside the script for exactly that reason.
+    it is written out beside the script for exactly that reason. Each furniture
+    segment carries its `where` — `twoway_interleave` refuses a manifest without it.
     """
     spoken = [t for t in turns if t["speaker"] != "NARR"]
     host_turns = [t for t in spoken if t["speaker"] == host]
@@ -244,12 +336,13 @@ def place(turns: list[dict], host: str, ep_number: int) -> list[dict]:
         raise NotComposable(f"no turns for the host {host}.")
     mid_turn = midpoint_handover(turns, host)
     by_where: dict[str, list[dict]] = {}
-    for p in pieces(ep_number):
+    for p in pieces(ep_number, words, pp):
         by_where.setdefault(p["where"], []).append(p)
 
     def furn(p: dict) -> dict:
         return {"kind": "furniture", "id": p["id"], "name": p["name"],
-                "text": p["text"], "provenance": p["provenance"], "turn": None}
+                "text": p["text"], "provenance": p["provenance"], "turn": None,
+                "where": p["where"]}
 
     out = [furn(p) for p in by_where.get("before-dialogue", [])]
     for i, t in enumerate(host_turns):
@@ -324,7 +417,8 @@ def furniture_file(ep_number: int, manifest: list[dict]) -> str:
         "# the cut can take it, move it or drop it without touching a word of the",
         "# reading (build spec A1, presentation doc section 4).",
         "#",
-        f"# THE OPEN AND THE CLOSE ARE APPROVED: {APPROVAL}.",
+        "# THE WORDS ARE LIFTED BY CODE from docs/" + WORDS_FILE.format(n=ep_number)
+        + ", never retyped.",
         "#",
     ]
     for i, s in enumerate(furn, 1):
@@ -352,14 +446,19 @@ def problems(manifest: list[dict], ep_dir: pathlib.Path, pp: pathlib.Path) -> li
     # 🔴 THE SIGN-OFF AGAINST THE WHOLE ARCHIVE, NOT AGAINST MEMORY. The outro standard
     # forbids repeating a previous episode's sign-off verbatim, and the reason this is
     # a check and not a habit is that the first draft of EP49's WAS one of thirteen.
-    for p in sorted(pp.glob("PP-EP*/docs/spoken-words*.txt")):
+    # 🔴 THE SIGN-OFF CHECKED IS THE ONE PLACED IN THIS MANIFEST (13 Nov 2026). It used
+    # to test the module constant — EP49's words — so for every later episode it
+    # checked the wrong line and failed on EP49's own folder.
+    signoff = next((s["text"] for s in manifest if s.get("kind") == "furniture" and
+                    (s.get("id") == "signoff" or "sign-off" in s.get("name", ""))), None)
+    for p in sorted(pp.glob("PP-EP*/docs/spoken-words*.txt")) if signoff else []:
         if p.parent == ep_dir / "docs":
             continue
         try:
             tail = " ".join(p.read_text(encoding="utf-8", errors="replace").split()[-28:])
         except OSError:
             continue
-        if SIGNOFF in tail:
+        if signoff in tail:
             out.append(f"the sign-off repeats {p.parts[-3]} VERBATIM — the outro "
                        f"standard forbids it.")
     return out
@@ -367,13 +466,15 @@ def problems(manifest: list[dict], ep_dir: pathlib.Path, pp: pathlib.Path) -> li
 
 # ───────────────────────────────────────────────────────────────── the step ──
 
-def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
+def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False,
+          force: bool = False) -> dict:
     ep_dir = ep_paths.episode_dir(ep_number, pp)
     docs = ep_dir / "docs"
     tj = docs / "turns.json"
     if not tj.is_file():
         raise NotComposable(f"no {tj} — run twoway_split.py first; this step composes "
                             "the dialogue it wrote and never re-derives it.")
+    words = approved_words(docs, ep_number)
     turns = json.loads(tj.read_text(encoding="utf-8"))["turns"]
     # 🔒 The host reads the READING, not the raw turns: exactly the episode's sanctioned
     # substitutions applied and proved (EP56's dropped web addresses, 11 Nov 2026). One
@@ -392,17 +493,35 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
             "one' would put the outro in Steve's mouth on the first episode that "
             "opened the other way round.")
 
-    manifest = place(turns, host, ep_number)
+    manifest = place(turns, host, ep_number, words, pp)
     script = compose(manifest)
     bad = problems(manifest, ep_dir, pp)
 
-    lid, _ = pool_line(ep_number)
+    # 🔴 THE GUEST'S SCRIPT: the splitter's own, with Steve's approved handover in front
+    # (A14, "Thanks, Gordon."), same paragraph. Written here so ONE step writes both
+    # render scripts from the one approved file.
+    guests = [c for c in (epj.get("speakers") or {}) if c != host]
+    if len(guests) != 1:
+        raise NotComposable(f"episode.json names {len(guests)} guest speakers; a two-way "
+                            "has exactly one.")
+    guest = guests[0]
+    split = ts.build(ep_number, pp, write=False)
+    if split["scripts"].get(host) != f"\n\n{BREAK}\n\n".join(
+            s["text"] for s in manifest if s["kind"] == "turn") + "\n":
+        bad.append("the host's reading segments are not twoway_split's script for "
+                   f"{host} — turns.json and the capture disagree. Re-split first.")
+    handover = words.get("handover") or ""
+    guest_script = (handover + " " if handover else "") + split["scripts"][guest]
+
     mid = next(s for s in manifest if s["id"] == "midroll")
+    lid = mid["name"].split()[-1]
     after = manifest[mid["n"] - 2]
 
     print(f"episode    : {ep_dir.name}")
+    print(f"words      : {words['source']}")
     print(f"host       : {host}  (the furniture is the host's and no one else's)")
-    print(f"midroll    : {lid}, drawn by {ep_number} mod ten")
+    print(f"guest      : {guest}  (handover: {handover or 'none'})")
+    print(f"midroll    : {mid['provenance']}")
     print(f"placed at  : segment {mid['n']}, the handover into turn "
           f"{manifest[mid['n']]['turn']} — after {after['name']}")
     print()
@@ -412,10 +531,10 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
         est = s["words"] / 2.6
         total += est
         print(f"{s['n']:>3}  {s['kind']:<9} {s['words']:>5}  {est:>5.1f}s  {s['name']}")
-    words = sum(s["words"] for s in manifest)
+    n_words = sum(s["words"] for s in manifest)
     furn_w = sum(s["words"] for s in manifest if s["kind"] == "furniture")
     print(f"\n{len(manifest)} segments, {len(manifest) - 1} breaks of six seconds")
-    print(f"{words:,} spoken words ({furn_w} furniture, {words - furn_w:,} reading), "
+    print(f"{n_words:,} spoken words ({furn_w} furniture, {n_words - furn_w:,} reading), "
           f"~{total / 60:.1f} min at 2.6 words/s before breaks")
     print(f"+ {(len(manifest) - 1) * 6 / 60:.1f} min of breaks cut out at assembly")
 
@@ -427,14 +546,30 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
 
     out = {f"furniture-{host}.txt": furniture_file(ep_number, manifest),
            f"spoken-words-{host}.txt": script,
+           f"spoken-words-{guest}.txt": guest_script,
            MANIFEST.format(code=host): json.dumps(
                {"episode": f"EP{ep_number}", "host": host, "midroll_line_id": lid,
+                "approval": words["approval"], "words_file": WORDS_FILE.format(n=ep_number),
+                "guest_handover": {"speaker": guest, "text": handover},
                 "segments": [{k: v for k, v in s.items() if k != "text"}
                              for s in manifest]},
                indent=2, ensure_ascii=False) + "\n"}
 
     if write:
+        # 🔴 A RENDER SCRIPT ALREADY ON DISK IS NEVER OVERWRITTEN SILENTLY: it may be
+        # the one Jodie pasted. Identical → left alone; different → halt unless --force.
+        changed = [n for n, b in out.items() if (docs / n).is_file()
+                   and (docs / n).read_text(encoding="utf-8") != b
+                   and n.startswith("spoken-words-")]
+        if changed and not force:
+            raise NotComposable(
+                f"{', '.join(changed)} already exist and would change. They may be the "
+                "scripts that were pasted into HeyGen. Pass --force only if the words "
+                "were re-approved and no render has been made from the old ones.")
         for name, body in out.items():
+            if (docs / name).is_file() and (docs / name).read_text(encoding="utf-8") == body:
+                print(f"UNCHANGED {docs / name}")
+                continue
             tmp = docs / (name + ".tmp")
             tmp.write_text(body, encoding="utf-8", newline="\n")
             os.replace(tmp, docs / name)
@@ -445,7 +580,8 @@ def build(ep_number: int, pp: pathlib.Path = PP, write: bool = False) -> dict:
     else:
         print(f"\nwould write {', '.join(out)} into {docs} (report only; pass --write)")
     return {"manifest": manifest, "script": script, "host": host, "docs": docs,
-            "line_id": lid, "out": out}
+            "line_id": lid, "out": out, "guest": guest, "guest_script": guest_script,
+            "words": words}
 
 
 def main() -> int:
@@ -453,9 +589,11 @@ def main() -> int:
     ap.add_argument("ep_number", type=int)
     ap.add_argument("--pp", default=str(PP))
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="overwrite render scripts that already exist and differ")
     a = ap.parse_args()
     try:
-        build(a.ep_number, pathlib.Path(a.pp), write=a.write)
+        build(a.ep_number, pathlib.Path(a.pp), write=a.write, force=a.force)
     except (NotComposable, ts.Unsplittable) as e:   # Unsplittable: a bad substitution
         print(f"\nHALT: {e}", file=sys.stderr)
         return 1

@@ -234,7 +234,10 @@ check("CONTROL: a real mid-turn return after 6s of single IS still reported",
 # ═══ 5. the composed render script ═══════════════════════════════════════════
 print("\n-- 5. one render, with the furniture in it --")
 
-built = tf.build(49, PP, write=False)
+# 13 Nov 2026: the furniture's words now come from the episode's own approved file, and
+# EP49 (shipped, never touched) has none — so the PLACEMENT rules are exercised on EP56,
+# which has one. The midpoint arithmetic below still runs on EP49's own turns.
+built = tf.build(56, PP, write=False)
 man = built["manifest"]
 kinds = [s["kind"] for s in man]
 ids = [s["id"] for s in man]
@@ -302,21 +305,20 @@ for p in sorted(PP.glob("PP-EP*/docs/spoken-words*.txt")):
         if shipped:
             break
 if shipped:
-    real_signoff = tf.SIGNOFF
-    try:
-        tf.SIGNOFF = shipped
-        bad = tf.problems([{"kind": "furniture", "name": "outro: sign-off",
-                            "text": shipped},
-                           {"kind": "furniture", "name": "rg", "text": tf.RG_LINE}],
-                          EP_DIR, PP)
-    finally:
-        tf.SIGNOFF = real_signoff
+    # problems() now checks the sign-off PLACED in the manifest (13 Nov 2026), so no
+    # module constant needs swapping in for this control.
+    bad = tf.problems([{"kind": "furniture", "name": "outro: sign-off",
+                        "text": shipped},
+                       {"kind": "furniture", "name": "rg", "text": tf.RG_LINE}],
+                      EP_DIR, PP)
     check("CONTROL: a sign-off already in the archive is REFUSED",
           any("VERBATIM" in b for b in bad), "; ".join(bad)[:140])
+EP49_SIGNOFF = (EP_DIR / "docs/spoken-words-BB.txt").read_text(
+    encoding="utf-8").strip().split(ts.BREAK)[-1].strip()
 check("EP49's own sign-off is not in the archive",
       not any("VERBATIM" in b for b in
               tf.problems([{"kind": "furniture", "name": "outro: sign-off",
-                            "text": tf.SIGNOFF},
+                            "text": EP49_SIGNOFF},
                            {"kind": "furniture", "name": "rg", "text": tf.RG_LINE}],
                           EP_DIR, PP)))
 check("CONTROL: a furniture piece with a bare numeral is REFUSED",

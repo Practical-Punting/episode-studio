@@ -445,6 +445,31 @@ def _midroll_sequence(root):
     return slots
 
 
+def _episode_script(folder):
+    """The script that carries an episode's midroll: `docs/spoken-words.txt`, or — for a
+    TWO-WAY — the composed host script, `spoken-words-XX.txt` with its
+    `script-manifest-XX.json` beside it (the mark only `twoway_furniture` writes).
+
+    13 Nov 2026: the window read only `spoken-words.txt`, so the two-way episodes
+    (EP49, EP55, EP56) were invisible to it and a single episode after them could
+    repeat their midroll line inside the nine. None if the folder has neither."""
+    docs = os.path.join(folder, "docs")
+    sw = os.path.join(docs, "spoken-words.txt")
+    if os.path.exists(sw):
+        return sw
+    try:
+        names = sorted(os.listdir(docs))
+    except OSError:
+        return None
+    for n in names:
+        if n.startswith("script-manifest-") and n.endswith(".json"):
+            code = n[len("script-manifest-"):-len(".json")]
+            host = os.path.join(docs, "spoken-words-" + code + ".txt")
+            if os.path.exists(host):
+                return host
+    return None
+
+
 def midroll_window(ep_dir, window=MIDROLL_WINDOW):
     """Spoken-words files of the `window` episodes immediately BEFORE this one,
     across PP-EP AND PP-GH (one pool, one sequence - see _midroll_sequence).
@@ -476,8 +501,8 @@ def midroll_window(ep_dir, window=MIDROLL_WINDOW):
     prior = [s for s in slots if s[0] < mine][-window:]
     found = []
     for pos, d in prior:
-        sw = os.path.join(d, "docs", "spoken-words.txt") if d else None
-        if sw and os.path.exists(sw):
+        sw = _episode_script(d) if d else None
+        if sw:
             found.append((pos, sw))
     found.sort(key=lambda t: t[0], reverse=True)
     return found
