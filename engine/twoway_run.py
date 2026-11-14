@@ -683,6 +683,28 @@ def replan_done(ep: Ep) -> bool:
         == _md5(ep.p("renders/master-timeline.json"))
 
 
+_A17_LATE = re.compile(r"!\s*A17\s+(C\d+)\b.*BEFORE the card is up")
+# The other half (EP58, 14 Nov 2026: C12 up 8.4s before its first point). On its own sentence C12's
+# hold left a closing two-box under the 5s dwell law, so the dwell loop pulled it a sentence EARLIER —
+# an empty card, which twoway_render refuses exactly as it refuses a late one. No legal entry puts it
+# on its words, so it takes the same remedy: off its beat, reported.
+_A17_EARLY = re.compile(r"!\s*A17\s+(C\d+):\s+up\s+[\d.]+s before its first point is said")
+
+
+def a17_timing_drops(log: str) -> dict[str, str]:
+    """{card: why} for every A17 card the replan log names as unable to be up ON its words — said
+    before it is up (late), or up too long before it is said (early). Only the `!` violation lines:
+    a `REPORTED` note (a card that enters ON its long sentence) is a fact, not a fault."""
+    out = {}
+    for m in _A17_EARLY.finditer(log):
+        out[m.group(1)] = ("up too long before its first point is said, and no legal entry puts it on "
+                           "its words — dropped, never placed early (the A17 4s limit)")
+    for m in _A17_LATE.finditer(log):
+        out[m.group(1)] = ("a point would be said before the card can be up — dropped, never placed "
+                           "late (standing rule, EP56)")
+    return out
+
+
 def do_replan(ep: Ep):
     """twoway_a17 exits 1 when, on the MEASURED clock, a card's point would be said before the card can
     be up. By the standing engine rule (EP56, commit 2f9cda0) such a card is DROPPED, never placed late —
@@ -694,28 +716,27 @@ def do_replan(ep: Ep):
     # the replan names as late comes off its beat (the card itself stays in `cards`, so the e-book and
     # its page keep it), the drop is recorded in build.a17_late_dropped, and the replan runs again —
     # until it names no late card (at most four rounds).
-    late_rx = re.compile(r"!\s*A17\s+(C\d+)\b.*BEFORE the card is up")
     for _round in range(4):
         rc = _run(ep, "replan", PY + [HERE / "twoway_a17.py", ep.n, "--replan", "--write", "--pp", ep.pp],
                   ok_codes=(0, 1))
         log = (LOCAL_LOGS / f"{ep.tag}-replan.log").read_text(encoding="utf-8", errors="replace")
-        late = sorted({m.group(1) for m in late_rx.finditer(log)})
-        if not late:
+        drops = a17_timing_drops(log)
+        if not drops:
             break
         f = ep.p("docs/episode.json")
         e = json.loads(f.read_text(encoding="utf-8"))
         for b in e.get("beats", []):
-            if b.get("card") in late:
+            if b.get("card") in drops:
                 b["card"] = None
         rec = e.setdefault("build", {}).setdefault("a17_late_dropped", [])
-        rec += [{"card": c, "at": _now(), "why": "a point would be said before the card can be up — "
-                 "dropped, never placed late (standing rule, EP56)"} for c in late if c not in
-                {r["card"] for r in rec}]
+        rec += [{"card": c, "at": _now(), "why": why} for c, why in sorted(drops.items())
+                if c not in {r["card"] for r in rec}]
         _write_json(f, e)
-        print(f"  · late A17 card(s) taken off their beats: {', '.join(late)} — replanning", flush=True)
+        print(f"  · A17 card(s) that cannot be up on their words taken off their beats: "
+              f"{', '.join(sorted(drops))} — replanning", flush=True)
     else:
-        raise Stop("fault", "replan", "the replan still names late A17 cards after four rounds of dropping "
-                   "them. See output/run/" + f"{ep.tag}-replan.log.")
+        raise Stop("fault", "replan", "the replan still names A17 timing faults after four rounds of "
+                   "dropping them. See output/run/" + f"{ep.tag}-replan.log.")
     _write_json(ep.p("output/run/replan.json"),
                 {"timeline_md5": _md5(ep.p("renders/master-timeline.json")), "at": _now(),
                  "episode_json_md5": _md5(ep.p("docs/episode.json")),
