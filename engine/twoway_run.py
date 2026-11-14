@@ -784,17 +784,24 @@ def pages_done(ep: Ep) -> bool:
 # e-book staled the whole-file md5, and the runner would have re-authored every page and re-rendered
 # every graphic for a cut Jodie had already approved.
 _NOT_CARD_INPUTS = ("ebook", "figures")
+# The same for the YouTube title, settled at the title gate AFTER the cut (EP57, 14 Nov 2026: Jodie
+# shortened it, "just in the youtube title, nowhere else"). It never reaches a card or the title card
+# (those read packaging.hook / byline), so writing it must not re-render an approved cut's graphics.
+_NOT_CARD_PACKAGING = ("youtube_title", "_status")
 
 
 def timing_inputs_md5(ep: Ep) -> str:
-    """The md5 of what the card timing reads: episode.json without the e-book's keys, canonical form
-    (sorted keys, no whitespace), so line endings and indentation cannot stale it either."""
+    """The md5 of what the card timing reads: episode.json without the e-book's keys and the YouTube
+    title, canonical form (sorted keys, no whitespace), so line endings and indentation cannot
+    stale it either."""
     f = ep.p("docs/episode.json")
     if not f.is_file():
         return ""
     e = json.loads(f.read_text(encoding="utf-8"))
     for k in _NOT_CARD_INPUTS:
         e.pop(k, None)
+    for k in _NOT_CARD_PACKAGING:
+        (e.get("packaging") or {}).pop(k, None)
     return hashlib.md5(json.dumps(e, sort_keys=True, separators=(",", ":"),
                                   ensure_ascii=False).encode("utf-8")).hexdigest()
 

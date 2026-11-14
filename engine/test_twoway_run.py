@@ -171,6 +171,9 @@ e57 = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
 e57["ebook"], e57["figures"] = {"departures": []}, [{"n": 1, "card": "C1"}]
 (d / "docs/episode.json").write_text(json.dumps(e57, indent=2, ensure_ascii=False), encoding="utf-8")
 check("writing the e-book's keys (and re-indenting the file) leaves the card timing done", tr.timing_done(ep))
+e57.setdefault("packaging", {})["youtube_title"] = "A title Jodie shortened at the title gate"
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=2, ensure_ascii=False), encoding="utf-8")
+check("writing the approved YouTube title leaves the card timing done", tr.timing_done(ep))
 e57["cards"][0]["headline"] = e57["cards"][0]["headline"] + " X"
 (d / "docs/episode.json").write_text(json.dumps(e57, indent=1, ensure_ascii=False), encoding="utf-8")
 check("CONTROL: a change to a CARD re-opens the card timing", not tr.timing_done(ep))
