@@ -149,6 +149,21 @@ s = tr.advance(ep)
 check("with the plan done, it moves on to the b-roll SESSION step",
       s and s.kind == "session" and s.step == "broll_generate", f"{s.kind if s else None} {s.step if s else ''}"
       + (f": {s.message[:300]}" if s and s.kind == "fault" else ""))
+# THE MEASURED PLAN SUPERSEDES THE ESTIMATE (14 Nov 2026): a later write to episode.json (the replan,
+# card timing) staled plan-ok's md5, and a resume would have re-run the estimate plan over the
+# measured one. CONTROL first: before any replan, an edited episode.json DOES re-open the plan.
+ep = tr.Ep(57, pp=SAND, rail_row=dict(row), offline=True)
+e57 = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+e57.setdefault("build", {})["_touched_by_test"] = True
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=1, ensure_ascii=False), encoding="utf-8")
+check("CONTROL: before any replan, an edited episode.json re-opens the estimate plan",
+      not tr.step_plan_ok(ep))
+tr._write_json(d / "output/run/replan.json", {"timeline_md5": "x", "at": "test"})
+check("once the measured replan has written its record, the estimate plan is never re-run over it",
+      tr.step_plan_ok(ep))
+(d / "output/run/replan.json").unlink()
+tr._write_json(d / "output/run/plan-ok.json",
+               {"episode_json_md5": tr._md5(d / "docs/episode.json"), "at": "test"})
 
 # ── 3. verdicts: split, and a change keeps the gate shut ─────────────────────────
 print("\n-- 3. verdicts --")
@@ -166,6 +181,9 @@ ep.save_gates(g)
 check("once every change is DONE/DROPPED, the next cut is wanted", tr.cut_needed(ep))
 v = tr.record_verdict(ep, "broll_cover", "approved", "EP57: C1 C3 C4 · cover B", [])
 check("b-roll picks are read out of her line", v["picks"] == ["C1", "C3", "C4", "cover B"], str(v["picks"]))
+_done = {s[1]: s[3] for s in tr.STEPS}
+check("once her b-roll picks are in, the per-episode review page is not remade (no page on disk)",
+      _done["broll_page"](ep) and not (d / "output/review/broll-review.html").exists())
 
 # ── 4. render matching ───────────────────────────────────────────────────────────
 print("\n-- 4. finding a finished render by EXACT title --")

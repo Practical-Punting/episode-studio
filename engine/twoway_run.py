@@ -570,6 +570,15 @@ def _code(fn):
 
 
 def step_plan_ok(ep: Ep) -> bool:
+    # 🔴 THE MEASURED PLAN SUPERSEDES THE ESTIMATE (found 14 Nov 2026, before it bit — the first
+    # time the runner, not a helper calling its steps one by one, drove EP57/58/59's build). The
+    # md5 below goes stale the moment ANY later step writes episode.json (the replan, card timing),
+    # so a plain resume would re-run the ESTIMATE plan, which rewrites `layout_plan` and `holds`
+    # over the measured one — while replan_done (keyed on the voice timeline) still said done, so
+    # cards and cut would build on the estimate clock. Once the replan has written its record,
+    # the Stage-2 estimate check has nothing left to protect.
+    if ep.p("output/run/replan.json").is_file():
+        return True
     f = ep.p("output/run/plan-ok.json")
     return f.is_file() and json.loads(f.read_text(encoding="utf-8")).get("episode_json_md5") \
         == _md5(ep.p("docs/episode.json"))
@@ -946,7 +955,12 @@ STEPS = [
               "(110-credit ceiling), from the prompts in docs/episode.json. Then write "
               "output/review/broll-candidates.json: a list of {{id, kind: clip|cover, slot, line, url, "
               "job_id}} — url = the full-size result. Then run me again.")),
-    (3, "broll_page", "code", _exists("output/review/broll-review.html"), do_broll_page),
+    # The page exists only to collect her picks: once broll_cover has passed it has nothing left
+    # to do (EP57/58/59, 14 Nov 2026 — their picks came from ONE combined page, so a resume would
+    # have re-pulled every clip from Higgsfield to make per-episode contact sheets nobody needed).
+    (3, "broll_page", "code",
+     lambda ep: ep.passed("broll_cover") or ep.p("output/review/broll-review.html").is_file(),
+     do_broll_page),
     (3, "broll_cover", "gate", G_BROLL[0], G_BROLL[1]),
     (3, "broll_download", "session", _exists("output/review/broll-downloaded.json"),
      _session("Download ONLY the b-roll and cover Jodie picked (docs/twoway-gates.json, broll_cover) "
