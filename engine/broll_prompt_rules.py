@@ -1254,6 +1254,56 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
     return text, applied
 
 
+# ══ THE EPISODE'S MIX: SOMEBODY IN EVERY SHOT, AND HORSES RACING (Jodie, 14 Nov 2026) ══
+# On EP59 (Fundamentals Part 6), approved with no change: *"There was at least one b roll
+# with zero people nor horses. And I don't think there were any horses racing. that's ok,
+# but let's make sure we include them in the future. I do not want to change this episode
+# but want these ideas included for the prompting with Higgsfield in the future."*
+#     So two rules about the WHOLE set of prompts, which no per-prompt check can see:
+#   1. Every clip shows PEOPLE or HORSES — never an empty course, stand or room on its own.
+#   2. At least one clip is HORSES RACING (galloping on the turf) — with the standing lines
+#      the per-prompt rules already add: four at most, plain saddlecloths, rail behind.
+# ⚠️ This SUPERSEDES the two-way habit of "empty track" b-roll slots (they were a way round
+# numbered saddlecloths; the plain-saddlecloth line and the full-size fault check are the
+# answer to that now). EP60 ONWARD: EP57–59 are built and are not re-graded.
+MIX_FROM_EP = 60
+PERSON_WORDS = re.compile(
+    r"\b(man|men|woman|women|person|people|punters?|racegoers?|strappers?|trainers?|jockeys?"
+    r"|riders?|owners?|crowds?|spectators?|friends|couple|family|hands?|grooms?|farriers?"
+    r"|stable ?hands?|stablehands?|lads?)\b", re.I)
+RACING_MOTION_WORDS = re.compile(
+    r"\b(gallop\w*|canter\w*|racing|in a race|rounding|home straight|turn for home|"
+    r"turning for home|finishing post|winning post|thunder\w*|stride\w*)\b", re.I)
+
+
+def shows_people(prompt: str) -> bool:
+    return _affirms(PERSON_WORDS, prompt or "")
+
+
+def horses_racing(prompt: str) -> bool:
+    """Horses in the picture AND at racing pace — a led or grazing horse is not a race."""
+    p = prompt or ""
+    return shows_actual_horses(p) and _affirms(RACING_MOTION_WORDS, p)
+
+
+def episode_mix(broll: list[dict], ep_number: int | None) -> list[str]:
+    """Findings about the episode's b-roll SET (Jodie, 14 Nov 2026). Empty = clean.
+    A re-used library clip (`library_from`) is judged like any other: it is on screen."""
+    if ep_number is None or ep_number < MIX_FROM_EP:
+        return []
+    out = []
+    for b in broll or []:
+        p = b.get("prompt") or ""
+        if not (shows_people(p) or shows_actual_horses(p)):
+            out.append(f"{b.get('target', '?')} — shows neither people nor horses. Every b-roll "
+                       f"clip has somebody in it: people or horses (Jodie, 14 Nov 2026).")
+    if broll and not any(horses_racing(b.get("prompt") or "") for b in broll):
+        out.append("no b-roll clip shows horses RACING. At least one clip is two to four horses "
+                   "galloping on the turf, plain saddlecloths, the rail behind them "
+                   "(Jodie, 14 Nov 2026).")
+    return out
+
+
 def check_episode(broll: list[dict], ep_number: int | None) -> list[str]:
     """Human-readable findings for one episode's `broll[]`. Empty = clean.
 
@@ -1281,6 +1331,10 @@ def commission_brief() -> str:
     return (
         "B-ROLL PROMPTS — the rules every prompt is checked against before a credit is "
         "spent. Write them in, so nothing is stopped:\n"
+        "  - SOMEBODY IN EVERY SHOT: every clip shows people or horses — never an empty "
+        "course, stand or room on its own (Jodie, 14 Nov 2026).\n"
+        "  - HORSES RACING: at least one clip in the episode is two to four horses "
+        "galloping on the turf, with the lines below (Jodie, 14 Nov 2026).\n"
         "  - FOUR AT MOST. Never more than four horses or people in a shot, named or "
         "implied: never 'a field', never a count over four, never 'a crowd of runners'. "
         "Ask for two, three or four horses by number. (A crowd far out of focus in the "

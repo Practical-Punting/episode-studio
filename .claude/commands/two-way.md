@@ -44,8 +44,9 @@ read (the runner drafts the substitutions by the standing rule and shows them wi
 NARR author bio is split off · soft hyphens stripped · no cadence anywhere · Hugh only for words that
 break the approved EP55/EP56 pattern · a list too long for a card shows what fits, the e-book carries
 all · stray render words between sentences are cut, with a join WAV for her ear (retake only
-mid-sentence) · price is not a gate under 20 minutes · b-roll racing slots riderless / empty track /
-detail (saddlecloths come back numbered) · Higgsfield only through hf_guard, inside 110 credits.
+mid-sentence) · price is not a gate under 20 minutes · b-roll: people or horses in EVERY clip and at
+least one of horses RACING (Jodie, 14 Nov 2026 — replaces "empty track"), plain saddlecloths, four at
+most (`broll_prompt_rules.commission_brief()`) · Higgsfield only through hf_guard, inside 110 credits.
 
 ## Never
 Never press Generate in HeyGen, never start a render by API, never publish, never tick a gate for her,

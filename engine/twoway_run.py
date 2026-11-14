@@ -597,6 +597,10 @@ def do_plan(ep: Ep):
     epj = json.loads(f.read_text(encoding="utf-8"))
     a17.plan(epj)
     bad = tb.violations(epj.get("layout_plan", []), tb.broll_floors(epj))
+    # The b-roll SET, before a credit is spent (Jodie, 14 Nov 2026: somebody in every shot,
+    # and horses racing). EP60 onward — the rule's own MIX_FROM_EP.
+    import broll_prompt_rules as bpr
+    bad += bpr.episode_mix(epj.get("broll", []), ep.n)
     t = tb.tally(epj.get("layout_plan", [])) if epj.get("layout_plan") else {}
     _write_json(f, epj)
     if bad:
@@ -1002,8 +1006,9 @@ STEPS = [
     (2, "commission", "session",
      lambda ep: all(ep.epj().get(k) for k in ("beats", "cards", "broll", "turn_signals")),
      _session("Write {tag}'s two-way commission into docs/episode.json — beats, cards (A17 points, "
-              "each with its `page`), b-roll slots (RIDERLESS racing, empty track, crowd, detail; "
-              "never numbered saddlecloths), turn_signals, packaging, cover, title_card, ebook — "
+              "each with its `page`), b-roll slots (people or horses in EVERY clip, at least one "
+              "of horses RACING — Jodie 14 Nov 2026; plain saddlecloths, four at most — "
+              "broll_prompt_rules.commission_brief()), turn_signals, packaging, cover, title_card, ebook — "
               "following PP-EP56's episode.json and its output/qc/ep56-stage2/commission_ep56.py. "
               "A list too long for a card shows what fits; the e-book carries all. Then run me again.")),
     (2, "plan", "code", step_plan_ok, do_plan),
