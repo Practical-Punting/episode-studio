@@ -162,6 +162,22 @@ tr._write_json(d / "output/run/replan.json", {"timeline_md5": "x", "at": "test"}
 check("once the measured replan has written its record, the estimate plan is never re-run over it",
       tr.step_plan_ok(ep))
 (d / "output/run/replan.json").unlink()
+# THE E-BOOK'S KEYS DO NOT RE-TIME THE CARDS (EP57, 14 Nov 2026: writing `ebook` + `figures` after an
+# approved cut would have re-rendered every graphic).
+tr._write_json(d / "output/run/card-timing.json", {"episode_json_md5": tr._md5(d / "docs/episode.json"),
+                                                   "inputs_md5": tr.timing_inputs_md5(ep), "at": "test"})
+check("card timing recorded with its inputs fingerprint is done", tr.timing_done(ep))
+e57 = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+e57["ebook"], e57["figures"] = {"departures": []}, [{"n": 1, "card": "C1"}]
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=2, ensure_ascii=False), encoding="utf-8")
+check("writing the e-book's keys (and re-indenting the file) leaves the card timing done", tr.timing_done(ep))
+e57["cards"][0]["headline"] = e57["cards"][0]["headline"] + " X"
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=1, ensure_ascii=False), encoding="utf-8")
+check("CONTROL: a change to a CARD re-opens the card timing", not tr.timing_done(ep))
+tr._write_json(d / "output/run/card-timing.json", {"episode_json_md5": tr._md5(d / "docs/episode.json"),
+                                                   "at": "old"})
+check("a record from before the fingerprint still passes on the whole-file md5", tr.timing_done(ep))
+(d / "output/run/card-timing.json").unlink()
 tr._write_json(d / "output/run/plan-ok.json",
                {"episode_json_md5": tr._md5(d / "docs/episode.json"), "at": "test"})
 

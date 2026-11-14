@@ -759,10 +759,34 @@ def pages_done(ep: Ep) -> bool:
         and ep.p(f"overlay/export/ep{ep.n}-title.html").is_file()
 
 
+# Keys of episode.json that are written AFTER the cut (the e-book step) and never reach a card. A
+# change to them must not re-time the cards: EP57, 14 Nov 2026 — writing `ebook` + `figures` for the
+# e-book staled the whole-file md5, and the runner would have re-authored every page and re-rendered
+# every graphic for a cut Jodie had already approved.
+_NOT_CARD_INPUTS = ("ebook", "figures")
+
+
+def timing_inputs_md5(ep: Ep) -> str:
+    """The md5 of what the card timing reads: episode.json without the e-book's keys, canonical form
+    (sorted keys, no whitespace), so line endings and indentation cannot stale it either."""
+    f = ep.p("docs/episode.json")
+    if not f.is_file():
+        return ""
+    e = json.loads(f.read_text(encoding="utf-8"))
+    for k in _NOT_CARD_INPUTS:
+        e.pop(k, None)
+    return hashlib.md5(json.dumps(e, sort_keys=True, separators=(",", ":"),
+                                  ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def timing_done(ep: Ep) -> bool:
     f = ep.p("output/run/card-timing.json")
-    return f.is_file() and json.loads(f.read_text(encoding="utf-8")).get("episode_json_md5") \
-        == _md5(ep.p("docs/episode.json"))
+    if not f.is_file():
+        return False
+    rec = json.loads(f.read_text(encoding="utf-8"))
+    if rec.get("inputs_md5"):
+        return rec["inputs_md5"] == timing_inputs_md5(ep)
+    return rec.get("episode_json_md5") == _md5(ep.p("docs/episode.json"))   # a record from before
 
 
 def do_card_timing(ep: Ep):
@@ -774,6 +798,7 @@ def do_card_timing(ep: Ep):
     _run(ep, "card-timing", PY + [SCRIPTS / "author_cards.py", ep.p("docs/episode.json"),
                                   ep.p("overlay/export")])
     _write_json(ep.p("output/run/card-timing.json"), {"episode_json_md5": _md5(ep.p("docs/episode.json")),
+                                                      "inputs_md5": timing_inputs_md5(ep),
                                                       "at": _now()})
 
 
