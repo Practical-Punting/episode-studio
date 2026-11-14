@@ -894,11 +894,17 @@ def do_cut_page(ep: Ep):
 
 
 def do_ebook(ep: Ep):
+    # The figures are the print renders of the episode's own cards (build_figures.py) — the body
+    # names figure-N.png and the author's gate refuses a missing one. EP56 made them by hand; the
+    # runner never did (EP57, 14 Nov 2026). A browser render, so it takes the render lock.
+    if ep.epj().get("figures"):
+        _run(ep, "ebook-figures", PY + [SCRIPTS / "build_figures.py", ep.p("docs/episode.json"),
+                                        ep.p("overlay/export"), ep.p("ebook")], lock="ebook figures")
     _run(ep, "ebook-author", PY + [SCRIPTS / "author_ebook.py", ep.p("docs/episode.json"),
                                    ep.p("ebook"), "--force"])
     _run(ep, "ebook-pdf", PY + [SCRIPTS / "build_ebook.py",
                                 ep.p(f"ebook/{ep.tag}-ebook-source.html"),
-                                ep.p(f"output/{ep.tag}-ebook.pdf")])
+                                ep.p(f"output/{ep.tag}-ebook.pdf")], lock="ebook pdf")
 
 
 def do_thumbnail(ep: Ep):
