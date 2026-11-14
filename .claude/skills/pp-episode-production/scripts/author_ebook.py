@@ -388,7 +388,7 @@ def apply_corrections(art: list[str], ebook: dict, notes: list[str]) -> list[str
 # editorial furniture.
 P_CLASSES = {None: "article prose", "lead": "editorial", "byline": "editorial",
              "note": "editorial", "pullquote": "quoted"}
-IMG_CLASSES = {"illus", "illus portrait"}
+IMG_CLASSES = {"illus", "illus portrait", "illus chart"}   # "chart": a big chart at text width (EP59)
 DIV_CLASSES = {None, "kicker", "pagebreak", "avoid", "divider"}
 TAGS_OK = {"p", "h1", "h2", "h3", "div", "span", "img", "br", "b", "strong",
            "i", "em", "blockquote", "a", "ol", "li",

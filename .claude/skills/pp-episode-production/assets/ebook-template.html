@@ -159,6 +159,9 @@ p.spk-BM { border-left-color: #6E7C87; }
 .illus { display:block; margin: 18px auto; max-width: 92%; max-height: 78mm; page-break-inside: avoid; }
 /* Portrait figures (e.g. Canva pictures with a baked-in title/label): sized tastefully, centred, kept with their section. */
 .illus.portrait { width: 57%; max-width: 57%; max-height: 165mm; margin: 20px auto; }
+/* A BIG CHART (EP59, 14 Nov 2026 — Barry's 19 × 19 Win Bet Chart): the 78mm cap above shrank it to
+   half the page and its figures to ~5pt. A chart is read, not glanced at, so it takes the text width. */
+.illus.chart { width: 100%; max-width: 100%; max-height: 200mm; margin: 16px auto; }
 /* REMOVED 29 Jul 2026 — this was `p:has(+ .illus) { page-break-inside: avoid; }`.
    Together with `.illus{page-break-before:avoid}` it made a paragraph and its picture
    ONE unbreakable block, so a block that would not fit jumped whole and left the gap
