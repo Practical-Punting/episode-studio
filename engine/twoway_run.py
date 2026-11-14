@@ -686,10 +686,29 @@ def do_align(ep: Ep):
                       spoken=ep.p(f"docs/spoken-words-{code}.txt"), out=ep.p(f"renders/{code}.srt"))
 
 
+def commission_md5(ep: Ep) -> str:
+    """What the replan is made FROM besides the voices: which beat carries which card and b-roll,
+    the cards, and the b-roll slots (canonical form). EP58, 14 Nov 2026: Jodie's ruling on turn 27
+    (a library b-roll, card C16 split in two) changed the commission AFTER the replan, and
+    replan_done — keyed on the voice timeline alone — would have built the cut on the old plan."""
+    f = ep.p("docs/episode.json")
+    if not f.is_file():
+        return ""
+    e = json.loads(f.read_text(encoding="utf-8"))
+    core = {"beats": [[b.get("n"), b.get("card"), b.get("broll")] for b in e.get("beats", [])],
+            "cards": e.get("cards", []), "broll": e.get("broll", [])}
+    return hashlib.md5(json.dumps(core, sort_keys=True, separators=(",", ":"),
+                                  ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def replan_done(ep: Ep) -> bool:
     f = ep.p("output/run/replan.json")
-    return f.is_file() and json.loads(f.read_text(encoding="utf-8")).get("timeline_md5") \
-        == _md5(ep.p("renders/master-timeline.json"))
+    if not f.is_file():
+        return False
+    rec = json.loads(f.read_text(encoding="utf-8"))
+    if rec.get("timeline_md5") != _md5(ep.p("renders/master-timeline.json")):
+        return False
+    return not rec.get("commission_md5") or rec["commission_md5"] == commission_md5(ep)
 
 
 _A17_LATE = re.compile(r"!\s*A17\s+(C\d+)\b.*BEFORE the card is up")
@@ -749,6 +768,7 @@ def do_replan(ep: Ep):
     _write_json(ep.p("output/run/replan.json"),
                 {"timeline_md5": _md5(ep.p("renders/master-timeline.json")), "at": _now(),
                  "episode_json_md5": _md5(ep.p("docs/episode.json")),
+                 "commission_md5": commission_md5(ep),
                  "dropped_or_late": [ln.strip() for ln in log.splitlines()
                                      if "A17" in ln and ("REPORTED" in ln or ln.strip().startswith("!"))]})
 

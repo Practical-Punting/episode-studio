@@ -178,6 +178,25 @@ tr._write_json(d / "output/run/card-timing.json", {"episode_json_md5": tr._md5(d
                                                    "at": "old"})
 check("a record from before the fingerprint still passes on the whole-file md5", tr.timing_done(ep))
 (d / "output/run/card-timing.json").unlink()
+# A COMMISSION CHANGE AFTER THE REPLAN RE-OPENS THE REPLAN (EP58, 14 Nov 2026: a b-roll added and a
+# card split on Jodie's ruling, after the replan had run).
+(d / "renders").mkdir(exist_ok=True)
+(d / "renders/master-timeline.json").write_text('{"timeline": []}', encoding="utf-8")
+tr._write_json(d / "output/run/replan.json", {"timeline_md5": tr._md5(d / "renders/master-timeline.json"),
+                                              "commission_md5": tr.commission_md5(ep), "at": "test"})
+check("replan recorded with its commission fingerprint is done", tr.replan_done(ep))
+e57 = json.loads((d / "docs/episode.json").read_text(encoding="utf-8"))
+e57["ebook"] = {"departures": ["x"]}
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=2, ensure_ascii=False), encoding="utf-8")
+check("the e-book's keys do not re-open the replan", tr.replan_done(ep))
+e57["beats"][0]["broll"] = "broll-test-clip"
+(d / "docs/episode.json").write_text(json.dumps(e57, indent=1, ensure_ascii=False), encoding="utf-8")
+check("CONTROL: a b-roll put on a beat re-opens the replan", not tr.replan_done(ep))
+tr._write_json(d / "output/run/replan.json", {"timeline_md5": tr._md5(d / "renders/master-timeline.json"),
+                                              "at": "old"})
+check("a replan record from before the fingerprint still passes on the timeline alone", tr.replan_done(ep))
+(d / "output/run/replan.json").unlink()
+(d / "renders/master-timeline.json").unlink()
 tr._write_json(d / "output/run/plan-ok.json",
                {"episode_json_md5": tr._md5(d / "docs/episode.json"), "at": "test"})
 
