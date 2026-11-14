@@ -105,5 +105,19 @@ code, out = gate(sandbox(EP55))
 check(code == 0 and "FIDELITY GATE: PASS" in out and "sanctioned" not in out,
       "EP55 passes exactly as before, with no mention of cuts", f"exit {code}")
 
+print("\n-- A CUT THAT EMPTIES A WHOLE PARAGRAPH REMOVES IT (EP59, 14 Nov 2026) --")
+_d = pathlib.Path(tempfile.mkdtemp())
+(_d / "sanctioned-substitutions.json").write_text(json.dumps({"substitutions": [
+    {"id": "S1", "turn": 2, "speaker": "BB", "scope": "ebook", "find": "Visit www.x.com", "replace": "",
+     "before": "Visit www.x.com", "after": ""}]}), encoding="utf-8")
+_art, _done = ae.apply_sanctioned(["First paragraph.", "Visit www.x.com", "Last paragraph."], str(_d))
+check(_art == ["First paragraph.", "Last paragraph."],
+      "the emptied footnote paragraph is gone from the gate's copy, not left as a blank", str(_art))
+EP59 = next(iter(glob.glob(str(PP / "PP-EP59-*"))), None)
+if EP59 and (pathlib.Path(EP59) / "ebook/body.html").is_file():
+    code, out = gate(sandbox(pathlib.Path(EP59)))
+    check(code == 0 and "FIDELITY GATE: PASS" in out, "EP59 (its footnote cut by S25) passes the gate",
+          f"exit {code}: {out[-300:]}")
+
 print(f"\ne-book sanctioned cuts: {'ALL PASS' if not fails else str(len(fails)) + ' FAILED'}")
 sys.exit(1 if fails else 0)

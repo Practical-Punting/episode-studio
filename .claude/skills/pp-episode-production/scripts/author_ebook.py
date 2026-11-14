@@ -272,7 +272,10 @@ def apply_sanctioned(article: list[str], docs_dir: str) -> tuple[list[str], list
         out[hits[0]] = out[hits[0]].replace(before, after, 1)
         done.append(f"{s['id']}: {s['find'].strip()!r} cut ({s.get('speaker', '?')}, turn "
                     f"{s.get('turn', '?')})")
-    return out, done
+    # A sanctioned cut that empties a WHOLE paragraph removes that paragraph (EP59, 14 Nov 2026:
+    # S25 drops the footnote "Barry Meadow's website is www.trpublishing.com", which stands
+    # alone). Left in as "", the gate demanded the body reproduce or "omit" a blank paragraph.
+    return [p for p in out if p.strip()], done
 
 
 _FIGURE = re.compile(r"[0-9.,%]+")
