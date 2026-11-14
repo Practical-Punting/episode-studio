@@ -140,29 +140,50 @@ def plan(master: pathlib.Path, script: pathlib.Path, retake: pathlib.Path,
     }
 
 
+FPS = 25
+
+
+def _on_frame(t: float) -> float:
+    return round(round(t * FPS) / FPS, 6)
+
+
 def render(p: dict, master: pathlib.Path, retake: pathlib.Path,
            out: pathlib.Path) -> None:
-    """Concatenate A + B + C. Re-encoded once, because the sources differ in GOP."""
+    """Concatenate A + B + C, keeping every piece's sound and picture EXACTLY the same length.
+
+    🔴 THE FIRST VERSION PUT STEVE'S VOICE ONE FRAME AHEAD OF HIS LIPS (EP58, 14 Nov 2026).
+    It cut at the plan's raw times (47.750s, 137.68s …) and joined AAC pieces with the concat
+    demuxer and `-c copy`. A piece's video rounds to whole frames, its audio does not, and each
+    AAC piece carries its own encoder priming; the demuxer starts the next piece at the longer
+    stream's end, so the difference carried into everything after the join. Measured on
+    BM-master.mp4 against the v1 render: section C's video at exactly +1.60s, its audio at
+    +1.56s — 40ms early for the last ~7 minutes of his reading.
+    Now: every cut is snapped to the frame grid; each piece is cut by OUTPUT duration, so both
+    streams stop at the same instant, with the sound kept as PCM (no priming) in the pieces;
+    the join re-encodes ONLY the sound, once. One piece at a time, so memory stays flat (a
+    single filtergraph over three inputs buffers whole minutes of decoded frames)."""
     parts = [("a", master), ("b", retake), ("c", master)]
     tmp_dir = out.parent
     pieces = []
     for key, src in parts:
         seg = p[key]
-        piece = tmp_dir / f".splice-{key}.mp4"
+        t0 = _on_frame(seg["from_s"])
+        dur = _on_frame(seg["to_s"]) - t0
+        piece = tmp_dir / f".splice-{key}.mkv"
         subprocess.run(
             ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-             "-ss", f"{seg['from_s']:.3f}", "-to", f"{seg['to_s']:.3f}",
-             "-i", str(src),
-             "-c:v", "libx264", "-preset", "medium", "-crf", "16",
-             "-pix_fmt", "yuv420p", "-r", "25",
-             "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+             "-ss", f"{t0:.6f}", "-i", str(src), "-t", f"{dur:.6f}",
+             "-vf", f"fps={FPS}", "-af", "aresample=44100,apad",
+             "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p",
+             "-c:a", "pcm_s16le", "-ar", "44100", "-ac", "2",
              str(piece)], check=True, timeout=3600)
         pieces.append(piece)
     lst = tmp_dir / ".splice-list.txt"
     lst.write_text("".join(f"file '{p_.name}'\n" for p_ in pieces), encoding="utf-8")
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                     "-f", "concat", "-safe", "0", "-i", str(lst),
-                    "-c", "copy", "-movflags", "+faststart", str(out)],
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+                    "-movflags", "+faststart", str(out)],
                    check=True, timeout=3600, cwd=str(tmp_dir))
     for p_ in pieces:
         p_.unlink(missing_ok=True)
