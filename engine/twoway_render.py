@@ -483,8 +483,11 @@ def render_segment(seg: dict, ctx: dict, out: pathlib.Path) -> None:
 def speech_path(work: pathlib.Path, tl: list[dict]) -> pathlib.Path:
     """Where the assembled speech lives — ONE definition, so the renderer and anything
     checking it cannot disagree about which file is the current one. Keyed on the
-    timeline AND on `AUDIO_RECIPE`, because both change what is inside it."""
-    k = hashlib.md5((json.dumps(tl, sort_keys=True) + AUDIO_RECIPE).encode())
+    timeline AND on `AUDIO_RECIPE`, because both change what is inside it — AND on the masters'
+    CONTENT (EP58, 14 Nov 2026: a re-spliced master under the same name and the same timeline
+    was served the old speech)."""
+    import twoway_assemble as tas
+    k = hashlib.md5((json.dumps(tl, sort_keys=True) + AUDIO_RECIPE + tas.masters_key(tl)).encode())
     return work / f"_speech-{k.hexdigest()[:10]}.wav"
 
 
@@ -519,10 +522,17 @@ def build_audio(tl: list[dict], plan: dict, work: pathlib.Path,
     """
     ff = _ff()
     lst, pieces = work / "_audio.txt", []
+    import twoway_assemble as tas
     for i, s in enumerate(tl):
         n = int(round(s["to_s"] * SR) - round(s["from_s"] * SR))
         rk = hashlib.md5(AUDIO_RECIPE.encode()).hexdigest()[:6]
-        p = work / f"aud-{i:03d}-{n}s-{rk}.wav"
+        # 🔴 KEYED ON WHAT THE PIECE IS CUT FROM, not only its slot and length (EP58, 14 Nov
+        # 2026: Steve's re-spliced master was never heard — every piece was the old one).
+        sk = ""
+        if s.get("kind") != "latency" and s.get("source") and pathlib.Path(s["source"]).is_file():
+            sk = "-" + hashlib.md5(f"{tas._content_key(pathlib.Path(s['source']))}"
+                                   f"@{s.get('in_s')}".encode()).hexdigest()[:6]
+        p = work / f"aud-{i:03d}-{n}s-{rk}{sk}.wav"
         if not p.is_file():
             af = (f"aformat=sample_fmts=s16:sample_rates={SR}:"
                   f"channel_layouts=stereo,atrim=end_sample={n},asetpts=N/SR/TB")

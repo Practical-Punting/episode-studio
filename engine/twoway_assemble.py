@@ -869,6 +869,15 @@ def build_plan(ep_number: int, pp: pathlib.Path = PP) -> dict:
                have_broll.get(s["broll"]) if s.get("broll") else None)
         if src and pathlib.Path(src).is_file():
             s["source_key"] = _content_key(pathlib.Path(src))
+    # 🔴 AND A FACE PIECE IS KEYED ON THE MASTERS IT IS CUT FROM (EP58, 14 Nov 2026). Steve's
+    # master was re-spliced (sound one frame late after a join) and the rebuilt cut was served
+    # every presenter piece from the old build's cache — same numbers, same lengths. A face
+    # piece's picture depends on BOTH men's masters (speaker + listener) and on where the
+    # timeline cuts them, so its key is their content plus the timeline.
+    mk = masters_key(tl)
+    for s in mapped:
+        if not s.get("source_key"):
+            s["source_key"] = mk
     furn = [s for s in tl if s.get("kind") == "furniture"]
     graphics = tes.place(d, epj, cues, furn, TITLE_HEAD_S)
     tail = tes.tail(speech_end,
@@ -1072,14 +1081,34 @@ def violations(plan: dict) -> list[str]:
     return out
 
 
+_KEYS: dict = {}
+
+
 def _content_key(p: pathlib.Path) -> str:
-    """The first 8 hex of a file's md5 — what a piece made FROM this file is keyed on."""
+    """The first 8 hex of a file's md5 — what a piece made FROM this file is keyed on.
+    Remembered per (path, size, mtime) within one run: a master is 200+ MB on the Drive."""
     import hashlib
+    st = p.stat()
+    memo = (str(p), st.st_size, st.st_mtime_ns)
+    if memo in _KEYS:
+        return _KEYS[memo]
     h = hashlib.md5()
     with open(p, "rb") as f:
         for b in iter(lambda: f.read(1 << 20), b""):
             h.update(b)
-    return h.hexdigest()[:8]
+    _KEYS[memo] = h.hexdigest()[:8]
+    return _KEYS[memo]
+
+
+def masters_key(tl: list[dict]) -> str:
+    """One key for everything cut from the men's masters: each source file's CONTENT and the
+    timeline that cuts them. A re-made master or a moved cut is a different key."""
+    import hashlib
+    srcs = sorted({s["source"] for s in tl if s.get("source")})
+    keys = [(pathlib.Path(x).name, _content_key(pathlib.Path(x)) if pathlib.Path(x).is_file() else "missing")
+            for x in srcs]
+    blob = json.dumps({"masters": keys, "timeline": tl}, sort_keys=True)
+    return hashlib.md5(blob.encode("utf-8")).hexdigest()[:8]
 
 
 def _dur(path: str) -> float:

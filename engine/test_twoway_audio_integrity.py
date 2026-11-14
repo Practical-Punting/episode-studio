@@ -174,7 +174,13 @@ def main() -> int:
     print("\n-- 2. the assembled speech is the timeline, in order, nothing removed --")
     import twoway_render as tr
     aud = tr.speech_path(d / "renders/_pieces", TL)   # ONE definition of the path
-    if not aud.is_file():
+    if not aud.is_file() and list((d / "renders/_pieces").glob("_speech-*.wav")):
+        # The speech file's name carries the masters' CONTENT since 14 Nov 2026 (EP58); an
+        # episode built before that has its speech under the older name. Not a fault in it —
+        # nothing to compare against. Run this on an episode built since (e.g. 58).
+        print(f"  SKIP  speech section: {d.name} was built before speech files were keyed on "
+              f"the masters' content — run on an episode built since")
+    elif not aud.is_file():
         check("the assembled speech track exists", False, str(aud))
     else:
         want = round(sum(s["dur_s"] for s in TL), 3)
