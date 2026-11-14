@@ -62,6 +62,9 @@ def sandbox(src: pathlib.Path, with_subs=True, body_edit=None) -> pathlib.Path:
     shutil.copy2(PP / rel, root / rel)
     for f in (src / "ebook").glob("figure-*.png"):
         shutil.copy2(f, ep / "ebook" / f.name)
+    for sf in (epj.get("ebook") or {}).get("source_figures") or []:   # declared source figures (EP59)
+        if (src / "ebook" / sf["src"]).is_file():
+            shutil.copy2(src / "ebook" / sf["src"], ep / "ebook" / sf["src"])
     if body_edit:
         b = (ep / "ebook/body.html").read_text(encoding="utf-8")
         (ep / "ebook/body.html").write_text(body_edit(b), encoding="utf-8")
