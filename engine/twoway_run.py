@@ -770,7 +770,10 @@ def do_card_timing(ep: Ep):
 
 def graphics_done(ep: Ep) -> bool:
     clips = ep.p("overlay/clips")
-    want = [pathlib.Path(pg).stem for pg in _card_pages(ep)] + [f"ep{ep.n}-title"]
+    # The two no-logo furniture clips are graphics too: the film's corner chip runs from the first
+    # frame, so the cut refuses without them (EP57/58/59, 14 Nov 2026 — the title one was never made).
+    want = [pathlib.Path(pg).stem for pg in _card_pages(ep)] + [
+        f"ep{ep.n}-title", f"ep{ep.n}-title-nologo", "end-card-template-nologo"]
     if not (clips.is_dir() and all((clips / f"{w}.mp4").is_file() for w in want)):
         return False
     # The clips must come from the pages AS TIMED NOW: a re-run of card_timing rewrites the pages,
@@ -791,8 +794,10 @@ def do_graphics(ep: Ep):
     clear = []
     for pg in (ep.epj().get("build") or {}).get("keep_clear") or []:
         clear += ["--keep-clear", pathlib.Path(pg).name]
-    _run(ep, "cards", PY + [HERE / "twoway_cards.py", ep.n, *pages, "end-card-template.html",
-                            "--as", "end-card-template.html=end-card-template-nologo.mp4", *clear],
+    title = f"ep{ep.n}-title.html"
+    _run(ep, "cards", PY + [HERE / "twoway_cards.py", ep.n, *pages, "end-card-template.html", title,
+                            "--as", "end-card-template.html=end-card-template-nologo.mp4",
+                            "--as", f"{title}=ep{ep.n}-title-nologo.mp4", *clear],
          lock="graphics")
     std = [f"ep{ep.n}-title.html", "warranty-slide.html", "end-card-template.html",
            "midroll-lowerthird.html"]
