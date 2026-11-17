@@ -116,6 +116,7 @@ import preflight_episode_json                  # E26 — the config pre-flight (
                                                # because engine.py imports NAMES from
                                                # providers and that is what bit EP15)
 import script_fidelity                         # the drafting pass's own gate
+import episode_rulings                         # one episode's hook + script notes (EP60)
 # ONE HEAVY RENDER AT A TIME, ACROSS BOTH PRODUCTION LINES ON THIS LAPTOP.
 # A VERBATIM copy of the Inspirational Women line's module — the shared contract is
 # the lock file path, the atomic O_EXCL create and the .beat sidecar, so the two
@@ -2784,6 +2785,10 @@ def _approved_packaging_text(ep) -> str:
         # The part number as it is actually said. EP19 is "Part 1" of its article, and
         # the hook usually carries that already — this is the belt to its braces.
         bits.append(f"episode {n}")
+    # THE SCRIPT NOTES ARE APPROVED WORDS TOO (EP60, 17 Nov 2026) — "say the Rosehill
+    # barrier figures run to 2002" is Hugh's, signed off at the human gate. Their
+    # "Leave out:" lines are NOT licensed: they quote the paragraph Gordon must not say.
+    bits.append(episode_rulings.licensed_notes(ep))
     return " \n ".join(b for b in bits if b.strip())
 
 
@@ -3294,6 +3299,20 @@ def _draft_watch(provider):
                         f"restart it — the attempt ledger does that.")
                 continue
 
+            # 🔴 NOTES NO DRAFT COULD OBEY ARE CAUGHT BEFORE AN ATTEMPT IS SPENT (EP60).
+            # A "Leave out:" quote that names no paragraph of the article is the NOTES'
+            # fault; rejecting three drafts over it would burn the bound on something no
+            # writer can fix. Like the missing-words wait above: no attempt, no flag —
+            # the board line says what to correct.
+            _np = episode_rulings.notes_problems(capture.read_text(encoding="utf-8"), ep)
+            if _np:
+                log(f"drafting pass: PP-EP{int(nn):02d} is waiting on its script notes "
+                    f"— nothing is drafted or spent until they are corrected:")
+                for p in _np:
+                    log(f"      x {p}")
+                _say(ep, "Waiting on the script notes — " + _np[0])
+                continue
+
             n = _record_draft_attempt(d, "commissioning the script")
             log(f"drafting pass: PP-EP{int(nn):02d} has no script and its article "
                 f"is captured — commissioning one (attempt {n} of "
@@ -3326,8 +3345,11 @@ def _draft_watch(provider):
                     p = d / "docs/spoken-words.txt"
                     if not p.is_file():
                         return []          # nothing written yet is commission()'s fault
-                    return script_fidelity.check(p.read_text(encoding="utf-8"),
-                                                 _cap_text, _licensed)
+                    _txt = p.read_text(encoding="utf-8")
+                    # This episode's rulings (hook, script notes) ride the SAME repair
+                    # loop as the figures, so the writer is told what it did, in words.
+                    return (script_fidelity.check(_txt, _cap_text, _licensed)
+                            + episode_rulings.check(_txt, _cap_text, ep))
 
                 verdict = provider._commission_script(ep, d, gate=_fidelity_gate)
             except com.CommissionHalt as h:
@@ -3394,6 +3416,26 @@ def _draft_watch(provider):
                 _say(ep, _tried_and_stopped(
                     n, f"the draft stated {len(problems)} figure(s) the article "
                        f"does not"))
+                continue
+
+            # 🔴 THIS EPISODE'S RULINGS — THE ENGINE RUNS THEM, NEVER THE WRITER (EP60).
+            # The hook first, word for word; nothing from a "Leave out:" paragraph.
+            # A separate message from the figures one, because "stated a figure the
+            # article does not" would send the next reader hunting the wrong fault.
+            try:
+                ruled = episode_rulings.check(text, capture.read_text(encoding="utf-8"), ep)
+            except Exception as e:                                    # noqa: BLE001
+                log(f"   drafting pass: could not check PP-EP{int(nn):02d}'s draft "
+                    f"against its own script rulings ({type(e).__name__}), so the draft "
+                    "was NOT used. Nothing unchecked is ever seated.")
+                continue
+            if ruled:
+                log(f"   drafting pass: PP-EP{int(nn):02d}'s draft did not follow its "
+                    f"own script rulings ({len(ruled)}), so it was NOT used:")
+                for p in ruled:
+                    log(f"      x {p}")
+                _say(ep, _tried_and_stopped(
+                    n, "the draft did not follow this episode's hook or script notes"))
                 continue
 
             # 🔴 THE ONLY WAY THESE WORDS REACH THE RAIL. Never set_fields, never an

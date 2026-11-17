@@ -4515,6 +4515,7 @@ class RealProvider:
         it (fault #2). With no gate supplied the behaviour is exactly as before.
         """
         import commission as com
+        import episode_rulings                                 # the hook + script notes
 
         nn = int(ep["ep_number"])
         capture = assert_capture_for_script(self.pp, nn)      # piece 2's precondition
@@ -4622,6 +4623,10 @@ class RealProvider:
             "else: it is shown to a person as the script, and counted as the script.\n"
             "  - The midroll line must match the pool VERBATIM.\n"
             "  - The responsible-gambling line is word-for-word locked.\n\n"
+            # THIS EPISODE'S OWN RULINGS (EP60, 17 Nov 2026): the approved hook as the
+            # first line, and the rail's script_notes. "" when the row has neither, so an
+            # episode without them gets this brief byte for byte as before.
+            + episode_rulings.brief(ep)
             + com.verdict_instructions()
         )
         def _one(followup=None):

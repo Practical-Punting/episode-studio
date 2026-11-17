@@ -92,6 +92,7 @@ normally answered during `building`. **Friendly lane labels live in the UI, not 
 | **ebook_link** | text | human | public e-book URL (pasted into the YT copy at publish) |
 | **published_url** | text | human | the live YouTube URL |
 | notes | text | any | free notes |
+| **script_notes** | text | human (board entry card) | **per-episode instructions the SCRIPT WRITER reads (010, 17 Nov 2026).** One per line, passed verbatim into the script commission by `engine/episode_rulings.py`. A line `Leave out: "<first words of a paragraph>"` is ENFORCED: checked before an attempt is spent (the quote must name exactly one article paragraph) and at the gate (no 8-word lift from it, no figure only it prints). The rest of the notes are licensed as approved words for `script_fidelity`, like the hook. NULL/empty = the brief is byte-identical to before. *Not `notes`: that one is a shared scratch field the board appends to at publish.* Alongside it the rail **hook** is now Gordon's FIRST SPOKEN LINE, word for word (gated) — the thumbnail headline was always seated from the **title**, not this column. |
 | created_by | text | operator | who started it |
 
 (**bold** = added in migration 002, except `render_started_at` = 003.)

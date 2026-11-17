@@ -122,7 +122,12 @@ class Rail:
 
 
 class Provider:
-    def __init__(self, pp, script_text="Gordon says a great many words.\n"):
+    # 🔴 A NORMAL SCRIPT OPENS ON ITS HOOK (17 Nov 2026, engine/episode_rulings.py). The
+    # rail hook is now Gordon's first spoken line, word for word, and the drafting pass
+    # refuses a draft that does not start with it. `episode()` gives every row the hook
+    # "A hook", so the writer's normal output starts there too. Blanking the fixture's
+    # hook instead would have hidden the rule from this suite.
+    def __init__(self, pp, script_text="A hook. Gordon says a great many words.\n"):
         self.pp = Path(pp)
         self.script_text = script_text
         self.commissioned = []
@@ -495,7 +500,7 @@ def main():                                                            # noqa: C
           engine._draft_attempts(liar.dir({"ep_number": 18})) == 1)
 
     faithful = Provider(pp_f, script_text=(
-        "The favourite was eight to one on the day, and a quarter of the odds "
+        "A hook. The favourite was eight to one on the day, and a quarter of the odds "
         "is two to one.\n"))
     rl2 = Rail([episode(18)])
     run_pass(rl2, faithful)

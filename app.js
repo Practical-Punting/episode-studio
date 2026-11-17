@@ -1644,13 +1644,28 @@ function gatePackagingEntry(ep) {
   h += '<div class="pe-title"><span>The title (not editable here)</span><b>' +
     esc(ep.title || "—") + "</b></div>";
 
+  // 🔴 THE HOOK IS GORDON'S FIRST SPOKEN LINE (Hugh's Batch 1, 17 Nov 2026). The engine
+  // makes the writer open on it word for word and checks that it did
+  // (engine/episode_rulings.py). It was labelled "the big text on the thumbnail", but the
+  // thumbnail headline is seated from the TITLE (providers.seat_packaging_from_rail) and
+  // never read this column — so the label described a job the field did not do.
   h += '<div class="wordsform">' +
-    box("hook", "Hook — the big text on the thumbnail",
-        "a few words, and different from the title",
-        "Bet Less, Win More", ep.hook == null ? "" : ep.hook) +
+    box("hook", "Hook — Gordon's first spoken line",
+        "Hugh's approved opening; Gordon says exactly this, first",
+        "What's a roving banker? …", ep.hook == null ? "" : ep.hook) +
     box("byline", "Byline — the small line under the title",
         "the one-line promise",
         "The stats tell the story", ep.byline == null ? "" : ep.byline) +
+    // THE SCRIPT NOTES (rail `script_notes`, migration 010). Optional, and it never
+    // blocks: an empty box sends nothing, so the episode is drafted exactly as before.
+    // A textarea with an id, so harvestDrafts/restoreDrafts protect it like every box.
+    '<label class="wf"><span>Script notes for the writer — optional</span>' +
+    '<textarea id="pe-notes-' + ep.id + '" rows="5" placeholder="' +
+    esc('Leave out: "If you are betting with a bookmaker using the Best Fluctuations option"\n' +
+        "No added lines beyond the article and the standard furniture.") + '">' +
+    esc(ep.script_notes || "") + "</textarea>" +
+    '<i class="pe-what">One instruction per line. To cut a paragraph, start the line ' +
+    "with Leave out: and quote the paragraph's first several words.</i></label>" +
     "</div>";
 
   // THE DELIBERATE BLANK, and it has to be a deliberate ACT. Without the tick an
@@ -1679,7 +1694,7 @@ function gateWords(ep) {
     '<p class="g-hint">Nothing is built until you have <b>read the script</b> and ' +
     "approved these words. Change anything you like here — the thumbnail, cover, " +
     "title card and video all use exactly what you leave in these boxes. The " +
-    "<b>hook</b> is the big text on the thumbnail.</p>";
+    "<b>hook</b> is Gordon's first spoken line.</p>";
 
   // 1 — the script. Its home is the RAIL (ruling A5): script_snapshot is the
   // script, and it is shown right here so she reads it where she approves it.
@@ -1720,7 +1735,7 @@ function gateWords(ep) {
 
   // 2 — the three words, editable
   h += '<div class="wordsform">' +
-    f("hook", "Hook (the big thumbnail text)", hookOf(ep), "e.g. Bet Less, Win More") +
+    f("hook", "Hook (Gordon's first spoken line)", hookOf(ep), "e.g. What's a roving banker? …") +
     f("title", "Title", ep.title, "the episode title") +
     f("byline", "Byline", bylineOf(ep), "the one-line promise") +
     "</div>";
@@ -2321,6 +2336,10 @@ $("lanes").addEventListener("click", async (e) => {
     // "" IS A DECISION AND NULL IS NOT. An empty box only becomes "" because the tick
     // above says she meant it; that is what stops the engine asking again for ever.
     const patch = { hook: hook, byline: byline };
+    // The notes ride the same save, named to their own column. Sent only when typed,
+    // so an episode without notes sends the very patch it always did.
+    const notes = ($("pe-notes-" + id)?.value || "").trim();
+    if (notes) patch.script_notes = notes;
     if (await writeEpisode(id, patch, id + ":packaging-entry", btn)) {
       clearWordDrafts(id);
       toast("toast", "Saved — the studio can start on this one now.", true);

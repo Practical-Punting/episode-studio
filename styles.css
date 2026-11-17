@@ -135,6 +135,11 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .gate input[type=url],.gate input[type=text]{width:100%;font-family:inherit;font-size:14px;padding:11px 13px;
   border:2px solid #e6e2dd;border-radius:10px;background:#fff;color:var(--ink);outline:none;margin-bottom:10px;}
 .gate input:focus{border-color:var(--orange);}
+/* the script-notes box on the entry card (migration 010) — styled like its neighbours */
+.gate textarea[id^="pe-notes-"]{width:100%;font-family:inherit;font-size:14px;line-height:1.5;
+  padding:11px 13px;border:2px solid #e6e2dd;border-radius:10px;background:#fff;color:var(--ink);
+  outline:none;resize:vertical;min-height:96px;margin-bottom:4px;}
+.gate textarea[id^="pe-notes-"]:focus{border-color:var(--orange);}
 .gate .btn:disabled{opacity:.45;cursor:default;}
 
 /* THE TITLE TRAP — she sees what her words become BEFORE she approves them.
