@@ -511,9 +511,12 @@ watch-through list; and the process rule that came out of it is in PP-STANDARDS:
 automated watch-through is a floor, not the gate.**
 
 ⚠️ **THE OUT-OF-STEP WORDING WAS IN THAT PROMPT AND THE FIELD STILL GALLOPED IN STEP.**
-Saying it once is not enough. The field must ALSO be described as **spread** — *"a spread
-field, horses at different strides and different positions, staggered, no two in step"* —
-because a bunched field is what the model synchronises.
+Saying it once is not enough. The horses must ALSO be described as **spread out** — *"the
+three horses spread out at different strides and different positions, staggered, no two in
+step"* — because a bunched group is what the model synchronises. ⚠️ **Never "a spread
+field" (EP60, 18 Nov 2026):** rule (a) bans "a field", because Higgsfield reads it as many
+horses. Name two to four horses, then say they are spread out (`SPREAD_OUT` in
+`engine/broll_prompt_rules.py`).
 
 ### 🚫 EP46 — ONE CLIP REJECTED (Jodie, 15 September 2026)
 

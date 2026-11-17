@@ -413,9 +413,52 @@ def too_many(prompt: str) -> list[str]:
             continue
         for m in OVER_FOUR.finditer(sent):
             back = sent[max(0, m.start() - 60):m.start()]
+            # The negation must be in the SAME CLAUSE (EP60): "…no two in step, twelve
+            # strappers watching" is twelve strappers, not none — and SPREAD_OUT itself ends
+            # "no two in step", so without this the out-of-step line would hide a crowd.
+            back = re.split(r"[,;:—–]", back)[-1]
             if not _NEGATED.search(back):
                 out.append(m.group(0))
     return out
+
+
+# ══ "OUT OF STEP" IS SAID WITHOUT THE WORD "FIELD" (EP60, 18 Nov 2026) ══════════════
+# TWO STANDING RULES CONTRADICTED EACH OTHER, AND THE WRITER OBEYED THE ONE IT READ.
+# Jodie's 18 Sep rule (EP49's in-step field) told every racing shot to say "a SPREAD field,
+# horses at different strides…"; rule (a) above, from the SAME EP49 review, bans "a field"
+# because Higgsfield reads it as many horses. PP-STANDARDS carried the first wording, the
+# commission reads PP-STANDARDS, so EP60's writer named three horses AND wrote "a spread
+# field" — and rule (a) stopped the build at b-roll, correctly.
+#     THE ONE DEFINITION: the out-of-step idea is SPREAD_OUT, said about the horses the
+# prompt has already counted. PP-STANDARDS, the registry and the writer's brief all carry
+# these words; nothing tells a writer to say "field" any more.
+#     AND THE CORRECTOR TRANSLATES THE OLD IDIOM, NARROWLY. Rule (a) says a count is the
+# writer's choice of subject and is never rewritten — and this does not rewrite one: it
+# acts only when the prompt ALREADY names two, three or four horses and nothing else in it
+# asks for more, so the count stays exactly what the writer chose and only the word that
+# would make Higgsfield add horses goes. "A spread field" with no count, or beside five
+# horses, is left alone and rule (a) still stops it.
+SPREAD_OUT = "spread out at different strides and different positions, staggered, no two in step"
+_SPREAD_FIELD = re.compile(r"\ba\s+spread(?:[- ]out)?\s+field\b", re.I)
+_LAWFUL_COUNT = re.compile(
+    r"\b(?:two|three|four|[2-4]|a\s+pair\s+of)\s+(?:[\w-]+\s+){0,3}?"
+    r"(?:racehorses|horses|runners|thoroughbreds)\b", re.I)
+
+
+def spread_out(prompt: str) -> tuple[str, bool]:
+    """'a spread field' -> 'spread out', ONLY where the prompt already names 2-4 horses and
+    the result asks for no more than four. Returns (prompt, changed)."""
+    p = prompt or ""
+    if not (_SPREAD_FIELD.search(p) and _LAWFUL_COUNT.search(p)):
+        return prompt, False
+    fixed = _SPREAD_FIELD.sub("spread out", p)
+    if too_many(fixed):
+        return prompt, False
+    return fixed, True
+
+
+SPREAD_APPLIED = ('"a spread field" said as "spread out" — the prompt already names its '
+                  'horses, and "field" reads as many (EP60)')
 
 
 # (b) SADDLECLOTHS ARE PLAIN. EP49's field-of-eight carried the SAME number on every
@@ -1086,11 +1129,13 @@ def apply_rules(prompt: str) -> tuple[str, list[str], list[str]]:
     look at — kept deliberately, because a tool that claims to fix everything is one
     nobody checks.
     """
+    prompt, spread = spread_out(prompt)          # EP60 — before the gaps are read
+    pre = [SPREAD_APPLIED] if spread else []
     gaps = {g["key"] for g in check_prompt(prompt)}
     if not gaps:
-        return prompt, [], []
+        return prompt, pre, []
     text = prompt.rstrip()
-    applied, unfixable = [], []
+    applied, unfixable = list(pre), []
     bend = bool(BEND_WORDS.search(text))
 
     # Before touching anything: is the far side already spoken for by something that is
@@ -1226,10 +1271,14 @@ def apply_frame_rules(prompt: str) -> tuple[str, list[str]]:
     Orientation, the light and the rail's own line are properties of the PICTURE, which
     is what a cover is.
     """
+    # EP60: the cover heroes read the same PP-STANDARDS line, so the same translation —
+    # one definition, both doors (A22).
+    prompt, spread = spread_out(prompt)
+    pre = [SPREAD_APPLIED] if spread else []
     gaps = {g["key"] for g in check_prompt(prompt or "")} & set(FRAME_KEYS)
     if not gaps:
-        return prompt, []
-    text, applied = (prompt or "").rstrip(), []
+        return prompt, pre
+    text, applied = (prompt or "").rstrip(), list(pre)
     # Same order as apply_rules, and for the same reason: the rail is a fact about the
     # scene, orientation and the light are statements about the whole frame.
     if "rail-smooth" in gaps:
@@ -1340,6 +1389,8 @@ def commission_brief() -> str:
         "Ask for two, three or four horses by number. (A crowd far out of focus in the "
         "background is fine.) Higgsfield cannot count; a field of eight lost a horse "
         "mid-clip.\n"
+        "  - OUT OF STEP: two to four horses moving together are '" + SPREAD_OUT + "'. "
+        "Never 'a spread field' — the word 'field' asks for more horses (EP60).\n"
         "  - A WALKING OR PARADING HORSE IS RIDERLESS AND LED by a strapper at its head. "
         "A jockey appears ONLY on a horse at a gallop or canter — the word 'jockey' "
         "produces a racing crouch whatever the horse is doing.\n"

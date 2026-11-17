@@ -803,10 +803,19 @@ face or a working mechanism.
 
 ### 🔴 A SPREAD FIELD, AND A RAIL THAT DOES NOT WOBBLE (Jodie, 18 September 2026)
 
-**Say both, in every racing shot with more than one horse in motion:**
+**Say both, in every racing shot with more than one horse in motion** — after naming the
+horses by number (two, three or four; never more):
 
-> *"a SPREAD field, horses at different strides and different positions, staggered,
-> NO TWO IN STEP"*
+> *"the three horses SPREAD OUT at different strides and different positions,
+> staggered, NO TWO IN STEP"*
+
+⚠️ **NEVER "a spread field" (EP60, 18 Nov 2026).** This line used to say *"a SPREAD
+field…"*, and the EP49 count rule from the same review bans *"a field"*: Higgsfield
+reads "field" as many horses, and a field of eight lost a horse mid-clip. EP60's writer
+followed this section and the count gate stopped the build at b-roll. Say SPREAD OUT
+about the horses you have already counted. The wording now has one home,
+`SPREAD_OUT` in `engine/broll_prompt_rules.py`, and the corrector rewrites the old
+phrase only where the prompt already names two to four horses.
 
 > *"one LONG STRAIGHT white running rail"* — or, on a bend, *"ONE GENTLE CONTINUOUS
 > CURVE that curves the same way from one edge of the frame to the other and never
