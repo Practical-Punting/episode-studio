@@ -174,7 +174,15 @@ def measure_size(headline: str, lines=None):
         and nothing is shrunk below the floor or cut.
     It halts only if even the longer HALF cannot make the floor — a title so long that
     no layout here can hold it, which is a real human decision.
+
+    The choice between one line and two is `choose_layout` (EP60, 18 Nov 2026).
     """
+    w100, w_lines = measure_widths(headline, lines)
+    return choose_layout(headline, w100, w_lines)
+
+
+def measure_widths(headline: str, lines=None):
+    """(width of the whole headline at 100px, [width of each line at 100px]), in real Anton."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:                                  # noqa: BLE001
@@ -208,23 +216,43 @@ def measure_size(headline: str, lines=None):
             b.close()
     if not w100:
         raise Halt(f"the headline {headline!r} measured 0px wide.")
-    # The target leaves air at the right-hand end, which is what the three shipped
-    # cards did. GIVE UP THE AIR BEFORE GIVING UP THE CARD: a long headline drops
-    # to whatever actually fits the box before this becomes a halt.
-    size = min(CAP, int(TARGET_FILL * BOX / w100 * 100.0 // STEP) * STEP)
-    if size < FLOOR:
-        size = min(CAP, int(BOX / w100 * 100.0 // STEP) * STEP)
-    if size >= FLOOR:
-        return size, w100, False
+    return w100, w_lines
 
-    # ── one line will not hold it: break at the setup/payoff boundary ──────────
-    if w_lines:
-        widest = max(w_lines)
-        two = min(CAP, int(TARGET_FILL * BOX / widest * 100.0 // STEP) * STEP)
-        if two < FLOOR:
-            two = min(CAP, int(BOX / widest * 100.0 // STEP) * STEP)
-        if two >= FLOOR:
-            return two, widest, True
+
+def _fit(width_at_100: float) -> int:
+    """The largest 5px step that fits: with the air if that makes the floor, else without."""
+    s = min(CAP, int(TARGET_FILL * BOX / width_at_100 * 100.0 // STEP) * STEP)
+    if s < FLOOR:
+        s = min(CAP, int(BOX / width_at_100 * 100.0 // STEP) * STEP)
+    return s
+
+
+def choose_layout(headline: str, w100: float, w_lines=None):
+    """One line or two, from MEASURED widths. Returns (size_px, width_at_100px, two_line).
+
+    1. A headline that fits on one line WITH THE AIR (85% of the box) at or above the
+       floor stays on one line — every card that did so before still does.
+    2. 🔴 OTHERWISE THE LARGER LAYOUT WINS (Jodie, EP60, 18 Nov 2026). This used to take
+       one line whenever it could squeeze in by giving up the air, and only tried two
+       lines when one line failed the floor outright. So "HORSE RACING BET TYPES
+       EXPLAINED" (1359px at 100) squeezed onto one line at exactly the 90px floor,
+       while the same words on two lines at its own setup/payoff seam size 155px —
+       and EP54's longer title, which DID fail one line, got two lines at 100px. A
+       32-character title came out smaller than a 46-character one. Now the two-line
+       size is compared with the squeezed one-line size and the larger is used; a tie
+       stays on one line.
+    3. Halts only when neither layout makes the floor.
+    """
+    air = min(CAP, int(TARGET_FILL * BOX / w100 * 100.0 // STEP) * STEP)
+    if air >= FLOOR:
+        return air, w100, False
+    one = _fit(w100)
+    widest = max(w_lines) if w_lines else 0.0
+    two = _fit(widest) if widest else 0
+    if two >= FLOOR and two > one:
+        return two, widest, True
+    if one >= FLOOR:
+        return one, w100, False
 
     raise Halt(
         f"the headline {headline!r} is {w100 * FLOOR / 100:.0f}px wide on one line and "
@@ -269,8 +297,8 @@ def main():
     # template and substitutes, and touches nothing on disk. So the check MOVES
     # DOWN to the write, where the rendered page can be compared. A reordering,
     # not a restructure.
-    size, w100, two_line = measure_size(
-        head, lines=[cov["title_setup"], cov["title_payoff"]])
+    w100_one, w_lines = measure_widths(head, lines=[cov["title_setup"], cov["title_payoff"]])
+    size, w100, two_line = choose_layout(head, w100_one, w_lines)
     part = cov.get("part")
     part_line = (f'  <div id="pt" class="anton pt">{esc(part)}</div>\n' if part else "")
     part_anim = ('{"sel":"#pt","kf":[{"opacity":0,"transform":"translateY(28px)"},'
@@ -289,10 +317,14 @@ def main():
                         f"wide at 100px, so {TARGET_FILL:.0%} of the {BOX:.0f}px box is "
                         f"{TARGET_FILL * BOX / w100 * 100:.1f}px, stepped to {size}. Not "
                         f"typed by hand — see author_title_card.py."
-                        + (" TWO LINES: the hook does not fit on one at the 90px floor, "
-                           "so it breaks at the setup/payoff boundary and is sized to "
-                           "the longer half. The words are kept whole." if two_line
-                           else "") + " -->"),
+                        + ((" TWO LINES: the hook does not fit on one at the 90px floor, "
+                            "so it breaks at the setup/payoff boundary and is sized to "
+                            "the longer half. The words are kept whole."
+                            if _fit(w100_one) < FLOOR else
+                            f" TWO LINES: one line only fits at {_fit(w100_one)}px, and "
+                            f"two lines at the setup/payoff boundary size {size}px, so "
+                            f"the larger layout is used. The words are kept whole.")
+                           if two_line else "") + " -->"),
         "%%TITLE_WRAP%%": "normal" if two_line else "nowrap",
         # A real <br> rather than letting it wrap where it likes: the break belongs at
         # the setup/payoff seam, which is where the sentence already divides.
