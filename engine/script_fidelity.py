@@ -652,7 +652,16 @@ def haystacks(capture_text: str) -> list[list[str]]:
                 # widens what the SOURCE MAY BE READ AS and never what the script
                 # may say. An amount the article does not print is still refused
                 # in the singular exactly as it always was in the plural.
-                sing = re.sub(r"\bone dollars\b", "one dollar", s)
+                # 🔴 AND IT WAS NEVER ONLY "ONE". (EP60, 17 Nov 2026.) The line below
+                # used to read `one dollars` -> `one dollar` — one case taught, not the
+                # rule (CLAUDE.md 2b). EP60's writer said "on two dollar fifty win
+                # chances" for the article's "$2.50 win chances" and burned all three
+                # attempts being right. An amount that DESCRIBES a noun takes the
+                # singular whatever its size ("a two dollar fifty chance", "a ten
+                # dollar bet"), so the singular is offered for EVERY amount. Only the
+                # unit word changes — no number word moves — so an amount the article
+                # does not print is still refused. test_any_dollar_is_sayable.py.
+                sing = re.sub(r"\bdollars\b", "dollar", s)
                 if sing != s:
                     out.append(norm_words(sing))
                     out.append(norm_words(re.sub(units, " ", sing)))
