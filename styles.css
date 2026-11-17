@@ -82,6 +82,10 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
 .card{background:var(--card);border-radius:18px;padding:22px 24px;box-shadow:0 2px 12px rgba(0,0,0,.05);}
 .card.alert{box-shadow:0 2px 16px rgba(181,72,44,.22);border:2px solid var(--alert-line);}
 .card .toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:4px;}
+/* A long status pill ("WRITING THE SCRIPT — ATTEMPT 1 OF 3") is nowrap and won't shrink, so without
+   these the title squashed to one word per line (Jodie, 17 Nov 2026). Now a long pill drops below. */
+.card .toprow{flex-wrap:wrap;}
+.card .toprow h3{flex:1 1 220px;min-width:0;}
 .card h3{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;line-height:1.08;letter-spacing:.4px;
   color:var(--charcoal);text-transform:uppercase;}
 .epnum{color:var(--orange);}
