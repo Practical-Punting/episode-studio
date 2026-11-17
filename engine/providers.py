@@ -569,6 +569,70 @@ def listen_to_the_master(ep_dir: Path, master: Path):
         "it in HeyGen, save the new file, and say so — nothing here is wasted yet."))
 
 
+def _mmss(s: float) -> str:
+    s = max(0.0, float(s))
+    return f"{int(s // 60)}:{s % 60:04.1f}"
+
+
+def check_false_starts(ep_dir: Path, master: Path, run=subprocess.run) -> str:
+    """🔁 A FALSE START STOPS THE BUILD THE MOMENT GORDON'S MASTER LANDS (Jodie, 18 Nov 2026).
+
+    `engine/repeated_words.py` was built on EP56's false start ("This is part three of a
+    conversation that…", a pause, the whole sentence again — every transcript check passed
+    it and Jodie heard it). Until 18 Nov it ran on the TWO-WAY path only; the single-
+    presenter engine never ran it on a Gordon master. Now it runs here, straight after the
+    download and the lead-in trim, before a minute of alignment or assembly is spent.
+
+    It is run as a SUBPROCESS, exactly as the two-way path runs it: the transcriber loads in
+    its own process, and the script takes the render lock itself (nothing in the engine
+    holds it at this step).
+
+    ONCE PER MASTER. The result is kept beside the master, named after its SIZE AND MTIME
+    (the same key `listen_to_the_master` uses), so a resume reads it instead of listening
+    again, and a NEW master — a re-render — is checked afresh. A repeat is asked through
+    `ask_once`: clearing the flag is a person's answer for THIS master (a repeat she heard
+    and is happy to keep), and the build carries on.
+    """
+    st = master.stat()
+    tag = f"{st.st_size}-{int(st.st_mtime)}"
+    out = ep_dir / "renders" / f"repeats-master-{tag}.json"
+    script = ep_dir / "docs/spoken-words.txt"
+    if not out.is_file():
+        print("    false starts: listening to Gordon's master stretch by stretch "
+              "(engine/repeated_words.py) — this takes a few minutes", flush=True)
+        r = run([sys.executable, str(Path(__file__).resolve().parent / "repeated_words.py"),
+                 str(master), str(script), "--json", str(out)],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode not in (0, 1) or not out.is_file():
+            # The maintainer's half goes to the RUN LOG; the box gets plain words.
+            print(f"    [maintainer] repeated_words.py exited {r.returncode}; no result at {out}.\n"
+                  f"    {((r.stdout or '') + (r.stderr or '')).strip()[-800:]}")
+            raise EngineFlag(
+                "I could not run the false-start check on Gordon's downloaded take, so I "
+                "have stopped before building with it. Nothing is lost and nothing has been "
+                "spent. The details are in the run log for whoever maintains the studio. "
+                "Trying again may work if the cause was passing; if it stops here again, "
+                "it needs fixing, not another try.")
+    data = json.loads(out.read_text(encoding="utf-8"))
+    if data.get("ok"):
+        return (f"false starts: PASS — no run of {data.get('run_n', 3)}+ words said that the "
+                f"script does not say ({data.get('stretches', '?')} speech stretches heard)")
+    reps = data.get("repeats") or []
+    lines = "\n".join(f"  · at {_mmss(r.get('at_s', 0))} — “{r.get('text', '').strip()}”"
+                      for r in reps[:6])
+    more = f"\n  …and {len(reps) - 6} more." if len(reps) > 6 else ""
+    ask_once(ep_dir / "renders", f"repeats-{tag}", message=(
+        "Gordon says something twice in his take that the script says only once. That is "
+        "usually a false start — he begins a sentence, pauses, and starts it again.\n\n"
+        f"{lines}{more}\n\n"
+        "The times are from the start of Gordon's downloaded take. Listen at each one. If "
+        "he does restart, his take needs re-rendering — tell Claude Code, and nothing after "
+        "this point has been built yet. If it sounds fine to you, press \"It's sorted — "
+        "carry on\" and the build continues with this take."))
+    return ("false starts: a repeat was found in this take and a person has listened and "
+            "let it through (" + "; ".join(f"{_mmss(r.get('at_s', 0))}" for r in reps) + ")")
+
+
 def thumbnail_placement_review(ep_dir: Path, png: Path, url: str | None = None,
                                ep: dict | None = None):
     """Raise the ONE clearable flag this step is meant to raise.
@@ -3394,6 +3458,12 @@ class RealProvider:
         _t0 = time.monotonic()
         print(f"    {trim_master_lead_in(master)}")
         t["trim"] = time.monotonic() - _t0
+        _t0 = time.monotonic()
+        # FALSE STARTS, straight after the download (Jodie, 18 Nov 2026) — on the TRIMMED
+        # master, which is the take that ships; before alignment, so a bad take costs
+        # minutes, not a build. See check_false_starts.
+        print(f"    {check_false_starts(d, master)}")
+        t["repeats"] = time.monotonic() - _t0
         _t0 = time.monotonic()
         # STANDING STEP, immediately after the trim (Jodie, 29 Jul 2026). Everything
         # downstream — card leads, the midroll anchor, b-roll offsets, the shot map
