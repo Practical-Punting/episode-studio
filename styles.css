@@ -86,6 +86,9 @@ h1{font-family:'Anton',sans-serif;font-weight:400;font-size:34px;line-height:1.0
    these the title squashed to one word per line (Jodie, 17 Nov 2026). Now a long pill drops below. */
 .card .toprow{flex-wrap:wrap;}
 .card .toprow h3{flex:1 1 220px;min-width:0;}
+/* ...and a VERY long pill (a needs-a-look sentence) must wrap inside the card, not run off its
+   right edge (Jodie, 17 Nov 2026). Short pills still fit on one line beside the title. */
+.card .toprow .pill{white-space:normal;max-width:100%;line-height:1.45;}
 .card h3{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;line-height:1.08;letter-spacing:.4px;
   color:var(--charcoal);text-transform:uppercase;}
 .epnum{color:var(--orange);}
