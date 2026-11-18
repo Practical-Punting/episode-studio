@@ -171,8 +171,9 @@ def main():
           and not says("back in 1988", "nineteen eighties"))
 
     print("\n-- the readings are OFFERED, never chosen for you --")
-    check("all three readings are declared in one place", len(sf.READINGS) == 3,
-          f"{sf.READINGS}")
+    # Four since EP61 (18 Nov 2026): "year" says the 2000s "two thousand and N".
+    check("all four readings are declared in one place",
+          sf.READINGS == ("cardinal", "pairs", "hundreds", "year"), f"{sf.READINGS}")
     check("  and the fold answers to each of them",
           all(sf.fold("run over 1600m", reading=r) for r in sf.READINGS))
     check("  _hundreds does not touch a number without four figures",

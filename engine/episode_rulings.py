@@ -126,6 +126,42 @@ def resolve(capture_text: str, notes: str) -> tuple[list[tuple[str, int]], list[
     return found, problems
 
 
+def _span(paragraph: str, quote: str) -> tuple[int, int] | None:
+    """Where the quoted words sit in the RAW paragraph text, or None.
+
+    Exact substring first; otherwise the quote's words in order with any punctuation or
+    spacing between them (so a missing full stop or curly quote does not lose the match)."""
+    i = paragraph.find(quote)
+    if i >= 0:
+        return i, i + len(quote)
+    words = re.findall(r"\w+", quote)
+    if not words:
+        return None
+    m = re.search(r"\W*".join(re.escape(w) for w in words), paragraph, re.I)
+    return (m.start(), m.end()) if m else None
+
+
+def cuts(capture_text: str, notes: str) -> list[tuple[str, int, tuple[int, int] | None]]:
+    """What each "Leave out:" line removes: (quote, paragraph index, span).
+
+    🔴 A QUOTE THAT OPENS A PARAGRAPH REMOVES THE PARAGRAPH; ONE THAT SITS INSIDE A
+    PARAGRAPH REMOVES ONLY THOSE WORDS (span is set). (EP61, 18 Nov 2026.) Hugh's note
+    `Leave out: "(stats from www.racingandsports.com.au)"` meant the bracketed credit at
+    the END of the paragraph that gives gate 1's 13.8% from 405 races — and this used to
+    cut the whole paragraph, so the gate told the writer to drop the article's opening
+    Rosehill figure. The writer refused, rightly, three times. EP60's quotes open their
+    paragraphs, so EP60 is cut exactly as before."""
+    paras = paragraphs(capture_text)
+    out = []
+    for q, i in resolve(capture_text, notes)[0]:
+        nq, nt = norm_words(q), norm_words(paras[i])
+        if nt[:len(nq)] == nq:
+            out.append((q, i, None))
+        else:
+            out.append((q, i, _span(paras[i], q)))
+    return out
+
+
 def notes_problems(capture_text: str, ep) -> list[str]:
     """Checked BEFORE an attempt is spent: notes the writer could not possibly obey.
 
@@ -157,9 +193,11 @@ def brief(ep) -> str:
         h += ("THIS EPISODE'S SCRIPT NOTES — follow every line:\n"
               + "\n".join("    " + l for l in notes.splitlines()) + "\n"
               "How to read them:\n"
-              "  - A line 'Leave out: \"…\"' names an article paragraph by its opening "
-              "words. Gordon says NOTHING from that paragraph — not its sentences, not "
-              "its figures, not a summary of it. The studio checks this.\n"
+              "  - A line 'Leave out: \"…\"' quotes the article. If the quoted words OPEN "
+              "a paragraph, Gordon says NOTHING from that paragraph — not its sentences, "
+              "not its figures, not a summary of it. If they sit INSIDE a paragraph (a "
+              "bracket, a credit, one sentence), only those words go and the rest of the "
+              "paragraph stays. The studio checks this.\n"
               "  - A note that tells Gordon to say a fact is approved words: say it as "
               "the note gives it.\n"
               "  - If a note says no added lines, then the ONLY words not taken from the "
@@ -196,21 +234,38 @@ def check(script_text: str, capture_text: str, ep) -> list[str]:
                 f"with nothing before it, and do not write an opening of your own.")
 
     if notes:
-        found, problems = resolve(capture_text, notes)
-        out.extend(problems)
+        out.extend(resolve(capture_text, notes)[1])
+        found = cuts(capture_text, notes)
         if found:
             paras = paragraphs(capture_text)
-            cut = {i for _, i in found}
-            kept_text = "\n\n".join(p for i, p in enumerate(paras) if i not in cut)
-            kept = _shingles(_spoken(kept_text), LIFT_WORDS)
-            said_sh = _shingles(said, LIFT_WORDS)
-            for q, i in found:
-                lifted = sorted((_shingles(_spoken(paras[i]), LIFT_WORDS) - kept) & said_sh)
+            # What is KEPT: whole-paragraph cuts dropped, inside cuts excised from their
+            # paragraph (later spans first, so earlier offsets stay valid).
+            kept_paras = list(paras)
+            removed: list[tuple[str, str, bool]] = []      # (quote, removed text, whole?)
+            for q, i, span in found:
+                if span is None:
+                    removed.append((q, paras[i], True))
+                    kept_paras[i] = ""
+            for q, i, span in sorted((c for c in found if c[2]), key=lambda c: -c[2][0]):
+                removed.append((q, paras[i][span[0]:span[1]], False))
+                kept_paras[i] = kept_paras[i][:span[0]] + " " + kept_paras[i][span[1]:]
+            kept_text = "\n\n".join(p for p in kept_paras if p.strip())
+            kept_tokens = _spoken(kept_text)
+            for q, gone, whole_para in removed:
+                g = _spoken(gone)
+                # A short cut (a bracketed credit) is shorter than a lift: then saying
+                # ALL of it is the lift. A whole paragraph keeps the eight-word rule.
+                k = min(LIFT_WORDS, len(g)) or 1
+                lifted = sorted((_shingles(g, k) - _shingles(kept_tokens, k))
+                                & _shingles(said, k))
                 if lifted:
+                    what = (f'the paragraph starting "{q}"' if whole_para
+                            else f'the words "{q}" (only those words — the rest of their '
+                                 f"paragraph stays)")
                     out.append(
-                        f'the script notes say to leave out the paragraph starting "{q}", '
-                        f'and the script still says it ("{" ".join(lifted[0])}"). Leave '
-                        f"that whole paragraph out.")
+                        f"the script notes say to leave out {what}, and the script still "
+                        f'says it ("{" ".join(lifted[0])}"). Leave '
+                        + ("that whole paragraph out." if whole_para else "those words out."))
             # A FIGURE ONLY THE CUT PARAGRAPHS PRINT. Traced with script_fidelity's own
             # readings: it traces against the whole article and not against what is kept.
             whole = sf.haystacks(capture_text)

@@ -321,10 +321,29 @@ def _pairs(n: int) -> str:
     return f"{int_words(a)} {int_words(b)}"
 
 
-# The three ways a four-figure number is said aloud. EVERY ONE IS OFFERED, because
-# the notation cannot tell you which the writer meant: 1988 is a year, 1600 is a
-# distance, 2210 is a circumference, and they are said differently.
-READINGS = ("cardinal", "pairs", "hundreds")
+def _year(n: int) -> str:
+    """A year as an Australian says it: 1990 -> "nineteen ninety"; 2002 -> "two thousand
+    and two"; 2015 -> "two thousand and fifteen".
+
+    🔴 THE READING THAT JAMMED EP61. (18 Nov 2026.) Hugh's note had Gordon say the Rosehill
+    figures run "from August 1990 to 2002", and the writer said "nineteen ninety to two
+    thousand and two" — exactly how it is said here. But each fold pass reads EVERY
+    number one way: the pairs (year) pass gave "nineteen ninety to twenty oh two", the
+    cardinal pass "one thousand nine hundred and ninety to two thousand two". No pass
+    held the real spoken span, so the approved note itself could not license it and the
+    writer burned three attempts being right. This pass is the year reading with the
+    2000s said the way they are said; "twenty oh two" and "twenty fifteen" stay on offer
+    in the pairs pass, so nothing that matched before stops matching."""
+    if 2000 <= n <= 2099:
+        return "two thousand" + (f" and {int_words(n - 2000)}" if n > 2000 else "")
+    return _pairs(n)
+
+
+# The ways a four-figure number is said aloud. EVERY ONE IS OFFERED, because the
+# notation cannot tell you which the writer meant: 1988 is a year, 1600 is a distance,
+# 2210 is a circumference, and they are said differently. "year" is "pairs" with the
+# 2000s said "two thousand and N" (EP61) — an extra pass, never a replacement.
+READINGS = ("cardinal", "pairs", "hundreds", "year")
 
 
 def _hundreds(n: int) -> str:
@@ -535,9 +554,9 @@ def fold(text: str, frac=_frac_said, reading: str = "cardinal",
     s = re.sub(r"(?<![\d$.,-])(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)(?!\.?\d)",
                _odds_dec, s)
     s = _decimals(s)
-    if reading in ("pairs", "hundreds"):
+    if reading in ("pairs", "hundreds", "year"):
         # OFFERED AS AN EXTRA READING, NEVER AS A REPLACEMENT — see haystacks().
-        fn = _pairs if reading == "pairs" else _hundreds
+        fn = {"pairs": _pairs, "hundreds": _hundreds, "year": _year}[reading]
         # 🔴 MONEY FIRST, AND THE BARE RULE MUST NOT REACH INSIDE IT. `$1250` was
         # becoming "$twelve hundred and fifty" — `spoken_form` then no longer
         # recognises it as money, so the word "dollars" was silently dropped and a
