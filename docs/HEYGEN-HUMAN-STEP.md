@@ -245,6 +245,13 @@ than assumed** — read the doc back and count. Useful whichever mechanism is in
 `<break time="4s"/>` exists on the API path. That path is closed on cost — see below.
 
 ## Why it's manual (the cost reason — don't lose this)
+
+> ⛔ **SUPERSEDED IN PART 18 Nov 2026 — `PP-RULINGS.md` A33.** The claude.ai HeyGen CONNECTOR
+> spends PLAN credits (measured: 4 premium credits for a 13.3 s test), so the "MCP = pay-as-you-go"
+> line below is wrong for it. A render may go through the connector ONLY on Jodie's press of
+> "Send to HeyGen". ⚠️ And the template id above (`ac627c3a…`) is NOT what Gordon's episodes use:
+> read live it is "Luke Template" (ElevenLabs engine). EP60's real settings are in
+> `PP Videos\docs\PLAN-heygen-connector.md`.
 - **Web-app render = plan credits** (already included in the subscription → effectively free per episode).
 - **API / MCP render = pay-as-you-go**, roughly **$0.05/sec ≈ ~$30 per 10-minute episode**, on top of the subscription.
 - **The final presenter is identical either way** — Claude downloads the same

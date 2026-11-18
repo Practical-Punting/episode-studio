@@ -1099,6 +1099,9 @@ lesson, where deleting the PNGs did not invalidate a stored job id).
 
 ## A26 · 11 Aug 2026 — 🚫 AUTO-RENDER IS BROWSER AUTOMATION, NEVER THE API · **Jodie**
 
+> ⛔ **SUPERSEDED 18 Nov 2026 by A33** — renders may go through the claude.ai HeyGen connector
+> on Jodie's press of "Send to HeyGen". Kept below as the record of why it was closed.
+
 > **"HEYGEN AUTO-RENDER = browser automation, NEVER the API/Make"**, alongside
 > **"generate AT MOST ONCE per episode"**.
 
@@ -1245,3 +1248,37 @@ pasted from those same words, so nothing shipped has changed. Noted and accepted
 this within it was (1) an explicit brief asking for it, (2) no word of content moving, and
 (3) the published artefact having been made from the same words. Name the tension every
 time; do not infer a general licence from this instance.
+
+---
+
+## A33 · 18 Nov 2026 — 🎬 GORDON'S RENDER MAY GO THROUGH THE HEYGEN CONNECTOR — ON JODIE'S PRESS ONLY · **Jodie**
+
+> *"HeyGen renders MAY now be sent through the claude.ai HeyGen connector (plan credits), but
+> ONLY when Jodie presses "Send to HeyGen" on the board. Pressing it IS her click for that
+> render. Nothing else may send a render: no automatic retries, no re-rolls, no test renders
+> without her say-so. The manual paste stays as the backup. The old "the API path stays
+> closed" ruling is replaced by this one."* — Jodie, 18 Nov 2026 (relayed by Cowork).
+
+**Supersedes:** **A26** ("auto-render = browser automation, NEVER the API/Make") and every
+"the API / MCP path stays closed" line (PP-STANDARDS §HeyGen human step; HEYGEN-HUMAN-STEP
+"Why it's manual"). **A25's browser-automation route is NOT withdrawn** — it is simply not the
+route being built. Both rulings' shared conditions still bind any send: at most ONCE per
+episode with the rail marker written BEFORE the send; the Script Gate first; `listen_check`
+stays; manual fallback always.
+
+**Why it is now allowed (A26's two reasons no longer hold, measured 18 Nov 2026):**
+1. *The wallet* — the connector is OAuth to Jodie's HeyGen account and spends PLAN credits
+   (`get_current_user`: billing subscription, `wallet: null`). The test render moved premium
+   credits 300 → 296 for 13.3 s; add-on credits untouched. No API wallet involved.
+2. *"No background parameter"* — `create_video_from_studio` now takes the look, Avatar IV,
+   expressiveness, the voice engine (Mockingbird en-AU), the background and several scenes.
+   (⚠️ The test showed the background still has to be got RIGHT — see the Atlas, 18 Nov.)
+
+**What "her click" means, exactly:** the press of **Send to HeyGen** for ONE episode is the
+consent to spend for THAT render. It does not carry over to a retry, a re-roll after a bad
+take, a second episode, or a test. Each of those is a new press or a new say-so.
+
+**Does NOT cover:** any other gate (words/script, cover pick, the four approvals, publish —
+all still human); the two-way renders (not tested through the connector; SSML `<break>` is
+not documented on the video tools); spending above the per-render estimate — a send whose
+estimate is out of line stops and asks.
