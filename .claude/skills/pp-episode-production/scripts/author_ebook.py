@@ -1436,7 +1436,22 @@ def check_figure_placement(ep, art: list[str], items, figures):
         num = tips[pos][0]
         return f"tip {num}" if li_no == 0 else f"list {lists[pos] + 1}, item {num}"
 
+    # 🔴 A CARD THAT SHOWS A WHOLE LIST, AND A TIE. (EP62, 20 Nov 2026 — Jodie's two rules.)
+    # The best-scoring tip used to be taken with ties going to the EARLIEST. EP62's C7 is
+    # all six Barrier Boom rules and C8 the five-point checklist: each trace quotes EVERY
+    # item of its list, every item tied, and the check demanded the picture of all six
+    # rules sit straight after rule 1 — before the reader has met rules 2 to 6.
+    #   1. ONLY when the trace covers EVERY item of ONE list, and nothing outside it, does
+    #      the figure illustrate the list as a whole: its home is the END of that list,
+    #      inside the last item, after the words.
+    #   2. Otherwise a tie at the top is NOT broken by position. The check cannot tell
+    #      which tip the figure explains, so it stops and names the tie for a human.
+    def _list_end(lst):
+        return max(p for p in range(len(tips)) if lists[p] == lst)
+
     where = {}                       # figure -> the POSITION its card traces into
+    whole = set()                    # figures whose card shows a whole list
+    ties = []                        # (figure, [tied positions])
     for n in sorted(set(figures)):
         card = _card_for_figure(ep, n)
         if not card:
@@ -1450,8 +1465,37 @@ def check_figure_placement(ep, art: list[str], items, figures):
             hit = sum(1 for s in sentences if _squash(s) and _squash(s) in _squash(words))
             if hit:
                 score[pos] = max(score.get(pos, 0), hit)
-        if score:
-            where[n] = max(score, key=lambda k: (score[k], -k))
+        if not score:
+            continue
+        touched = {lists[p] for p in score}
+        if len(touched) == 1:
+            lst = next(iter(touched))
+            members = [p for p in range(len(tips)) if lists[p] == lst]
+            if len(members) > 1 and all(p in score for p in members):
+                where[n] = _list_end(lst)
+                whole.add(n)
+                continue
+        top = max(score.values())
+        best = sorted(p for p in score if score[p] == top)
+        if len(best) > 1:
+            ties.append((n, best))
+            continue
+        where[n] = best[0]
+    if ties:
+        bits = []
+        for n, best in ties:
+            names = [_say(p) for p in best]
+            said = (" and ".join(names) if len(names) == 2
+                    else ", ".join(names[:-1]) + " and " + names[-1])
+            bits.append(f"figure {n} is a tie between {said} — its card quotes each of "
+                        f"them equally, and does not cover the whole of one list")
+        raise Halt(
+            "E-BOOK FIGURES: the check cannot tell which tip a figure belongs beside.\n      "
+            + "\n      ".join(bits)
+            + "\n    The tip is worked out from the article sentences the card quotes. "
+              "When two tips score the same, it does NOT guess by picking the first — a "
+              "person decides which tip the picture explains. Retrying will not change "
+              "this.")
     if not where:
         return None
 
@@ -1471,6 +1515,12 @@ def check_figure_placement(ep, art: list[str], items, figures):
             bits.append(f"figure {n} illustrates {_say(tip)} and does not sit in it — "
                         f"it is outside the list altogether")
         for n, tip, got in wrong:
+            if n in whole:
+                lst = (f"list {lists[tip] + 1}" if li_no else "the list")
+                bits.append(f"figure {n} shows the whole of {lst} (its card quotes every "
+                            f"item), so it belongs at the end of {lst} — inside "
+                            f"{_say(tip)}, after its words — but it sits in {_say(got)}")
+                continue
             bits.append(f"figure {n} illustrates {_say(tip)} but sits in {_say(got)}")
         raise Halt(
             "E-BOOK FIGURES: a figure belongs beside the tip it illustrates.\n      "
@@ -1488,7 +1538,9 @@ def check_figure_placement(ep, art: list[str], items, figures):
     # number no book has ever had. Same `_say` the halt uses, so the two can never
     # describe the same item differently.
     return (f"figure placement: {len(where)} figure(s) sit in the tip their card traces "
-            f"to (" + ", ".join(f"figure {n}->{_say(t)}" for n, t in sorted(where.items()))
+            f"to (" + ", ".join(f"figure {n}->{_say(t)}"
+                                + (" — the end of the list it shows whole" if n in whole else "")
+                                for n, t in sorted(where.items()))
             + ")")
 
 

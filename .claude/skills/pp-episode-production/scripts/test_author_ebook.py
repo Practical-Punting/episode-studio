@@ -969,6 +969,83 @@ case("article numbering that JUMPS FORWARD still HALTS",
      article=ART_MULTI.replace("3. Stop when you reach it.", "5. Stop when you reach it."),
      body=multi_body())
 
+# ══ A CARD THAT SHOWS A WHOLE LIST, AND A TIE (EP62, 20 Nov 2026) ═══════════
+#
+# 🔴 EP62's figure 5 is C7 — all six Barrier Boom rules — and figure 6 is C8, the
+# five-point checklist. Each card's trace quotes EVERY item of its list, so every item
+# scored the same, and the check broke the tie by taking the FIRST item: it halted
+# saying the picture of all six rules "illustrates rule 1" and asked for it to sit
+# straight after rule 1, before the reader has met rules 2 to 6. The body already had
+# both figures at the end of their lists, which is right.
+#     Jodie's two rules (20 Nov 2026):
+#   1. Only when a card's trace covers EVERY item of ONE list does the figure belong
+#      to the list as a whole — at the END of it, inside its last item.
+#   2. Otherwise, when the top scores still tie, never pick the first: stop and name
+#      the tie, so a human decides.
+def _trace_of(tips):
+    return {f"items[{i}]": t.replace("&mdash;", "-") for i, t in enumerate(tips, 1)}
+
+
+L_EP_WHOLE = {"figures": [{"n": 1, "card": "C1"}],
+              "cards": [{"id": "C1", "content": {}, "trace": _trace_of(L_TIPS)}]}
+L_EP_TIE = {"figures": [{"n": 1, "card": "C1"}],
+            "cards": [{"id": "C1", "content": {}, "trace": _trace_of(L_TIPS[1:3])}]}
+
+ok("🔴 a card tracing EVERY tip of the list, figure at the END of the list — PASSES",
+   article=ART_L, body=numbered_body(figure_in=4), ebook_block=L_BOOK, ep_over=L_EP_WHOLE)
+
+case("a whole-list card's figure placed after the FIRST tip HALTS (it belongs at the end)",
+     "belongs at the end of", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP_WHOLE,
+     body=numbered_body(figure_in=1))
+
+case("a whole-list card's figure in the middle of the list HALTS",
+     "belongs at the end of", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP_WHOLE,
+     body=numbered_body(figure_in=2))
+
+case("a card tracing tips 2 AND 3 equally is a TIE — it HALTS even in tip 2 (no first-pick)",
+     "tie between tip 2 and tip 3", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP_TIE,
+     body=numbered_body(figure_in=2))
+
+case("the same TIE HALTS with the figure in tip 3 — and says tie, not 'wrong tip'",
+     "tie between tip 2 and tip 3", article=ART_L, ebook_block=L_BOOK, ep_over=L_EP_TIE,
+     body=numbered_body(figure_in=3))
+
+# 🔒 the single-tip control still holds after the change: one tip traced, figure there.
+ok("control: a card tracing ONE tip, figure in that tip — still PASSES",
+   article=ART_L, body=numbered_body(figure_in=2), ebook_block=L_BOOK, ep_over=L_EP)
+
+
+def multi_fig_body(at):
+    """multi_body with figure-1 inside the <li> at flat position `at` (1-based)."""
+    out, i = [M_HEAD], 0
+    flat = [t for r in M_RUNS for t in r]
+    for h, run_ in zip(M_HEADS, M_RUNS):
+        out.append(f'<h2 class="rule">{h}</h2>\n<ol>\n')
+        for _ in run_:
+            i += 1
+            fig = '<img class="illus" src="figure-1.png" alt="x">' if i == at else ""
+            out.append(f"  <li>{flat[i - 1]}{fig}</li>\n")
+        out.append("</ol>\n")
+    return "".join(out)
+
+
+M_EP_PLAN2 = {"figures": [{"n": 1, "card": "C1"}],
+              "cards": [{"id": "C1", "content": {}, "trace": _trace_of(M_RUNS[1])}]}
+M_EP_TWO_LISTS = {"figures": [{"n": 1, "card": "C1"}],
+                  "cards": [{"id": "C1", "content": {},
+                             "trace": _trace_of(M_RUNS[0] + M_RUNS[1])}]}
+
+ok("🔴 a card tracing every item of the SECOND list, figure at that list's end — PASSES",
+   article=ART_MULTI, body=multi_fig_body(4), ebook_block=M_BOOK, ep_over=M_EP_PLAN2)
+
+case("the same card's figure in the second list's FIRST item HALTS",
+     "belongs at the end of list 2", article=ART_MULTI, body=multi_fig_body(3),
+     ebook_block=M_BOOK, ep_over=M_EP_PLAN2)
+
+case("a card covering TWO whole lists is not 'one list' — a TIE, so it HALTS",
+     "tie between", article=ART_MULTI, body=multi_fig_body(4),
+     ebook_block=M_BOOK, ep_over=M_EP_TWO_LISTS)
+
 print("\nE-BOOK FIDELITY GATE — every guard must fire\n" + "=" * 76)
 for n, m in PASS:
     print(f"  ✓ {n}\n      {m[:150]}")
