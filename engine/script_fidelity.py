@@ -159,6 +159,38 @@ def _dec_words(x: str) -> str:
         int_words(int(d)) for d in frac)
 
 
+# ══ A TIME IS A NUMBER WITH A UNIT STUCK TO IT ═══════════════════════════════════
+# (EP63, 20 Nov 2026.) The article prints race times the way racing pages do —
+# "1m 9.3s into 1m 11.1s", "45.8s down to 45.2s" — and the fold read "9.3s" as "nine
+# point threes" (the "s" welded to the last digit) and "1m" as one METRE. So the
+# writer's correct "one minute nine point three seconds" matched nothing, the gate
+# said the article "never states" five figures it plainly prints, and the writer
+# stopped rather than damage the script. It was right.
+#     🔒 A READING, NEVER A SUM. Each figure is spoken digit for digit exactly as the
+# decimal rule speaks it; nothing is converted ("1m 9.3s" is never "sixty-nine point
+# three seconds"). So a wrong time is still refused — test_glued_units holds that proof.
+#     ⚠️ THE COST, WRITTEN DOWN: a bare "20s" (an age, "in their 20s") now reads
+# "twenty seconds". Nothing is lost by it — the old reading, "twentys", was never a
+# thing anybody says — and the decade rule above still takes "1990s" first.
+def _mins(n: int) -> str:
+    return int_words(n) + (" minute" if n == 1 else " minutes")
+
+
+def _times(s: str) -> str:
+    """`1.08.56` / `2.00.6` (a race clock), `1m 9.3s` / `1m 34s`, and `45.8s` / `46s`."""
+    # The race clock: minutes . seconds . fraction — "one minute eight point five six
+    # seconds". The middle part must be a real seconds count (00-59).
+    s = re.sub(r"(?<![\w.$])(\d)\.([0-5]\d)\.(\d{1,2})(?![\d.]*\d)",
+               lambda m: f"{_mins(int(m.group(1)))} {int_words(int(m.group(2)))} point "
+                         + " ".join(int_words(int(d)) for d in m.group(3)) + " seconds", s)
+    # Minutes and seconds — BEFORE the unit rule, which would read the "m" as metres.
+    s = re.sub(r"(?<![\w.$])(\d+)m\s*(\d+(?:\.\d+)?)s\b",
+               lambda m: f"{_mins(int(m.group(1)))} {_dec_words(m.group(2))} seconds", s)
+    # Seconds alone.
+    return re.sub(r"(?<![\w.$])(\d+(?:\.\d+)?)s\b",
+                  lambda m: f"{_dec_words(m.group(1))} seconds", s)
+
+
 def _odds_dec(m) -> str:
     """`12.5-1` READ AS ODDS — "twelve point five to one".
 
@@ -511,6 +543,7 @@ def fold(text: str, frac=_frac_said, reading: str = "cardinal",
                lambda m: ordinal_words(int(m.group(1))) + m.group(3), s)
     # A DECADE, before anything else can mistake it for a year. See `_decade`.
     s = re.sub(r"\b(\d{2})(\d0)s\b", _decade, s)
+    s = _times(s)
     if ordinal_dates:
         s = re.sub(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\b",
                    lambda m: f"{m.group(1)} {ordinal_words(int(m.group(2)))}", s)
@@ -622,7 +655,27 @@ def haystacks(capture_text: str) -> list[list[str]]:
         HUNDREDS reading is how a distance is actually said and it was the one
         missing — see `_hundreds` for the episode it cost.
     """
-    src = source_text(capture_text)
+    return readings(source_text(capture_text))
+
+
+# The unit words this module's own fold writes. DERIVED from what it emits, so a unit
+# added to UNITS or `_times` is covered without anyone remembering to add it here.
+UNIT_WORDS = set(UNITS.values()) | {"dollars", "seconds", "minutes"}
+_UNIT_PLURAL = re.compile(r"\b(" + "|".join(sorted(w[:-1] for w in UNIT_WORDS)) + r")s\b")
+
+
+def unit_singular(tokens: list[str]) -> list[str]:
+    """Token list with every unit word in the singular — "seconds" -> "second".
+
+    For COMPARING two readings where only the grammar may differ: "a one minute nine
+    point three SECOND run" and "1m 9.3s" are the same figure. No number word moves."""
+    return [t[:-1] if t in UNIT_WORDS else t for t in tokens]
+
+
+def readings(src: str) -> list[list[str]]:
+    """Every way `src` may legitimately be READ ALOUD — the body of `haystacks`, for
+    any text. The hook gate reads the approved hook with this, so the hook and the
+    article are read by ONE definition (CLAUDE.md 2b), not two that drift."""
     out = []
     for frac in (_frac_named, _frac_in, _frac_odds):
         for reading in READINGS:
@@ -680,7 +733,10 @@ def haystacks(capture_text: str) -> list[list[str]]:
                 # dollar bet"), so the singular is offered for EVERY amount. Only the
                 # unit word changes — no number word moves — so an amount the article
                 # does not print is still refused. test_any_dollar_is_sayable.py.
-                sing = re.sub(r"\bdollars\b", "dollar", s)
+                # 🔴 AND NEVER ONLY DOLLARS. (EP63, 20 Nov 2026.) "a one minute nine
+                # point three SECOND run" — any unit before a noun takes the singular, so
+                # the singular is offered for every unit word the fold writes.
+                sing = _UNIT_PLURAL.sub(r"\1", s)
                 if sing != s:
                     out.append(norm_words(sing))
                     out.append(norm_words(re.sub(units, " ", sing)))

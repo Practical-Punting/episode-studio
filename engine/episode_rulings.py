@@ -225,8 +225,16 @@ def check(script_text: str, capture_text: str, ep) -> list[str]:
     said = _spoken(script_text)
 
     if hook:
-        want = _spoken(hook)
-        if said[:len(want)] != want:
+        # 🔴 THE HOOK IS READ THE WAY IT IS SAID — EVERY WAY. (EP63, 20 Nov 2026.) One
+        # fold compared letter for letter could not accept "a one minute nine point three
+        # second run" for the approved "a 1m 9.3s run", though the brief tells the writer
+        # to write the hook's figures as words. The hook is now read by the same reader
+        # as the article (`sf.readings`), and unit words are compared in the singular on
+        # both sides — grammar only; no number word moves, so a wrong figure, a changed
+        # word or anything before the hook still blocks.
+        said_u = sf.unit_singular(said)
+        wants = [sf.unit_singular(w) for w in [_spoken(hook)] + sf.readings(hook)]
+        if not any(said_u[:len(w)] == w for w in wants):
             opening = " ".join((script_text or "").split()[:len(hook.split()) + 6])
             out.append(
                 f'the script must open with the approved hook, word for word: "{hook}". '
